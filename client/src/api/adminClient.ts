@@ -1,9 +1,8 @@
 import axios from 'axios'
 import { useAdminStore } from '../store/adminAuth'
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-
-export const adminApi = axios.create({ baseURL: BASE_URL })
+// Use relative URL so it works on any domain (Railway, localhost, etc.)
+export const adminApi = axios.create({ baseURL: '' })
 
 adminApi.interceptors.request.use((config) => {
   const token = useAdminStore.getState().token

@@ -68,6 +68,24 @@ router.put('/departments/:id', authenticate, requireRole('OWNER', 'ROP'), async 
   }
 })
 
+// Delete department (only if empty — no users)
+router.delete('/departments/:id', authenticate, requireRole('OWNER'), async (req: AuthRequest, res: Response) => {
+  try {
+    const dept = await prisma.department.findFirst({
+      where: { id: req.params.id, companyId: req.user!.companyId },
+      include: { _count: { select: { users: true } } },
+    })
+    if (!dept) return res.status(404).json({ error: 'Not found' })
+    if (dept._count.users > 0) return res.status(400).json({ error: 'Нельзя удалить отдел с сотрудниками' })
+
+    await prisma.department.delete({ where: { id: req.params.id } })
+    res.json({ ok: true })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // Get departments
 router.get('/departments', authenticate, async (req: AuthRequest, res: Response) => {
   try {

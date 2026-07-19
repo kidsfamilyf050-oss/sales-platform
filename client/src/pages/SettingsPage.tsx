@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
-import { Save, Pencil, Check, X } from 'lucide-react'
+import { Save, Pencil, Check, X, Trash2 } from 'lucide-react'
 
 const SPHERES = ['Образование', 'Медицинский центр', 'Недвижимость', 'IT и технологии', 'Розничная торговля', 'Услуги', 'Строительство', 'Другое']
 
@@ -10,6 +10,8 @@ function DeptRenameRow({ dept }: { dept: any }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(dept.name)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const isEmpty = (dept.users?.length || 0) === 0
 
   const save = async () => {
     if (!name.trim() || name === dept.name) { setEditing(false); return }
@@ -25,9 +27,22 @@ function DeptRenameRow({ dept }: { dept: any }) {
     }
   }
 
+  const deleteDept = async () => {
+    if (!window.confirm(`Удалить отдел "${dept.name}"?`)) return
+    setDeleting(true)
+    try {
+      await api.delete(`/company/departments/${dept.id}`)
+      qc.invalidateQueries({ queryKey: ['departments'] })
+    } catch (e: any) {
+      alert(e?.response?.data?.error || 'Не удалось удалить')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
-      <div className={`w-2 h-2 rounded-full ${dept.type === 'SALES' ? 'bg-blue-500' : 'bg-orange-500'}`} />
+      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${dept.type === 'SALES' ? 'bg-blue-500' : 'bg-orange-500'}`} />
       {editing ? (
         <>
           <input
@@ -48,9 +63,14 @@ function DeptRenameRow({ dept }: { dept: any }) {
         <>
           <span className="flex-1 text-sm text-gray-800">{dept.name}</span>
           <span className="text-xs text-gray-400">{dept.type === 'SALES' ? 'Продажи' : 'Маркетинг'} · {dept.users?.length || 0} чел.</span>
-          <button onClick={() => setEditing(true)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+          <button onClick={() => setEditing(true)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Переименовать">
             <Pencil className="w-3.5 h-3.5" />
           </button>
+          {isEmpty && (
+            <button onClick={deleteDept} disabled={deleting} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Удалить пустой отдел">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </>
       )}
     </div>

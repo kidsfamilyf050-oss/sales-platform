@@ -18,7 +18,7 @@ const app = express()
 const PORT = process.env.PORT || 3001
 
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, cb) => cb(null, true), // allow all origins (same-domain Railway + dev)
   credentials: true,
 }))
 app.use(express.json())
