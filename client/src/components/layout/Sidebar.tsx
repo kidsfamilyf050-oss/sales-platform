@@ -6,6 +6,7 @@ const navByRole: Record<string, { to: string; label: string; icon: any }[]> = {
   OWNER: [
     { to: '/dashboard/owner', label: 'Дашборд', icon: BarChart2 },
     { to: '/tracking', label: 'Контроль', icon: Activity },
+    { to: '/marketing', label: 'Маркетинг', icon: TrendingUp },
     { to: '/users', label: 'Сотрудники', icon: Users },
     { to: '/plans', label: 'Планы', icon: Target },
     { to: '/settings', label: 'Настройки', icon: Settings },
@@ -13,6 +14,7 @@ const navByRole: Record<string, { to: string; label: string; icon: any }[]> = {
   ROP: [
     { to: '/dashboard/rop', label: 'Дашборд', icon: BarChart2 },
     { to: '/tracking', label: 'Контроль', icon: Activity },
+    { to: '/marketing', label: 'Маркетинг', icon: TrendingUp },
     { to: '/users', label: 'Сотрудники', icon: Users },
     { to: '/plans', label: 'Планы', icon: Target },
     { to: '/settings', label: 'Настройки', icon: Settings },
