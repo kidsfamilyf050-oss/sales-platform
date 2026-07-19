@@ -52,17 +52,21 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
 
     const totalSalesAmount = sumReportField(closerReports, 'salesAmount')
     const totalSalesCount = sumReportField(closerReports, 'salesCount')
-    const totalClients = sumReportField(closerReports, 'clientsReceived')
-    const totalLeads = sumReportField(marketerReports, 'leadsCount')
-    const totalQualifiedLeads = sumReportField(marketerReports, 'qualifiedLeads')
-    const totalBudget = sumReportField(marketerReports, 'adBudget')
+    const totalClients = sumReportField(closerReports, 'clients')
+    // Marketing: leads & budget come from MARKETER reports
+    const totalLeads = marketerReports.reduce((s, r) => s + (Number((r.data as any).leads) || Number((r.data as any).leadsCount) || 0), 0)
+    const totalBudget = marketerReports.reduce((s, r) => s + (Number((r.data as any).budget) || Number((r.data as any).adBudget) || 0), 0)
+    // Qualified leads come from LIDER reports (not marketer)
+    const totalQualifiedLeads = sumReportField(liderReports, 'qualifiedLeads')
 
     // Sum all department + company level plans (not per-user)
     const salesPlan = plans.filter(p => !p.userId && p.type === 'SALES_AMOUNT').reduce((s, p) => s + p.value, 0)
-    const leadsplan = plans.filter(p => !p.userId && p.type === 'LEADS').reduce((s, p) => s + p.value, 0)
+    // Company-level marketing plan (no userId, no departmentId)
+    const leadsplan = plans.find(p => !p.userId && !p.departmentId && p.type === 'LEADS')?.value || 0
 
     const avgCheck = totalSalesCount > 0 ? totalSalesAmount / totalSalesCount : 0
-    const conversion = totalClients > 0 ? (totalSalesCount / totalClients) * 100 : 0
+    // Общая конверсия: лид → продажа (от маркетинга до сделки)
+    const conversion = totalLeads > 0 ? (totalSalesCount / totalLeads) * 100 : 0
     const leadCost = totalLeads > 0 ? totalBudget / totalLeads : 0
 
     // Daily chart data (closers)
@@ -227,10 +231,10 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       }
     }).sort((a, b) => b.completion - a.completion)
 
-    // Marketing block
-    const totalLeads = sumReportField(marketerReports, 'leadsCount')
-    const totalBudget = sumReportField(marketerReports, 'adBudget')
-    const leadsplan = plans.find(p => p.type === 'LEADS')?.value || 0
+    // Marketing block: leads & budget from MARKETER, qualified from LIDER
+    const totalLeads = marketerReports.reduce((s, r) => s + (Number((r.data as any).leads) || Number((r.data as any).leadsCount) || 0), 0)
+    const totalBudget = marketerReports.reduce((s, r) => s + (Number((r.data as any).budget) || Number((r.data as any).adBudget) || 0), 0)
+    const leadsplan = plans.find(p => !p.userId && !p.departmentId && p.type === 'LEADS')?.value || 0
 
     res.json({
       summary: {
@@ -240,7 +244,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         planCompletion: salesPlan > 0 ? Math.round((salesAmount / salesPlan) * 100) : 0,
       },
       funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount },
-      marketing: { leadsplan, totalLeads, totalBudget, leadCost: totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0, qualifiedLeads: sumReportField(marketerReports, 'qualifiedLeads') },
+      marketing: { leadsplan, totalLeads, totalBudget, leadCost: totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0, qualifiedLeads },
       managerRating,
       liderRating,
     })
