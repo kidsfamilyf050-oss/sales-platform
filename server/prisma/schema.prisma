@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id             String   @id @default(cuid())
+  name           String
+  businessSphere String?
+  reportingStart Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  departments   Department[]
+  users         User[]
+  plans         Plan[]
+  notifications Notification[]
+}
+
+model Department {
+  id        String         @id @default(cuid())
+  name      String
+  type      DepartmentType
+  hasLiders Boolean        @default(false)
+  companyId String
+  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  users   User[]
+  plans   Plan[]
+  reports Report[]
+}
+
+enum DepartmentType {
+  SALES
+  MARKETING
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  name         String
+  phone        String?
+  passwordHash String?
+  role         UserRole
+  managerType  ManagerType?
+  status       UserStatus  @default(ACTIVE)
+  companyId    String
+  company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  inviteToken  String?     @unique
+  invitedAt    DateTime?
+  lastLoginAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  reports       Report[]
+  notifications Notification[]
+  planChanges   PlanChange[]
+}
+
+enum UserRole {
+  OWNER
+  ROP
+  MANAGER
+  MARKETER
+}
+
+enum ManagerType {
+  LIDER
+  CLOSER
+}
+
+enum UserStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model Plan {
+  id           String   @id @default(cuid())
+  period       String   // "2024-01"
+  type         PlanType
+  value        Float
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  userId       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  changes PlanChange[]
+
+  @@unique([period, type, companyId, departmentId, userId])
+}
+
+enum PlanType {
+  SALES_AMOUNT
+  SALES_COUNT
+  AVG_CHECK
+  CONVERSION
+  LEADS
+  QUALIFIED_LEADS
+  MEETINGS_SCHEDULED
+  MEETINGS_ATTENDED
+  BUDGET
+}
+
+model PlanChange {
+  id        String   @id @default(cuid())
+  planId    String
+  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  oldValue  Float
+  newValue  Float
+  createdAt DateTime @default(now())
+}
+
+model Report {
+  id           String     @id @default(cuid())
+  date         DateTime
+  userId       String
+  user         User       @relation(fields: [userId], references: [id])
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  type         ReportType
+  data         Json
+  comment      String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([date, userId, type])
+}
+
+enum ReportType {
+  LIDER
+  CLOSER
+  MARKETER
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  companyId String
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  message   String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+}
+
+enum NotificationType {
+  REPORT_MISSING
+  PLAN_CRITICAL
+  CONVERSION_DROP
+  BUDGET_EXCEEDED
+  LEADS_LOW
+  LEAD_COST_HIGH
+}
