@@ -43,7 +43,7 @@ export default function OwnerDashboard() {
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">Загрузка...</div>
   if (!data) return null
 
-  const { summary, dailyChart, managerRating } = data
+  const { summary, dailyChart, managerRating, liderRating } = data
 
   return (
     <div className="space-y-6">
@@ -62,8 +62,8 @@ export default function OwnerDashboard() {
             >
               <ChevronLeft className="w-4 h-4 text-gray-600" />
             </button>
-            <span className="px-3 text-sm font-semibold text-gray-800 min-w-[150px] text-center capitalize">
-              {monthRange.label}
+            <span className="px-3 text-sm font-semibold text-gray-800 min-w-[150px] text-center">
+              {monthRange.label.replace(' г.', '').replace(' г', '')}
             </span>
             <button
               onClick={() => setMonthOffset(o => Math.min(0, o + 1))}
@@ -119,18 +119,21 @@ export default function OwnerDashboard() {
         </div>
       )}
 
-      {/* Manager Rating */}
+      {/* Closer Rating */}
       {managerRating?.length > 0 && (
         <div className="card">
-          <h3 className="font-semibold text-gray-900 mb-4">Рейтинг менеджеров</h3>
+          <h3 className="font-semibold text-gray-900 mb-1">Рейтинг клоузеров</h3>
+          <p className="text-xs text-gray-400 mb-4">По % выполнения плана продаж</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b border-gray-100">
                   <th className="pb-2 font-medium">#</th>
                   <th className="pb-2 font-medium">Менеджер</th>
-                  <th className="pb-2 font-medium text-right">Продажи</th>
-                  <th className="pb-2 font-medium text-right">Сумма</th>
+                  <th className="pb-2 font-medium text-right">План</th>
+                  <th className="pb-2 font-medium text-right">Факт</th>
+                  <th className="pb-2 font-medium text-right">Выполнение</th>
+                  <th className="pb-2 font-medium text-right">Сделок</th>
                   <th className="pb-2 font-medium text-right">Конверсия</th>
                   <th className="pb-2 font-medium text-right">Ср. чек</th>
                 </tr>
@@ -140,10 +143,60 @@ export default function OwnerDashboard() {
                   <tr key={m.id} className="border-b border-gray-50 hover:bg-gray-50">
                     <td className="py-2.5 text-gray-400 font-medium">{i + 1}</td>
                     <td className="py-2.5 font-medium text-gray-900">{m.name}</td>
-                    <td className="py-2.5 text-right">{m.salesCount}</td>
+                    <td className="py-2.5 text-right text-gray-500">₸ {fmt(m.plan)}</td>
                     <td className="py-2.5 text-right font-medium">₸ {fmt(m.salesAmount)}</td>
+                    <td className="py-2.5 text-right">
+                      <span className={`font-bold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                        {m.completion}%
+                      </span>
+                    </td>
+                    <td className="py-2.5 text-right">{m.salesCount}</td>
                     <td className="py-2.5 text-right">{m.conversion}%</td>
                     <td className="py-2.5 text-right">₸ {fmt(m.avgCheck)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Lider Rating */}
+      {liderRating?.length > 0 && (
+        <div className="card">
+          <h3 className="font-semibold text-gray-900 mb-1">Рейтинг лидорубов</h3>
+          <p className="text-xs text-gray-400 mb-4">По % выполнения плана лидогенерации</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500 border-b border-gray-100">
+                  <th className="pb-2 font-medium">#</th>
+                  <th className="pb-2 font-medium">Лидоруб</th>
+                  <th className="pb-2 font-medium text-right">План лидов</th>
+                  <th className="pb-2 font-medium text-right">Получено</th>
+                  <th className="pb-2 font-medium text-right">Выполнение</th>
+                  <th className="pb-2 font-medium text-right">Квалиф.</th>
+                  <th className="pb-2 font-medium text-right">% квал.</th>
+                  <th className="pb-2 font-medium text-right">На встречу</th>
+                  <th className="pb-2 font-medium text-right">Пришло</th>
+                </tr>
+              </thead>
+              <tbody>
+                {liderRating.map((m: any, i: number) => (
+                  <tr key={m.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="py-2.5 text-gray-400 font-medium">{i + 1}</td>
+                    <td className="py-2.5 font-medium text-gray-900">{m.name}</td>
+                    <td className="py-2.5 text-right text-gray-500">{m.leadsplan}</td>
+                    <td className="py-2.5 text-right font-medium">{m.leads}</td>
+                    <td className="py-2.5 text-right">
+                      <span className={`font-bold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                        {m.completion}%
+                      </span>
+                    </td>
+                    <td className="py-2.5 text-right">{m.qualifiedLeads}</td>
+                    <td className="py-2.5 text-right">{m.qualRate}%</td>
+                    <td className="py-2.5 text-right">{m.meetingsScheduled}</td>
+                    <td className="py-2.5 text-right">{m.meetingsAttended}</td>
                   </tr>
                 ))}
               </tbody>

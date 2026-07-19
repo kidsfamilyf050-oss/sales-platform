@@ -368,20 +368,30 @@ export default function TrackingPage() {
           const daysPassed = todayDay ? Math.min(todayDay, totalDays) : totalDays
           const dailyNeed = monthlyPlan ? Math.ceil((monthlyPlan - primaryTotal) / Math.max(1, totalDays - daysPassed)) : 0
 
+          // Status indicator per ТЗ 10.3.1
+          const todayDateStr = todayDay ? toDateStr(period, todayDay) : null
+          const hasReportToday = todayDateStr ? !!reportsMap[u.id]?.[todayDateStr] : true
+          const statusDot = !hasReportToday ? 'bg-red-500' : (p !== null && p < 50) ? 'bg-yellow-400' : 'bg-green-400'
+          const statusLabel = !hasReportToday ? 'Нет отчёта' : (p !== null && p < 50) ? 'Отстаёт' : 'В норме'
+
           return (
             <div key={u.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
               {/* Manager header */}
               <div className={`flex items-center justify-between px-4 py-3 border-b border-gray-100 ${pctBg(p)}`}>
                 <div className="flex items-center gap-2.5">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${
-                    u.managerType === 'LIDER' ? 'bg-purple-500' : u.role === 'MARKETER' ? 'bg-orange-500' : 'bg-blue-500'
-                  }`}>
-                    {u.name.charAt(0).toUpperCase()}
+                  <div className="relative">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${
+                      u.managerType === 'LIDER' ? 'bg-purple-500' : u.role === 'MARKETER' ? 'bg-orange-500' : 'bg-blue-500'
+                    }`}>
+                      {u.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${statusDot}`} title={statusLabel} />
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900 text-sm">{u.name}</p>
                     <p className="text-xs text-gray-400">
                       {u.managerType === 'LIDER' ? 'Лидоруб' : u.role === 'MARKETER' ? 'Маркетолог' : 'Клоузер'}
+                      {todayDay && <span className={`ml-2 font-medium ${!hasReportToday ? 'text-red-500' : (p !== null && p < 50) ? 'text-amber-500' : 'text-green-600'}`}>● {statusLabel}</span>}
                     </p>
                   </div>
                 </div>

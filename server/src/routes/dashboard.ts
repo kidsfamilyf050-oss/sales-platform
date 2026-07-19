@@ -40,12 +40,13 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
   const periodKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
 
   try {
-    const [salesDepts, marketingDepts, allUsers, plans, closerReports, marketerReports] = await Promise.all([
+    const [salesDepts, marketingDepts, allUsers, plans, closerReports, liderReports, marketerReports] = await Promise.all([
       prisma.department.findMany({ where: { companyId: req.user!.companyId, type: 'SALES' }, include: { users: { where: { status: 'ACTIVE', role: 'MANAGER' } } } }),
       prisma.department.findMany({ where: { companyId: req.user!.companyId, type: 'MARKETING' } }),
       prisma.user.findMany({ where: { companyId: req.user!.companyId, status: 'ACTIVE', role: 'MANAGER' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey } }),
-      prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'CLOSER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true, departmentId: true } } } }),
+      prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'CLOSER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true, departmentId: true, managerType: true } } } }),
+      prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'LIDER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true, departmentId: true, managerType: true } } } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'MARKETER', date: { gte: start, lte: end } } }),
     ])
 
@@ -73,25 +74,50 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       dailySales[d].amount += Number((r.data as any).salesAmount) || 0
     }
 
-    // Manager ratings
-    const managerStats: Record<string, { name: string; departmentId: string | null; salesCount: number; salesAmount: number; clientsReceived: number; reportDays: number }> = {}
+    // Closer rating
+    const closerStats: Record<string, { name: string; salesCount: number; salesAmount: number; clients: number }> = {}
     for (const r of closerReports) {
       const uid = r.user.id
-      if (!managerStats[uid]) managerStats[uid] = { name: r.user.name, departmentId: r.user.departmentId, salesCount: 0, salesAmount: 0, clientsReceived: 0, reportDays: 0 }
-      managerStats[uid].salesCount += Number((r.data as any).salesCount) || 0
-      managerStats[uid].salesAmount += Number((r.data as any).salesAmount) || 0
-      managerStats[uid].clientsReceived += Number((r.data as any).clientsReceived) || 0
-      managerStats[uid].reportDays++
+      if (!closerStats[uid]) closerStats[uid] = { name: r.user.name, salesCount: 0, salesAmount: 0, clients: 0 }
+      closerStats[uid].salesCount += Number((r.data as any).salesCount) || 0
+      closerStats[uid].salesAmount += Number((r.data as any).salesAmount) || 0
+      closerStats[uid].clients += Number((r.data as any).clients) || 0
     }
+    const managerRating = Object.entries(closerStats)
+      .map(([id, s]) => {
+        const plan = plans.find(p => p.userId === id && p.type === 'SALES_AMOUNT')?.value || 0
+        const completion = plan > 0 ? Math.round((s.salesAmount / plan) * 100) : 0
+        return {
+          id, name: s.name, type: 'CLOSER', plan,
+          salesCount: s.salesCount, salesAmount: s.salesAmount, completion,
+          conversion: s.clients > 0 ? Math.round((s.salesCount / s.clients) * 100) : 0,
+          avgCheck: s.salesCount > 0 ? Math.round(s.salesAmount / s.salesCount) : 0,
+        }
+      })
+      .sort((a, b) => b.completion - a.completion)
 
-    const managerRating = Object.entries(managerStats)
-      .map(([id, s]) => ({
-        id, name: s.name, departmentId: s.departmentId,
-        salesCount: s.salesCount, salesAmount: s.salesAmount,
-        conversion: s.clientsReceived > 0 ? Math.round((s.salesCount / s.clientsReceived) * 100) : 0,
-        avgCheck: s.salesCount > 0 ? Math.round(s.salesAmount / s.salesCount) : 0,
-      }))
-      .sort((a, b) => b.salesAmount - a.salesAmount)
+    // Lider rating
+    const liderStats: Record<string, { name: string; leads: number; qualifiedLeads: number; meetingsScheduled: number; meetingsAttended: number }> = {}
+    for (const r of liderReports) {
+      const uid = r.user.id
+      if (!liderStats[uid]) liderStats[uid] = { name: r.user.name, leads: 0, qualifiedLeads: 0, meetingsScheduled: 0, meetingsAttended: 0 }
+      liderStats[uid].leads += Number((r.data as any).leads) || 0
+      liderStats[uid].qualifiedLeads += Number((r.data as any).qualifiedLeads) || 0
+      liderStats[uid].meetingsScheduled += Number((r.data as any).meetingsScheduled) || 0
+      liderStats[uid].meetingsAttended += Number((r.data as any).meetingsAttended) || 0
+    }
+    const liderRating = Object.entries(liderStats)
+      .map(([id, s]) => {
+        const leadsplan = plans.find(p => p.userId === id && p.type === 'LEADS')?.value || 0
+        const completion = leadsplan > 0 ? Math.round((s.leads / leadsplan) * 100) : 0
+        return {
+          id, name: s.name, type: 'LIDER', leadsplan,
+          leads: s.leads, qualifiedLeads: s.qualifiedLeads,
+          meetingsScheduled: s.meetingsScheduled, meetingsAttended: s.meetingsAttended,
+          completion, qualRate: s.leads > 0 ? Math.round((s.qualifiedLeads / s.leads) * 100) : 0,
+        }
+      })
+      .sort((a, b) => b.completion - a.completion)
 
     res.json({
       summary: {
@@ -106,6 +132,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       departments: salesDepts,
       dailyChart: Object.entries(dailySales).map(([date, v]) => ({ date, ...v })).sort((a, b) => a.date.localeCompare(b.date)),
       managerRating,
+      liderRating,
     })
   } catch (e) {
     console.error(e)
@@ -135,38 +162,67 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
 
     const salesAmount = sumReportField(closerReports, 'salesAmount')
     const salesCount = sumReportField(closerReports, 'salesCount')
-    const clientsReceived = sumReportField(closerReports, 'clientsReceived')
-    const leadsReceived = sumReportField(liderReports, 'leadsReceived')
+    const clientsReceived = sumReportField(closerReports, 'clients')
+    const leadsReceived = sumReportField(liderReports, 'leads')
     const qualifiedLeads = sumReportField(liderReports, 'qualifiedLeads')
-    const transferredToCloser = sumReportField(liderReports, 'transferredToCloser')
+    const meetingsScheduled = sumReportField(liderReports, 'meetingsScheduled')
+    const meetingsAttended = sumReportField(liderReports, 'meetingsAttended')
 
     const salesPlan = plans.find(p => p.departmentId === deptId && p.type === 'SALES_AMOUNT')?.value ||
       plans.find(p => !p.departmentId && p.type === 'SALES_AMOUNT')?.value || 0
 
-    // Manager rating with status indicator
-    const managerMap: Record<string, any> = {}
+    // Closer rating with status indicator
+    const closerMap: Record<string, any> = {}
     for (const r of closerReports) {
       const uid = r.user.id
-      if (!managerMap[uid]) managerMap[uid] = { id: uid, name: r.user.name, salesCount: 0, salesAmount: 0, clientsReceived: 0 }
-      managerMap[uid].salesCount += Number((r.data as any).salesCount) || 0
-      managerMap[uid].salesAmount += Number((r.data as any).salesAmount) || 0
-      managerMap[uid].clientsReceived += Number((r.data as any).clientsReceived) || 0
+      if (!closerMap[uid]) closerMap[uid] = { salesCount: 0, salesAmount: 0, clients: 0 }
+      closerMap[uid].salesCount += Number((r.data as any).salesCount) || 0
+      closerMap[uid].salesAmount += Number((r.data as any).salesAmount) || 0
+      closerMap[uid].clients += Number((r.data as any).clients) || 0
     }
 
-    const managerRating = managers.map(m => {
-      const stats = managerMap[m.id] || { salesCount: 0, salesAmount: 0, clientsReceived: 0 }
+    const closers = managers.filter(m => m.managerType !== 'LIDER')
+    const managerRating = closers.map(m => {
+      const stats = closerMap[m.id] || { salesCount: 0, salesAmount: 0, clients: 0 }
       const managerPlan = plans.find(p => p.userId === m.id && p.type === 'SALES_AMOUNT')?.value || 0
       const completion = managerPlan > 0 ? Math.round((stats.salesAmount / managerPlan) * 100) : 0
       const reportedToday = todayReportedIds.has(m.id)
-
       let status: 'red' | 'yellow' | 'green' = 'green'
       if (!reportedToday) status = 'red'
       else if (completion < 50) status = 'yellow'
-
       return {
         id: m.id, name: m.name, managerType: m.managerType,
         plan: managerPlan, salesAmount: stats.salesAmount, salesCount: stats.salesCount,
-        completion, conversion: stats.clientsReceived > 0 ? Math.round((stats.salesCount / stats.clientsReceived) * 100) : 0,
+        completion, conversion: stats.clients > 0 ? Math.round((stats.salesCount / stats.clients) * 100) : 0,
+        status, reportedToday,
+      }
+    }).sort((a, b) => b.completion - a.completion)
+
+    // Lider rating with status indicator
+    const liderMap: Record<string, any> = {}
+    for (const r of liderReports) {
+      const uid = r.user.id
+      if (!liderMap[uid]) liderMap[uid] = { leads: 0, qualifiedLeads: 0, meetingsScheduled: 0, meetingsAttended: 0 }
+      liderMap[uid].leads += Number((r.data as any).leads) || 0
+      liderMap[uid].qualifiedLeads += Number((r.data as any).qualifiedLeads) || 0
+      liderMap[uid].meetingsScheduled += Number((r.data as any).meetingsScheduled) || 0
+      liderMap[uid].meetingsAttended += Number((r.data as any).meetingsAttended) || 0
+    }
+
+    const liderUsers = managers.filter(m => m.managerType === 'LIDER')
+    const liderRating = liderUsers.map(m => {
+      const stats = liderMap[m.id] || { leads: 0, qualifiedLeads: 0, meetingsScheduled: 0, meetingsAttended: 0 }
+      const leadsplan = plans.find(p => p.userId === m.id && p.type === 'LEADS')?.value || 0
+      const completion = leadsplan > 0 ? Math.round((stats.leads / leadsplan) * 100) : 0
+      const reportedToday = todayReportedIds.has(m.id)
+      let status: 'red' | 'yellow' | 'green' = 'green'
+      if (!reportedToday) status = 'red'
+      else if (completion < 50) status = 'yellow'
+      return {
+        id: m.id, name: m.name,
+        leadsplan, leads: stats.leads, qualifiedLeads: stats.qualifiedLeads,
+        meetingsScheduled: stats.meetingsScheduled, meetingsAttended: stats.meetingsAttended,
+        completion, qualRate: stats.leads > 0 ? Math.round((stats.qualifiedLeads / stats.leads) * 100) : 0,
         status, reportedToday,
       }
     }).sort((a, b) => b.completion - a.completion)
@@ -183,9 +239,10 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         avgCheck: salesCount > 0 ? Math.round(salesAmount / salesCount) : 0,
         planCompletion: salesPlan > 0 ? Math.round((salesAmount / salesPlan) * 100) : 0,
       },
-      funnel: { leadsReceived, qualifiedLeads, transferredToCloser, salesCount, payments: salesCount },
+      funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount },
       marketing: { leadsplan, totalLeads, totalBudget, leadCost: totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0, qualifiedLeads: sumReportField(marketerReports, 'qualifiedLeads') },
       managerRating,
+      liderRating,
     })
   } catch (e) {
     console.error(e)
@@ -227,17 +284,19 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         recentReports: reports.slice(0, 7),
       })
     } else {
-      const leadsReceived = sumReportField(reports, 'leadsReceived')
+      const leads = sumReportField(reports, 'leads')
       const qualifiedLeads = sumReportField(reports, 'qualifiedLeads')
+      const meetingsScheduled = sumReportField(reports, 'meetingsScheduled')
+      const meetingsAttended = sumReportField(reports, 'meetingsAttended')
       const leadsplan = plans.find(p => p.type === 'LEADS')?.value || 0
 
       res.json({
         type: 'LIDER',
         summary: {
-          leadsplan, leadsReceived,
-          planCompletion: leadsplan > 0 ? Math.round((leadsReceived / leadsplan) * 100) : 0,
-          qualifiedLeads,
-          conversion: leadsReceived > 0 ? Math.round((qualifiedLeads / leadsReceived) * 100) : 0,
+          leadsplan, leads,
+          planCompletion: leadsplan > 0 ? Math.round((leads / leadsplan) * 100) : 0,
+          qualifiedLeads, meetingsScheduled, meetingsAttended,
+          qualRate: leads > 0 ? Math.round((qualifiedLeads / leads) * 100) : 0,
         },
         todayReport,
         recentReports: reports.slice(0, 7),
