@@ -78,8 +78,8 @@ export default function MarketingPage() {
   })
 
   // Compute summary
-  const leadsplan = (plans as any[]).find((p: any) => p.type === 'LEADS' && !p.userId)?.value || 0
-  const budgetPlan = (plans as any[]).find((p: any) => p.type === 'BUDGET' && !p.userId)?.value || 0
+  const leadsplan = (plans as any[]).find((p: any) => p.type === 'LEADS' && !p.userId && !p.departmentId)?.value || 0
+  const budgetPlan = (plans as any[]).find((p: any) => p.type === 'BUDGET' && !p.userId && !p.departmentId)?.value || 0
 
   const totalLeads = reports.reduce((s: number, r: any) => s + (Number(r.data?.leads) || 0), 0)
   const totalQualified = reports.reduce((s: number, r: any) => s + (Number(r.data?.qualifiedLeads) || 0), 0)

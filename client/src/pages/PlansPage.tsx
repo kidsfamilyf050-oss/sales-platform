@@ -158,19 +158,25 @@ export default function PlansPage() {
     queryFn: () => api.get(`/plans?period=${period}`).then(r => r.data),
   })
 
-  const getVal = (type: string, scope: { deptId?: string; userId?: string }) => {
-    const key = scope.userId ? `${type}__user_${scope.userId}` : `${type}__dept_${scope.deptId}`
+  const getVal = (type: string, scope: { deptId?: string; userId?: string; company?: boolean }) => {
+    const key = scope.company ? `${type}__company`
+      : scope.userId ? `${type}__user_${scope.userId}`
+      : `${type}__dept_${scope.deptId}`
     if (values[key] !== undefined) return values[key]
-    const existing = plans.find((p: any) =>
-      p.type === type &&
-      (p.departmentId || '') === (scope.deptId || '') &&
-      (p.userId || '') === (scope.userId || '')
-    )
+    const existing = scope.company
+      ? plans.find((p: any) => p.type === type && !p.userId && !p.departmentId)
+      : plans.find((p: any) =>
+          p.type === type &&
+          (p.departmentId || '') === (scope.deptId || '') &&
+          (p.userId || '') === (scope.userId || '')
+        )
     return existing?.value?.toString() || ''
   }
 
-  const setVal = (type: string, value: string, scope: { deptId?: string; userId?: string }) => {
-    const key = scope.userId ? `${type}__user_${scope.userId}` : `${type}__dept_${scope.deptId}`
+  const setVal = (type: string, value: string, scope: { deptId?: string; userId?: string; company?: boolean }) => {
+    const key = scope.company ? `${type}__company`
+      : scope.userId ? `${type}__user_${scope.userId}`
+      : `${type}__dept_${scope.deptId}`
     setValues(v => ({ ...v, [key]: value }))
   }
 
@@ -183,7 +189,9 @@ export default function PlansPage() {
         if (!type || !scopeRaw) continue
         const numVal = parseFloat(value)
         if (isNaN(numVal)) continue
-        if (scopeRaw.startsWith('dept_')) {
+        if (scopeRaw === 'company') {
+          plansList.push({ type, value: numVal })
+        } else if (scopeRaw.startsWith('dept_')) {
           const departmentId = scopeRaw.replace('dept_', '')
           plansList.push({ type, value: numVal, departmentId })
         } else if (scopeRaw.startsWith('user_')) {
@@ -351,7 +359,29 @@ export default function PlansPage() {
         )
       })}
 
-      {/* Marketing */}
+      {/* Marketing — always visible, company-level (no dept required) */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Megaphone className="w-5 h-5 text-orange-500" />
+          <h2 className="font-bold text-gray-800 text-lg">Маркетинг</h2>
+        </div>
+        <SectionCard
+          title="План маркетинга (на компанию)"
+          subtitle="Цели по лидогенерации и рекламному бюджету на месяц"
+          icon={Megaphone}
+          iconColor="bg-orange-50"
+        >
+          <div className="grid grid-cols-2 gap-4">
+            {MARKETING_PLANS.map(p => (
+              <PlanInput key={p.type} label={p.label} unit={p.unit} hint={p.hint}
+                value={getVal(p.type, { company: true })}
+                onChange={v => setVal(p.type, v, { company: true })} />
+            ))}
+          </div>
+        </SectionCard>
+      </div>
+
+      {/* Marketing departments (if they exist) */}
       {marketingDepts.map((dept: any) => {
         const marketers = dept.users.filter((u: any) => u.role === 'MARKETER')
         return (
