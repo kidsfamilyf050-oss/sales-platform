@@ -13,6 +13,7 @@ import UsersPage from './pages/UsersPage'
 import ReportPage from './pages/ReportPage'
 import SettingsPage from './pages/SettingsPage'
 import PlansPage from './pages/PlansPage'
+import TrackingPage from './pages/TrackingPage'
 // Admin
 import AdminLoginPage from './pages/admin/AdminLoginPage'
 import AdminLayout from './pages/admin/AdminLayout'
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="/users" element={<UsersPage />} />
           <Route path="/report" element={<ReportPage />} />
           <Route path="/plans" element={<PlansPage />} />
+          <Route path="/tracking" element={<TrackingPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
         {/* Super Admin Panel */}
