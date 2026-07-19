@@ -1,5 +1,5 @@
 import { Router, Response } from 'express'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, PlanType } from '@prisma/client'
 import { authenticate, requireRole, AuthRequest } from '../middleware/auth'
 
 const router = Router()
@@ -27,24 +27,28 @@ router.post('/', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRequ
   if (!period || !type || value === undefined) return res.status(400).json({ error: 'Missing fields' })
 
   try {
-    // Check if old value exists for changelog
+    const planType = type as PlanType
+    const deptId: string | null = departmentId ?? null
+    const uid: string | null = userId ?? null
+
     const existing = await prisma.plan.findFirst({
-      where: { period, type, companyId: req.user!.companyId, departmentId: departmentId || null, userId: userId || null },
+      where: { period, type: planType, companyId: req.user!.companyId, departmentId: deptId, userId: uid },
     })
 
     const plan = await prisma.plan.upsert({
       where: {
         period_type_companyId_departmentId_userId: {
-          period, type, companyId: req.user!.companyId,
-          departmentId: departmentId || null,
-          userId: userId || null,
+          period,
+          type: planType,
+          companyId: req.user!.companyId,
+          departmentId: deptId as string,
+          userId: uid as string,
         },
       },
       update: { value },
-      create: { period, type, value, companyId: req.user!.companyId, departmentId: departmentId || null, userId: userId || null },
+      create: { period, type: planType, value, companyId: req.user!.companyId, departmentId: deptId, userId: uid },
     })
 
-    // Log change
     if (existing && existing.value !== value) {
       await prisma.planChange.create({
         data: { planId: plan.id, userId: req.user!.id, oldValue: existing.value, newValue: value },
@@ -60,22 +64,28 @@ router.post('/', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRequ
 
 // Bulk upsert plans (for onboarding)
 router.post('/bulk', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRequest, res: Response) => {
-  const { period, plans } = req.body // plans: [{type, value, departmentId?, userId?}]
+  const { period, plans } = req.body
   if (!period || !plans?.length) return res.status(400).json({ error: 'Missing fields' })
 
   try {
     const results = await Promise.all(
       plans.map(async (p: { type: string; value: number; departmentId?: string; userId?: string }) => {
+        const planType = p.type as PlanType
+        const deptId: string | null = p.departmentId ?? null
+        const uid: string | null = p.userId ?? null
+
         return prisma.plan.upsert({
           where: {
             period_type_companyId_departmentId_userId: {
-              period, type: p.type, companyId: req.user!.companyId,
-              departmentId: p.departmentId || null,
-              userId: p.userId || null,
+              period,
+              type: planType,
+              companyId: req.user!.companyId,
+              departmentId: deptId as string,
+              userId: uid as string,
             },
           },
           update: { value: p.value },
-          create: { period, type: p.type, value: p.value, companyId: req.user!.companyId, departmentId: p.departmentId || null, userId: p.userId || null },
+          create: { period, type: planType, value: p.value, companyId: req.user!.companyId, departmentId: deptId, userId: uid },
         })
       })
     )
