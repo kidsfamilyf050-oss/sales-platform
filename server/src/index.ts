@@ -12,6 +12,7 @@ import dashboardRoutes from './routes/dashboard'
 import plansRoutes from './routes/plans'
 import aiRoutes from './routes/ai'
 import notificationsRoutes from './routes/notifications'
+import adminRoutes from './routes/admin'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -30,6 +31,7 @@ app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/plans', plansRoutes)
 app.use('/api/ai', aiRoutes)
 app.use('/api/notifications', notificationsRoutes)
+app.use('/api/admin', adminRoutes)
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })

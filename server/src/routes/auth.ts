@@ -11,9 +11,15 @@ const JWT_SECRET = process.env.JWT_SECRET || 'secret'
 const JWT_EXPIRES = '30d'
 
 // Register (Owner creates company + account)
+// Protected by REGISTRATION_SECRET env variable if set
 router.post('/register', async (req: Request, res: Response) => {
-  const { name, email, password } = req.body
+  const { name, email, password, secret } = req.body
   if (!name || !email || !password) return res.status(400).json({ error: 'Missing fields' })
+
+  const registrationSecret = process.env.REGISTRATION_SECRET
+  if (registrationSecret && secret !== registrationSecret) {
+    return res.status(403).json({ error: 'Регистрация закрыта. Обратитесь к администратору.' })
+  }
 
   try {
     const existing = await prisma.user.findUnique({ where: { email } })
@@ -47,6 +53,14 @@ router.post('/login', async (req: Request, res: Response) => {
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' })
 
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
+    // Track session
+    await prisma.userSession.create({
+      data: {
+        userId: user.id,
+        ipAddress: req.ip || req.headers['x-forwarded-for'] as string || null,
+        userAgent: req.headers['user-agent'] || null,
+      },
+    }).catch(() => {}) // non-critical
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: JWT_EXPIRES })
     res.json({
       token,

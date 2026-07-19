@@ -7,7 +7,7 @@ import { BarChart2 } from 'lucide-react'
 export default function RegisterPage() {
   const navigate = useNavigate()
   const { setAuth } = useAuthStore()
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const [form, setForm] = useState({ name: '', email: '', password: '', secret: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -49,6 +49,11 @@ export default function RegisterPage() {
           <div>
             <label className="label">Пароль</label>
             <input type="password" className="input" placeholder="Минимум 6 символов" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} minLength={6} required />
+          </div>
+          <div>
+            <label className="label">Секретный код регистрации</label>
+            <input type="password" className="input" placeholder="Введите код, выданный администратором" value={form.secret} onChange={e => setForm(f => ({ ...f, secret: e.target.value }))} />
+            <p className="text-xs text-gray-400 mt-1">Если код не установлен — оставьте поле пустым</p>
           </div>
           {error && <p className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</p>}
           <button type="submit" className="btn-primary w-full py-2.5" disabled={loading}>

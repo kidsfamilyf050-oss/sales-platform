@@ -25,33 +25,30 @@ export default function OnboardingPage() {
 
   const finish = async () => {
     setLoading(true)
-    try {
-      // Update company
-      await api.put('/company', { name: s1.companyName, businessSphere: s2.sphere })
 
-      // Create sales department(s)
+    try { await api.put('/company', { name: s1.companyName || 'Моя компания', businessSphere: s2.sphere }) }
+    catch (e) { console.error('company:', e) }
+
+    try {
       for (let i = 0; i < s3.deptCount; i++) {
         const dept = await api.post('/company/departments', {
           name: s3.deptCount === 1 ? 'Отдел продаж' : `Отдел продаж №${i + 1}`,
           type: 'SALES',
           hasLiders: s4.structure === 'liders_and_closers',
         })
-
-        // Set initial plans
         const period = new Date().toISOString().slice(0, 7)
-        const plans = [
-          { type: 'SALES_AMOUNT', value: 1000000, departmentId: dept.data.id },
-          { type: 'SALES_COUNT', value: 20, departmentId: dept.data.id },
-          { type: 'AVG_CHECK', value: 50000, departmentId: dept.data.id },
-        ]
-        if (s4.structure === 'liders_and_closers') {
-          plans.push({ type: 'LEADS', value: 100, departmentId: dept.data.id })
-          plans.push({ type: 'QUALIFIED_LEADS', value: 40, departmentId: dept.data.id })
-        }
-        await api.post('/plans/bulk', { period, plans })
+        await api.post('/plans/bulk', {
+          period,
+          plans: [
+            { type: 'SALES_AMOUNT', value: 1000000, departmentId: dept.data.id },
+            { type: 'SALES_COUNT', value: 20, departmentId: dept.data.id },
+            { type: 'AVG_CHECK', value: 50000, departmentId: dept.data.id },
+          ],
+        }).catch(console.error)
       }
+    } catch (e) { console.error('sales dept:', e) }
 
-      // Create marketing department
+    try {
       const mktDept = await api.post('/company/departments', { name: 'Маркетинг', type: 'MARKETING', hasLiders: false })
       const period = new Date().toISOString().slice(0, 7)
       await api.post('/plans/bulk', {
@@ -61,14 +58,11 @@ export default function OnboardingPage() {
           { type: 'QUALIFIED_LEADS', value: 80, departmentId: mktDept.data.id },
           { type: 'BUDGET', value: 200000, departmentId: mktDept.data.id },
         ],
-      })
+      }).catch(console.error)
+    } catch (e) { console.error('marketing:', e) }
 
-      navigate('/dashboard/owner')
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
+    setLoading(false)
+    navigate('/dashboard/owner')
   }
 
   return (
