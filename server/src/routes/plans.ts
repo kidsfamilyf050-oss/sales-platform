@@ -5,6 +5,20 @@ import { authenticate, requireRole, AuthRequest } from '../middleware/auth'
 const router = Router()
 const prisma = new PrismaClient()
 
+// Helper: findFirst then create or update (avoids upsert null issue)
+async function upsertPlan(data: {
+  period: string; type: PlanType; value: number
+  companyId: string; departmentId: string | null; userId: string | null
+}) {
+  const existing = await prisma.plan.findFirst({
+    where: { period: data.period, type: data.type, companyId: data.companyId, departmentId: data.departmentId, userId: data.userId },
+  })
+  if (existing) {
+    return prisma.plan.update({ where: { id: existing.id }, data: { value: data.value } })
+  }
+  return prisma.plan.create({ data })
+}
+
 // Get plans for current period
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   const { period, departmentId, userId } = req.query
@@ -35,18 +49,9 @@ router.post('/', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRequ
       where: { period, type: planType, companyId: req.user!.companyId, departmentId: deptId, userId: uid },
     })
 
-    const plan = await prisma.plan.upsert({
-      where: {
-        period_type_companyId_departmentId_userId: {
-          period,
-          type: planType,
-          companyId: req.user!.companyId,
-          departmentId: deptId as string,
-          userId: uid as string,
-        },
-      },
-      update: { value },
-      create: { period, type: planType, value, companyId: req.user!.companyId, departmentId: deptId, userId: uid },
+    const plan = await upsertPlan({
+      period, type: planType, value,
+      companyId: req.user!.companyId, departmentId: deptId, userId: uid,
     })
 
     if (existing && existing.value !== value) {
@@ -69,25 +74,16 @@ router.post('/bulk', authenticate, requireRole('OWNER', 'ROP'), async (req: Auth
 
   try {
     const results = await Promise.all(
-      plans.map(async (p: { type: string; value: number; departmentId?: string; userId?: string }) => {
-        const planType = p.type as PlanType
-        const deptId: string | null = p.departmentId ?? null
-        const uid: string | null = p.userId ?? null
-
-        return prisma.plan.upsert({
-          where: {
-            period_type_companyId_departmentId_userId: {
-              period,
-              type: planType,
-              companyId: req.user!.companyId,
-              departmentId: deptId as string,
-              userId: uid as string,
-            },
-          },
-          update: { value: p.value },
-          create: { period, type: planType, value: p.value, companyId: req.user!.companyId, departmentId: deptId, userId: uid },
+      plans.map((p: { type: string; value: number; departmentId?: string; userId?: string }) =>
+        upsertPlan({
+          period,
+          type: p.type as PlanType,
+          value: p.value,
+          companyId: req.user!.companyId,
+          departmentId: p.departmentId ?? null,
+          userId: p.userId ?? null,
         })
-      })
+      )
     )
     res.json(results)
   } catch (e) {
