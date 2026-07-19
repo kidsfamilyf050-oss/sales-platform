@@ -239,9 +239,11 @@ export default function TrackingPage() {
         data,
         comment,
       })
-      qc.invalidateQueries({ queryKey: ['reports-company', period] })
+      await qc.invalidateQueries({ queryKey: ['reports-company', period] })
       setSavedUsers(s => new Set(s).add(userId))
-      setTimeout(() => setSavedUsers(s => { const n = new Set(s); n.delete(userId); return n }), 2000)
+      setTimeout(() => setSavedUsers(s => { const n = new Set(s); n.delete(userId); return n }), 2500)
+    } catch (e: any) {
+      alert('Ошибка сохранения: ' + (e?.response?.data?.error || 'Попробуйте ещё раз'))
     } finally {
       setSavingUser(null)
     }
@@ -289,7 +291,7 @@ export default function TrackingPage() {
                 const existingReport = reportsMap[u.id]?.[selectedDate]
                 return (
                   <ManagerEntryCard
-                    key={u.id}
+                    key={`${u.id}_${selectedDate}`}
                     user={u}
                     date={selectedDate}
                     existingData={existingReport ? { ...existingReport.data, comment: existingReport.comment } : null}
@@ -311,7 +313,7 @@ export default function TrackingPage() {
                 const existingReport = reportsMap[u.id]?.[selectedDate]
                 return (
                   <ManagerEntryCard
-                    key={u.id}
+                    key={`${u.id}_${selectedDate}`}
                     user={u}
                     date={selectedDate}
                     existingData={existingReport ? { ...existingReport.data, comment: existingReport.comment } : null}

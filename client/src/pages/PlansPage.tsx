@@ -181,21 +181,27 @@ export default function PlansPage() {
         if (!value || value === '') continue
         const [type, scopeRaw] = key.split('__')
         if (!type || !scopeRaw) continue
+        const numVal = parseFloat(value)
+        if (isNaN(numVal)) continue
         if (scopeRaw.startsWith('dept_')) {
           const departmentId = scopeRaw.replace('dept_', '')
-          plansList.push({ type, value: parseFloat(value), departmentId })
+          plansList.push({ type, value: numVal, departmentId })
         } else if (scopeRaw.startsWith('user_')) {
           const userId = scopeRaw.replace('user_', '')
-          plansList.push({ type, value: parseFloat(value), userId })
+          plansList.push({ type, value: numVal, userId })
         }
       }
-      if (plansList.length === 0) return
+      if (plansList.length === 0) throw new Error('Нечего сохранять')
       await api.post('/plans/bulk', { period, plans: plansList })
     },
     onSuccess: () => {
+      setValues({}) // clear local edits → inputs reload from DB
       qc.invalidateQueries({ queryKey: ['plans'] })
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
+    },
+    onError: (e: any) => {
+      alert('Ошибка сохранения: ' + (e?.response?.data?.error || e?.message || 'Попробуйте ещё раз'))
     },
   })
 
