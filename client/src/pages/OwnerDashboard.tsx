@@ -77,10 +77,11 @@ export default function OwnerDashboard() {
       </div>
 
       {/* Row 1 — Sales */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard label="План продаж" value={`₸ ${fmt(summary.salesPlan)}`} />
         <StatCard label="Факт продаж" value={`₸ ${fmt(summary.totalSalesAmount)}`} color="blue" />
         <StatCard label="Выполнение" value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
+        <StatCard label="Конверсия" value={`${summary.conversion}%`} color={summary.conversion >= 20 ? 'green' : summary.conversion >= 10 ? 'yellow' : 'red'} />
         <StatCard label="Средний чек" value={`₸ ${fmt(summary.avgCheck)}`} />
       </div>
 
@@ -97,8 +98,7 @@ export default function OwnerDashboard() {
       </div>
 
       {/* Row 3 — Team */}
-      <div className="grid grid-cols-3 gap-4">
-        <StatCard label="Конверсия" value={`${summary.conversion}%`} />
+      <div className="grid grid-cols-2 gap-4">
         <StatCard label="Лучший менеджер" value={summary.bestManager} icon={<TrendingUp className="w-4 h-4 text-green-500" />} />
         <StatCard label="Отстающий" value={summary.worstManager} icon={<TrendingDown className="w-4 h-4 text-red-500" />} />
       </div>
