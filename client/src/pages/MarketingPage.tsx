@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
-import { ChevronLeft, ChevronRight, Save, CheckCircle, Pencil, X, CalendarRange } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Save, CheckCircle, Pencil, X } from 'lucide-react'
+import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -70,7 +71,8 @@ export default function MarketingPage() {
   const qc = useQueryClient()
   const user = useAuthStore(s => s.user)
   const todayStr = new Date().toISOString().slice(0, 10)
-  const [period, setPeriod] = useState(getPeriod(new Date()))
+  // Local month for plan nav (only active when global period = 'month')
+  const [monthPeriod, setMonthPeriod] = useState(getPeriod(new Date()))
   const [editingPlan, setEditingPlan] = useState(false)
   const [planLeads, setPlanLeads] = useState('')
   const [planBudget, setPlanBudget] = useState('')
@@ -82,28 +84,23 @@ export default function MarketingPage() {
   const [entryBudget, setEntryBudget] = useState('')
   const [entrySaved, setEntrySaved] = useState(false)
 
-  const [rangeMode, setRangeMode] = useState<'month' | 'custom'>('month')
-  const [customFrom, setCustomFrom] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10) })
-  const [customTo, setCustomTo] = useState(todayStr)
-  const [showRangePicker, setShowRangePicker] = useState(false)
-  const [tmpFrom, setTmpFrom] = useState(customFrom)
-  const [tmpTo, setTmpTo] = useState(customTo)
+  // Global period store
+  const periodState = usePeriodStore()
+  const { period: globalPeriod } = periodState
 
-  const totalDays = daysInMonth(period)
-  const periodStart = rangeMode === 'month' ? `${period}-01` : customFrom
-  const periodEnd   = rangeMode === 'month' ? `${period}-${String(totalDays).padStart(2, '0')}` : customTo
-
-  const applyCustomRange = () => {
-    if (tmpFrom && tmpTo && tmpFrom <= tmpTo) {
-      setCustomFrom(tmpFrom); setCustomTo(tmpTo)
-      setRangeMode('custom'); setShowRangePicker(false)
-    }
-  }
+  // Compute date range for API
+  const totalDays = daysInMonth(monthPeriod)
+  const isMonthMode = globalPeriod === 'month'
+  const periodStart = isMonthMode ? `${monthPeriod}-01` : (globalPeriod === 'custom' ? periodState.customFrom : todayStr)
+  const periodEnd   = isMonthMode ? `${monthPeriod}-${String(totalDays).padStart(2, '0')}` : (globalPeriod === 'custom' ? periodState.customTo : todayStr)
+  const apiParams   = isMonthMode ? `from=${periodStart}&to=${periodEnd}` : buildPeriodParams(periodState)
+  // Month key for plans (always use the month view)
+  const planPeriod  = isMonthMode ? monthPeriod : (periodState.customFrom || todayStr).slice(0, 7)
 
   // All company reports for the period
   const { data: allReports = [] } = useQuery({
-    queryKey: ['reports-company', period],
-    queryFn: () => api.get(`/reports/company?from=${periodStart}&to=${periodEnd}`).then(r => r.data),
+    queryKey: ['reports-company', periodStart, periodEnd, globalPeriod],
+    queryFn: () => api.get(`/reports/company?${apiParams}`).then(r => r.data),
   })
 
   const mktReports  = useMemo(() => (allReports as any[]).filter((r: any) => r.type === 'MARKETER'), [allReports])
@@ -113,7 +110,7 @@ export default function MarketingPage() {
   // Plans
   const { data: plans = [], refetch: refetchPlans } = useQuery({
     queryKey: ['plans', period],
-    queryFn: () => api.get(`/plans?period=${period}`).then(r => r.data),
+    queryFn: () => api.get(`/plans?period=${planPeriod}`).then(r => r.data),
   })
   const leadsplan  = (plans as any[]).find((p: any) => p.type === 'LEADS'  && !p.userId && !p.departmentId)?.value || 0
   const budgetPlan = (plans as any[]).find((p: any) => p.type === 'BUDGET' && !p.userId && !p.departmentId)?.value || 0
@@ -143,7 +140,7 @@ export default function MarketingPage() {
 
   const today = new Date()
   const todayPeriod = getPeriod(today)
-  const todayDay = period === todayPeriod ? today.getDate() : null
+  const todayDay = monthPeriod === todayPeriod ? today.getDate() : null
   const days = Array.from({ length: totalDays }, (_, i) => i + 1)
 
   // Save daily leads
@@ -154,7 +151,7 @@ export default function MarketingPage() {
       comment: '',
     }),
     onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ['reports-company', period] })
+      await qc.invalidateQueries({ queryKey: ['reports-company'] })
       setEntrySaved(true)
       setTimeout(() => setEntrySaved(false), 2500)
     },
@@ -163,7 +160,7 @@ export default function MarketingPage() {
   // Save plans inline
   const savePlan = useMutation({
     mutationFn: () => api.post('/plans/bulk', {
-      period,
+      period: planPeriod,
       plans: [
         ...(planLeads  ? [{ type: 'LEADS',  value: +planLeads  }] : []),
         ...(planBudget ? [{ type: 'BUDGET', value: +planBudget }] : []),
@@ -199,64 +196,25 @@ export default function MarketingPage() {
           <h1 className="text-2xl font-bold text-gray-900">Маркетинг</h1>
           <p className="text-sm text-gray-500 mt-0.5">Лидогенерация и рекламный бюджет</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {rangeMode === 'month' && (
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-              <button onClick={() => setPeriod(p => shiftMonth(p, -1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
-                <ChevronLeft className="w-4 h-4 text-gray-600" />
-              </button>
-              <span className="px-3 text-sm font-semibold text-gray-800 min-w-[140px] text-center">{formatMonth(period)}</span>
-              <button onClick={() => setPeriod(p => shiftMonth(p, 1))} disabled={period >= todayPeriod}
-                className="p-1.5 hover:bg-white rounded-md transition-colors disabled:opacity-30">
-                <ChevronRight className="w-4 h-4 text-gray-600" />
-              </button>
-            </div>
-          )}
-          <div className="relative">
-            <button
-              onClick={() => { setTmpFrom(customFrom); setTmpTo(customTo); setShowRangePicker(s => !s) }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                rangeMode === 'custom' ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 text-gray-500 border-transparent hover:text-gray-700'
-              }`}
-            >
-              <CalendarRange className="w-4 h-4" />
-              {rangeMode === 'custom' ? `${customFrom.slice(5).replace('-', '.')} – ${customTo.slice(5).replace('-', '.')}` : 'Период'}
+        {/* Month nav — only shown in month mode for browsing history */}
+        {isMonthMode && (
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+            <button onClick={() => setMonthPeriod(p => shiftMonth(p, -1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
+              <ChevronLeft className="w-4 h-4 text-gray-600" />
             </button>
-            {showRangePicker && (
-              <div className="absolute top-full mt-2 right-0 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-4 w-64">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Выбрать период</p>
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <div>
-                    <label className="text-xs text-gray-500 block mb-1">С</label>
-                    <input type="date" max={tmpTo || todayStr} value={tmpFrom} onChange={e => setTmpFrom(e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 block mb-1">По</label>
-                    <input type="date" min={tmpFrom} max={todayStr} value={tmpTo} onChange={e => setTmpTo(e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={applyCustomRange} disabled={!tmpFrom || !tmpTo || tmpFrom > tmpTo}
-                    className="flex-1 bg-blue-600 text-white py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-40">
-                    Применить
-                  </button>
-                  <button onClick={() => { setRangeMode('month'); setShowRangePicker(false) }}
-                    className="flex-1 bg-gray-100 text-gray-600 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-200">
-                    Сбросить
-                  </button>
-                </div>
-              </div>
-            )}
+            <span className="px-3 text-sm font-semibold text-gray-800 min-w-[140px] text-center">{formatMonth(monthPeriod)}</span>
+            <button onClick={() => setMonthPeriod(p => shiftMonth(p, 1))} disabled={monthPeriod >= todayPeriod}
+              className="p-1.5 hover:bg-white rounded-md transition-colors disabled:opacity-30">
+              <ChevronRight className="w-4 h-4 text-gray-600" />
+            </button>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Plan row */}
       <div className="bg-white border border-gray-200 rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-gray-800 text-sm">Плановые показатели на {formatMonth(period)}</h2>
+          <h2 className="font-semibold text-gray-800 text-sm">Плановые показатели на {formatMonth(monthPeriod)}</h2>
           {!editingPlan
             ? <button onClick={openEdit} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 transition-colors">
                 <Pencil className="w-3 h-3" /> Изменить

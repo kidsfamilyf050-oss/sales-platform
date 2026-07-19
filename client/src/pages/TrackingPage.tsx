@@ -5,8 +5,9 @@ import { useAuthStore } from '../store/auth'
 import { Navigate } from 'react-router-dom'
 import {
   ChevronLeft, ChevronRight, Save, CalendarDays, TableProperties,
-  UserCircle, CheckCircle, TrendingUp, AlertCircle, Minus, CalendarRange
+  UserCircle, CheckCircle, TrendingUp, AlertCircle, Minus
 } from 'lucide-react'
+import { usePeriodStore } from '../components/ui/PeriodSelector'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -193,26 +194,29 @@ export default function TrackingPage() {
   }
 
   const qc = useQueryClient()
+  // Local month state for calendar navigation (used only in month mode)
   const [period, setPeriod] = useState(getPeriod(new Date()))
   const [tab, setTab] = useState<'entry' | 'table'>('entry')
   const todayStr = todayIso()
   const [selectedDate, setSelectedDate] = useState(todayStr)
   const [savingUser, setSavingUser] = useState<string | null>(null)
   const [savedUsers, setSavedUsers] = useState<Set<string>>(new Set())
-  // Custom date range
-  const [rangeMode, setRangeMode] = useState<'month' | 'custom'>('month')
-  const [customFrom, setCustomFrom] = useState(firstOfMonthIso())
-  const [customTo, setCustomTo] = useState(todayStr)
-  const [showRangePicker, setShowRangePicker] = useState(false)
-  const [tmpFrom, setTmpFrom] = useState(customFrom)
-  const [tmpTo, setTmpTo] = useState(customTo)
+
+  // Global period store (drives filter for both tabs)
+  const periodState = usePeriodStore()
+  const { period: globalPeriod } = periodState
+  const isMonthMode = globalPeriod === 'month'
 
   const totalDays = daysInMonth(period)
   const today = new Date()
 
-  const periodStart = rangeMode === 'month' ? `${period}-01` : customFrom
-  const periodEnd   = rangeMode === 'month' ? `${period}-${String(totalDays).padStart(2, '0')}` : customTo
-  const planPeriod  = rangeMode === 'month' ? period : getPeriod(new Date(customFrom))
+  // Compute date range from global store
+  const periodStart = isMonthMode ? `${period}-01`
+    : globalPeriod === 'custom' ? periodState.customFrom : todayStr
+  const periodEnd = isMonthMode ? `${period}-${String(totalDays).padStart(2, '0')}`
+    : globalPeriod === 'custom' ? periodState.customTo : todayStr
+  const planPeriod = isMonthMode ? period
+    : (periodState.customFrom || todayStr).slice(0, 7)
 
   // Data fetching
   const { data: departments = [] } = useQuery({
@@ -224,16 +228,9 @@ export default function TrackingPage() {
     queryFn: () => api.get(`/plans?period=${planPeriod}`).then(r => r.data),
   })
   const { data: reports = [] } = useQuery({
-    queryKey: ['reports-company', periodStart, periodEnd],
+    queryKey: ['reports-company', periodStart, periodEnd, globalPeriod],
     queryFn: () => api.get(`/reports/company?from=${periodStart}&to=${periodEnd}`).then(r => r.data),
   })
-
-  const applyCustomRange = () => {
-    if (tmpFrom && tmpTo && tmpFrom <= tmpTo) {
-      setCustomFrom(tmpFrom); setCustomTo(tmpTo)
-      setRangeMode('custom'); setShowRangePicker(false)
-    }
-  }
 
   // All managers across all departments
   const allManagers = useMemo(() => {
@@ -374,12 +371,12 @@ export default function TrackingPage() {
     const marketers = allManagers.filter(u => u.role === 'MARKETER')
 
     // Build column date strings
-    const columnDates: string[] = rangeMode === 'custom'
+    const columnDates: string[] = !isMonthMode
       ? dateRange(customFrom, customTo)
       : Array.from({ length: totalDays }, (_, i) => toDateStr(period, i + 1))
 
     const todayDateStr = todayIso()
-    const isCurrentMonth = rangeMode === 'month' &&
+    const isCurrentMonth = isMonthMode &&
       today.getMonth() + 1 === +period.split('-')[1] &&
       today.getFullYear() === +period.split('-')[0]
     const todayDay = isCurrentMonth ? today.getDate() : null
@@ -509,7 +506,7 @@ export default function TrackingPage() {
                 <p className="text-xs text-gray-400">Выполнение</p>
                 <p className={`font-bold text-sm ${pctColor(p)}`}>{p !== null ? `${p}%` : '—'}</p>
               </div>
-              {monthlyPlan > 0 && primaryTotal < monthlyPlan && todayDay && rangeMode === 'month' && (
+              {monthlyPlan > 0 && primaryTotal < monthlyPlan && todayDay && isMonthMode && (
                 <div>
                   <p className="text-xs text-gray-400">Нужно / день</p>
                   <p className="font-bold text-sm text-blue-600">{fmt(Math.max(0, dailyNeed))} {primaryUnit}</p>
@@ -530,12 +527,12 @@ export default function TrackingPage() {
                     const d = new Date(date)
                     const dayNum = d.getDate()
                     const dow = ['вс','пн','вт','ср','чт','пт','сб'][d.getDay()]
-                    const label = rangeMode === 'custom'
+                    const label = !isMonthMode
                       ? `${String(dayNum).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`
                       : String(dayNum)
                     return (
                       <th key={date} className={`px-1 py-1.5 font-medium border-r border-gray-100 text-center w-[50px] min-w-[50px] ${isToday ? 'bg-blue-50 text-blue-700' : 'text-gray-500'}`}>
-                        <div className={rangeMode === 'custom' ? 'text-[10px]' : ''}>{label}</div>
+                        <div className={!isMonthMode ? 'text-[10px]' : ''}>{label}</div>
                         <div className="text-gray-400 font-normal">{dow}</div>
                       </th>
                     )
@@ -621,64 +618,18 @@ export default function TrackingPage() {
           <h1 className="text-2xl font-bold text-gray-900">Контроль плана</h1>
           <p className="text-sm text-gray-500 mt-0.5">Ежедневный ввод результатов и динамика по менеджерам</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Month picker */}
-          {rangeMode === 'month' && (
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-              <button onClick={() => setPeriod(p => shiftMonth(p, -1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
-                <ChevronLeft className="w-4 h-4 text-gray-600" />
-              </button>
-              <span className="px-3 text-sm font-semibold text-gray-800 min-w-[130px] text-center">{formatMonth(period)}</span>
-              <button onClick={() => setPeriod(p => shiftMonth(p, 1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
-                <ChevronRight className="w-4 h-4 text-gray-600" />
-              </button>
-            </div>
-          )}
-
-          {/* Custom range button */}
-          <div className="relative">
-            <button
-              onClick={() => { setTmpFrom(customFrom); setTmpTo(customTo); setShowRangePicker(s => !s) }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                rangeMode === 'custom'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-gray-100 text-gray-500 border-transparent hover:text-gray-700'
-              }`}
-            >
-              <CalendarRange className="w-4 h-4" />
-              {rangeMode === 'custom'
-                ? `${customFrom.slice(5).replace('-', '.')} – ${customTo.slice(5).replace('-', '.')}`
-                : 'Период'}
+        {/* Month nav — only in month mode */}
+        {isMonthMode && (
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+            <button onClick={() => setPeriod(p => shiftMonth(p, -1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
+              <ChevronLeft className="w-4 h-4 text-gray-600" />
             </button>
-            {showRangePicker && (
-              <div className="absolute top-full mt-2 right-0 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-4 w-64">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Выбрать период</p>
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  <div>
-                    <label className="text-xs text-gray-500 block mb-1">С</label>
-                    <input type="date" max={tmpTo || todayStr} value={tmpFrom} onChange={e => setTmpFrom(e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 block mb-1">По</label>
-                    <input type="date" min={tmpFrom} max={todayStr} value={tmpTo} onChange={e => setTmpTo(e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={applyCustomRange} disabled={!tmpFrom || !tmpTo || tmpFrom > tmpTo}
-                    className="flex-1 bg-blue-600 text-white py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-40">
-                    Применить
-                  </button>
-                  <button onClick={() => { setRangeMode('month'); setShowRangePicker(false) }}
-                    className="flex-1 bg-gray-100 text-gray-600 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-200">
-                    Сбросить
-                  </button>
-                </div>
-              </div>
-            )}
+            <span className="px-3 text-sm font-semibold text-gray-800 min-w-[130px] text-center">{formatMonth(period)}</span>
+            <button onClick={() => setPeriod(p => shiftMonth(p, 1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
+              <ChevronRight className="w-4 h-4 text-gray-600" />
+            </button>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Tabs */}
