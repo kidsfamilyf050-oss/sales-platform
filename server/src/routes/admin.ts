@@ -93,7 +93,7 @@ router.get('/companies', requireSuperAdmin, async (req: AdminRequest, res: Respo
     const companies = await prisma.company.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
-        _count: { select: { users: true, reports: true } },
+        _count: { select: { users: true } },
         users: {
           where: { role: 'OWNER' },
           select: { name: true, email: true, lastLoginAt: true },
@@ -212,13 +212,36 @@ router.get('/users', requireSuperAdmin, async (req: AdminRequest, res: Response)
 
 // ─── PATCH /api/admin/users/:id ───────────────────────────────────────────────
 router.patch('/users/:id', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
-  const { status, role } = req.body
+  const { status, role, name, email, phone, managerType, newPassword } = req.body
   try {
+    let passwordHash: string | undefined
+    if (newPassword) {
+      passwordHash = await bcrypt.hash(newPassword, 10)
+    }
+
+    // Check email uniqueness if changing email
+    if (email) {
+      const existing = await prisma.user.findUnique({ where: { email } })
+      if (existing && existing.id !== req.params.id) {
+        return res.status(400).json({ error: 'Email уже занят другим пользователем' })
+      }
+    }
+
     const user = await prisma.user.update({
       where: { id: req.params.id },
       data: {
-        ...(status && { status }),
-        ...(role && { role }),
+        ...(status !== undefined && { status }),
+        ...(role !== undefined && { role }),
+        ...(name !== undefined && { name }),
+        ...(email !== undefined && { email }),
+        ...(phone !== undefined && { phone }),
+        ...(managerType !== undefined && { managerType: managerType || null }),
+        ...(passwordHash !== undefined && { passwordHash }),
+      },
+      select: {
+        id: true, name: true, email: true, role: true, managerType: true,
+        status: true, phone: true, lastLoginAt: true, createdAt: true,
+        company: { select: { id: true, name: true, isActive: true } },
       },
     })
     res.json(user)

@@ -11,7 +11,7 @@ interface Company {
   trialEndsAt: string | null
   createdAt: string
   notes: string | null
-  _count: { users: number; reports: number }
+  _count: { users: number }
   users: { name: string; email: string; lastLoginAt: string | null }[]
 }
 
@@ -29,6 +29,7 @@ const PLAN_COLORS: Record<string, string> = {
 export default function AdminCompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({
     companyName: '', ownerName: '', ownerEmail: '', ownerPassword: '',
@@ -39,9 +40,13 @@ export default function AdminCompaniesPage() {
 
   const load = () => {
     setLoading(true)
+    setLoadError('')
     adminApi.get('/api/admin/companies')
       .then(r => setCompanies(r.data))
-      .catch(console.error)
+      .catch(e => {
+        console.error(e)
+        setLoadError(e.response?.data?.error || `Ошибка загрузки (${e.message})`)
+      })
       .finally(() => setLoading(false))
   }
 
@@ -150,6 +155,11 @@ export default function AdminCompaniesPage() {
           <div className="w-4 h-4 border-2 border-gray-600 border-t-red-500 rounded-full animate-spin" />
           Загрузка...
         </div>
+      ) : loadError ? (
+        <div className="bg-red-900/20 border border-red-800 rounded-xl p-4 text-red-400 text-sm">
+          ⚠ {loadError}
+          <button onClick={load} className="ml-3 underline hover:no-underline">Повторить</button>
+        </div>
       ) : (
         <div className="space-y-3">
           {companies.length === 0 && (
@@ -179,7 +189,6 @@ export default function AdminCompaniesPage() {
                 </div>
                 <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
                   <span className="flex items-center gap-1"><Users className="w-3 h-3" />{c._count.users} польз.</span>
-                  <span className="flex items-center gap-1"><FileText className="w-3 h-3" />{c._count.reports} отчётов</span>
                   <span>Создана {new Date(c.createdAt).toLocaleDateString('ru')}</span>
                   {c.users[0]?.lastLoginAt && (
                     <span>Посл. вход {new Date(c.users[0].lastLoginAt).toLocaleDateString('ru')}</span>

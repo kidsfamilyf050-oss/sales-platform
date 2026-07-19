@@ -43,7 +43,10 @@ export default function LoginPage() {
             <input type="email" className="input" placeholder="email@company.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required />
           </div>
           <div>
-            <label className="label">Пароль</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="label !mb-0">Пароль</label>
+              <Link to="/forgot-password" className="text-xs text-blue-600 hover:underline">Забыли пароль?</Link>
+            </div>
             <input type="password" className="input" placeholder="••••••••" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} required />
           </div>
           {error && <p className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</p>}
@@ -51,10 +54,13 @@ export default function LoginPage() {
             {loading ? 'Входим...' : 'Войти'}
           </button>
         </form>
-        <p className="text-center text-sm text-gray-500 mt-6">
-          Нет аккаунта?{' '}
-          <Link to="/register" className="text-blue-600 hover:underline font-medium">Зарегистрироваться</Link>
-        </p>
+        <div className="flex items-center justify-between mt-6 text-sm">
+          <Link to="/" className="text-gray-400 hover:text-gray-600 transition-colors">← На главную</Link>
+          <p className="text-gray-500">
+            Нет аккаунта?{' '}
+            <Link to="/register" className="text-blue-600 hover:underline font-medium">Зарегистрироваться</Link>
+          </p>
+        </div>
       </div>
     </div>
   )
