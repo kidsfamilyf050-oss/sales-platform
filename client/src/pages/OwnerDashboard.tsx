@@ -1,16 +1,16 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
-import { usePeriodStore } from '../components/ui/PeriodSelector'
+import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
 import AIInsights from '../components/ui/AIInsights'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
 
 function fmt(n: number) { return n.toLocaleString('ru') }
+function pct(a: number, b: number) { return b > 0 ? Math.round((a / b) * 100) : 0 }
 
-// Month navigation helpers
 function getMonthRange(offset: number) {
   const now = new Date()
   const year = now.getFullYear()
@@ -25,18 +25,36 @@ function getMonthRange(offset: number) {
   }
 }
 
+// Mini funnel step
+function FunnelStep({ label, value, sub, pctVal, color }: { label: string; value: number; sub?: string; pctVal?: number; color: string }) {
+  return (
+    <div className="flex-1 min-w-0">
+      <div className="text-xs text-gray-500 mb-1">{label}</div>
+      <div className={`text-2xl font-bold ${color}`}>{fmt(value)}</div>
+      {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
+      {pctVal !== undefined && (
+        <div className={`text-xs font-semibold mt-1 ${pctVal >= 30 ? 'text-green-600' : pctVal >= 15 ? 'text-amber-500' : 'text-red-500'}`}>
+          {pctVal}% конв.
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function OwnerDashboard() {
-  const { period } = usePeriodStore()
+  const periodState = usePeriodStore()
   const [monthOffset, setMonthOffset] = useState(0)
 
-  const monthRange = getMonthRange(monthOffset)
+  const queryParams = periodState.period === 'month'
+    ? (() => { const r = getMonthRange(monthOffset); return `from=${r.from}&to=${r.to}` })()
+    : buildPeriodParams(periodState)
 
-  const queryParams = period === 'month'
-    ? `from=${monthRange.from}&to=${monthRange.to}`
-    : `period=${period}`
+  const queryKey = periodState.period === 'custom'
+    ? ['dashboard-owner', 'custom', periodState.customFrom, periodState.customTo]
+    : ['dashboard-owner', periodState.period, monthOffset]
 
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard-owner', period, monthOffset],
+    queryKey,
     queryFn: () => api.get(`/dashboard/owner?${queryParams}`).then(r => r.data),
   })
 
@@ -44,6 +62,15 @@ export default function OwnerDashboard() {
   if (!data) return null
 
   const { summary, dailyChart, managerRating, liderRating } = data
+  const monthRange = getMonthRange(monthOffset)
+
+  // Funnel percentages
+  const leadsToQual    = pct(summary.totalQualifiedLeads, summary.totalLeads)
+  const qualToMeetings = pct(summary.totalMeetingsAttended, summary.totalQualifiedLeads)
+  const meetingsToSale = pct(summary.totalSalesCount, summary.totalMeetingsAttended)
+  const leadsToSale    = pct(summary.totalSalesCount, summary.totalLeads)
+
+  const leadDeficit = summary.leadsplan > 0 ? summary.leadsplan - summary.totalLeads : 0
 
   return (
     <div className="space-y-6">
@@ -52,14 +79,9 @@ export default function OwnerDashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Дашборд собственника</h1>
           <p className="text-gray-500 text-sm mt-0.5">Общая картина компании</p>
         </div>
-
-        {/* Month navigator — only when period === 'month' */}
-        {period === 'month' && (
+        {periodState.period === 'month' && (
           <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 self-center">
-            <button
-              onClick={() => setMonthOffset(o => o - 1)}
-              className="p-1.5 hover:bg-white rounded-md transition-colors"
-            >
+            <button onClick={() => setMonthOffset(o => o - 1)} className="p-1.5 hover:bg-white rounded-md transition-colors">
               <ChevronLeft className="w-4 h-4 text-gray-600" />
             </button>
             <span className="px-3 text-sm font-semibold text-gray-800 min-w-[150px] text-center">
@@ -77,25 +99,87 @@ export default function OwnerDashboard() {
       </div>
 
       {/* Row 1 — Sales */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         <StatCard label="План продаж" value={`₸ ${fmt(summary.salesPlan)}`} />
         <StatCard label="Факт продаж" value={`₸ ${fmt(summary.totalSalesAmount)}`} color="blue" />
-        <StatCard label="Выполнение" value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
-        <StatCard label="Конверсия" value={`${summary.conversion}%`} color={summary.conversion >= 20 ? 'green' : summary.conversion >= 10 ? 'yellow' : 'red'} />
+        <StatCard label="Выполнение" value={`${summary.planCompletion}%`}
+          color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
+        <StatCard label="Конверсия" value={`${summary.conversion}%`}
+          sub={summary.conversionLabel}
+          color={summary.conversion >= 20 ? 'green' : summary.conversion >= 10 ? 'yellow' : 'red'} />
+        <StatCard label="Кол-во продаж" value={summary.totalSalesCount} />
         <StatCard label="Средний чек" value={`₸ ${fmt(summary.avgCheck)}`} />
       </div>
 
-      <div>
-        <ProgressBar value={summary.planCompletion} label="Выполнение плана продаж" />
+      <ProgressBar value={summary.planCompletion} label="Выполнение плана продаж" />
+
+      {/* Row 2 — Marketing metrics */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Лиды"
+          value={summary.totalLeads}
+          sub={`план: ${fmt(summary.leadsplan)}`}
+          color={leadDeficit > 0 ? 'red' : 'green'}
+          extraSub={leadDeficit > 0 ? <span className="text-red-500 text-xs font-semibold">−{fmt(leadDeficit)} отстаём</span> : undefined}
+        />
+        <StatCard label="Квалиф. лиды" value={summary.totalQualifiedLeads}
+          sub={summary.totalLeads > 0 ? `${leadsToQual}% от лидов` : undefined} />
+        <StatCard label="Стоимость лида" value={summary.leadCost ? `₸ ${fmt(summary.leadCost)}` : '—'}
+          sub={summary.totalBudget > 0 ? 'факт. бюджет' : summary.budgetPlan > 0 ? 'план. бюджет' : undefined} />
+        <StatCard label="Рекл. бюджет"
+          value={summary.budgetPlan ? `₸ ${fmt(summary.budgetPlan)}` : summary.totalBudget ? `₸ ${fmt(summary.totalBudget)}` : '—'}
+          sub={summary.totalBudget > 0 ? `факт: ₸ ${fmt(summary.totalBudget)}` : 'план'} />
       </div>
 
-      {/* Row 2 — Marketing */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Лиды" value={summary.totalLeads} sub={`план: ${summary.leadsplan}`} />
-        <StatCard label="Квалиф. лиды" value={summary.totalQualifiedLeads} />
-        <StatCard label="Стоимость лида" value={summary.leadCost ? `₸ ${fmt(summary.leadCost)}` : '—'} sub={summary.totalBudget > 0 ? 'факт. бюджет' : summary.budgetPlan > 0 ? 'план. бюджет' : undefined} />
-        <StatCard label="Рекл. бюджет" value={summary.budgetPlan ? `₸ ${fmt(summary.budgetPlan)}` : summary.totalBudget ? `₸ ${fmt(summary.totalBudget)}` : '—'} sub={summary.totalBudget > 0 ? `факт: ₸ ${fmt(summary.totalBudget)}` : 'план'} />
-      </div>
+      {/* Funnel: Marketing → Sales */}
+      {summary.totalLeads > 0 && (
+        <div className="card">
+          <h3 className="font-semibold text-gray-900 mb-4">Воронка продаж</h3>
+          <div className="flex items-start gap-2 overflow-x-auto pb-2">
+            <FunnelStep label="Лиды" value={summary.totalLeads} color="text-blue-600" />
+            <div className="flex items-center pt-4 flex-shrink-0">
+              <ArrowRight className="w-4 h-4 text-gray-300" />
+              <span className="text-xs text-gray-400 mx-1">{leadsToQual}%</span>
+            </div>
+            <FunnelStep label="Квалифицировано" value={summary.totalQualifiedLeads} color="text-purple-600" />
+            {summary.totalMeetingsScheduled > 0 && (
+              <>
+                <div className="flex items-center pt-4 flex-shrink-0">
+                  <ArrowRight className="w-4 h-4 text-gray-300" />
+                  <span className="text-xs text-gray-400 mx-1">{qualToMeetings}%</span>
+                </div>
+                <FunnelStep label="Пришло на встречу" value={summary.totalMeetingsAttended}
+                  sub={`запланировано: ${fmt(summary.totalMeetingsScheduled)}`} color="text-orange-600" />
+              </>
+            )}
+            <div className="flex items-center pt-4 flex-shrink-0">
+              <ArrowRight className="w-4 h-4 text-gray-300" />
+              <span className="text-xs text-gray-400 mx-1">
+                {summary.totalMeetingsAttended > 0 ? meetingsToSale : leadsToSale}%
+              </span>
+            </div>
+            <FunnelStep label="Продажи" value={summary.totalSalesCount}
+              sub={`₸ ${fmt(summary.totalSalesAmount)}`} color="text-green-600"
+              pctVal={leadsToSale} />
+          </div>
+
+          {/* Conversion bar */}
+          <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+            {[
+              { label: 'Лиды → квалиф.', val: leadsToQual },
+              { label: 'Квалиф. → встречи', val: qualToMeetings },
+              { label: 'Встречи → продажи', val: meetingsToSale },
+            ].map(item => (
+              <div key={item.label} className="bg-gray-50 rounded-lg p-2.5">
+                <div className={`text-lg font-bold ${item.val >= 30 ? 'text-green-600' : item.val >= 15 ? 'text-amber-500' : 'text-red-500'}`}>
+                  {item.val}%
+                </div>
+                <div className="text-xs text-gray-500">{item.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Row 3 — Team */}
       <div className="grid grid-cols-2 gap-4">
@@ -205,7 +289,7 @@ export default function OwnerDashboard() {
         </div>
       )}
 
-      <AIInsights data={summary} managerRating={managerRating} period={period} />
+      <AIInsights data={summary} managerRating={managerRating} period={periodState.period} />
     </div>
   )
 }

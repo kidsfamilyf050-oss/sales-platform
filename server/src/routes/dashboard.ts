@@ -56,8 +56,10 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     // Marketing: leads & budget come from MARKETER reports
     const totalLeads = marketerReports.reduce((s, r) => s + (Number((r.data as any).leads) || Number((r.data as any).leadsCount) || 0), 0)
     const totalBudget = marketerReports.reduce((s, r) => s + (Number((r.data as any).budget) || Number((r.data as any).adBudget) || 0), 0)
-    // Qualified leads come from LIDER reports (not marketer)
+    // Qualified leads, meetings come from LIDER reports
     const totalQualifiedLeads = sumReportField(liderReports, 'qualifiedLeads')
+    const totalMeetingsScheduled = sumReportField(liderReports, 'meetingsScheduled')
+    const totalMeetingsAttended = sumReportField(liderReports, 'meetingsAttended')
 
     // Sum all department + company level plans (not per-user)
     const salesPlan = plans.filter(p => !p.userId && p.type === 'SALES_AMOUNT').reduce((s, p) => s + p.value, 0)
@@ -66,10 +68,10 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const budgetPlan = plans.find(p => !p.userId && !p.departmentId && p.type === 'BUDGET')?.value || 0
 
     const avgCheck = totalSalesCount > 0 ? totalSalesAmount / totalSalesCount : 0
-    // Конверсия: продажи / входящих заявок (от клоузеров). Если есть лиды от маркетинга — считаем от них
-    const conversion = totalLeads > 0
-      ? (totalSalesCount / totalLeads) * 100
-      : totalClients > 0 ? (totalSalesCount / totalClients) * 100 : 0
+    // Конверсия: если есть лиды от маркетинга — от лидов; иначе — от входящих заявок (clients)
+    const conversionBase = totalLeads > 0 ? totalLeads : totalClients
+    const conversionLabel = totalLeads > 0 ? 'лиды → продажи' : 'заявки → продажи'
+    const conversion = conversionBase > 0 ? (totalSalesCount / conversionBase) * 100 : 0
     // Стоимость лида: фактический бюджет если есть, иначе плановый
     const effectiveBudget = totalBudget > 0 ? totalBudget : budgetPlan
     const leadCost = totalLeads > 0 ? effectiveBudget / totalLeads : 0
@@ -132,8 +134,10 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       summary: {
         salesPlan, totalSalesAmount, totalSalesCount, avgCheck: Math.round(avgCheck),
         conversion: Math.round(conversion * 10) / 10,
+        conversionLabel,
         planCompletion: salesPlan > 0 ? Math.round((totalSalesAmount / salesPlan) * 100) : 0,
         totalLeads, totalQualifiedLeads, totalBudget, budgetPlan, leadCost: Math.round(leadCost),
+        totalMeetingsScheduled, totalMeetingsAttended,
         leadsplan, totalManagers: allUsers.length,
         bestManager: managerRating[0]?.name || '—',
         worstManager: managerRating[managerRating.length - 1]?.name || '—',

@@ -2,6 +2,7 @@ interface StatCardProps {
   label: string
   value: string | number
   sub?: string
+  extraSub?: React.ReactNode
   color?: 'default' | 'green' | 'red' | 'yellow' | 'blue'
   icon?: React.ReactNode
 }
@@ -14,7 +15,7 @@ const colorMap = {
   blue: 'text-blue-600',
 }
 
-export default function StatCard({ label, value, sub, color = 'default', icon }: StatCardProps) {
+export default function StatCard({ label, value, sub, extraSub, color = 'default', icon }: StatCardProps) {
   return (
     <div className="stat-card">
       <div className="flex items-start justify-between">
@@ -23,6 +24,7 @@ export default function StatCard({ label, value, sub, color = 'default', icon }:
       </div>
       <p className={`stat-value ${colorMap[color]}`}>{value}</p>
       {sub && <p className="stat-sub">{sub}</p>}
+      {extraSub && <div className="mt-0.5">{extraSub}</div>}
     </div>
   )
 }
