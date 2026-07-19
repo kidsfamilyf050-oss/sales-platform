@@ -6,7 +6,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "serve": "serve dist -p $PORT"
+    "serve": "serve dist -p $PORT --single"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.51.23",
