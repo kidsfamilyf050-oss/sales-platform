@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
+import { useAuthStore } from '../store/auth'
+import { Navigate } from 'react-router-dom'
 import {
   ChevronLeft, ChevronRight, Save, CalendarDays, TableProperties,
   UserCircle, CheckCircle, TrendingUp, AlertCircle, Minus
@@ -175,6 +177,11 @@ function ManagerEntryCard({
 // ─── Main page ───────────────────────────────────────────────────────────────
 
 export default function TrackingPage() {
+  const { user } = useAuthStore()
+  if (user && user.role !== 'OWNER' && user.role !== 'ROP') {
+    return <Navigate to="/" replace />
+  }
+
   const qc = useQueryClient()
   const [period, setPeriod] = useState(getPeriod(new Date()))
   const [tab, setTab] = useState<'entry' | 'table'>('entry')
@@ -255,6 +262,8 @@ export default function TrackingPage() {
 
   const renderEntryTab = () => {
     const salesManagers = allManagers.filter(u => u.deptType === 'SALES')
+    const closers = salesManagers.filter(u => u.managerType !== 'LIDER')
+    const liders  = salesManagers.filter(u => u.managerType === 'LIDER')
     const marketers = allManagers.filter(u => u.role === 'MARKETER')
 
     if (allManagers.length === 0) {
@@ -266,6 +275,21 @@ export default function TrackingPage() {
         </div>
       )
     }
+
+    const renderManagerCards = (managers: any[]) =>
+      managers.map((u: any) => {
+        const existingReport = reportsMap[u.id]?.[selectedDate]
+        return (
+          <ManagerEntryCard
+            key={`${u.id}_${selectedDate}`}
+            user={u}
+            date={selectedDate}
+            existingData={existingReport ? { ...existingReport.data, comment: existingReport.comment } : null}
+            saving={savingUser === u.id}
+            onSave={({ data, comment }) => saveReport(u.id, u.managerType, u.role, data, comment)}
+          />
+        )
+      })
 
     return (
       <div className="space-y-6">
@@ -284,25 +308,19 @@ export default function TrackingPage() {
           )}
         </div>
 
-        {/* Sales managers */}
-        {salesManagers.length > 0 && (
+        {/* Closers */}
+        {closers.length > 0 && (
           <div>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Отдел продаж</h2>
-            <div className="space-y-3">
-              {salesManagers.map((u: any) => {
-                const existingReport = reportsMap[u.id]?.[selectedDate]
-                return (
-                  <ManagerEntryCard
-                    key={`${u.id}_${selectedDate}`}
-                    user={u}
-                    date={selectedDate}
-                    existingData={existingReport ? { ...existingReport.data, comment: existingReport.comment } : null}
-                    saving={savingUser === u.id}
-                    onSave={({ data, comment }) => saveReport(u.id, u.managerType, u.role, data, comment)}
-                  />
-                )
-              })}
-            </div>
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Клоузеры</h2>
+            <div className="space-y-3">{renderManagerCards(closers)}</div>
+          </div>
+        )}
+
+        {/* Liders */}
+        {liders.length > 0 && (
+          <div>
+            <h2 className="text-sm font-bold text-purple-400 uppercase tracking-wider mb-3">Лидорубы</h2>
+            <div className="space-y-3">{renderManagerCards(liders)}</div>
           </div>
         )}
 
@@ -310,21 +328,7 @@ export default function TrackingPage() {
         {marketers.length > 0 && (
           <div>
             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Маркетинг</h2>
-            <div className="space-y-3">
-              {marketers.map((u: any) => {
-                const existingReport = reportsMap[u.id]?.[selectedDate]
-                return (
-                  <ManagerEntryCard
-                    key={`${u.id}_${selectedDate}`}
-                    user={u}
-                    date={selectedDate}
-                    existingData={existingReport ? { ...existingReport.data, comment: existingReport.comment } : null}
-                    saving={savingUser === u.id}
-                    onSave={({ data, comment }) => saveReport(u.id, u.managerType, u.role, data, comment)}
-                  />
-                )
-              })}
-            </div>
+            <div className="space-y-3">{renderManagerCards(marketers)}</div>
           </div>
         )}
       </div>
@@ -342,9 +346,12 @@ export default function TrackingPage() {
       return <div className="text-center py-16 text-gray-400">Нет сотрудников</div>
     }
 
-    return (
-      <div className="space-y-6">
-        {allManagers.map((u: any) => {
+    const salesManagers = allManagers.filter(u => u.deptType === 'SALES')
+    const closers  = salesManagers.filter(u => u.managerType !== 'LIDER')
+    const liders   = salesManagers.filter(u => u.managerType === 'LIDER')
+    const marketers = allManagers.filter(u => u.role === 'MARKETER')
+
+    const renderManagerTable = (u: any) => {
           const fields = getFields(u.managerType, u.role)
           const primaryKey = getPrimaryKey(u.managerType, u.role)
           const primaryUnit = getPrimaryUnit(u.managerType, u.role)
@@ -476,7 +483,30 @@ export default function TrackingPage() {
               </div>
             </div>
           )
-        })}
+    }
+
+    return (
+      <div className="space-y-8">
+        {closers.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Клоузеры</h2>
+            <div className="space-y-6">{closers.map(renderManagerTable)}</div>
+          </div>
+        )}
+
+        {liders.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-sm font-bold text-purple-400 uppercase tracking-wider">Лидорубы</h2>
+            <div className="space-y-6">{liders.map(renderManagerTable)}</div>
+          </div>
+        )}
+
+        {marketers.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Маркетинг</h2>
+            <div className="space-y-6">{marketers.map(renderManagerTable)}</div>
+          </div>
+        )}
       </div>
     )
   }
