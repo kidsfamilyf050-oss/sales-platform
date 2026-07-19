@@ -27,9 +27,11 @@ function toDateStr(p: string, day: number) {
   return `${p}-${String(day).padStart(2, '0')}`
 }
 function fmt(n: number) {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M'
-  if (n >= 1_000) return (n / 1_000).toFixed(0) + 'k'
-  return String(n)
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'М'
+  if (n >= 100_000) return Math.round(n / 1_000) + 'тыс'
+  if (n >= 10_000) return (n / 1_000).toFixed(1) + 'тыс'
+  if (n >= 1_000) return (n / 1_000).toFixed(2).replace(/\.?0+$/, '') + 'тыс'
+  return n.toLocaleString('ru-RU')
 }
 function pct(fact: number, plan: number) {
   if (!plan) return null
@@ -41,8 +43,8 @@ function pct(fact: number, plan: number) {
 const CLOSER_FIELDS = [
   { key: 'salesAmount',   label: 'Сумма продаж',     unit: '₸',  hint: 'Общая сумма закрытых сделок' },
   { key: 'salesCount',    label: 'Кол-во сделок',    unit: 'шт', hint: 'Количество закрытых сделок' },
-  { key: 'clients',       label: 'Получено клиентов',unit: 'шт', hint: 'Клиентов передано от лидорубов' },
-  { key: 'consultations', label: 'Консультаций',     unit: 'шт', hint: 'Проведено консультаций' },
+  { key: 'clients',       label: 'Входящих заявок',  unit: 'шт', hint: 'Клиентов / заявок получено от лидорубов' },
+  { key: 'consultations', label: 'Встреч / звонков', unit: 'шт', hint: 'Встреч, консультаций или звонков проведено' },
 ]
 const LIDER_FIELDS = [
   { key: 'leads',               label: 'Лидов получено',   unit: 'шт', hint: 'Новых лидов обработано' },
@@ -416,7 +418,7 @@ export default function TrackingPage() {
                         const dateStr = toDateStr(period, d)
                         const dow = ['вс','пн','вт','ср','чт','пт','сб'][new Date(dateStr).getDay()]
                         return (
-                          <th key={d} className={`px-2 py-1.5 font-medium border-r border-gray-100 text-center min-w-[44px] ${isToday ? 'bg-blue-50 text-blue-700' : 'text-gray-500'}`}>
+                          <th key={d} className={`px-2 py-1.5 font-medium border-r border-gray-100 text-center min-w-[58px] ${isToday ? 'bg-blue-50 text-blue-700' : 'text-gray-500'}`}>
                             <div>{d}</div>
                             <div className="text-gray-400 font-normal">{dow}</div>
                           </th>

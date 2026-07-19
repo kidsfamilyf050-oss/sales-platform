@@ -56,8 +56,9 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const totalQualifiedLeads = sumReportField(marketerReports, 'qualifiedLeads')
     const totalBudget = sumReportField(marketerReports, 'adBudget')
 
-    const salesPlan = plans.find(p => !p.departmentId && !p.userId && p.type === 'SALES_AMOUNT')?.value || 0
-    const leadsplan = plans.find(p => p.type === 'LEADS')?.value || 0
+    // Sum all department + company level plans (not per-user)
+    const salesPlan = plans.filter(p => !p.userId && p.type === 'SALES_AMOUNT').reduce((s, p) => s + p.value, 0)
+    const leadsplan = plans.filter(p => !p.userId && p.type === 'LEADS').reduce((s, p) => s + p.value, 0)
 
     const avgCheck = totalSalesCount > 0 ? totalSalesAmount / totalSalesCount : 0
     const conversion = totalClients > 0 ? (totalSalesCount / totalClients) * 100 : 0
