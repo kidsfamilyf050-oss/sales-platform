@@ -79,6 +79,7 @@ export default function MarketingPage() {
   // Daily entry state
   const [entryDate, setEntryDate] = useState(todayStr)
   const [entryLeads, setEntryLeads] = useState('')
+  const [entryBudget, setEntryBudget] = useState('')
   const [entrySaved, setEntrySaved] = useState(false)
 
   const totalDays = daysInMonth(period)
@@ -132,7 +133,7 @@ export default function MarketingPage() {
   const saveEntry = useMutation({
     mutationFn: () => api.post('/reports/for-user', {
       userId: user!.id, date: entryDate, type: 'MARKETER',
-      data: { leads: entryLeads ? +entryLeads : 0, budget: totalBudget },
+      data: { leads: entryLeads ? +entryLeads : 0, budget: entryBudget ? +entryBudget : 0 },
       comment: '',
     }),
     onSuccess: async () => {
@@ -169,6 +170,7 @@ export default function MarketingPage() {
     setEntryDate(date)
     const r = byDate[date]
     setEntryLeads(r ? String(r.data?.leads || '') : '')
+    setEntryBudget(r ? String(r.data?.budget || '') : '')
   }
 
   return (
@@ -281,12 +283,21 @@ export default function MarketingPage() {
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Лидов получено</label>
+              <label className="text-xs text-gray-500 block mb-1">Лидов</label>
               <div className="relative">
                 <input type="number" min="0" value={entryLeads} onChange={e => setEntryLeads(e.target.value)}
-                  placeholder="0" autoFocus
-                  className="border border-gray-200 rounded-lg px-3 py-2 pr-10 text-sm w-32 focus:ring-2 focus:ring-blue-500 outline-none" />
+                  placeholder="0"
+                  className="border border-gray-200 rounded-lg px-3 py-2 pr-10 text-sm w-28 focus:ring-2 focus:ring-blue-500 outline-none" />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">шт</span>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">Расход на рекламу <span className="text-gray-300">(необяз.)</span></label>
+              <div className="relative">
+                <input type="number" min="0" value={entryBudget} onChange={e => setEntryBudget(e.target.value)}
+                  placeholder="0"
+                  className="border border-gray-200 rounded-lg px-3 py-2 pr-6 text-sm w-40 focus:ring-2 focus:ring-blue-500 outline-none" />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">₸</span>
               </div>
             </div>
             <button onClick={() => saveEntry.mutate()} disabled={saveEntry.isPending || !entryLeads}
