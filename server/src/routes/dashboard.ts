@@ -61,13 +61,18 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
 
     // Sum all department + company level plans (not per-user)
     const salesPlan = plans.filter(p => !p.userId && p.type === 'SALES_AMOUNT').reduce((s, p) => s + p.value, 0)
-    // Company-level marketing plan (no userId, no departmentId)
-    const leadsplan = plans.find(p => !p.userId && !p.departmentId && p.type === 'LEADS')?.value || 0
+    // Company-level marketing plans (no userId, no departmentId)
+    const leadsplan  = plans.find(p => !p.userId && !p.departmentId && p.type === 'LEADS')?.value  || 0
+    const budgetPlan = plans.find(p => !p.userId && !p.departmentId && p.type === 'BUDGET')?.value || 0
 
     const avgCheck = totalSalesCount > 0 ? totalSalesAmount / totalSalesCount : 0
-    // Общая конверсия: лид → продажа (от маркетинга до сделки)
-    const conversion = totalLeads > 0 ? (totalSalesCount / totalLeads) * 100 : 0
-    const leadCost = totalLeads > 0 ? totalBudget / totalLeads : 0
+    // Конверсия: продажи / входящих заявок (от клоузеров). Если есть лиды от маркетинга — считаем от них
+    const conversion = totalLeads > 0
+      ? (totalSalesCount / totalLeads) * 100
+      : totalClients > 0 ? (totalSalesCount / totalClients) * 100 : 0
+    // Стоимость лида: фактический бюджет если есть, иначе плановый
+    const effectiveBudget = totalBudget > 0 ? totalBudget : budgetPlan
+    const leadCost = totalLeads > 0 ? effectiveBudget / totalLeads : 0
 
     // Daily chart data (closers)
     const dailySales: Record<string, { sales: number; amount: number }> = {}
@@ -128,7 +133,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         salesPlan, totalSalesAmount, totalSalesCount, avgCheck: Math.round(avgCheck),
         conversion: Math.round(conversion * 10) / 10,
         planCompletion: salesPlan > 0 ? Math.round((totalSalesAmount / salesPlan) * 100) : 0,
-        totalLeads, totalQualifiedLeads, totalBudget, leadCost: Math.round(leadCost),
+        totalLeads, totalQualifiedLeads, totalBudget, budgetPlan, leadCost: Math.round(leadCost),
         leadsplan, totalManagers: allUsers.length,
         bestManager: managerRating[0]?.name || '—',
         worstManager: managerRating[managerRating.length - 1]?.name || '—',

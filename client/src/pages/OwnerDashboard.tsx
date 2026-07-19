@@ -92,8 +92,8 @@ export default function OwnerDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Лиды" value={summary.totalLeads} sub={`план: ${summary.leadsplan}`} />
         <StatCard label="Квалиф. лиды" value={summary.totalQualifiedLeads} />
-        <StatCard label="Стоимость лида" value={`₸ ${fmt(summary.leadCost)}`} />
-        <StatCard label="Рекл. бюджет" value={`₸ ${fmt(summary.totalBudget)}`} />
+        <StatCard label="Стоимость лида" value={summary.leadCost ? `₸ ${fmt(summary.leadCost)}` : '—'} sub={summary.totalBudget > 0 ? 'факт. бюджет' : summary.budgetPlan > 0 ? 'план. бюджет' : undefined} />
+        <StatCard label="Рекл. бюджет" value={summary.budgetPlan ? `₸ ${fmt(summary.budgetPlan)}` : summary.totalBudget ? `₸ ${fmt(summary.totalBudget)}` : '—'} sub={summary.totalBudget > 0 ? `факт: ₸ ${fmt(summary.totalBudget)}` : 'план'} />
       </div>
 
       {/* Row 3 — Team */}

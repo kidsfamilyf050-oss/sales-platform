@@ -110,7 +110,10 @@ export default function MarketingPage() {
   const totalQual      = liderReports.reduce((s: number, r: any) => s + (Number(r.data?.qualifiedLeads) || 0), 0)
   const totalMeetings  = liderReports.reduce((s: number, r: any) => s + (Number(r.data?.meetingsAttended) || 0), 0)
   const totalSales     = closerReports.reduce((s: number, r: any) => s + (Number(r.data?.salesCount) || 0), 0)
-  const leadCost       = totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0
+  // Стоимость лида: если есть фактический бюджет — от него, иначе от плана (плановая ст-ть лида)
+  const effectiveBudget = totalBudget > 0 ? totalBudget : budgetPlan
+  const leadCost       = totalLeads > 0 && effectiveBudget > 0 ? Math.round(effectiveBudget / totalLeads) : 0
+  const isBudgetPlan   = totalBudget === 0 && budgetPlan > 0
   const leadsPct       = leadsplan > 0 ? pct(totalLeads, leadsplan) : null
   const budgetPct      = budgetPlan > 0 ? pct(totalBudget, budgetPlan) : null
 
@@ -248,7 +251,7 @@ export default function MarketingPage() {
           sub={totalLeads > 0 ? `${pct(totalQual, totalLeads)}% из лидов` : undefined}
           note="из отчётов лидорубов" />
         <StatCard label="Стоимость лида" value={leadCost ? `₸ ${fmt(leadCost)}` : '—'}
-          sub={budgetPct !== null ? `Бюджет: ${budgetPct}% от плана` : budgetPlan ? `Бюджет план: ₸ ${fmt(budgetPlan)}` : undefined} />
+          sub={leadCost ? (isBudgetPlan ? 'план. бюджет ÷ лиды' : 'факт. бюджет ÷ лиды') : 'нет данных бюджета'} />
         <StatCard label="Конверсия лид→продажа" value={totalLeads > 0 ? `${pct(totalSales, totalLeads)}%` : '—'}
           sub={totalLeads > 0 ? `${totalSales} из ${totalLeads} лидов` : 'нет данных по лидам'} />
       </div>
