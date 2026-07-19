@@ -343,31 +343,30 @@ export default function TrackingPage() {
     }
 
     return (
-      <div className="space-y-8">
+      <div className="space-y-6">
         {allManagers.map((u: any) => {
+          const fields = getFields(u.managerType, u.role)
           const primaryKey = getPrimaryKey(u.managerType, u.role)
           const primaryUnit = getPrimaryUnit(u.managerType, u.role)
           const planType = getPlanType(u.managerType, u.role)
           const monthlyPlan = plansMap[`${u.id}_${planType}`] ?? 0
 
-          // Compute daily facts and totals
-          let totalFact = 0
-          const dayFacts: (number | null)[] = days.map(d => {
-            const dateStr = toDateStr(period, d)
-            const r = reportsMap[u.id]?.[dateStr]
-            const val = r?.data?.[primaryKey]
-            if (val != null && val !== '') {
-              const n = +val
-              totalFact += n
-              return n
-            }
-            return null
+          // For each field: daily values + running total
+          const fieldData = fields.map(f => {
+            let total = 0
+            const dayVals = days.map(d => {
+              const r = reportsMap[u.id]?.[toDateStr(period, d)]
+              const val = r?.data?.[f.key]
+              if (val != null && val !== '') { total += +val; return +val }
+              return null
+            })
+            return { field: f, dayVals, total }
           })
 
-          const p = pct(totalFact, monthlyPlan)
-          // Days passed so far this month
+          const primaryTotal = fieldData.find(fd => fd.field.key === primaryKey)?.total ?? 0
+          const p = pct(primaryTotal, monthlyPlan)
           const daysPassed = todayDay ? Math.min(todayDay, totalDays) : totalDays
-          const dailyNeed = monthlyPlan ? Math.ceil((monthlyPlan - totalFact) / Math.max(1, totalDays - daysPassed)) : 0
+          const dailyNeed = monthlyPlan ? Math.ceil((monthlyPlan - primaryTotal) / Math.max(1, totalDays - daysPassed)) : 0
 
           return (
             <div key={u.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -393,13 +392,13 @@ export default function TrackingPage() {
                   </div>
                   <div>
                     <p className="text-xs text-gray-400">Факт</p>
-                    <p className="font-bold text-gray-800 text-sm">{fmt(totalFact)} {primaryUnit}</p>
+                    <p className="font-bold text-gray-800 text-sm">{fmt(primaryTotal)} {primaryUnit}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400">Выполнение</p>
                     <p className={`font-bold text-sm ${pctColor(p)}`}>{p !== null ? `${p}%` : '—'}</p>
                   </div>
-                  {monthlyPlan > 0 && totalFact < monthlyPlan && todayDay && (
+                  {monthlyPlan > 0 && primaryTotal < monthlyPlan && todayDay && (
                     <div>
                       <p className="text-xs text-gray-400">Нужно / день</p>
                       <p className="font-bold text-sm text-blue-600">{fmt(Math.max(0, dailyNeed))} {primaryUnit}</p>
@@ -408,43 +407,60 @@ export default function TrackingPage() {
                 </div>
               </div>
 
-              {/* Days scroll table */}
+              {/* Multi-metric table: rows = metrics, cols = days */}
               <div className="overflow-x-auto">
-                <table className="w-full text-xs border-collapse">
+                <table className="text-xs border-collapse" style={{ minWidth: 'max-content', width: '100%' }}>
                   <thead>
                     <tr className="bg-gray-50">
+                      <th className="sticky left-0 z-10 bg-gray-50 px-3 py-2 text-left font-medium text-gray-500 border-r border-gray-200 whitespace-nowrap min-w-[148px]">
+                        Показатель
+                      </th>
                       {days.map(d => {
                         const isToday = d === todayDay
                         const dateStr = toDateStr(period, d)
                         const dow = ['вс','пн','вт','ср','чт','пт','сб'][new Date(dateStr).getDay()]
                         return (
-                          <th key={d} className={`px-2 py-1.5 font-medium border-r border-gray-100 text-center min-w-[58px] ${isToday ? 'bg-blue-50 text-blue-700' : 'text-gray-500'}`}>
+                          <th key={d} className={`px-1 py-1.5 font-medium border-r border-gray-100 text-center w-[50px] min-w-[50px] ${isToday ? 'bg-blue-50 text-blue-700' : 'text-gray-500'}`}>
                             <div>{d}</div>
                             <div className="text-gray-400 font-normal">{dow}</div>
                           </th>
                         )
                       })}
+                      <th className="px-3 py-2 font-semibold text-center text-gray-700 bg-gray-100 border-l border-gray-200 whitespace-nowrap min-w-[64px]">
+                        Итого
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      {dayFacts.map((val, idx) => {
-                        const day = idx + 1
-                        const isToday = day === todayDay
-                        const isFuture = todayDay ? day > todayDay : false
-                        return (
-                          <td key={day} className={`px-2 py-2.5 border-r border-gray-100 text-center ${isToday ? 'bg-blue-50' : ''}`}>
-                            {isFuture ? (
-                              <span className="text-gray-200">·</span>
-                            ) : val !== null ? (
-                              <span className="font-medium text-gray-800">{fmt(val)}</span>
-                            ) : (
-                              <span className="text-red-300">—</span>
-                            )}
+                    {fieldData.map(({ field, dayVals, total }, rowIdx) => {
+                      const isPrimary = field.key === primaryKey
+                      return (
+                        <tr key={field.key} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}>
+                          <td className={`sticky left-0 z-10 bg-inherit px-3 py-2 border-r border-gray-200 whitespace-nowrap ${isPrimary ? 'font-bold text-gray-800' : 'font-medium text-gray-600'}`}>
+                            {field.label} <span className="text-gray-400 font-normal text-[10px]">{field.unit}</span>
                           </td>
-                        )
-                      })}
-                    </tr>
+                          {dayVals.map((val, idx) => {
+                            const day = idx + 1
+                            const isToday = day === todayDay
+                            const isFuture = todayDay ? day > todayDay : false
+                            return (
+                              <td key={day} className={`px-1 py-2 border-r border-gray-100 text-center ${isToday ? 'bg-blue-50' : ''}`}>
+                                {isFuture ? (
+                                  <span className="text-gray-200">·</span>
+                                ) : val !== null ? (
+                                  <span className={isPrimary ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}>{fmt(val)}</span>
+                                ) : (
+                                  <span className="text-gray-300">—</span>
+                                )}
+                              </td>
+                            )
+                          })}
+                          <td className={`px-3 py-2 text-center font-bold border-l border-gray-200 bg-gray-50 ${isPrimary ? pctColor(p) : 'text-gray-700'}`}>
+                            {total > 0 ? fmt(total) : '—'}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -458,7 +474,7 @@ export default function TrackingPage() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-5 max-w-5xl">
+    <div className="space-y-5 w-full">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
