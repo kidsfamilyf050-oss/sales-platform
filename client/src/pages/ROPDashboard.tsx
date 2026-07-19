@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
-import { usePeriodStore } from '../components/ui/PeriodSelector'
+import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
 import AIInsights from '../components/ui/AIInsights'
@@ -50,10 +50,12 @@ function Funnel({ steps }: { steps: { label: string; value: number; color?: stri
 }
 
 export default function ROPDashboard() {
-  const { period } = usePeriodStore()
+  const periodState = usePeriodStore()
+  const { period } = periodState
+  const params = buildPeriodParams(periodState)
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard-rop', period],
-    queryFn: () => api.get(`/dashboard/rop?period=${period}`).then(r => r.data),
+    queryKey: ['dashboard-rop', params],
+    queryFn: () => api.get(`/dashboard/rop?${params}`).then(r => r.data),
   })
 
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">Загрузка...</div>

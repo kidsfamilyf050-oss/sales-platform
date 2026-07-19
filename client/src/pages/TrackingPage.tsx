@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/auth'
 import { Navigate } from 'react-router-dom'
 import {
   ChevronLeft, ChevronRight, Save, CalendarDays, TableProperties,
-  UserCircle, CheckCircle, TrendingUp, AlertCircle, Minus
+  UserCircle, CheckCircle, TrendingUp, AlertCircle, Minus, CalendarRange
 } from 'lucide-react'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -27,6 +27,16 @@ function daysInMonth(p: string) {
 }
 function toDateStr(p: string, day: number) {
   return `${p}-${String(day).padStart(2, '0')}`
+}
+function todayIso() { return new Date().toISOString().slice(0, 10) }
+function firstOfMonthIso() { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10) }
+// Generate array of date strings between from and to (inclusive)
+function dateRange(from: string, to: string): string[] {
+  const dates: string[] = []
+  const cur = new Date(from)
+  const end = new Date(to)
+  while (cur <= end) { dates.push(cur.toISOString().slice(0, 10)); cur.setDate(cur.getDate() + 1) }
+  return dates
 }
 function fmt(n: number) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'М'
@@ -185,13 +195,24 @@ export default function TrackingPage() {
   const qc = useQueryClient()
   const [period, setPeriod] = useState(getPeriod(new Date()))
   const [tab, setTab] = useState<'entry' | 'table'>('entry')
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayStr = todayIso()
   const [selectedDate, setSelectedDate] = useState(todayStr)
   const [savingUser, setSavingUser] = useState<string | null>(null)
   const [savedUsers, setSavedUsers] = useState<Set<string>>(new Set())
+  // Custom date range
+  const [rangeMode, setRangeMode] = useState<'month' | 'custom'>('month')
+  const [customFrom, setCustomFrom] = useState(firstOfMonthIso())
+  const [customTo, setCustomTo] = useState(todayStr)
+  const [showRangePicker, setShowRangePicker] = useState(false)
+  const [tmpFrom, setTmpFrom] = useState(customFrom)
+  const [tmpTo, setTmpTo] = useState(customTo)
 
   const totalDays = daysInMonth(period)
   const today = new Date()
+
+  const periodStart = rangeMode === 'month' ? `${period}-01` : customFrom
+  const periodEnd   = rangeMode === 'month' ? `${period}-${String(totalDays).padStart(2, '0')}` : customTo
+  const planPeriod  = rangeMode === 'month' ? period : getPeriod(new Date(customFrom))
 
   // Data fetching
   const { data: departments = [] } = useQuery({
@@ -199,15 +220,20 @@ export default function TrackingPage() {
     queryFn: () => api.get('/company/departments').then(r => r.data),
   })
   const { data: plans = [] } = useQuery({
-    queryKey: ['plans', period],
-    queryFn: () => api.get(`/plans?period=${period}`).then(r => r.data),
+    queryKey: ['plans', planPeriod],
+    queryFn: () => api.get(`/plans?period=${planPeriod}`).then(r => r.data),
   })
-  const periodStart = `${period}-01`
-  const periodEnd = `${period}-${String(totalDays).padStart(2, '0')}`
   const { data: reports = [] } = useQuery({
-    queryKey: ['reports-company', period],
+    queryKey: ['reports-company', periodStart, periodEnd],
     queryFn: () => api.get(`/reports/company?from=${periodStart}&to=${periodEnd}`).then(r => r.data),
   })
+
+  const applyCustomRange = () => {
+    if (tmpFrom && tmpTo && tmpFrom <= tmpTo) {
+      setCustomFrom(tmpFrom); setCustomTo(tmpTo)
+      setRangeMode('custom'); setShowRangePicker(false)
+    }
+  }
 
   // All managers across all departments
   const allManagers = useMemo(() => {
@@ -338,10 +364,6 @@ export default function TrackingPage() {
   // ── Table tab ────────────────────────────────────────────────────────────
 
   const renderTableTab = () => {
-    const days = Array.from({ length: totalDays }, (_, i) => i + 1)
-    const todayDay = today.getMonth() + 1 === +period.split('-')[1] && today.getFullYear() === +period.split('-')[0]
-      ? today.getDate() : null
-
     if (allManagers.length === 0) {
       return <div className="text-center py-16 text-gray-400">Нет сотрудников</div>
     }
@@ -351,138 +373,213 @@ export default function TrackingPage() {
     const liders   = salesManagers.filter(u => u.managerType === 'LIDER')
     const marketers = allManagers.filter(u => u.role === 'MARKETER')
 
-    const renderManagerTable = (u: any) => {
-          const fields = getFields(u.managerType, u.role)
-          const primaryKey = getPrimaryKey(u.managerType, u.role)
-          const primaryUnit = getPrimaryUnit(u.managerType, u.role)
-          const planType = getPlanType(u.managerType, u.role)
-          const monthlyPlan = plansMap[`${u.id}_${planType}`] ?? 0
+    // Build column date strings
+    const columnDates: string[] = rangeMode === 'custom'
+      ? dateRange(customFrom, customTo)
+      : Array.from({ length: totalDays }, (_, i) => toDateStr(period, i + 1))
 
-          // For each field: daily values + running total
-          const fieldData = fields.map(f => {
-            let total = 0
-            const dayVals = days.map(d => {
-              const r = reportsMap[u.id]?.[toDateStr(period, d)]
-              const val = r?.data?.[f.key]
-              if (val != null && val !== '') { total += +val; return +val }
-              return null
-            })
-            return { field: f, dayVals, total }
-          })
+    const todayDateStr = todayIso()
+    const isCurrentMonth = rangeMode === 'month' &&
+      today.getMonth() + 1 === +period.split('-')[1] &&
+      today.getFullYear() === +period.split('-')[0]
+    const todayDay = isCurrentMonth ? today.getDate() : null
 
-          const primaryTotal = fieldData.find(fd => fd.field.key === primaryKey)?.total ?? 0
-          const p = pct(primaryTotal, monthlyPlan)
-          const daysPassed = todayDay ? Math.min(todayDay, totalDays) : totalDays
-          const dailyNeed = monthlyPlan ? Math.ceil((monthlyPlan - primaryTotal) / Math.max(1, totalDays - daysPassed)) : 0
+    // ── Aggregate summary for a group ──────────────────────────────────────
+    const renderGroupSummary = (
+      managers: any[],
+      fields: typeof CLOSER_FIELDS,
+      primaryKey: string,
+      primaryUnit: string,
+      planType: string,
+      accent: 'blue' | 'purple' | 'orange',
+      groupLabel: string,
+    ) => {
+      const accentBg = accent === 'purple' ? 'bg-purple-50 border-purple-200' : accent === 'orange' ? 'bg-orange-50 border-orange-200' : 'bg-blue-50 border-blue-200'
+      const accentText = accent === 'purple' ? 'text-purple-700' : accent === 'orange' ? 'text-orange-700' : 'text-blue-700'
+      const accentHeading = accent === 'purple' ? 'text-purple-600' : accent === 'orange' ? 'text-orange-600' : 'text-blue-600'
 
-          // Status indicator per ТЗ 10.3.1
-          const todayDateStr = todayDay ? toDateStr(period, todayDay) : null
-          const hasReportToday = todayDateStr ? !!reportsMap[u.id]?.[todayDateStr] : true
-          const statusDot = !hasReportToday ? 'bg-red-500' : (p !== null && p < 50) ? 'bg-yellow-400' : 'bg-green-400'
-          const statusLabel = !hasReportToday ? 'Нет отчёта' : (p !== null && p < 50) ? 'Отстаёт' : 'В норме'
+      const totals = fields.map(f => {
+        const total = managers.reduce((sum, u) => {
+          return sum + columnDates.reduce((s, date) => {
+            const val = reportsMap[u.id]?.[date]?.data?.[f.key]
+            return val != null ? s + +val : s
+          }, 0)
+        }, 0)
+        return { field: f, total }
+      })
 
-          return (
-            <div key={u.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-              {/* Manager header */}
-              <div className={`flex items-center justify-between px-4 py-3 border-b border-gray-100 ${pctBg(p)}`}>
-                <div className="flex items-center gap-2.5">
-                  <div className="relative">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${
-                      u.managerType === 'LIDER' ? 'bg-purple-500' : u.role === 'MARKETER' ? 'bg-orange-500' : 'bg-blue-500'
-                    }`}>
-                      {u.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${statusDot}`} title={statusLabel} />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 text-sm">{u.name}</p>
-                    <p className="text-xs text-gray-400">
-                      {u.managerType === 'LIDER' ? 'Лидоруб' : u.role === 'MARKETER' ? 'Маркетолог' : 'Клоузер'}
-                      {todayDay && <span className={`ml-2 font-medium ${!hasReportToday ? 'text-red-500' : (p !== null && p < 50) ? 'text-amber-500' : 'text-green-600'}`}>● {statusLabel}</span>}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-6 text-right">
-                  <div>
-                    <p className="text-xs text-gray-400">План</p>
-                    <p className="font-bold text-gray-800 text-sm">{monthlyPlan ? fmt(monthlyPlan) : '—'} {monthlyPlan ? primaryUnit : ''}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400">Факт</p>
-                    <p className="font-bold text-gray-800 text-sm">{fmt(primaryTotal)} {primaryUnit}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400">Выполнение</p>
-                    <p className={`font-bold text-sm ${pctColor(p)}`}>{p !== null ? `${p}%` : '—'}</p>
-                  </div>
-                  {monthlyPlan > 0 && primaryTotal < monthlyPlan && todayDay && (
-                    <div>
-                      <p className="text-xs text-gray-400">Нужно / день</p>
-                      <p className="font-bold text-sm text-blue-600">{fmt(Math.max(0, dailyNeed))} {primaryUnit}</p>
-                    </div>
-                  )}
-                </div>
+      const totalPlan = managers.reduce((sum, u) => sum + (plansMap[`${u.id}_${planType}`] ?? 0), 0)
+      const primaryTotal = totals.find(t => t.field.key === primaryKey)?.total ?? 0
+      const completion = pct(primaryTotal, totalPlan)
+
+      return (
+        <div className={`rounded-xl border p-4 ${accentBg}`}>
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+            <h3 className={`text-sm font-bold uppercase tracking-wider ${accentHeading}`}>
+              Итого — {groupLabel} · {managers.length} чел.
+            </h3>
+            <div className="flex items-center gap-4 text-sm">
+              {totalPlan > 0 && (
+                <>
+                  <span className="text-gray-500">План: <strong className="text-gray-800">{fmt(totalPlan)} {primaryUnit}</strong></span>
+                  <span className="text-gray-500">Факт: <strong className="text-gray-800">{fmt(primaryTotal)} {primaryUnit}</strong></span>
+                  <span className={`font-bold text-base ${pctColor(completion)}`}>{completion !== null ? `${completion}%` : '—'}</span>
+                </>
+              )}
+              {!totalPlan && <span className="text-gray-800 font-bold">{fmt(primaryTotal)} {primaryUnit}</span>}
+            </div>
+          </div>
+          <div className={`grid gap-3 grid-cols-2 sm:grid-cols-${Math.min(fields.length, 4)}`}>
+            {totals.map(({ field, total }) => (
+              <div key={field.key} className="bg-white/70 rounded-lg p-3">
+                <p className="text-xs text-gray-500 mb-0.5">{field.label}</p>
+                <p className={`text-xl font-bold ${field.key === primaryKey ? accentText : 'text-gray-800'}`}>
+                  {total > 0 ? fmt(total) : '—'}
+                </p>
+                <p className="text-[10px] text-gray-400 mt-0.5">{field.unit}</p>
               </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
 
-              {/* Multi-metric table: rows = metrics, cols = days */}
-              <div className="overflow-x-auto">
-                <table className="text-xs border-collapse" style={{ minWidth: 'max-content', width: '100%' }}>
-                  <thead>
-                    <tr className="bg-gray-50">
-                      <th className="sticky left-0 z-10 bg-gray-50 px-3 py-2 text-left font-medium text-gray-500 border-r border-gray-200 whitespace-nowrap min-w-[148px]">
-                        Показатель
-                      </th>
-                      {days.map(d => {
-                        const isToday = d === todayDay
-                        const dateStr = toDateStr(period, d)
-                        const dow = ['вс','пн','вт','ср','чт','пт','сб'][new Date(dateStr).getDay()]
-                        return (
-                          <th key={d} className={`px-1 py-1.5 font-medium border-r border-gray-100 text-center w-[50px] min-w-[50px] ${isToday ? 'bg-blue-50 text-blue-700' : 'text-gray-500'}`}>
-                            <div>{d}</div>
-                            <div className="text-gray-400 font-normal">{dow}</div>
-                          </th>
-                        )
-                      })}
-                      <th className="px-3 py-2 font-semibold text-center text-gray-700 bg-gray-100 border-l border-gray-200 whitespace-nowrap min-w-[64px]">
-                        Итого
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {fieldData.map(({ field, dayVals, total }, rowIdx) => {
-                      const isPrimary = field.key === primaryKey
-                      return (
-                        <tr key={field.key} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}>
-                          <td className={`sticky left-0 z-10 bg-inherit px-3 py-2 border-r border-gray-200 whitespace-nowrap ${isPrimary ? 'font-bold text-gray-800' : 'font-medium text-gray-600'}`}>
-                            {field.label} <span className="text-gray-400 font-normal text-[10px]">{field.unit}</span>
-                          </td>
-                          {dayVals.map((val, idx) => {
-                            const day = idx + 1
-                            const isToday = day === todayDay
-                            const isFuture = todayDay ? day > todayDay : false
-                            return (
-                              <td key={day} className={`px-1 py-2 border-r border-gray-100 text-center ${isToday ? 'bg-blue-50' : ''}`}>
-                                {isFuture ? (
-                                  <span className="text-gray-200">·</span>
-                                ) : val !== null ? (
-                                  <span className={isPrimary ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}>{fmt(val)}</span>
-                                ) : (
-                                  <span className="text-gray-300">—</span>
-                                )}
-                              </td>
-                            )
-                          })}
-                          <td className={`px-3 py-2 text-center font-bold border-l border-gray-200 bg-gray-50 ${isPrimary ? pctColor(p) : 'text-gray-700'}`}>
-                            {total > 0 ? fmt(total) : '—'}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+    // ── Per-manager scrollable table ────────────────────────────────────────
+    const renderManagerTable = (u: any) => {
+      const fields = getFields(u.managerType, u.role)
+      const primaryKey = getPrimaryKey(u.managerType, u.role)
+      const primaryUnit = getPrimaryUnit(u.managerType, u.role)
+      const planType = getPlanType(u.managerType, u.role)
+      const monthlyPlan = plansMap[`${u.id}_${planType}`] ?? 0
+
+      const fieldData = fields.map(f => {
+        let total = 0
+        const dayVals = columnDates.map(date => {
+          const val = reportsMap[u.id]?.[date]?.data?.[f.key]
+          if (val != null && val !== '') { total += +val; return +val }
+          return null
+        })
+        return { field: f, dayVals, total }
+      })
+
+      const primaryTotal = fieldData.find(fd => fd.field.key === primaryKey)?.total ?? 0
+      const p = pct(primaryTotal, monthlyPlan)
+      const daysPassed = todayDay ? Math.min(todayDay, totalDays) : totalDays
+      const dailyNeed = monthlyPlan ? Math.ceil((monthlyPlan - primaryTotal) / Math.max(1, totalDays - daysPassed)) : 0
+
+      const hasReportToday = reportsMap[u.id]?.[todayDateStr] !== undefined
+        || !columnDates.includes(todayDateStr)
+      const statusDot = !hasReportToday ? 'bg-red-500' : (p !== null && p < 50) ? 'bg-yellow-400' : 'bg-green-400'
+      const statusLabel = !hasReportToday ? 'Нет отчёта' : (p !== null && p < 50) ? 'Отстаёт' : 'В норме'
+
+      return (
+        <div key={u.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className={`flex items-center justify-between px-4 py-3 border-b border-gray-100 ${pctBg(p)}`}>
+            <div className="flex items-center gap-2.5">
+              <div className="relative">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${
+                  u.managerType === 'LIDER' ? 'bg-purple-500' : u.role === 'MARKETER' ? 'bg-orange-500' : 'bg-blue-500'
+                }`}>
+                  {u.name.charAt(0).toUpperCase()}
+                </div>
+                <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${statusDot}`} title={statusLabel} />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900 text-sm">{u.name}</p>
+                <p className="text-xs text-gray-400">
+                  {u.managerType === 'LIDER' ? 'Лидоруб' : u.role === 'MARKETER' ? 'Маркетолог' : 'Клоузер'}
+                  {columnDates.includes(todayDateStr) && (
+                    <span className={`ml-2 font-medium ${!hasReportToday ? 'text-red-500' : (p !== null && p < 50) ? 'text-amber-500' : 'text-green-600'}`}>
+                      ● {statusLabel}
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
-          )
+            <div className="flex items-center gap-6 text-right">
+              <div>
+                <p className="text-xs text-gray-400">План</p>
+                <p className="font-bold text-gray-800 text-sm">{monthlyPlan ? fmt(monthlyPlan) : '—'} {monthlyPlan ? primaryUnit : ''}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400">Факт</p>
+                <p className="font-bold text-gray-800 text-sm">{fmt(primaryTotal)} {primaryUnit}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400">Выполнение</p>
+                <p className={`font-bold text-sm ${pctColor(p)}`}>{p !== null ? `${p}%` : '—'}</p>
+              </div>
+              {monthlyPlan > 0 && primaryTotal < monthlyPlan && todayDay && rangeMode === 'month' && (
+                <div>
+                  <p className="text-xs text-gray-400">Нужно / день</p>
+                  <p className="font-bold text-sm text-blue-600">{fmt(Math.max(0, dailyNeed))} {primaryUnit}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="text-xs border-collapse" style={{ minWidth: 'max-content', width: '100%' }}>
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="sticky left-0 z-10 bg-gray-50 px-3 py-2 text-left font-medium text-gray-500 border-r border-gray-200 whitespace-nowrap min-w-[148px]">
+                    Показатель
+                  </th>
+                  {columnDates.map(date => {
+                    const isToday = date === todayDateStr
+                    const d = new Date(date)
+                    const dayNum = d.getDate()
+                    const dow = ['вс','пн','вт','ср','чт','пт','сб'][d.getDay()]
+                    const label = rangeMode === 'custom'
+                      ? `${String(dayNum).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`
+                      : String(dayNum)
+                    return (
+                      <th key={date} className={`px-1 py-1.5 font-medium border-r border-gray-100 text-center w-[50px] min-w-[50px] ${isToday ? 'bg-blue-50 text-blue-700' : 'text-gray-500'}`}>
+                        <div className={rangeMode === 'custom' ? 'text-[10px]' : ''}>{label}</div>
+                        <div className="text-gray-400 font-normal">{dow}</div>
+                      </th>
+                    )
+                  })}
+                  <th className="px-3 py-2 font-semibold text-center text-gray-700 bg-gray-100 border-l border-gray-200 whitespace-nowrap min-w-[64px]">
+                    Итого
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {fieldData.map(({ field, dayVals, total }, rowIdx) => {
+                  const isPrimary = field.key === primaryKey
+                  return (
+                    <tr key={field.key} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}>
+                      <td className={`sticky left-0 z-10 bg-inherit px-3 py-2 border-r border-gray-200 whitespace-nowrap ${isPrimary ? 'font-bold text-gray-800' : 'font-medium text-gray-600'}`}>
+                        {field.label} <span className="text-gray-400 font-normal text-[10px]">{field.unit}</span>
+                      </td>
+                      {dayVals.map((val, idx) => {
+                        const date = columnDates[idx]
+                        const isToday = date === todayDateStr
+                        const isFuture = date > todayDateStr
+                        return (
+                          <td key={date} className={`px-1 py-2 border-r border-gray-100 text-center ${isToday ? 'bg-blue-50' : ''}`}>
+                            {isFuture ? (
+                              <span className="text-gray-200">·</span>
+                            ) : val !== null ? (
+                              <span className={isPrimary ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}>{fmt(val)}</span>
+                            ) : (
+                              <span className="text-gray-300">—</span>
+                            )}
+                          </td>
+                        )
+                      })}
+                      <td className={`px-3 py-2 text-center font-bold border-l border-gray-200 bg-gray-50 ${isPrimary ? pctColor(p) : 'text-gray-700'}`}>
+                        {total > 0 ? fmt(total) : '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )
     }
 
     return (
@@ -490,6 +587,7 @@ export default function TrackingPage() {
         {closers.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Клоузеры</h2>
+            {renderGroupSummary(closers, CLOSER_FIELDS, 'salesAmount', '₸', 'SALES_AMOUNT', 'blue', 'Клоузеры')}
             <div className="space-y-6">{closers.map(renderManagerTable)}</div>
           </div>
         )}
@@ -497,6 +595,7 @@ export default function TrackingPage() {
         {liders.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-sm font-bold text-purple-400 uppercase tracking-wider">Лидорубы</h2>
+            {renderGroupSummary(liders, LIDER_FIELDS, 'leads', 'шт', 'LEADS', 'purple', 'Лидорубы')}
             <div className="space-y-6">{liders.map(renderManagerTable)}</div>
           </div>
         )}
@@ -504,6 +603,7 @@ export default function TrackingPage() {
         {marketers.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Маркетинг</h2>
+            {renderGroupSummary(marketers, MARKETER_FIELDS, 'leads', 'шт', 'LEADS', 'orange', 'Маркетинг')}
             <div className="space-y-6">{marketers.map(renderManagerTable)}</div>
           </div>
         )}
@@ -521,15 +621,63 @@ export default function TrackingPage() {
           <h1 className="text-2xl font-bold text-gray-900">Контроль плана</h1>
           <p className="text-sm text-gray-500 mt-0.5">Ежедневный ввод результатов и динамика по менеджерам</p>
         </div>
-        {/* Month picker */}
-        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-          <button onClick={() => setPeriod(p => shiftMonth(p, -1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
-            <ChevronLeft className="w-4 h-4 text-gray-600" />
-          </button>
-          <span className="px-3 text-sm font-semibold text-gray-800 min-w-[130px] text-center">{formatMonth(period)}</span>
-          <button onClick={() => setPeriod(p => shiftMonth(p, 1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
-            <ChevronRight className="w-4 h-4 text-gray-600" />
-          </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Month picker */}
+          {rangeMode === 'month' && (
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <button onClick={() => setPeriod(p => shiftMonth(p, -1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
+                <ChevronLeft className="w-4 h-4 text-gray-600" />
+              </button>
+              <span className="px-3 text-sm font-semibold text-gray-800 min-w-[130px] text-center">{formatMonth(period)}</span>
+              <button onClick={() => setPeriod(p => shiftMonth(p, 1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
+                <ChevronRight className="w-4 h-4 text-gray-600" />
+              </button>
+            </div>
+          )}
+
+          {/* Custom range button */}
+          <div className="relative">
+            <button
+              onClick={() => { setTmpFrom(customFrom); setTmpTo(customTo); setShowRangePicker(s => !s) }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                rangeMode === 'custom'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-gray-100 text-gray-500 border-transparent hover:text-gray-700'
+              }`}
+            >
+              <CalendarRange className="w-4 h-4" />
+              {rangeMode === 'custom'
+                ? `${customFrom.slice(5).replace('-', '.')} – ${customTo.slice(5).replace('-', '.')}`
+                : 'Период'}
+            </button>
+            {showRangePicker && (
+              <div className="absolute top-full mt-2 right-0 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-4 w-64">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Выбрать период</p>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">С</label>
+                    <input type="date" max={tmpTo || todayStr} value={tmpFrom} onChange={e => setTmpFrom(e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">По</label>
+                    <input type="date" min={tmpFrom} max={todayStr} value={tmpTo} onChange={e => setTmpTo(e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={applyCustomRange} disabled={!tmpFrom || !tmpTo || tmpFrom > tmpTo}
+                    className="flex-1 bg-blue-600 text-white py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-40">
+                    Применить
+                  </button>
+                  <button onClick={() => { setRangeMode('month'); setShowRangePicker(false) }}
+                    className="flex-1 bg-gray-100 text-gray-600 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-200">
+                    Сбросить
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
-import { ChevronLeft, ChevronRight, Save, CheckCircle, Pencil, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Save, CheckCircle, Pencil, X, CalendarRange } from 'lucide-react'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -82,9 +82,23 @@ export default function MarketingPage() {
   const [entryBudget, setEntryBudget] = useState('')
   const [entrySaved, setEntrySaved] = useState(false)
 
+  const [rangeMode, setRangeMode] = useState<'month' | 'custom'>('month')
+  const [customFrom, setCustomFrom] = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10) })
+  const [customTo, setCustomTo] = useState(todayStr)
+  const [showRangePicker, setShowRangePicker] = useState(false)
+  const [tmpFrom, setTmpFrom] = useState(customFrom)
+  const [tmpTo, setTmpTo] = useState(customTo)
+
   const totalDays = daysInMonth(period)
-  const periodStart = `${period}-01`
-  const periodEnd   = `${period}-${String(totalDays).padStart(2, '0')}`
+  const periodStart = rangeMode === 'month' ? `${period}-01` : customFrom
+  const periodEnd   = rangeMode === 'month' ? `${period}-${String(totalDays).padStart(2, '0')}` : customTo
+
+  const applyCustomRange = () => {
+    if (tmpFrom && tmpTo && tmpFrom <= tmpTo) {
+      setCustomFrom(tmpFrom); setCustomTo(tmpTo)
+      setRangeMode('custom'); setShowRangePicker(false)
+    }
+  }
 
   // All company reports for the period
   const { data: allReports = [] } = useQuery({
@@ -185,15 +199,57 @@ export default function MarketingPage() {
           <h1 className="text-2xl font-bold text-gray-900">Маркетинг</h1>
           <p className="text-sm text-gray-500 mt-0.5">Лидогенерация и рекламный бюджет</p>
         </div>
-        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-          <button onClick={() => setPeriod(p => shiftMonth(p, -1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
-            <ChevronLeft className="w-4 h-4 text-gray-600" />
-          </button>
-          <span className="px-3 text-sm font-semibold text-gray-800 min-w-[140px] text-center">{formatMonth(period)}</span>
-          <button onClick={() => setPeriod(p => shiftMonth(p, 1))} disabled={period >= todayPeriod}
-            className="p-1.5 hover:bg-white rounded-md transition-colors disabled:opacity-30">
-            <ChevronRight className="w-4 h-4 text-gray-600" />
-          </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {rangeMode === 'month' && (
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <button onClick={() => setPeriod(p => shiftMonth(p, -1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
+                <ChevronLeft className="w-4 h-4 text-gray-600" />
+              </button>
+              <span className="px-3 text-sm font-semibold text-gray-800 min-w-[140px] text-center">{formatMonth(period)}</span>
+              <button onClick={() => setPeriod(p => shiftMonth(p, 1))} disabled={period >= todayPeriod}
+                className="p-1.5 hover:bg-white rounded-md transition-colors disabled:opacity-30">
+                <ChevronRight className="w-4 h-4 text-gray-600" />
+              </button>
+            </div>
+          )}
+          <div className="relative">
+            <button
+              onClick={() => { setTmpFrom(customFrom); setTmpTo(customTo); setShowRangePicker(s => !s) }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                rangeMode === 'custom' ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 text-gray-500 border-transparent hover:text-gray-700'
+              }`}
+            >
+              <CalendarRange className="w-4 h-4" />
+              {rangeMode === 'custom' ? `${customFrom.slice(5).replace('-', '.')} – ${customTo.slice(5).replace('-', '.')}` : 'Период'}
+            </button>
+            {showRangePicker && (
+              <div className="absolute top-full mt-2 right-0 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-4 w-64">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Выбрать период</p>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">С</label>
+                    <input type="date" max={tmpTo || todayStr} value={tmpFrom} onChange={e => setTmpFrom(e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">По</label>
+                    <input type="date" min={tmpFrom} max={todayStr} value={tmpTo} onChange={e => setTmpTo(e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={applyCustomRange} disabled={!tmpFrom || !tmpTo || tmpFrom > tmpTo}
+                    className="flex-1 bg-blue-600 text-white py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-40">
+                    Применить
+                  </button>
+                  <button onClick={() => { setRangeMode('month'); setShowRangePicker(false) }}
+                    className="flex-1 bg-gray-100 text-gray-600 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-200">
+                    Сбросить
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
