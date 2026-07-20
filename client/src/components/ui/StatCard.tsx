@@ -15,6 +15,19 @@ const colorMap = {
   blue: 'text-blue-600',
 }
 
+function formatValue(v: string | number): string {
+  if (typeof v === 'number') return v.toLocaleString('ru-RU')
+  // If string is a plain integer or float with no symbols, format it
+  const num = Number(v)
+  if (!isNaN(num) && v !== '' && !/[₸%]/.test(v)) return num.toLocaleString('ru-RU')
+  // String with ₸ prefix: format the numeric part
+  if (typeof v === 'string' && v.startsWith('₸ ')) {
+    const n = Number(v.slice(2).replace(/\s/g, ''))
+    if (!isNaN(n)) return '₸ ' + n.toLocaleString('ru-RU')
+  }
+  return String(v)
+}
+
 export default function StatCard({ label, value, sub, extraSub, color = 'default', icon }: StatCardProps) {
   return (
     <div className="stat-card">
@@ -22,7 +35,7 @@ export default function StatCard({ label, value, sub, extraSub, color = 'default
         <p className="stat-label">{label}</p>
         {icon && <div className="text-gray-400">{icon}</div>}
       </div>
-      <p className={`stat-value ${colorMap[color]}`}>{value}</p>
+      <p className={`stat-value ${colorMap[color]}`}>{formatValue(value)}</p>
       {sub && <p className="stat-sub">{sub}</p>}
       {extraSub && <div className="mt-0.5">{extraSub}</div>}
     </div>

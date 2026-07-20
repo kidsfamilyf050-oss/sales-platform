@@ -298,13 +298,11 @@ export default function ROPDashboard() {
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium">{t('dash.table.lider')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.plan')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.leadsCol')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.completion')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.qualified')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.qualPctCol')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.toMeetingCol')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.attendedCol')}</th>
+                  <th className="pb-2 font-medium text-right">Записано</th>
+                  <th className="pb-2 font-medium text-right">Пришло</th>
+                  <th className="pb-2 font-medium text-right">Лидов</th>
+                  <th className="pb-2 font-medium text-right">Квал.</th>
+                  <th className="pb-2 font-medium text-right">% квал.</th>
                 </tr>
               </thead>
               <tbody>
@@ -322,17 +320,11 @@ export default function ROPDashboard() {
                           {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                         </td>
                         <td className="py-2.5 font-medium text-gray-900">{m.name}</td>
-                        <td className="py-2.5 text-right text-gray-500">{m.leadsplan}</td>
-                        <td className="py-2.5 text-right font-medium">{m.leads}</td>
-                        <td className="py-2.5 text-right">
-                          <span className={`font-bold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
-                            {m.completion}%
-                          </span>
-                        </td>
-                        <td className="py-2.5 text-right">{m.qualifiedLeads}</td>
-                        <td className="py-2.5 text-right">{m.qualRate}%</td>
-                        <td className="py-2.5 text-right">{m.meetingsScheduled}</td>
-                        <td className="py-2.5 text-right">{m.meetingsAttended}</td>
+                        <td className="py-2.5 text-right font-medium">{m.meetingsScheduled.toLocaleString('ru-RU')}</td>
+                        <td className="py-2.5 text-right">{m.meetingsAttended.toLocaleString('ru-RU')}</td>
+                        <td className="py-2.5 text-right text-gray-500">{m.leads.toLocaleString('ru-RU')}</td>
+                        <td className="py-2.5 text-right text-gray-500">{m.qualifiedLeads.toLocaleString('ru-RU')}</td>
+                        <td className="py-2.5 text-right text-gray-400">{m.qualRate}%</td>
                       </tr>
                       {isOpen && <LiderDetail key={`lider-detail-${m.id}`} m={m} />}
                     </>

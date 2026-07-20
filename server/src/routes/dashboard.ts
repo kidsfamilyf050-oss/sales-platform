@@ -160,10 +160,11 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     }
     const liderRating = Object.entries(liderStats)
       .map(([id, s]) => {
+        const meetingsPlan = plans.find(p => p.userId === id && p.type === 'MEETINGS_SCHEDULED')?.value || 0
         const leadsplan = plans.find(p => p.userId === id && p.type === 'LEADS')?.value || 0
-        const completion = leadsplan > 0 ? Math.round((s.leads / leadsplan) * 100) : 0
+        const completion = meetingsPlan > 0 ? Math.round((s.meetingsScheduled / meetingsPlan) * 100) : 0
         return {
-          id, name: s.name, type: 'LIDER', leadsplan,
+          id, name: s.name, type: 'LIDER', meetingsPlan, leadsplan,
           leads: s.leads, qualifiedLeads: s.qualifiedLeads,
           meetingsScheduled: s.meetingsScheduled, meetingsAttended: s.meetingsAttended,
           completion, qualRate: s.leads > 0 ? Math.round((s.qualifiedLeads / s.leads) * 100) : 0,
@@ -297,15 +298,17 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const liderUsers = managers.filter(m => m.managerType === 'LIDER')
     const liderRating = liderUsers.map(m => {
       const stats = liderMap[m.id] || { leads: 0, qualifiedLeads: 0, meetingsScheduled: 0, meetingsAttended: 0 }
+      // Primary plan: MEETINGS_SCHEDULED (lider controls how many meetings they book)
+      const meetingsPlan = plans.find(p => p.userId === m.id && p.type === 'MEETINGS_SCHEDULED')?.value || 0
       const leadsplan = plans.find(p => p.userId === m.id && p.type === 'LEADS')?.value || 0
-      const completion = leadsplan > 0 ? Math.round((stats.leads / leadsplan) * 100) : 0
+      const completion = meetingsPlan > 0 ? Math.round((stats.meetingsScheduled / meetingsPlan) * 100) : 0
       const reportedToday = todayReportedIds.has(m.id)
       let status: 'red' | 'yellow' | 'green' = 'green'
       if (!reportedToday) status = 'red'
       else if (completion < 50) status = 'yellow'
       return {
         id: m.id, name: m.name,
-        leadsplan, leads: stats.leads, qualifiedLeads: stats.qualifiedLeads,
+        meetingsPlan, leadsplan, leads: stats.leads, qualifiedLeads: stats.qualifiedLeads,
         meetingsScheduled: stats.meetingsScheduled, meetingsAttended: stats.meetingsAttended,
         completion, qualRate: stats.leads > 0 ? Math.round((stats.qualifiedLeads / stats.leads) * 100) : 0,
         status, reportedToday,
@@ -387,14 +390,17 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const qualifiedLeads = sumReportField(reports, 'qualifiedLeads')
       const meetingsScheduled = sumReportField(reports, 'meetingsScheduled')
       const meetingsAttended = sumReportField(reports, 'meetingsAttended')
+      // Primary KPI for lider = meetings scheduled (they control this, not lead volume)
+      const meetingsScheduledPlan = plans.find(p => p.type === 'MEETINGS_SCHEDULED')?.value || 0
       const leadsplan = plans.find(p => p.type === 'LEADS')?.value || 0
 
       res.json({
         type: 'LIDER',
         summary: {
           leadsplan, leads,
-          planCompletion: leadsplan > 0 ? Math.round((leads / leadsplan) * 100) : 0,
-          qualifiedLeads, meetingsScheduled, meetingsAttended,
+          meetingsScheduledPlan, meetingsScheduled, meetingsAttended,
+          planCompletion: meetingsScheduledPlan > 0 ? Math.round((meetingsScheduled / meetingsScheduledPlan) * 100) : 0,
+          qualifiedLeads,
           qualRate: leads > 0 ? Math.round((qualifiedLeads / leads) * 100) : 0,
         },
         todayReport,
