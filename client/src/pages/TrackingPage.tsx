@@ -221,9 +221,15 @@ export default function TrackingPage() {
     : (periodState.customFrom || todayStr).slice(0, 7)
 
   // Data fetching
+  // Active-only departments → used for entry tab (can only enter data for active employees)
   const { data: departments = [] } = useQuery({
     queryKey: ['departments'],
     queryFn: () => api.get('/company/departments').then(r => r.data),
+  })
+  // All departments including archived → used for table tab (historical data should remain visible)
+  const { data: departmentsAll = [] } = useQuery({
+    queryKey: ['departments-all'],
+    queryFn: () => api.get('/company/departments?includeArchived=true').then(r => r.data),
   })
   const { data: plans = [] } = useQuery({
     queryKey: ['plans', planPeriod],
@@ -234,7 +240,7 @@ export default function TrackingPage() {
     queryFn: () => api.get(`/reports/company?from=${periodStart}&to=${periodEnd}`).then(r => r.data),
   })
 
-  // All managers across all departments
+  // Active managers only — for entry tab
   const allManagers = useMemo(() => {
     const managers: any[] = []
     departments.forEach((dept: any) => {
@@ -242,6 +248,15 @@ export default function TrackingPage() {
     })
     return managers
   }, [departments])
+
+  // All managers including archived — for table tab (historical data stays visible)
+  const allManagersAll = useMemo(() => {
+    const managers: any[] = []
+    departmentsAll.forEach((dept: any) => {
+      dept.users?.forEach((u: any) => managers.push({ ...u, deptName: dept.name, deptType: dept.type }))
+    })
+    return managers
+  }, [departmentsAll])
 
   // Reports lookup: userId → date → report
   const reportsMap = useMemo(() => {
@@ -364,14 +379,14 @@ export default function TrackingPage() {
   // ── Table tab ────────────────────────────────────────────────────────────
 
   const renderTableTab = () => {
-    if (allManagers.length === 0) {
+    if (allManagersAll.length === 0) {
       return <div className="text-center py-16 text-gray-400">{t('tracking.entry.noEmployees')}</div>
     }
 
-    const salesManagers = allManagers.filter(u => u.deptType === 'SALES')
+    const salesManagers = allManagersAll.filter(u => u.deptType === 'SALES')
     const closers  = salesManagers.filter(u => u.managerType !== 'LIDER')
     const liders   = salesManagers.filter(u => u.managerType === 'LIDER')
-    const marketers = allManagers.filter(u => u.role === 'MARKETER')
+    const marketers = allManagersAll.filter(u => u.role === 'MARKETER')
 
     // Build column date strings
     const columnDates: string[] = !isMonthMode

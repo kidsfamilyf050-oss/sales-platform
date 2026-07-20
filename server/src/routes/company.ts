@@ -87,11 +87,18 @@ router.delete('/departments/:id', authenticate, requireRole('OWNER'), async (req
 })
 
 // Get departments
+// ?includeArchived=true — include ARCHIVED users (for table views showing historical data)
 router.get('/departments', authenticate, async (req: AuthRequest, res: Response) => {
+  const includeArchived = req.query.includeArchived === 'true'
   try {
     const departments = await prisma.department.findMany({
       where: { companyId: req.user!.companyId },
-      include: { users: { where: { status: 'ACTIVE' }, select: { id: true, name: true, role: true, managerType: true } } },
+      include: {
+        users: {
+          where: includeArchived ? undefined : { status: 'ACTIVE' },
+          select: { id: true, name: true, role: true, managerType: true, status: true },
+        },
+      },
     })
     res.json(departments)
   } catch (e) {
