@@ -419,6 +419,7 @@ router.get('/marketer', authenticate, async (req: AuthRequest, res: Response) =>
   const { start, end } = getPeriodDates(period as string, from as string, to as string)
   const periodKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
   const userId = req.user!.id
+  const deptId = req.user!.departmentId
 
   try {
     const [reports, plans, todayReport] = await Promise.all([
@@ -427,11 +428,17 @@ router.get('/marketer', authenticate, async (req: AuthRequest, res: Response) =>
       prisma.report.findFirst({ where: { userId, date: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } } }),
     ])
 
+    // Plan lookup priority: personal → department → company-level (no userId/deptId)
+    const findPlan = (type: string) =>
+      plans.find(p => p.type === type && p.userId === userId)
+      ?? plans.find(p => p.type === type && p.departmentId === deptId && !p.userId)
+      ?? plans.find(p => p.type === type && !p.userId && !p.departmentId)
+
     const totalLeads = sumReportField(reports, 'leadsCount')
     const totalQualified = sumReportField(reports, 'qualifiedLeads')
     const totalBudget = sumReportField(reports, 'adBudget')
-    const leadsplan = plans.find(p => p.type === 'LEADS')?.value || 0
-    const budgetPlan = plans.find(p => p.type === 'BUDGET')?.value || 0
+    const leadsplan = findPlan('LEADS')?.value || 0
+    const budgetPlan = findPlan('BUDGET')?.value || 0
     const daysInPeriod = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / 86400000))
     const daysElapsed = Math.min(reports.length, daysInPeriod)
 
