@@ -51,6 +51,10 @@ export default function ManagerDashboard() {
   const navigate = useNavigate()
   const qc = useQueryClient()
 
+  // Sales date selector
+  const [salesDate, setSalesDate] = useState(todayStr)
+  const isToday = salesDate === todayStr
+
   // Main dashboard data
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard-manager', period],
@@ -63,10 +67,6 @@ export default function ManagerDashboard() {
     queryFn: () => api.get(`/sales?date=${salesDate}`).then(r => r.data),
     refetchInterval: 30000,
   })
-
-  // Sales date selector
-  const [salesDate, setSalesDate] = useState(todayStr)
-  const isToday = salesDate === todayStr
 
   // Sale form state
   const [saleForm, setSaleForm] = useState<Sale | null>(null)
@@ -96,7 +96,7 @@ export default function ManagerDashboard() {
   const saveSale = () => {
     if (!saleForm || !saleForm.amount) return
     const payload = {
-      date: todayStr,
+      date: salesDate,
       amount: Number(saleForm.amount),
       paymentType: saleForm.paymentType,
       paymentMethod: saleForm.paymentMethod,
@@ -104,7 +104,6 @@ export default function ManagerDashboard() {
       months: showMonths(saleForm.paymentMethod) ? Number(saleForm.months) : null,
       crmLink: saleForm.crmLink || null,
       comment: saleForm.comment || null,
-      date: salesDate,
     }
     if (editingId) updateSale.mutate({ id: editingId, data: payload })
     else createSale.mutate(payload)

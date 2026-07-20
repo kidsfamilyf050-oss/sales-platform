@@ -33,6 +33,14 @@ function sumReportField(reports: any[], field: string) {
   return reports.reduce((acc, r) => acc + (Number((r.data as any)[field]) || 0), 0)
 }
 
+// Backward-compat helper for lider "leads received" — old reports saved as 'leads', new as 'leadsReceived'
+function sumLiderLeads(reports: any[]) {
+  return reports.reduce((acc, r) => {
+    const d = r.data as any
+    return acc + (Number(d.leadsReceived) || Number(d.leads) || 0)
+  }, 0)
+}
+
 // Closer reports: sum salesAmount from individual sales[] array if present, else fallback to salesAmount field
 function sumCloserSalesAmount(reports: any[]) {
   return reports.reduce((acc, r) => {
@@ -76,6 +84,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const totalLeads = marketerReports.reduce((s, r) => s + (Number((r.data as any).leads) || Number((r.data as any).leadsCount) || 0), 0)
     const totalBudget = marketerReports.reduce((s, r) => s + (Number((r.data as any).budget) || Number((r.data as any).adBudget) || 0), 0)
     // Qualified leads, meetings come from LIDER reports
+    const totalLiderLeads = sumLiderLeads(liderReports)
     const totalQualifiedLeads = sumReportField(liderReports, 'qualifiedLeads')
     const totalMeetingsScheduled = sumReportField(liderReports, 'meetingsScheduled')
     const totalMeetingsAttended = sumReportField(liderReports, 'meetingsAttended')
@@ -142,11 +151,12 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const liderStats: Record<string, { name: string; leads: number; qualifiedLeads: number; meetingsScheduled: number; meetingsAttended: number }> = {}
     for (const r of liderReports) {
       const uid = r.user.id
+      const d = r.data as any
       if (!liderStats[uid]) liderStats[uid] = { name: r.user.name, leads: 0, qualifiedLeads: 0, meetingsScheduled: 0, meetingsAttended: 0 }
-      liderStats[uid].leads += Number((r.data as any).leads) || 0
-      liderStats[uid].qualifiedLeads += Number((r.data as any).qualifiedLeads) || 0
-      liderStats[uid].meetingsScheduled += Number((r.data as any).meetingsScheduled) || 0
-      liderStats[uid].meetingsAttended += Number((r.data as any).meetingsAttended) || 0
+      liderStats[uid].leads += Number(d.leadsReceived) || Number(d.leads) || 0
+      liderStats[uid].qualifiedLeads += Number(d.qualifiedLeads) || 0
+      liderStats[uid].meetingsScheduled += Number(d.meetingsScheduled) || 0
+      liderStats[uid].meetingsAttended += Number(d.meetingsAttended) || 0
     }
     const liderRating = Object.entries(liderStats)
       .map(([id, s]) => {
@@ -223,7 +233,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
 
     // Clients/consultations from closer reports
     const clientsReceived = sumReportField(closerReports, 'clientsReceived')
-    const leadsReceived = sumReportField(liderReports, 'leads')
+    const leadsReceived = sumLiderLeads(liderReports)
     const qualifiedLeads = sumReportField(liderReports, 'qualifiedLeads')
     const meetingsScheduled = sumReportField(liderReports, 'meetingsScheduled')
     const meetingsAttended = sumReportField(liderReports, 'meetingsAttended')
@@ -276,11 +286,12 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const liderMap: Record<string, any> = {}
     for (const r of liderReports) {
       const uid = r.user.id
-      if (!liderMap[uid]) liderMap[uid] = { leads: 0, qualifiedLeads: 0, meetingsScheduled: 0, meetingsAttended: 0 }
-      liderMap[uid].leads += Number((r.data as any).leads) || 0
-      liderMap[uid].qualifiedLeads += Number((r.data as any).qualifiedLeads) || 0
-      liderMap[uid].meetingsScheduled += Number((r.data as any).meetingsScheduled) || 0
-      liderMap[uid].meetingsAttended += Number((r.data as any).meetingsAttended) || 0
+      const d = r.data as any
+      if (!liderMap[uid]) liderMap[uid] = { leads: 0, qualifiedLeads: 0, meetingsScheduled: 0, meetingsAttended: 0, todayData: null }
+      liderMap[uid].leads += Number(d.leadsReceived) || Number(d.leads) || 0
+      liderMap[uid].qualifiedLeads += Number(d.qualifiedLeads) || 0
+      liderMap[uid].meetingsScheduled += Number(d.meetingsScheduled) || 0
+      liderMap[uid].meetingsAttended += Number(d.meetingsAttended) || 0
     }
 
     const liderUsers = managers.filter(m => m.managerType === 'LIDER')
@@ -372,7 +383,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         recentReports: reports.slice(0, 7),
       })
     } else {
-      const leads = sumReportField(reports, 'leads')
+      const leads = sumLiderLeads(reports)
       const qualifiedLeads = sumReportField(reports, 'qualifiedLeads')
       const meetingsScheduled = sumReportField(reports, 'meetingsScheduled')
       const meetingsAttended = sumReportField(reports, 'meetingsAttended')
