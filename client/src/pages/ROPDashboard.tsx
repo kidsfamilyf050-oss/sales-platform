@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
@@ -5,8 +6,12 @@ import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
 import AIInsights from '../components/ui/AIInsights'
 import { useT } from '../i18n'
+import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react'
 
 function fmt(n: number) { return n.toLocaleString('ru') }
+
+const PAYMENT_TYPE_LABEL: Record<string, string> = { new_sale: 'Новая', additional: 'Доплата' }
+const PAYMENT_METHOD_LABEL: Record<string, string> = { cash: 'Нал', card: 'Безнал', credit: 'Кредит', installment: 'Рассрочка' }
 
 // Visual funnel component
 function Funnel({ steps }: { steps: { label: string; value: number; color?: string }[] }) {
@@ -44,6 +49,97 @@ function Funnel({ steps }: { steps: { label: string; value: number; color?: stri
   )
 }
 
+// Expanded manager row — shows today's sales and report
+function ManagerDetail({ m }: { m: any }) {
+  const sales: any[] = m.todaySales || []
+  const report = m.todayReport
+
+  return (
+    <tr>
+      <td colSpan={8} className="pb-3 px-0">
+        <div className="ml-6 mr-2 bg-gray-50 rounded-xl border border-gray-100 p-4 space-y-3">
+          {/* Today's sales */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Продажи сегодня {sales.length > 0 && <span className="text-blue-600 font-bold">· {sales.length} сд · ₸{fmt(m.todaySalesTotal)}</span>}
+            </p>
+            {sales.length === 0 ? (
+              <p className="text-xs text-gray-400">Продаж ещё нет</p>
+            ) : (
+              <div className="space-y-1.5">
+                {sales.map((s: any) => (
+                  <div key={s.id} className="flex items-start gap-3 text-xs bg-white rounded-lg px-3 py-2 border border-gray-100">
+                    <span className="font-bold text-gray-900 whitespace-nowrap">₸ {fmt(Number(s.amount))}</span>
+                    <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {PAYMENT_TYPE_LABEL[s.paymentType] || s.paymentType}
+                    </span>
+                    <span className="text-gray-500 shrink-0">{PAYMENT_METHOD_LABEL[s.paymentMethod] || s.paymentMethod}</span>
+                    {s.bank && <span className="text-gray-400 shrink-0">{s.bank}</span>}
+                    {s.months && <span className="text-gray-400 shrink-0">{s.months} мес.</span>}
+                    {s.crmLink && (
+                      <a href={s.crmLink} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-blue-500 hover:underline shrink-0">
+                        <ExternalLink className="w-3 h-3" /> CRM
+                      </a>
+                    )}
+                    {s.comment && <span className="text-gray-400 italic truncate">💬 {s.comment}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Today's report stats */}
+          {report ? (
+            <div className="border-t border-gray-100 pt-3">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Статистика дня</p>
+              <div className="flex gap-6 text-xs flex-wrap">
+                <span className="text-gray-500">Клиентов: <span className="font-bold text-gray-900">{report.clientsReceived || 0}</span></span>
+                <span className="text-gray-500">Консультаций: <span className="font-bold text-gray-900">{report.consultations || 0}</span></span>
+                <span className="text-gray-500">Отказов: <span className="font-bold text-gray-900">{report.refusals || 0}</span></span>
+                {report.comment && <span className="text-gray-400 italic">💬 {report.comment}</span>}
+              </div>
+            </div>
+          ) : (
+            <div className="border-t border-gray-100 pt-3">
+              <p className="text-xs text-gray-400">Отчёт за день ещё не сдан</p>
+            </div>
+          )}
+        </div>
+      </td>
+    </tr>
+  )
+}
+
+// Lider expanded row
+function LiderDetail({ m }: { m: any }) {
+  const report = m.todayReport
+  if (!report) return (
+    <tr>
+      <td colSpan={9} className="pb-3">
+        <div className="ml-6 mr-2 bg-gray-50 rounded-xl border border-gray-100 p-3">
+          <p className="text-xs text-gray-400">Отчёт за день ещё не сдан</p>
+        </div>
+      </td>
+    </tr>
+  )
+  return (
+    <tr>
+      <td colSpan={9} className="pb-3">
+        <div className="ml-6 mr-2 bg-gray-50 rounded-xl border border-gray-100 p-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Сегодня</p>
+          <div className="flex gap-6 text-xs flex-wrap">
+            <span className="text-gray-500">Лидов получено: <span className="font-bold text-gray-900">{report.leadsReceived || report.leads || 0}</span></span>
+            <span className="text-gray-500">Квалифицировано: <span className="font-bold text-gray-900">{report.qualifiedLeads || 0}</span></span>
+            <span className="text-gray-500">Записано: <span className="font-bold text-gray-900">{report.meetingsScheduled || 0}</span></span>
+            <span className="text-gray-500">Пришло: <span className="font-bold text-gray-900">{report.meetingsAttended || 0}</span></span>
+            {report.comment && <span className="text-gray-400 italic">💬 {report.comment}</span>}
+          </div>
+        </div>
+      </td>
+    </tr>
+  )
+}
+
 export default function ROPDashboard() {
   const { t } = useT()
   const periodState = usePeriodStore()
@@ -52,6 +148,14 @@ export default function ROPDashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard-rop', params],
     queryFn: () => api.get(`/dashboard/rop?${params}`).then(r => r.data),
+    refetchInterval: 60000, // refresh every minute — keep pulse live
+  })
+
+  const [expandedManagers, setExpandedManagers] = useState<Set<string>>(new Set())
+  const toggleExpand = (id: string) => setExpandedManagers(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
   })
 
   const STATUS = {
@@ -121,15 +225,16 @@ export default function ROPDashboard() {
         </div>
       </div>
 
-      {/* Closer Rating */}
+      {/* ── CLOSER RATING — expandable ── */}
       {managerRating?.length > 0 && (
         <div className="card">
           <h3 className="font-semibold text-gray-900 mb-1">{t('dash.closerRating.title')}</h3>
-          <p className="text-xs text-gray-400 mb-4">{t('dash.rop.closerRatingNote')}</p>
+          <p className="text-xs text-gray-400 mb-4">{t('dash.rop.closerRatingNote')} · Нажмите на строку чтобы увидеть детали</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b border-gray-100">
+                  <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium">{t('dash.table.manager')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.plan')}</th>
@@ -140,38 +245,57 @@ export default function ROPDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {managerRating.map((m: any) => (
-                  <tr key={m.id} className={`border-b border-gray-50 hover:bg-gray-50 ${STATUS[m.status as keyof typeof STATUS]?.bg}`}>
-                    <td className="py-2.5">
-                      <div className={`w-2.5 h-2.5 rounded-full ${STATUS[m.status as keyof typeof STATUS]?.dot}`} />
-                    </td>
-                    <td className="py-2.5 font-medium text-gray-900">{m.name}</td>
-                    <td className="py-2.5 text-right text-gray-500">₸ {fmt(m.plan)}</td>
-                    <td className="py-2.5 text-right font-medium">₸ {fmt(m.salesAmount)}</td>
-                    <td className="py-2.5 text-right">
-                      <span className={`font-bold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
-                        {m.completion}%
-                      </span>
-                    </td>
-                    <td className="py-2.5 text-right">{m.salesCount}</td>
-                    <td className="py-2.5 text-right">{m.conversion}%</td>
-                  </tr>
-                ))}
+                {managerRating.map((m: any) => {
+                  const isOpen = expandedManagers.has(m.id)
+                  return (
+                    <>
+                      <tr key={m.id}
+                        className={`border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors ${STATUS[m.status as keyof typeof STATUS]?.bg}`}
+                        onClick={() => toggleExpand(m.id)}>
+                        <td className="py-2.5">
+                          <div className={`w-2.5 h-2.5 rounded-full ${STATUS[m.status as keyof typeof STATUS]?.dot}`} />
+                        </td>
+                        <td className="py-2.5 text-gray-400">
+                          {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                        </td>
+                        <td className="py-2.5 font-medium text-gray-900">
+                          {m.name}
+                          {m.todaySales?.length > 0 && (
+                            <span className="ml-2 text-xs bg-blue-100 text-blue-700 rounded-full px-1.5 py-0.5 font-medium">
+                              +{m.todaySales.length} сд сегодня
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 text-right text-gray-500">₸ {fmt(m.plan)}</td>
+                        <td className="py-2.5 text-right font-medium">₸ {fmt(m.salesAmount)}</td>
+                        <td className="py-2.5 text-right">
+                          <span className={`font-bold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                            {m.completion}%
+                          </span>
+                        </td>
+                        <td className="py-2.5 text-right">{m.salesCount}</td>
+                        <td className="py-2.5 text-right">{m.conversion}%</td>
+                      </tr>
+                      {isOpen && <ManagerDetail key={`detail-${m.id}`} m={m} />}
+                    </>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* Lider Rating */}
+      {/* ── LIDER RATING — expandable ── */}
       {liderRating?.length > 0 && (
         <div className="card">
           <h3 className="font-semibold text-gray-900 mb-1">{t('dash.liderRating.title')}</h3>
-          <p className="text-xs text-gray-400 mb-4">{t('dash.rop.liderRatingNote')}</p>
+          <p className="text-xs text-gray-400 mb-4">{t('dash.rop.liderRatingNote')} · Нажмите на строку чтобы увидеть детали</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b border-gray-100">
+                  <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium">{t('dash.table.lider')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.plan')}</th>
@@ -184,25 +308,36 @@ export default function ROPDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {liderRating.map((m: any) => (
-                  <tr key={m.id} className={`border-b border-gray-50 hover:bg-gray-50 ${STATUS[m.status as keyof typeof STATUS]?.bg}`}>
-                    <td className="py-2.5">
-                      <div className={`w-2.5 h-2.5 rounded-full ${STATUS[m.status as keyof typeof STATUS]?.dot}`} />
-                    </td>
-                    <td className="py-2.5 font-medium text-gray-900">{m.name}</td>
-                    <td className="py-2.5 text-right text-gray-500">{m.leadsplan}</td>
-                    <td className="py-2.5 text-right font-medium">{m.leads}</td>
-                    <td className="py-2.5 text-right">
-                      <span className={`font-bold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
-                        {m.completion}%
-                      </span>
-                    </td>
-                    <td className="py-2.5 text-right">{m.qualifiedLeads}</td>
-                    <td className="py-2.5 text-right">{m.qualRate}%</td>
-                    <td className="py-2.5 text-right">{m.meetingsScheduled}</td>
-                    <td className="py-2.5 text-right">{m.meetingsAttended}</td>
-                  </tr>
-                ))}
+                {liderRating.map((m: any) => {
+                  const isOpen = expandedManagers.has(m.id)
+                  return (
+                    <>
+                      <tr key={m.id}
+                        className={`border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors ${STATUS[m.status as keyof typeof STATUS]?.bg}`}
+                        onClick={() => toggleExpand(m.id)}>
+                        <td className="py-2.5">
+                          <div className={`w-2.5 h-2.5 rounded-full ${STATUS[m.status as keyof typeof STATUS]?.dot}`} />
+                        </td>
+                        <td className="py-2.5 text-gray-400">
+                          {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                        </td>
+                        <td className="py-2.5 font-medium text-gray-900">{m.name}</td>
+                        <td className="py-2.5 text-right text-gray-500">{m.leadsplan}</td>
+                        <td className="py-2.5 text-right font-medium">{m.leads}</td>
+                        <td className="py-2.5 text-right">
+                          <span className={`font-bold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                            {m.completion}%
+                          </span>
+                        </td>
+                        <td className="py-2.5 text-right">{m.qualifiedLeads}</td>
+                        <td className="py-2.5 text-right">{m.qualRate}%</td>
+                        <td className="py-2.5 text-right">{m.meetingsScheduled}</td>
+                        <td className="py-2.5 text-right">{m.meetingsAttended}</td>
+                      </tr>
+                      {isOpen && <LiderDetail key={`lider-detail-${m.id}`} m={m} />}
+                    </>
+                  )
+                })}
               </tbody>
             </table>
           </div>

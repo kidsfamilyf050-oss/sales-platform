@@ -190,22 +190,38 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
   const { start, end } = getPeriodDates(period as string, from as string, to as string)
   const periodKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
   const deptId = req.user!.departmentId
+  const fromStr = dateToStr(start)
+  const toStr = dateToStr(end)
+  const todayStr = dateToStr(new Date())
 
   try {
-    const [managers, plans, closerReports, liderReports, marketerReports, todayReports] = await Promise.all([
+    const [managers, plans, closerReports, liderReports, marketerReports, todayReports, periodSales, todaySales] = await Promise.all([
       prisma.user.findMany({ where: { companyId: req.user!.companyId, departmentId: deptId || undefined, status: 'ACTIVE', role: 'MANAGER' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, departmentId: deptId || undefined }, type: 'CLOSER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true, managerType: true } } } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, departmentId: deptId || undefined }, type: 'LIDER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true } } } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'MARKETER', date: { gte: start, lte: end } } }),
-      prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, departmentId: deptId || undefined }, date: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } } }),
+      prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, departmentId: deptId || undefined }, date: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } }, include: { user: { select: { id: true, name: true } } } }),
+      // Period sales from Sale model
+      prisma.sale.findMany({ where: { companyId: req.user!.companyId, date: { gte: fromStr, lte: toStr } }, include: { user: { select: { id: true, name: true, managerType: true } } } }),
+      // Today's sales per manager
+      prisma.sale.findMany({ where: { companyId: req.user!.companyId, date: todayStr }, orderBy: { createdAt: 'asc' } }),
     ])
 
-    const today = new Date(); today.setHours(0, 0, 0, 0)
     const todayReportedIds = new Set(todayReports.map(r => r.userId))
 
-    const salesAmount = sumCloserSalesAmount(closerReports)
-    const salesCount = sumCloserSalesCount(closerReports)
+    // Aggregate period sales per user (from Sale model)
+    const salesByUser: Record<string, { salesCount: number; salesAmount: number }> = {}
+    for (const s of periodSales) {
+      if (!salesByUser[s.userId]) salesByUser[s.userId] = { salesCount: 0, salesAmount: 0 }
+      salesByUser[s.userId].salesCount++
+      salesByUser[s.userId].salesAmount += s.amount
+    }
+
+    const totalSalesAmount = periodSales.reduce((s, x) => s + x.amount, 0)
+    const totalSalesCount = periodSales.length
+
+    // Clients/consultations from closer reports
     const clientsReceived = sumReportField(closerReports, 'clientsReceived')
     const leadsReceived = sumReportField(liderReports, 'leads')
     const qualifiedLeads = sumReportField(liderReports, 'qualifiedLeads')
@@ -215,25 +231,29 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const salesPlan = plans.find(p => p.departmentId === deptId && p.type === 'SALES_AMOUNT')?.value ||
       plans.find(p => !p.departmentId && p.type === 'SALES_AMOUNT')?.value || 0
 
-    // Closer rating with status indicator
-    const closerMap: Record<string, any> = {}
+    // Today's report data per manager
+    const todayReportByManager: Record<string, any> = {}
+    for (const r of todayReports) {
+      todayReportByManager[r.userId] = r.data
+    }
+
+    // Today's sales per manager
+    const todaySalesByManager: Record<string, any[]> = {}
+    for (const s of todaySales) {
+      if (!todaySalesByManager[s.userId]) todaySalesByManager[s.userId] = []
+      todaySalesByManager[s.userId].push(s)
+    }
+
+    // Closer clients per manager (from reports)
+    const clientsByManager: Record<string, number> = {}
     for (const r of closerReports) {
-      const uid = r.user.id
-      const rd = r.data as any
-      if (!closerMap[uid]) closerMap[uid] = { salesCount: 0, salesAmount: 0, clients: 0 }
-      if (Array.isArray(rd.sales)) {
-        closerMap[uid].salesCount += rd.sales.length
-        closerMap[uid].salesAmount += rd.sales.reduce((s: number, x: any) => s + (Number(x.amount) || 0), 0)
-      } else {
-        closerMap[uid].salesCount += Number(rd.salesCount) || 0
-        closerMap[uid].salesAmount += Number(rd.salesAmount) || 0
-      }
-      closerMap[uid].clients += Number(rd.clientsReceived) || 0
+      clientsByManager[r.user.id] = (clientsByManager[r.user.id] || 0) + (Number((r.data as any).clientsReceived) || 0)
     }
 
     const closers = managers.filter(m => m.managerType !== 'LIDER')
     const managerRating = closers.map(m => {
-      const stats = closerMap[m.id] || { salesCount: 0, salesAmount: 0, clients: 0 }
+      const stats = salesByUser[m.id] || { salesCount: 0, salesAmount: 0 }
+      const clients = clientsByManager[m.id] || 0
       const managerPlan = plans.find(p => p.userId === m.id && p.type === 'SALES_AMOUNT')?.value || 0
       const completion = managerPlan > 0 ? Math.round((stats.salesAmount / managerPlan) * 100) : 0
       const reportedToday = todayReportedIds.has(m.id)
@@ -243,12 +263,16 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       return {
         id: m.id, name: m.name, managerType: m.managerType,
         plan: managerPlan, salesAmount: stats.salesAmount, salesCount: stats.salesCount,
-        completion, conversion: stats.clients > 0 ? Math.round((stats.salesCount / stats.clients) * 100) : 0,
+        completion, conversion: clients > 0 ? Math.round((stats.salesCount / clients) * 100) : 0,
         status, reportedToday,
+        // Today's detail for expanded view
+        todayReport: todayReportByManager[m.id] || null,
+        todaySales: todaySalesByManager[m.id] || [],
+        todaySalesTotal: (todaySalesByManager[m.id] || []).reduce((s: number, x: any) => s + x.amount, 0),
       }
     }).sort((a, b) => b.completion - a.completion)
 
-    // Lider rating with status indicator
+    // Lider rating
     const liderMap: Record<string, any> = {}
     for (const r of liderReports) {
       const uid = r.user.id
@@ -274,22 +298,23 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         meetingsScheduled: stats.meetingsScheduled, meetingsAttended: stats.meetingsAttended,
         completion, qualRate: stats.leads > 0 ? Math.round((stats.qualifiedLeads / stats.leads) * 100) : 0,
         status, reportedToday,
+        todayReport: todayReportByManager[m.id] || null,
       }
     }).sort((a, b) => b.completion - a.completion)
 
-    // Marketing block: leads & budget from MARKETER, qualified from LIDER
+    // Marketing block
     const totalLeads = marketerReports.reduce((s, r) => s + (Number((r.data as any).leads) || Number((r.data as any).leadsCount) || 0), 0)
     const totalBudget = marketerReports.reduce((s, r) => s + (Number((r.data as any).budget) || Number((r.data as any).adBudget) || 0), 0)
     const leadsplan = plans.find(p => !p.userId && !p.departmentId && p.type === 'LEADS')?.value || 0
 
     res.json({
       summary: {
-        salesPlan, salesAmount, salesCount,
-        conversion: clientsReceived > 0 ? Math.round((salesCount / clientsReceived) * 100) : 0,
-        avgCheck: salesCount > 0 ? Math.round(salesAmount / salesCount) : 0,
-        planCompletion: salesPlan > 0 ? Math.round((salesAmount / salesPlan) * 100) : 0,
+        salesPlan, salesAmount: totalSalesAmount, salesCount: totalSalesCount,
+        conversion: clientsReceived > 0 ? Math.round((totalSalesCount / clientsReceived) * 100) : 0,
+        avgCheck: totalSalesCount > 0 ? Math.round(totalSalesAmount / totalSalesCount) : 0,
+        planCompletion: salesPlan > 0 ? Math.round((totalSalesAmount / salesPlan) * 100) : 0,
       },
-      funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount },
+      funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount: totalSalesCount },
       marketing: { leadsplan, totalLeads, totalBudget, leadCost: totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0, qualifiedLeads },
       managerRating,
       liderRating,
@@ -300,34 +325,47 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
   }
 })
 
+// Helper: YYYY-MM-DD string from Date (local)
+function dateToStr(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 // Manager dashboard (personal)
 router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => {
   const { period = 'month', from, to } = req.query
   const { start, end } = getPeriodDates(period as string, from as string, to as string)
   const periodKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
   const userId = req.user!.id
+  const fromStr = dateToStr(start)
+  const toStr = dateToStr(end)
 
   try {
-    const [reports, plans, todayReport] = await Promise.all([
+    const [reports, plans, todayReport, periodSales] = await Promise.all([
       prisma.report.findMany({ where: { userId, date: { gte: start, lte: end } }, orderBy: { date: 'desc' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey, userId } }),
       prisma.report.findFirst({ where: { userId, date: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } } }),
+      prisma.sale.findMany({ where: { userId, date: { gte: fromStr, lte: toStr } } }),
     ])
 
     const isCloser = req.user!.managerType === 'CLOSER'
 
     if (isCloser) {
-      const salesAmount = sumCloserSalesAmount(reports)
-      const salesCount = sumCloserSalesCount(reports)
+      // Sales come from Sale model (live, per-entry)
+      const salesAmount = periodSales.reduce((s, x) => s + x.amount, 0)
+      const salesCount = periodSales.length
+      // Clients received from daily reports
       const clientsReceived = sumReportField(reports, 'clientsReceived')
+      const consultations = sumReportField(reports, 'consultations')
       const salesPlan = plans.find(p => p.type === 'SALES_AMOUNT')?.value || 0
+      // Conversion = deals / clients received (from report stats)
+      const conversion = clientsReceived > 0 ? Math.round((salesCount / clientsReceived) * 100) : 0
 
       res.json({
         type: 'CLOSER',
         summary: {
           salesPlan, salesAmount, salesCount,
           planCompletion: salesPlan > 0 ? Math.round((salesAmount / salesPlan) * 100) : 0,
-          conversion: clientsReceived > 0 ? Math.round((salesCount / clientsReceived) * 100) : 0,
+          conversion,
           avgCheck: salesCount > 0 ? Math.round(salesAmount / salesCount) : 0,
         },
         todayReport,

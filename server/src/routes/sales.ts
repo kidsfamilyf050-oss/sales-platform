@@ -42,7 +42,7 @@ router.get('/range', authenticate, async (req: AuthRequest, res: Response) => {
 
 // POST /api/sales — create a sale
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
-  const { date, amount, paymentType, paymentMethod, bank, months, crmLink } = req.body
+  const { date, amount, paymentType, paymentMethod, bank, months, crmLink, comment } = req.body
   if (!date || !amount || !paymentType || !paymentMethod) {
     return res.status(400).json({ error: 'Missing required fields' })
   }
@@ -58,6 +58,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         bank: bank || null,
         months: months ? Number(months) : null,
         crmLink: crmLink || null,
+        comment: comment || null,
       },
     })
     res.json(sale)
@@ -69,7 +70,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
 // PUT /api/sales/:id — update a sale
 router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
-  const { amount, paymentType, paymentMethod, bank, months, crmLink } = req.body
+  const { amount, paymentType, paymentMethod, bank, months, crmLink, comment } = req.body
   try {
     const sale = await prisma.sale.findFirst({
       where: { id: req.params.id, userId: req.user!.id },
@@ -85,6 +86,7 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
         bank: bank || null,
         months: months ? Number(months) : null,
         crmLink: crmLink || null,
+        comment: comment !== undefined ? (comment || null) : undefined,
       },
     })
     res.json(updated)

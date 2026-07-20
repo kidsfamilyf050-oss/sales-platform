@@ -20,6 +20,7 @@ interface Sale {
   bank: string
   months: string
   crmLink: string
+  comment: string
 }
 
 const BANKS = [
@@ -30,7 +31,7 @@ const BANKS = [
 
 const emptySale = (): Sale => ({
   amount: '', paymentType: 'new_sale', paymentMethod: 'card',
-  bank: 'Kaspi Bank', months: '12', crmLink: '',
+  bank: 'Kaspi Bank', months: '12', crmLink: '', comment: '',
 })
 
 const showBank = (m: string) => ['card', 'credit', 'installment'].includes(m)
@@ -82,7 +83,7 @@ export default function ManagerDashboard() {
 
   const openAdd = () => { setSaleForm(emptySale()); setEditingId(null) }
   const openEdit = (s: any) => {
-    setSaleForm({ amount: String(s.amount), paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank || 'Kaspi Bank', months: String(s.months || '12'), crmLink: s.crmLink || '' })
+    setSaleForm({ amount: String(s.amount), paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank || 'Kaspi Bank', months: String(s.months || '12'), crmLink: s.crmLink || '', comment: s.comment || '' })
     setEditingId(s.id)
   }
 
@@ -96,6 +97,7 @@ export default function ManagerDashboard() {
       bank: showBank(saleForm.paymentMethod) ? saleForm.bank : null,
       months: showMonths(saleForm.paymentMethod) ? Number(saleForm.months) : null,
       crmLink: saleForm.crmLink || null,
+      comment: saleForm.comment || null,
     }
     if (editingId) updateSale.mutate({ id: editingId, data: payload })
     else createSale.mutate(payload)
@@ -185,6 +187,9 @@ export default function ManagerDashboard() {
                           <ExternalLink className="w-3 h-3 flex-shrink-0" />
                           <span className="truncate">{s.crmLink}</span>
                         </a>
+                      )}
+                      {s.comment && (
+                        <p className="text-xs text-gray-500 mt-1">💬 {s.comment}</p>
                       )}
                     </div>
                     <div className="flex gap-0.5 ml-2 flex-shrink-0">
@@ -277,6 +282,13 @@ export default function ManagerDashboard() {
                   <input type="url" className="input" placeholder="https://..."
                     value={saleForm.crmLink}
                     onChange={e => setSaleForm(f => f ? { ...f, crmLink: e.target.value } : f)} />
+                </div>
+
+                <div>
+                  <label className="label">{t('report.closer.comment')}</label>
+                  <textarea className="input" rows={2} placeholder="Заметки по сделке..."
+                    value={saleForm.comment}
+                    onChange={e => setSaleForm(f => f ? { ...f, comment: e.target.value } : f)} />
                 </div>
 
                 <div className="flex gap-2 pt-1">

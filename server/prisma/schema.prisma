@@ -184,6 +184,7 @@ model Sale {
   bank          String?
   months        Int?
   crmLink       String?
+  comment       String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
