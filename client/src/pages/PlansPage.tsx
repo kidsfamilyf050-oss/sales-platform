@@ -359,29 +359,31 @@ export default function PlansPage() {
         )
       })}
 
-      {/* Marketing — always visible, company-level (no dept required) */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Megaphone className="w-5 h-5 text-orange-500" />
-          <h2 className="font-bold text-gray-800 text-lg">Маркетинг</h2>
-        </div>
-        <SectionCard
-          title="План маркетинга (на компанию)"
-          subtitle="Цели по лидогенерации и рекламному бюджету на месяц"
-          icon={Megaphone}
-          iconColor="bg-orange-50"
-        >
-          <div className="grid grid-cols-2 gap-4">
-            {MARKETING_PLANS.map(p => (
-              <PlanInput key={p.type} label={p.label} unit={p.unit} hint={p.hint}
-                value={getVal(p.type, { company: true })}
-                onChange={v => setVal(p.type, v, { company: true })} />
-            ))}
+      {/* Marketing — company-level only when no marketing departments */}
+      {marketingDepts.length === 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Megaphone className="w-5 h-5 text-orange-500" />
+            <h2 className="font-bold text-gray-800 text-lg">Маркетинг</h2>
           </div>
-        </SectionCard>
-      </div>
+          <SectionCard
+            title="План маркетинга (на компанию)"
+            subtitle="Цели по лидогенерации и рекламному бюджету на месяц"
+            icon={Megaphone}
+            iconColor="bg-orange-50"
+          >
+            <div className="grid grid-cols-2 gap-4">
+              {MARKETING_PLANS.map(p => (
+                <PlanInput key={p.type} label={p.label} unit={p.unit} hint={p.hint}
+                  value={getVal(p.type, { company: true })}
+                  onChange={v => setVal(p.type, v, { company: true })} />
+              ))}
+            </div>
+          </SectionCard>
+        </div>
+      )}
 
-      {/* Marketing departments (if they exist) */}
+      {/* Marketing departments */}
       {marketingDepts.map((dept: any) => {
         const marketers = dept.users.filter((u: any) => u.role === 'MARKETER')
         return (

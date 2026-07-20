@@ -50,6 +50,7 @@ export default function UsersPage() {
     setEditSaved(false)
     setEditForm({
       name: u.name || '',
+      email: u.email || '',
       phone: u.phone || '',
       role: u.role,
       managerType: u.managerType || 'CLOSER',
@@ -193,6 +194,11 @@ export default function UsersPage() {
                           <label className="text-xs text-gray-500 block mb-1">ФИО</label>
                           <input className="input text-sm py-1.5" value={editForm.name}
                             onChange={e => setEditForm((f: any) => ({ ...f, name: e.target.value }))} />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 block mb-1">Email</label>
+                          <input type="email" className="input text-sm py-1.5" value={editForm.email}
+                            onChange={e => setEditForm((f: any) => ({ ...f, email: e.target.value }))} />
                         </div>
                         <div>
                           <label className="text-xs text-gray-500 block mb-1">Телефон</label>

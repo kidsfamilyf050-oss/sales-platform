@@ -7,17 +7,20 @@ import { BarChart2, ArrowLeft } from 'lucide-react'
 export default function RegisterPage() {
   const navigate = useNavigate()
   const { setAuth } = useAuthStore()
-  const [form, setForm] = useState({ name: '', companyName: '', email: '', password: '', secret: '' })
+  const [form, setForm] = useState({ name: '', companyType: 'ТОО', companyShortName: '', email: '', password: '', secret: '' })
+
+  const getCompanyName = () => `${form.companyType} "${form.companyShortName}"`
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!form.companyShortName.trim()) return setError('Введите название компании')
     if (form.password.length < 6) return setError('Пароль должен быть минимум 6 символов')
     setError('')
     setLoading(true)
     try {
-      const res = await api.post('/auth/register', form)
+      const res = await api.post('/auth/register', { ...form, companyName: getCompanyName() })
       setAuth(res.data.token, res.data.user)
       navigate('/onboarding')
     } catch (err: any) {
@@ -44,14 +47,24 @@ export default function RegisterPage() {
         <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="label">Название компании *</label>
-            <input
-              type="text"
-              className="input"
-              placeholder='ТОО "Моя компания"'
-              value={form.companyName}
-              onChange={e => setForm(f => ({ ...f, companyName: e.target.value }))}
-              required
-            />
+            <div className="flex gap-2">
+              <select
+                className="input w-24 flex-shrink-0"
+                value={form.companyType}
+                onChange={e => setForm(f => ({ ...f, companyType: e.target.value }))}
+              >
+                <option value="ТОО">ТОО</option>
+                <option value="ИП">ИП</option>
+              </select>
+              <input
+                type="text"
+                className="input flex-1"
+                placeholder='Название'
+                value={form.companyShortName}
+                onChange={e => setForm(f => ({ ...f, companyShortName: e.target.value }))}
+                required
+              />
+            </div>
           </div>
           <div>
             <label className="label">Ваше имя *</label>

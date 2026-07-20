@@ -61,17 +61,24 @@ router.post('/invite', authenticate, requireRole('OWNER', 'ROP'), async (req: Au
   }
 })
 
-// Update user (status, department, role)
+// Update user (status, department, role, email)
 router.put('/:id', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRequest, res: Response) => {
-  const { name, phone, role, managerType, departmentId, status } = req.body
+  const { name, email, phone, role, managerType, departmentId, status } = req.body
   try {
     const target = await prisma.user.findFirst({ where: { id: req.params.id, companyId: req.user!.companyId } })
     if (!target) return res.status(404).json({ error: 'Not found' })
+
+    // Check email uniqueness if changing
+    if (email && email !== target.email) {
+      const existing = await prisma.user.findUnique({ where: { email } })
+      if (existing) return res.status(400).json({ error: 'Email уже используется другим пользователем' })
+    }
 
     const updated = await prisma.user.update({
       where: { id: req.params.id },
       data: {
         ...(name && { name }),
+        ...(email && { email }),
         ...(phone !== undefined && { phone }),
         ...(role && { role }),
         ...(managerType !== undefined && { managerType }),
