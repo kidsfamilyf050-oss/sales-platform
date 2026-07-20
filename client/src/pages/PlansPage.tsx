@@ -78,7 +78,7 @@ function SectionCard({ title, subtitle, icon: Icon, iconColor, children }: {
 // ─── Manager row ────────────────────────────────────────────────────────────
 
 function ManagerRow({ name, role, plans, values, onChange }: {
-  name: string; role: string; plans: typeof MANAGER_CLOSER_PLANS;
+  name: string; role: string; plans: { type: string; label: string; unit: string; hint: string }[];
   values: Record<string, string>; onChange: (type: string, val: string) => void
 }) {
   return (

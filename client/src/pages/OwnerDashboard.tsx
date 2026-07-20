@@ -22,7 +22,8 @@ function getMonthRange(offset: number) {
   return {
     from: `${first.getFullYear()}-${pad(first.getMonth() + 1)}-01`,
     to: `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`,
-    label: first.toLocaleString('ru-RU', { month: 'long', year: 'numeric' }),
+    monthNum: first.getMonth() + 1,
+    year: first.getFullYear(),
   }
 }
 
@@ -87,7 +88,7 @@ export default function OwnerDashboard() {
               <ChevronLeft className="w-4 h-4 text-gray-600" />
             </button>
             <span className="px-3 text-sm font-semibold text-gray-800 min-w-[150px] text-center">
-              {monthRange.label.replace(' г.', '').replace(' г', '')}
+              {t(`month.${monthRange.monthNum}` as any)} {monthRange.year}
             </span>
             <button
               onClick={() => setMonthOffset(o => Math.min(0, o + 1))}

@@ -327,7 +327,7 @@ export default function MarketingPage() {
           {existingEntry && (
             <div className="bg-green-50 border border-green-100 rounded-lg px-3 py-2 text-xs text-green-700 flex items-center gap-2">
               <CheckCircle className="w-3.5 h-3.5 shrink-0" />
-              {t('marketing.existingEntry', { date: new Date(entryDate + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }), leads: existingEntry.data?.leads })}
+              {t('marketing.existingEntry', { date: (() => { const d = new Date(entryDate + 'T12:00:00'); return `${d.getDate()} ${t(`month.${d.getMonth() + 1}` as any)}`; })(), leads: existingEntry.data?.leads })}
             </div>
           )}
 
