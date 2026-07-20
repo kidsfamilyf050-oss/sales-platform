@@ -375,7 +375,7 @@ export default function TrackingPage() {
 
     // Build column date strings
     const columnDates: string[] = !isMonthMode
-      ? dateRange(customFrom, customTo)
+      ? dateRange(periodState.customFrom, periodState.customTo)
       : Array.from({ length: totalDays }, (_, i) => toDateStr(period, i + 1))
 
     const todayDateStr = todayIso()

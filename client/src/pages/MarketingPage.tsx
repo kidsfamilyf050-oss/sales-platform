@@ -110,7 +110,7 @@ export default function MarketingPage() {
 
   // Plans
   const { data: plans = [], refetch: refetchPlans } = useQuery({
-    queryKey: ['plans', period],
+    queryKey: ['plans', monthPeriod],
     queryFn: () => api.get(`/plans?period=${planPeriod}`).then(r => r.data),
   })
   const leadsplan  = (plans as any[]).find((p: any) => p.type === 'LEADS'  && !p.userId && !p.departmentId)?.value || 0
@@ -338,7 +338,7 @@ export default function MarketingPage() {
               <div className="overflow-x-auto">
                 <div className="flex gap-1" style={{ minWidth: 'max-content' }}>
                   {days.map(d => {
-                    const dateStr = `${period}-${String(d).padStart(2, '0')}`
+                    const dateStr = `${monthPeriod}-${String(d).padStart(2, '0')}`
                     const isToday = d === todayDay
                     const isFuture = todayDay ? d > todayDay : false
                     const r = byDate[dateStr]
