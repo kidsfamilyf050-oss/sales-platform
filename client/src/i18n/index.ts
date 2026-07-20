@@ -386,6 +386,8 @@ const ru = {
   'users.col.dept': 'Отдел',
   'users.col.status': 'Статус',
   'users.archiveConfirm': 'Архивировать',
+  'users.restoreConfirm': 'Восстановить доступ',
+  'users.restore': 'Восстановить',
   'users.managerType.CLOSER': 'Клоузер',
   'users.managerType.LIDER': 'Лидоруб',
 
@@ -989,6 +991,8 @@ const kk: typeof ru = {
   'users.col.dept': 'Бөлім',
   'users.col.status': 'Мәртебе',
   'users.archiveConfirm': 'Мұрағаттау',
+  'users.restoreConfirm': 'Қатынасты қалпына келтіру',
+  'users.restore': 'Қалпына келтіру',
   'users.managerType.CLOSER': 'Клоузер',
   'users.managerType.LIDER': 'Лидоруб',
 

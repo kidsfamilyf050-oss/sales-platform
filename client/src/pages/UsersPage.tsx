@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
-import { UserPlus, Archive, Mail, Pencil, X, Check } from 'lucide-react'
+import { UserPlus, Archive, Mail, Pencil, X, Check, RotateCcw } from 'lucide-react'
 import { useT } from '../i18n'
+import { useAuthStore } from '../store/auth'
 
 export default function UsersPage() {
   const qc = useQueryClient()
   const { t } = useT()
+  const currentUser = useAuthStore(s => s.user)
   const [showForm, setShowForm]     = useState(false)
   const [form, setForm]             = useState({ name: '', email: '', phone: '', role: 'MANAGER', managerType: 'CLOSER', departmentId: '' })
   const [inviteLink, setInviteLink] = useState('')
@@ -45,6 +47,7 @@ export default function UsersPage() {
     mutationFn: ({ id, data }: { id: string; data: any }) => api.put(`/users/${id}`, data).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['users'] })
+      qc.invalidateQueries({ queryKey: ['departments'] })
       setEditSaved(true)
       setTimeout(() => { setEditSaved(false); setEditingId(null) }, 1200)
     },
@@ -52,8 +55,29 @@ export default function UsersPage() {
 
   const archive = useMutation({
     mutationFn: (id: string) => api.delete(`/users/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] })
+      qc.invalidateQueries({ queryKey: ['departments'] })
+    },
   })
+
+  const restore = useMutation({
+    mutationFn: (id: string) => api.put(`/users/${id}`, { status: 'ACTIVE' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] })
+      qc.invalidateQueries({ queryKey: ['departments'] })
+    },
+  })
+
+  // Permission: who can restore whom
+  // OWNER → can restore anyone (except themselves)
+  // ROP → can only restore MANAGER role
+  function canRestore(targetRole: string): boolean {
+    if (!currentUser) return false
+    if (currentUser.role === 'OWNER') return true
+    if (currentUser.role === 'ROP' && targetRole === 'MANAGER') return true
+    return false
+  }
 
   function startEdit(u: any) {
     setEditingId(u.id)
@@ -191,6 +215,17 @@ export default function UsersPage() {
                           <Archive className="w-3.5 h-3.5" />
                         </button>
                       </div>
+                    )}
+                    {u.status === 'ARCHIVED' && canRestore(u.role) && (
+                      <button
+                        onClick={() => { if (confirm(`${t('users.restoreConfirm')} ${u.name}?`)) restore.mutate(u.id) }}
+                        disabled={restore.isPending}
+                        className="flex items-center gap-1 px-2.5 py-1 text-xs text-green-600 border border-green-200 rounded-lg hover:bg-green-50 hover:border-green-400 transition-colors disabled:opacity-40"
+                        title={t('users.restore')}
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        {t('users.restore')}
+                      </button>
                     )}
                   </td>
                 </tr>

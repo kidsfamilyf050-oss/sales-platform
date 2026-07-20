@@ -68,6 +68,11 @@ router.put('/:id', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRe
     const target = await prisma.user.findFirst({ where: { id: req.params.id, companyId: req.user!.companyId } })
     if (!target) return res.status(404).json({ error: 'Not found' })
 
+    // ROP can only manage MANAGERs (cannot change status/role of OWNER or ROP)
+    if (req.user!.role === 'ROP' && target.role !== 'MANAGER') {
+      return res.status(403).json({ error: 'Недостаточно прав' })
+    }
+
     // Check email uniqueness if changing
     if (email && email !== target.email) {
       const existing = await prisma.user.findUnique({ where: { email } })
@@ -99,11 +104,20 @@ router.delete('/:id', authenticate, requireRole('OWNER', 'ROP'), async (req: Aut
     const target = await prisma.user.findFirst({ where: { id: req.params.id, companyId: req.user!.companyId } })
     if (!target) return res.status(404).json({ error: 'Not found' })
 
+    // ROP can only archive MANAGERs
+    if (req.user!.role === 'ROP' && target.role !== 'MANAGER') {
+      return res.status(403).json({ error: 'Недостаточно прав' })
+    }
+
     await prisma.user.update({ where: { id: req.params.id }, data: { status: 'ARCHIVED' } })
     res.json({ message: 'User archived' })
   } catch (e) {
     res.status(500).json({ error: 'Server error' })
   }
 })
+
+// Restore user (unarchive) — same PUT endpoint, just ensure ROP can't restore non-managers
+// (Already handled in PUT /:id, but add extra guard for status changes)
+
 
 export default router
