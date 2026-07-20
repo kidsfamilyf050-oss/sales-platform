@@ -12,7 +12,10 @@ import { useT } from '../i18n'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function getPeriod(d: Date) { return d.toISOString().slice(0, 7) }
+// Use local date methods (NOT toISOString) to avoid UTC timezone shift bugs
+function getPeriod(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
 function formatMonth(p: string, t: (k: any) => string) {
   const [y, m] = p.split('-')
   return `${t(`month.${+m}` as any)} ${y}`
@@ -20,7 +23,8 @@ function formatMonth(p: string, t: (k: any) => string) {
 function shiftMonth(p: string, d: number) {
   const [y, m] = p.split('-').map(Number)
   const dt = new Date(y, m - 1 + d, 1)
-  return getPeriod(dt)
+  // Use local year/month (NOT toISOString) to avoid UTC timezone offset bugs
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`
 }
 function daysInMonth(p: string) {
   const [y, m] = p.split('-').map(Number)
@@ -29,8 +33,15 @@ function daysInMonth(p: string) {
 function toDateStr(p: string, day: number) {
   return `${p}-${String(day).padStart(2, '0')}`
 }
-function todayIso() { return new Date().toISOString().slice(0, 10) }
-function firstOfMonthIso() { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10) }
+function pad2(n: number) { return String(n).padStart(2, '0') }
+function todayIso() {
+  const d = new Date()
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+}
+function firstOfMonthIso() {
+  const d = new Date()
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-01`
+}
 // Generate array of date strings between from and to (inclusive)
 function dateRange(from: string, to: string): string[] {
   const dates: string[] = []
@@ -383,15 +394,24 @@ export default function TrackingPage() {
       return <div className="text-center py-16 text-gray-400">{t('tracking.entry.noEmployees')}</div>
     }
 
-    const salesManagers = allManagersAll.filter(u => u.deptType === 'SALES')
-    const closers  = salesManagers.filter(u => u.managerType !== 'LIDER')
-    const liders   = salesManagers.filter(u => u.managerType === 'LIDER')
-    const marketers = allManagersAll.filter(u => u.role === 'MARKETER')
-
-    // Build column date strings
-    const columnDates: string[] = !isMonthMode
+    // Build column dates early so we can filter archived users
+    const columnDatesForFilter: string[] = !isMonthMode
       ? dateRange(periodState.customFrom, periodState.customTo)
       : Array.from({ length: totalDays }, (_, i) => toDateStr(period, i + 1))
+
+    // Archived users only appear in the table if they have at least one report in the viewed period
+    const visibleManagers = allManagersAll.filter(u => {
+      if (u.status !== 'ARCHIVED') return true
+      return columnDatesForFilter.some(date => reportsMap[u.id]?.[date])
+    })
+
+    const salesManagers = visibleManagers.filter(u => u.deptType === 'SALES')
+    const closers  = salesManagers.filter(u => u.managerType !== 'LIDER')
+    const liders   = salesManagers.filter(u => u.managerType === 'LIDER')
+    const marketers = visibleManagers.filter(u => u.role === 'MARKETER')
+
+    // Reuse the already-computed column dates (same expression)
+    const columnDates = columnDatesForFilter
 
     const todayDateStr = todayIso()
     const isCurrentMonth = isMonthMode &&
