@@ -6,7 +6,7 @@ import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
 import AIInsights from '../components/ui/AIInsights'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
 
 function fmt(n: number) { return n.toLocaleString('ru') }
 function pct(a: number, b: number) { return b > 0 ? Math.round((a / b) * 100) : 0 }
@@ -180,12 +180,6 @@ export default function OwnerDashboard() {
           </div>
         </div>
       )}
-
-      {/* Row 3 — Team */}
-      <div className="grid grid-cols-2 gap-4">
-        <StatCard label="Лучший менеджер" value={summary.bestManager} icon={<TrendingUp className="w-4 h-4 text-green-500" />} />
-        <StatCard label="Отстающий" value={summary.worstManager} icon={<TrendingDown className="w-4 h-4 text-red-500" />} />
-      </div>
 
       {/* Chart */}
       {dailyChart?.length > 0 && (
