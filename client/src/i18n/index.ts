@@ -554,6 +554,57 @@ const ru = {
   'common.fillReport': 'Заполнить отчёт',
   'common.today': 'Сегодня',
   'common.noData': '—',
+
+  // Plans field labels
+  'plans.field.salesAmount': 'Сумма продаж',
+  'plans.field.salesCount': 'Количество сделок',
+  'plans.field.avgCheck': 'Средний чек',
+  'plans.field.conversion': 'Конверсия лид→продажа',
+  'plans.field.leadsIn': 'Входящих лидов',
+  'plans.field.qualLeads': 'Квалифицированных лидов',
+  'plans.field.meetingsSched': 'Записано на встречу',
+  'plans.field.meetingsAtt': 'Пришло на встречу',
+  'plans.field.liderLeads': 'Лидов',
+  'plans.field.liderQualLeads': 'Квалифиц. лидов',
+  'plans.field.liderMeetings': 'Записано',
+  'plans.field.mktLeads': 'Плановых лидов',
+  'plans.field.mktQualLeads': 'Квалифиц. лидов',
+  'plans.field.mktBudget': 'Рекламный бюджет',
+  'plans.field.marketerLeads': 'Лидов',
+  'plans.field.marketerBudget': 'Бюджет',
+
+  // Plans hints (tooltips)
+  'plans.hint.deptSalesAmount': 'Общий план продаж отдела за месяц',
+  'plans.hint.deptSalesCount': 'Сколько сделок должен закрыть отдел',
+  'plans.hint.deptAvgCheck': 'Целевая средняя сумма одной сделки',
+  'plans.hint.deptConversion': 'Целевой процент конверсии из лидов в сделки',
+  'plans.hint.deptLeadsIn': 'Сколько новых лидов должно быть обработано',
+  'plans.hint.deptQualLeads': 'Сколько лидов должно пройти квалификацию',
+  'plans.hint.deptMeetingsSched': 'Сколько клиентов должно записаться на встречу',
+  'plans.hint.deptMeetingsAtt': 'Сколько клиентов должно прийти на встречу',
+  'plans.hint.personalSalesAmount': 'Личный план продаж',
+  'plans.hint.personalSalesCount': 'Личный план по количеству сделок',
+  'plans.hint.personalAvgCheck': 'Целевой средний чек',
+  'plans.hint.liderLeads': 'Личный план по лидам',
+  'plans.hint.liderQualLeads': 'Личный план по квалификации',
+  'plans.hint.liderMeetings': 'Личный план по записям на встречу',
+  'plans.hint.mktLeads': 'Сколько лидов должен привести маркетинг',
+  'plans.hint.mktQualLeads': 'Целевое количество квалифицированных лидов',
+  'plans.hint.mktBudget': 'Плановый бюджет на рекламу',
+  'plans.hint.marketerLeads': 'Личный план по лидам',
+  'plans.hint.marketerBudget': 'Личный план по рекламному бюджету',
+  'plans.saveError': 'Ошибка сохранения: ',
+  'plans.nothingToSave': 'Нечего сохранять',
+
+  // AI Insights
+  'ai.title': 'AI-аналитик',
+  'ai.getRecommendations': 'Получить рекомендации',
+  'ai.update': 'Обновить',
+  'ai.hint': 'Нажмите кнопку, чтобы получить AI-рекомендации на основе ваших данных.',
+  'ai.error': 'Не удалось получить рекомендации. Попробуйте позже.',
+
+  // Owner dashboard conversion subtitle
+  'dash.conversionSub': 'лиды → продажи',
 }
 
 const kk: typeof ru = {
@@ -1106,6 +1157,57 @@ const kk: typeof ru = {
   'common.fillReport': 'Есеп толтыру',
   'common.today': 'Бүгін',
   'common.noData': '—',
+
+  // Plans field labels
+  'plans.field.salesAmount': 'Сату сомасы',
+  'plans.field.salesCount': 'Мәміле саны',
+  'plans.field.avgCheck': 'Орташа чек',
+  'plans.field.conversion': 'Конверсия лид→сатылым',
+  'plans.field.leadsIn': 'Кіріс лидтер',
+  'plans.field.qualLeads': 'Сараланған лидтер',
+  'plans.field.meetingsSched': 'Кездесуге жазылды',
+  'plans.field.meetingsAtt': 'Кездесуге келді',
+  'plans.field.liderLeads': 'Лидтер',
+  'plans.field.liderQualLeads': 'Сарал. лидтер',
+  'plans.field.liderMeetings': 'Жазылды',
+  'plans.field.mktLeads': 'Жоспарлы лидтер',
+  'plans.field.mktQualLeads': 'Сарал. лидтер',
+  'plans.field.mktBudget': 'Жарнамалық бюджет',
+  'plans.field.marketerLeads': 'Лидтер',
+  'plans.field.marketerBudget': 'Бюджет',
+
+  // Plans hints (tooltips)
+  'plans.hint.deptSalesAmount': 'Бөлімнің айлық жалпы сату жоспары',
+  'plans.hint.deptSalesCount': 'Бөлім қанша мәміле жабуы керек',
+  'plans.hint.deptAvgCheck': 'Бір мәміленің мақсатты орташа сомасы',
+  'plans.hint.deptConversion': 'Лидтерден мәмілелерге конверсияның мақсатты пайызы',
+  'plans.hint.deptLeadsIn': 'Қанша жаңа лид өңделуі керек',
+  'plans.hint.deptQualLeads': 'Қанша лид саралаудан өтуі керек',
+  'plans.hint.deptMeetingsSched': 'Қанша клиент кездесуге жазылуы керек',
+  'plans.hint.deptMeetingsAtt': 'Қанша клиент кездесуге келуі керек',
+  'plans.hint.personalSalesAmount': 'Жеке сату жоспары',
+  'plans.hint.personalSalesCount': 'Мәміле саны бойынша жеке жоспар',
+  'plans.hint.personalAvgCheck': 'Мақсатты орташа чек',
+  'plans.hint.liderLeads': 'Лидтер бойынша жеке жоспар',
+  'plans.hint.liderQualLeads': 'Саралау бойынша жеке жоспар',
+  'plans.hint.liderMeetings': 'Кездесуге жазылу бойынша жеке жоспар',
+  'plans.hint.mktLeads': 'Маркетинг қанша лид әкелуі керек',
+  'plans.hint.mktQualLeads': 'Сараланған лидтердің мақсатты саны',
+  'plans.hint.mktBudget': 'Жарнамаға арналған жоспарлы бюджет',
+  'plans.hint.marketerLeads': 'Лидтер бойынша жеке жоспар',
+  'plans.hint.marketerBudget': 'Жарнамалық бюджет бойынша жеке жоспар',
+  'plans.saveError': 'Сақтау қатесі: ',
+  'plans.nothingToSave': 'Сақтайтын ештеңе жоқ',
+
+  // AI Insights
+  'ai.title': 'AI-аналитик',
+  'ai.getRecommendations': 'Ұсыныстар алу',
+  'ai.update': 'Жаңарту',
+  'ai.hint': 'Деректеріңізге негізделген AI-ұсыныстар алу үшін батырманы басыңыз.',
+  'ai.error': 'Ұсыныстарды ала алмады. Кейінірек қайталаңыз.',
+
+  // Owner dashboard conversion subtitle
+  'dash.conversionSub': 'лидтер → сатылым',
 }
 
 // ── Store ────────────────────────────────────────────────────────────────────

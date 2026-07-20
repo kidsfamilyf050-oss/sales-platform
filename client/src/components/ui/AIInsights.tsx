@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Sparkles, RefreshCw } from 'lucide-react'
 import { api } from '../../api/client'
+import { useT } from '../../i18n'
 
 interface AIInsightsProps {
   data: Record<string, any>
@@ -10,6 +11,7 @@ interface AIInsightsProps {
 }
 
 export default function AIInsights({ data, managerRating, funnel, period }: AIInsightsProps) {
+  const { t } = useT()
   const [insights, setInsights] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -19,7 +21,7 @@ export default function AIInsights({ data, managerRating, funnel, period }: AIIn
       const res = await api.post('/ai/insights', { summary: data, managerRating, funnel, period: period || 'текущий месяц' })
       setInsights(res.data.insights)
     } catch {
-      setInsights('Не удалось получить рекомендации. Попробуйте позже.')
+      setInsights(t('ai.error'))
     } finally {
       setLoading(false)
     }
@@ -30,7 +32,7 @@ export default function AIInsights({ data, managerRating, funnel, period }: AIIn
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-blue-600" />
-          <h3 className="font-semibold text-gray-900">AI-аналитик</h3>
+          <h3 className="font-semibold text-gray-900">{t('ai.title')}</h3>
         </div>
         <button
           onClick={getInsights}
@@ -38,13 +40,13 @@ export default function AIInsights({ data, managerRating, funnel, period }: AIIn
           className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          {insights ? 'Обновить' : 'Получить рекомендации'}
+          {insights ? t('ai.update') : t('ai.getRecommendations')}
         </button>
       </div>
       {insights ? (
         <div className="text-sm text-gray-700 space-y-2 whitespace-pre-wrap leading-relaxed">{insights}</div>
       ) : (
-        <p className="text-sm text-gray-400">Нажмите кнопку, чтобы получить AI-рекомендации на основе ваших данных.</p>
+        <p className="text-sm text-gray-400">{t('ai.hint')}</p>
       )}
     </div>
   )

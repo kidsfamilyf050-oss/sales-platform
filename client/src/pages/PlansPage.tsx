@@ -4,39 +4,7 @@ import { api } from '../api/client'
 import { Save, Target, Users, TrendingUp, DollarSign, CheckCircle, ChevronLeft, ChevronRight, Info, Building2, UserCircle, Megaphone } from 'lucide-react'
 import { useT } from '../i18n'
 
-// ─── Plan configs ────────────────────────────────────────────────────────────
-
-const DEPT_SALES_PLANS = [
-  { type: 'SALES_AMOUNT', label: 'Сумма продаж', unit: '₸', hint: 'Общий план продаж отдела за месяц' },
-  { type: 'SALES_COUNT', label: 'Количество сделок', unit: 'шт', hint: 'Сколько сделок должен закрыть отдел' },
-  { type: 'AVG_CHECK', label: 'Средний чек', unit: '₸', hint: 'Целевая средняя сумма одной сделки' },
-  { type: 'CONVERSION', label: 'Конверсия лид→продажа', unit: '%', hint: 'Целевой процент конверсии из лидов в сделки' },
-]
-
-const DEPT_LIDER_PLANS = [
-  { type: 'LEADS', label: 'Входящих лидов', unit: 'шт', hint: 'Сколько новых лидов должно быть обработано' },
-  { type: 'QUALIFIED_LEADS', label: 'Квалифицированных лидов', unit: 'шт', hint: 'Сколько лидов должно пройти квалификацию' },
-  { type: 'MEETINGS_SCHEDULED', label: 'Записано на встречу', unit: 'шт', hint: 'Сколько клиентов должно записаться на встречу' },
-  { type: 'MEETINGS_ATTENDED', label: 'Пришло на встречу', unit: 'шт', hint: 'Сколько клиентов должно прийти на встречу' },
-]
-
-const MANAGER_CLOSER_PLANS = [
-  { type: 'SALES_AMOUNT', label: 'Сумма продаж', unit: '₸', hint: 'Личный план продаж' },
-  { type: 'SALES_COUNT', label: 'Количество сделок', unit: 'шт', hint: 'Личный план по количеству сделок' },
-  { type: 'AVG_CHECK', label: 'Средний чек', unit: '₸', hint: 'Целевой средний чек' },
-]
-
-const MANAGER_LIDER_PLANS = [
-  { type: 'LEADS', label: 'Лидов', unit: 'шт', hint: 'Личный план по лидам' },
-  { type: 'QUALIFIED_LEADS', label: 'Квалифиц. лидов', unit: 'шт', hint: 'Личный план по квалификации' },
-  { type: 'MEETINGS_SCHEDULED', label: 'Записано', unit: 'шт', hint: 'Личный план по записям на встречу' },
-]
-
-const MARKETING_PLANS = [
-  { type: 'LEADS', label: 'Плановых лидов', unit: 'шт', hint: 'Сколько лидов должен привести маркетинг' },
-  { type: 'QUALIFIED_LEADS', label: 'Квалифиц. лидов', unit: 'шт', hint: 'Целевое количество квалифицированных лидов' },
-  { type: 'BUDGET', label: 'Рекламный бюджет', unit: '₸', hint: 'Плановый бюджет на рекламу' },
-]
+// Plan configs are defined inside the component to use t()
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -44,10 +12,9 @@ function getPeriod(date: Date) {
   return date.toISOString().slice(0, 7)
 }
 
-function formatPeriod(period: string) {
+function formatPeriod(period: string, t: (k: any) => string) {
   const [year, month] = period.split('-')
-  const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
-  return `${months[parseInt(month) - 1]} ${year}`
+  return `${t(`month.${+month}` as any)} ${year}`
 }
 
 function shiftMonth(period: string, delta: number) {
@@ -143,6 +110,39 @@ export default function PlansPage() {
   const [period, setPeriod] = useState(getPeriod(new Date()))
   const [saved, setSaved] = useState(false)
 
+  // Plan configs — inside component so they can use t()
+  const DEPT_SALES_PLANS = [
+    { type: 'SALES_AMOUNT', label: t('plans.field.salesAmount'), unit: '₸', hint: t('plans.hint.deptSalesAmount') },
+    { type: 'SALES_COUNT', label: t('plans.field.salesCount'), unit: 'шт', hint: t('plans.hint.deptSalesCount') },
+    { type: 'AVG_CHECK', label: t('plans.field.avgCheck'), unit: '₸', hint: t('plans.hint.deptAvgCheck') },
+    { type: 'CONVERSION', label: t('plans.field.conversion'), unit: '%', hint: t('plans.hint.deptConversion') },
+  ]
+  const DEPT_LIDER_PLANS = [
+    { type: 'LEADS', label: t('plans.field.leadsIn'), unit: 'шт', hint: t('plans.hint.deptLeadsIn') },
+    { type: 'QUALIFIED_LEADS', label: t('plans.field.qualLeads'), unit: 'шт', hint: t('plans.hint.deptQualLeads') },
+    { type: 'MEETINGS_SCHEDULED', label: t('plans.field.meetingsSched'), unit: 'шт', hint: t('plans.hint.deptMeetingsSched') },
+    { type: 'MEETINGS_ATTENDED', label: t('plans.field.meetingsAtt'), unit: 'шт', hint: t('plans.hint.deptMeetingsAtt') },
+  ]
+  const MANAGER_CLOSER_PLANS = [
+    { type: 'SALES_AMOUNT', label: t('plans.field.salesAmount'), unit: '₸', hint: t('plans.hint.personalSalesAmount') },
+    { type: 'SALES_COUNT', label: t('plans.field.salesCount'), unit: 'шт', hint: t('plans.hint.personalSalesCount') },
+    { type: 'AVG_CHECK', label: t('plans.field.avgCheck'), unit: '₸', hint: t('plans.hint.personalAvgCheck') },
+  ]
+  const MANAGER_LIDER_PLANS = [
+    { type: 'LEADS', label: t('plans.field.liderLeads'), unit: 'шт', hint: t('plans.hint.liderLeads') },
+    { type: 'QUALIFIED_LEADS', label: t('plans.field.liderQualLeads'), unit: 'шт', hint: t('plans.hint.liderQualLeads') },
+    { type: 'MEETINGS_SCHEDULED', label: t('plans.field.liderMeetings'), unit: 'шт', hint: t('plans.hint.liderMeetings') },
+  ]
+  const MARKETING_PLANS = [
+    { type: 'LEADS', label: t('plans.field.mktLeads'), unit: 'шт', hint: t('plans.hint.mktLeads') },
+    { type: 'QUALIFIED_LEADS', label: t('plans.field.mktQualLeads'), unit: 'шт', hint: t('plans.hint.mktQualLeads') },
+    { type: 'BUDGET', label: t('plans.field.mktBudget'), unit: '₸', hint: t('plans.hint.mktBudget') },
+  ]
+  const MARKETER_PERSONAL_PLANS = [
+    { type: 'LEADS', label: t('plans.field.marketerLeads'), unit: 'шт', hint: t('plans.hint.marketerLeads') },
+    { type: 'BUDGET', label: t('plans.field.marketerBudget'), unit: '₸', hint: t('plans.hint.marketerBudget') },
+  ]
+
   // values[`${type}__dept_${deptId}`] = department plan
   // values[`${type}__user_${userId}`] = manager plan
   const [values, setValues] = useState<Record<string, string>>({})
@@ -201,7 +201,7 @@ export default function PlansPage() {
           plansList.push({ type, value: numVal, userId })
         }
       }
-      if (plansList.length === 0) throw new Error('Нечего сохранять')
+      if (plansList.length === 0) throw new Error(t('plans.nothingToSave'))
       await api.post('/plans/bulk', { period, plans: plansList })
     },
     onSuccess: () => {
@@ -211,7 +211,7 @@ export default function PlansPage() {
       setTimeout(() => setSaved(false), 2500)
     },
     onError: (e: any) => {
-      alert('Ошибка сохранения: ' + (e?.response?.data?.error || e?.message || 'Попробуйте ещё раз'))
+      alert(t('plans.saveError') + (e?.response?.data?.error || e?.message || t('tracking.retry')))
     },
   })
 
@@ -232,7 +232,7 @@ export default function PlansPage() {
             <button onClick={() => setPeriod(p => shiftMonth(p, -1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
               <ChevronLeft className="w-4 h-4 text-gray-600" />
             </button>
-            <span className="px-2 text-sm font-medium text-gray-800 min-w-[120px] text-center">{formatPeriod(period)}</span>
+            <span className="px-2 text-sm font-medium text-gray-800 min-w-[120px] text-center">{formatPeriod(period, t)}</span>
             <button onClick={() => setPeriod(p => shiftMonth(p, 1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
               <ChevronRight className="w-4 h-4 text-gray-600" />
             </button>
@@ -275,7 +275,7 @@ export default function PlansPage() {
               <Building2 className="w-5 h-5 text-blue-600" />
               <h2 className="font-bold text-gray-800 text-lg">{deptLabel}</h2>
               {dept.hasLiders && (
-                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Лидорубы + Клоузеры</span>
+                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">{t('plans.lidersClosers')}</span>
               )}
             </div>
 
@@ -313,7 +313,7 @@ export default function PlansPage() {
                     <ManagerRow
                       key={u.id}
                       name={u.name}
-                      role="Клоузер"
+                      role={t('role.closer')}
                       plans={MANAGER_CLOSER_PLANS}
                       values={MANAGER_CLOSER_PLANS.reduce((acc, p) => ({
                         ...acc, [p.type]: getVal(p.type, { userId: u.id })
@@ -338,7 +338,7 @@ export default function PlansPage() {
                     <ManagerRow
                       key={u.id}
                       name={u.name}
-                      role="Лидоруб"
+                      role={t('role.lider')}
                       plans={MANAGER_LIDER_PLANS}
                       values={MANAGER_LIDER_PLANS.reduce((acc, p) => ({
                         ...acc, [p.type]: getVal(p.type, { userId: u.id })
@@ -422,11 +422,8 @@ export default function PlansPage() {
                     <ManagerRow
                       key={u.id}
                       name={u.name}
-                      role="Маркетолог"
-                      plans={[
-                        { type: 'LEADS', label: 'Лидов', unit: 'шт', hint: 'Личный план по лидам' },
-                        { type: 'BUDGET', label: 'Бюджет', unit: '₸', hint: 'Личный план по рекламному бюджету' },
-                      ]}
+                      role={t('role.MARKETER')}
+                      plans={MARKETER_PERSONAL_PLANS}
                       values={{
                         LEADS: getVal('LEADS', { userId: u.id }),
                         BUDGET: getVal('BUDGET', { userId: u.id }),
