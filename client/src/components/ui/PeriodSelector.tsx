@@ -76,12 +76,12 @@ export default function PeriodSelector() {
 
   return (
     <div className="flex items-center gap-1">
-      <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
+      <div className="flex bg-gray-100 rounded-lg p-1 gap-0.5">
         {presets.map(o => (
           <button
             key={o.value}
             onClick={() => { setPeriod(o.value); setShowPicker(false) }}
-            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+            className={`px-2 md:px-3 py-1 rounded-md text-xs md:text-sm font-medium transition-colors whitespace-nowrap ${
               period === o.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -107,7 +107,7 @@ export default function PeriodSelector() {
         </button>
 
         {showPicker && (
-          <div className="absolute top-full mt-2 right-0 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-4 w-72">
+          <div className="absolute top-full mt-2 right-0 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-4 w-64 md:w-72">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{t('period.customLabel')}</p>
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>

@@ -5,7 +5,7 @@ import { api } from '../api/client'
 import { usePeriodStore } from '../components/ui/PeriodSelector'
 import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
-import { FileText, CheckCircle, Plus, Pencil, Trash2, ExternalLink, X, Check } from 'lucide-react'
+import { FileText, CheckCircle, Plus, Pencil, Trash2, ExternalLink, X, Check, Calendar } from 'lucide-react'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useT } from '../i18n'
@@ -37,8 +37,10 @@ const emptySale = (): Sale => ({
 const showBank = (m: string) => ['card', 'credit', 'installment'].includes(m)
 const showMonths = (m: string) => ['credit', 'installment'].includes(m)
 
-const today = new Date()
-const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+function localDateStr(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+const todayStr = localDateStr(new Date())
 
 const PAYMENT_TYPE_LABEL: Record<string, string> = { new_sale: 'Новая', additional: 'Доплата' }
 const PAYMENT_METHOD_LABEL: Record<string, string> = { cash: 'Нал', card: 'Безнал', credit: 'Кредит', installment: 'Рассрочка' }
@@ -55,12 +57,16 @@ export default function ManagerDashboard() {
     queryFn: () => api.get(`/dashboard/manager?period=${period}`).then(r => r.data),
   })
 
-  // Today's sales (separate from report)
+  // Sales for selected date
   const { data: todaySales = [] } = useQuery({
-    queryKey: ['sales-today'],
-    queryFn: () => api.get(`/sales?date=${todayStr}`).then(r => r.data),
+    queryKey: ['sales-today', salesDate],
+    queryFn: () => api.get(`/sales?date=${salesDate}`).then(r => r.data),
     refetchInterval: 30000,
   })
+
+  // Sales date selector
+  const [salesDate, setSalesDate] = useState(todayStr)
+  const isToday = salesDate === todayStr
 
   // Sale form state
   const [saleForm, setSaleForm] = useState<Sale | null>(null)
@@ -98,6 +104,7 @@ export default function ManagerDashboard() {
       months: showMonths(saleForm.paymentMethod) ? Number(saleForm.months) : null,
       crmLink: saleForm.crmLink || null,
       comment: saleForm.comment || null,
+      date: salesDate,
     }
     if (editingId) updateSale.mutate({ id: editingId, data: payload })
     else createSale.mutate(payload)
@@ -138,7 +145,7 @@ export default function ManagerDashboard() {
       {isCloser ? (
         <>
           {/* Period stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             <StatCard label={t('dash.manager.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
             <StatCard label={t('dash.manager.salesPeriod')} value={`₸ ${fmt(summary.salesAmount)}`} color="blue" />
             <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
@@ -151,19 +158,31 @@ export default function ManagerDashboard() {
 
           {/* ── TODAY'S SALES ── entered throughout the day */}
           <div className="card">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-start justify-between gap-2 mb-4 flex-wrap">
               <div>
-                <h3 className="font-semibold text-gray-900">{t('report.closer.sales')} сегодня</h3>
+                <h3 className="font-semibold text-gray-900">
+                  {t('report.closer.sales')} {isToday ? 'сегодня' : new Date(salesDate + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}
+                </h3>
                 {(todaySales as any[]).length > 0 && (
                   <p className="text-xs text-gray-400 mt-0.5">{(todaySales as any[]).length} сд. · ₸ {fmt(totalToday)}</p>
                 )}
               </div>
-              {!saleForm && (
-                <button onClick={openAdd}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
-                  <Plus className="w-3.5 h-3.5" /> {t('report.closer.addSale')}
-                </button>
-              )}
+              <div className="flex items-center gap-2 ml-auto">
+                <input
+                  type="date"
+                  className="input text-xs py-1.5 w-auto"
+                  value={salesDate}
+                  max={todayStr}
+                  onChange={e => { setSalesDate(e.target.value); setSaleForm(null); setEditingId(null) }}
+                  title="Выбрать дату"
+                />
+                {!saleForm && (
+                  <button onClick={openAdd}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap">
+                    <Plus className="w-3.5 h-3.5" /> {t('report.closer.addSale')}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Sale list */}
@@ -323,7 +342,7 @@ export default function ManagerDashboard() {
       ) : (
         <>
           {/* Lider stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             <StatCard label={t('dash.manager.leadsplan')} value={summary.leadsplan} />
             <StatCard label={t('dash.manager.leads')} value={summary.leads} color="blue" />
             <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />

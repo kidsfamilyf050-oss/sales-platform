@@ -102,7 +102,7 @@ export default function OwnerDashboard() {
       </div>
 
       {/* Row 1 — Sales */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
         <StatCard label={t('dash.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
         <StatCard label={t('dash.salesFact')} value={`₸ ${fmt(summary.totalSalesAmount)}`} color="blue" />
         <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`}
@@ -117,7 +117,7 @@ export default function OwnerDashboard() {
       <ProgressBar value={summary.planCompletion} label={t('dash.planCompletion')} />
 
       {/* Row 2 — Marketing metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <StatCard
           label={t('dash.leads')}
           value={summary.totalLeads}

@@ -45,7 +45,7 @@ export default function MarketerDashboard() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
         <StatCard label={t('dash.marketer.leadsplan')} value={summary.leadsplan} />
         <StatCard label={t('dash.marketer.received')} value={summary.totalLeads} color="blue" />
         <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
