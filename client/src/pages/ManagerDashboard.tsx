@@ -67,12 +67,45 @@ export default function ManagerDashboard() {
           {todayData && (
             <div className="card border-blue-100 bg-blue-50/30">
               <h3 className="font-semibold text-gray-900 mb-3 text-sm">{t('dash.manager.today')}</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                <div><p className="text-xs text-gray-400">{t('dash.manager.salesAmount')}</p><p className="font-bold text-gray-900 mt-0.5">₸ {fmt(Number(todayData.salesAmount) || 0)}</p></div>
-                <div><p className="text-xs text-gray-400">{t('dash.manager.deals')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.salesCount || 0}</p></div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-3">
+                <div>
+                  <p className="text-xs text-gray-400">{t('dash.manager.salesAmount')}</p>
+                  <p className="font-bold text-gray-900 mt-0.5">₸ {fmt(
+                    Array.isArray(todayData.sales)
+                      ? todayData.sales.reduce((s: number, x: any) => s + (Number(x.amount) || 0), 0)
+                      : (Number(todayData.salesAmount) || 0)
+                  )}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">{t('dash.manager.deals')}</p>
+                  <p className="font-bold text-gray-900 mt-0.5">
+                    {Array.isArray(todayData.sales) ? todayData.sales.length : (todayData.salesCount || 0)}
+                  </p>
+                </div>
                 <div><p className="text-xs text-gray-400">{t('dash.manager.clients')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.clientsReceived || 0}</p></div>
                 <div><p className="text-xs text-gray-400">{t('dash.manager.consultations')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.consultations || 0}</p></div>
               </div>
+              {/* Individual sales list */}
+              {Array.isArray(todayData.sales) && todayData.sales.length > 0 && (
+                <div className="space-y-1.5 border-t border-blue-100 pt-2">
+                  {todayData.sales.map((s: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {s.paymentType === 'new_sale' ? 'Новая' : 'Доплата'}
+                        </span>
+                        <span className="text-gray-500">{s.paymentMethod === 'cash' ? 'Нал' : s.paymentMethod === 'card' ? 'Безнал' : s.paymentMethod === 'credit' ? 'Кредит' : 'Рассрочка'}</span>
+                        {s.bank && <span className="text-gray-400">{s.bank}</span>}
+                        {s.months && <span className="text-gray-400">{s.months} мес.</span>}
+                        {s.crmLink && (
+                          <a href={s.crmLink} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">сделка ↗</a>
+                        )}
+                      </div>
+                      <span className="font-semibold text-gray-900">₸ {fmt(Number(s.amount) || 0)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               {todayReport.comment && (
                 <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-blue-100">💬 {todayReport.comment}</p>
               )}

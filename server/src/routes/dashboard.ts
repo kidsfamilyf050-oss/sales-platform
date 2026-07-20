@@ -33,6 +33,25 @@ function sumReportField(reports: any[], field: string) {
   return reports.reduce((acc, r) => acc + (Number((r.data as any)[field]) || 0), 0)
 }
 
+// Closer reports: sum salesAmount from individual sales[] array if present, else fallback to salesAmount field
+function sumCloserSalesAmount(reports: any[]) {
+  return reports.reduce((acc, r) => {
+    const d = r.data as any
+    if (Array.isArray(d.sales) && d.sales.length > 0) {
+      return acc + d.sales.reduce((s: number, sale: any) => s + (Number(sale.amount) || 0), 0)
+    }
+    return acc + (Number(d.salesAmount) || 0)
+  }, 0)
+}
+
+function sumCloserSalesCount(reports: any[]) {
+  return reports.reduce((acc, r) => {
+    const d = r.data as any
+    if (Array.isArray(d.sales)) return acc + d.sales.length
+    return acc + (Number(d.salesCount) || 0)
+  }, 0)
+}
+
 // Owner dashboard
 router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
   const { period = 'month', from, to } = req.query
@@ -50,8 +69,8 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'MARKETER', date: { gte: start, lte: end } } }),
     ])
 
-    const totalSalesAmount = sumReportField(closerReports, 'salesAmount')
-    const totalSalesCount = sumReportField(closerReports, 'salesCount')
+    const totalSalesAmount = sumCloserSalesAmount(closerReports)
+    const totalSalesCount = sumCloserSalesCount(closerReports)
     const totalClients = sumReportField(closerReports, 'clientsReceived')
     // Marketing: leads & budget come from MARKETER reports
     const totalLeads = marketerReports.reduce((s, r) => s + (Number((r.data as any).leads) || Number((r.data as any).leadsCount) || 0), 0)
@@ -80,19 +99,31 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const dailySales: Record<string, { sales: number; amount: number }> = {}
     for (const r of closerReports) {
       const d = r.date.toISOString().split('T')[0]
+      const rd = r.data as any
       if (!dailySales[d]) dailySales[d] = { sales: 0, amount: 0 }
-      dailySales[d].sales += Number((r.data as any).salesCount) || 0
-      dailySales[d].amount += Number((r.data as any).salesAmount) || 0
+      if (Array.isArray(rd.sales)) {
+        dailySales[d].sales += rd.sales.length
+        dailySales[d].amount += rd.sales.reduce((s: number, x: any) => s + (Number(x.amount) || 0), 0)
+      } else {
+        dailySales[d].sales += Number(rd.salesCount) || 0
+        dailySales[d].amount += Number(rd.salesAmount) || 0
+      }
     }
 
     // Closer rating
     const closerStats: Record<string, { name: string; salesCount: number; salesAmount: number; clients: number }> = {}
     for (const r of closerReports) {
       const uid = r.user.id
+      const rd = r.data as any
       if (!closerStats[uid]) closerStats[uid] = { name: r.user.name, salesCount: 0, salesAmount: 0, clients: 0 }
-      closerStats[uid].salesCount += Number((r.data as any).salesCount) || 0
-      closerStats[uid].salesAmount += Number((r.data as any).salesAmount) || 0
-      closerStats[uid].clients += Number((r.data as any).clientsReceived) || 0
+      if (Array.isArray(rd.sales)) {
+        closerStats[uid].salesCount += rd.sales.length
+        closerStats[uid].salesAmount += rd.sales.reduce((s: number, x: any) => s + (Number(x.amount) || 0), 0)
+      } else {
+        closerStats[uid].salesCount += Number(rd.salesCount) || 0
+        closerStats[uid].salesAmount += Number(rd.salesAmount) || 0
+      }
+      closerStats[uid].clients += Number(rd.clientsReceived) || 0
     }
     const managerRating = Object.entries(closerStats)
       .map(([id, s]) => {
@@ -173,8 +204,8 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const today = new Date(); today.setHours(0, 0, 0, 0)
     const todayReportedIds = new Set(todayReports.map(r => r.userId))
 
-    const salesAmount = sumReportField(closerReports, 'salesAmount')
-    const salesCount = sumReportField(closerReports, 'salesCount')
+    const salesAmount = sumCloserSalesAmount(closerReports)
+    const salesCount = sumCloserSalesCount(closerReports)
     const clientsReceived = sumReportField(closerReports, 'clientsReceived')
     const leadsReceived = sumReportField(liderReports, 'leads')
     const qualifiedLeads = sumReportField(liderReports, 'qualifiedLeads')
@@ -188,10 +219,16 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const closerMap: Record<string, any> = {}
     for (const r of closerReports) {
       const uid = r.user.id
+      const rd = r.data as any
       if (!closerMap[uid]) closerMap[uid] = { salesCount: 0, salesAmount: 0, clients: 0 }
-      closerMap[uid].salesCount += Number((r.data as any).salesCount) || 0
-      closerMap[uid].salesAmount += Number((r.data as any).salesAmount) || 0
-      closerMap[uid].clients += Number((r.data as any).clientsReceived) || 0
+      if (Array.isArray(rd.sales)) {
+        closerMap[uid].salesCount += rd.sales.length
+        closerMap[uid].salesAmount += rd.sales.reduce((s: number, x: any) => s + (Number(x.amount) || 0), 0)
+      } else {
+        closerMap[uid].salesCount += Number(rd.salesCount) || 0
+        closerMap[uid].salesAmount += Number(rd.salesAmount) || 0
+      }
+      closerMap[uid].clients += Number(rd.clientsReceived) || 0
     }
 
     const closers = managers.filter(m => m.managerType !== 'LIDER')
@@ -280,8 +317,8 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
     const isCloser = req.user!.managerType === 'CLOSER'
 
     if (isCloser) {
-      const salesAmount = sumReportField(reports, 'salesAmount')
-      const salesCount = sumReportField(reports, 'salesCount')
+      const salesAmount = sumCloserSalesAmount(reports)
+      const salesCount = sumCloserSalesCount(reports)
       const clientsReceived = sumReportField(reports, 'clientsReceived')
       const salesPlan = plans.find(p => p.type === 'SALES_AMOUNT')?.value || 0
 
