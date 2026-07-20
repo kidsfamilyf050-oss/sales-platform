@@ -21,7 +21,7 @@ export default function LoginPage() {
     try {
       const res = await api.post('/auth/login', form)
       setAuth(res.data.token, res.data.user)
-      navigate('/')
+      navigate('/app')
     } catch (err: any) {
       setError(err.response?.data?.error || t('login.error'))
     } finally {
