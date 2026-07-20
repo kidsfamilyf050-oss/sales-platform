@@ -554,6 +554,8 @@ const ru = {
   'dash.manager.leadsplan': 'План лидов',
   'dash.manager.qualRate': '% квалификации',
   'dash.manager.meetingsAttended': 'Пришло на встречу',
+  'dash.manager.meetingsPlan': 'План встреч',
+  'dash.manager.planCompletionMeetings': 'Выполнение плана по встречам',
 
   // Marketer Dashboard extra
   'dash.marketer.title': 'Кабинет маркетолога',
@@ -1179,6 +1181,8 @@ const kk: typeof ru = {
   'dash.manager.leadsplan': 'Лид жоспары',
   'dash.manager.qualRate': '% саралау',
   'dash.manager.meetingsAttended': 'Кездесуге келді',
+  'dash.manager.meetingsPlan': 'Кездесу жоспары',
+  'dash.manager.planCompletionMeetings': 'Кездесу жоспарын орындау',
 
   // Marketer Dashboard extra
   'dash.marketer.title': 'Маркетолог кабинеті',

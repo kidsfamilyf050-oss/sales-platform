@@ -342,14 +342,14 @@ export default function ManagerDashboard() {
         <>
           {/* Lider stats — primary KPI: meetings scheduled */}
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-            <StatCard label="План встреч" value={summary.meetingsScheduledPlan} />
-            <StatCard label="Записано на встречу" value={summary.meetingsScheduled} color="blue" />
+            <StatCard label={t('dash.manager.meetingsPlan')} value={summary.meetingsScheduledPlan} />
+            <StatCard label={t('dash.manager.meetings')} value={summary.meetingsScheduled} color="blue" />
             <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
-            <StatCard label="Пришло на встречу" value={summary.meetingsAttended} />
+            <StatCard label={t('dash.manager.attended')} value={summary.meetingsAttended} />
             <StatCard label={t('dash.manager.qualified')} value={summary.qualifiedLeads} sub={`${summary.qualRate}% квал.`} />
             <StatCard label={t('dash.manager.leads')} value={summary.leads} sub={summary.leadsplan > 0 ? `план ${summary.leadsplan}` : undefined} />
           </div>
-          <ProgressBar value={summary.planCompletion} label="Выполнение плана по встречам" />
+          <ProgressBar value={summary.planCompletion} label={t('dash.manager.planCompletionMeetings')} />
           {todayData && (
             <div className="card border-purple-100 bg-purple-50/30">
               <h3 className="font-semibold text-gray-900 mb-3 text-sm">{t('dash.manager.today')}</h3>
