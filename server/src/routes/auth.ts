@@ -91,6 +91,12 @@ router.post('/accept-invite', async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({ where: { inviteToken: token } })
     if (!user) return res.status(404).json({ error: 'Invalid invite link' })
 
+    // Check 3-day expiry
+    const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000
+    if (user.invitedAt && Date.now() - new Date(user.invitedAt).getTime() > THREE_DAYS_MS) {
+      return res.status(410).json({ error: 'Ссылка устарела. Попросите администратора сгенерировать новую.' })
+    }
+
     const passwordHash = await bcrypt.hash(password, 10)
     const updated = await prisma.user.update({
       where: { id: user.id },

@@ -16,7 +16,7 @@ router.get('/', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthReque
     }
     const users = await prisma.user.findMany({
       where,
-      select: { id: true, name: true, email: true, phone: true, role: true, managerType: true, status: true, departmentId: true, department: { select: { name: true } }, lastLoginAt: true, createdAt: true },
+      select: { id: true, name: true, email: true, phone: true, role: true, managerType: true, status: true, departmentId: true, department: { select: { name: true } }, lastLoginAt: true, createdAt: true, invitedAt: true, inviteToken: true },
       orderBy: { createdAt: 'asc' },
     })
     res.json(users)
@@ -116,8 +116,28 @@ router.delete('/:id', authenticate, requireRole('OWNER', 'ROP'), async (req: Aut
   }
 })
 
-// Restore user (unarchive) — same PUT endpoint, just ensure ROP can't restore non-managers
-// (Already handled in PUT /:id, but add extra guard for status changes)
+// Regenerate invite link (for users who haven't accepted yet or link expired)
+router.post('/:id/resend-invite', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRequest, res: Response) => {
+  try {
+    const target = await prisma.user.findFirst({ where: { id: req.params.id, companyId: req.user!.companyId } })
+    if (!target) return res.status(404).json({ error: 'Not found' })
 
+    // ROP can only manage MANAGERs
+    if (req.user!.role === 'ROP' && target.role !== 'MANAGER') {
+      return res.status(403).json({ error: 'Недостаточно прав' })
+    }
+
+    const inviteToken = uuidv4()
+    await prisma.user.update({
+      where: { id: req.params.id },
+      data: { inviteToken, invitedAt: new Date() },
+    })
+
+    res.json({ inviteToken })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
 
 export default router

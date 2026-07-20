@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
-import { UserPlus, Archive, Mail, Pencil, X, Check, RotateCcw } from 'lucide-react'
+import { UserPlus, Archive, Mail, Pencil, X, Check, RotateCcw, RefreshCw, Clock } from 'lucide-react'
 import { useT } from '../i18n'
 import { useAuthStore } from '../store/auth'
 
@@ -71,6 +71,33 @@ export default function UsersPage() {
       qc.invalidateQueries({ queryKey: ['departments-all'] })
     },
   })
+
+  const resendInvite = useMutation({
+    mutationFn: (id: string) => api.post(`/users/${id}/resend-invite`).then(r => r.data),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['users'] })
+      const link = `${window.location.origin}/accept-invite?token=${data.inviteToken}`
+      setInviteLink(link)
+    },
+  })
+
+  // Invite status helpers
+  const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000
+  function isInvitePending(u: any): boolean {
+    return !!u.inviteToken
+  }
+  function isInviteExpired(u: any): boolean {
+    if (!u.inviteToken || !u.invitedAt) return false
+    return Date.now() - new Date(u.invitedAt).getTime() > THREE_DAYS_MS
+  }
+  function inviteExpiresIn(u: any): string {
+    if (!u.invitedAt) return ''
+    const ms = THREE_DAYS_MS - (Date.now() - new Date(u.invitedAt).getTime())
+    if (ms <= 0) return 'истекла'
+    const hrs = Math.floor(ms / 3600000)
+    if (hrs < 24) return `истекает через ${hrs} ч`
+    return `истекает через ${Math.floor(hrs / 24)} д`
+  }
 
   // Permission: who can restore whom
   // OWNER → can restore anyone (except themselves)
@@ -189,6 +216,12 @@ export default function UsersPage() {
                     <p className="font-medium text-gray-900">{u.name}</p>
                     <p className="text-gray-400 text-xs">{u.email}</p>
                     {u.phone && <p className="text-gray-400 text-xs">{u.phone}</p>}
+                    {isInvitePending(u) && (
+                      <span className={`inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-xs font-medium ${isInviteExpired(u) ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-700'}`}>
+                        <Clock className="w-3 h-3" />
+                        {isInviteExpired(u) ? 'Ссылка истекла' : `Ожидает · ${inviteExpiresIn(u)}`}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     {roleLabels[u.role]}
@@ -203,6 +236,16 @@ export default function UsersPage() {
                   <td className="px-4 py-3">
                     {u.role !== 'OWNER' && u.status === 'ACTIVE' && (
                       <div className="flex items-center gap-1">
+                        {isInvitePending(u) && (
+                          <button
+                            onClick={() => resendInvite.mutate(u.id)}
+                            disabled={resendInvite.isPending}
+                            className="p-1.5 rounded text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition-colors disabled:opacity-40"
+                            title="Сгенерировать новую ссылку"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => editingId === u.id ? setEditingId(null) : startEdit(u)}
                           className={`p-1.5 rounded transition-colors ${editingId === u.id ? 'text-blue-600 bg-blue-100' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}`}
