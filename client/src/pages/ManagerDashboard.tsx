@@ -70,7 +70,7 @@ export default function ManagerDashboard() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                 <div><p className="text-xs text-gray-400">{t('dash.manager.salesAmount')}</p><p className="font-bold text-gray-900 mt-0.5">₸ {fmt(Number(todayData.salesAmount) || 0)}</p></div>
                 <div><p className="text-xs text-gray-400">{t('dash.manager.deals')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.salesCount || 0}</p></div>
-                <div><p className="text-xs text-gray-400">{t('dash.manager.clients')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.clients || 0}</p></div>
+                <div><p className="text-xs text-gray-400">{t('dash.manager.clients')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.clientsReceived || 0}</p></div>
                 <div><p className="text-xs text-gray-400">{t('dash.manager.consultations')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.consultations || 0}</p></div>
               </div>
               {todayReport.comment && (

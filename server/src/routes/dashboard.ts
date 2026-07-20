@@ -52,7 +52,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
 
     const totalSalesAmount = sumReportField(closerReports, 'salesAmount')
     const totalSalesCount = sumReportField(closerReports, 'salesCount')
-    const totalClients = sumReportField(closerReports, 'clients')
+    const totalClients = sumReportField(closerReports, 'clientsReceived')
     // Marketing: leads & budget come from MARKETER reports
     const totalLeads = marketerReports.reduce((s, r) => s + (Number((r.data as any).leads) || Number((r.data as any).leadsCount) || 0), 0)
     const totalBudget = marketerReports.reduce((s, r) => s + (Number((r.data as any).budget) || Number((r.data as any).adBudget) || 0), 0)
@@ -92,7 +92,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       if (!closerStats[uid]) closerStats[uid] = { name: r.user.name, salesCount: 0, salesAmount: 0, clients: 0 }
       closerStats[uid].salesCount += Number((r.data as any).salesCount) || 0
       closerStats[uid].salesAmount += Number((r.data as any).salesAmount) || 0
-      closerStats[uid].clients += Number((r.data as any).clients) || 0
+      closerStats[uid].clients += Number((r.data as any).clientsReceived) || 0
     }
     const managerRating = Object.entries(closerStats)
       .map(([id, s]) => {
@@ -175,7 +175,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
 
     const salesAmount = sumReportField(closerReports, 'salesAmount')
     const salesCount = sumReportField(closerReports, 'salesCount')
-    const clientsReceived = sumReportField(closerReports, 'clients')
+    const clientsReceived = sumReportField(closerReports, 'clientsReceived')
     const leadsReceived = sumReportField(liderReports, 'leads')
     const qualifiedLeads = sumReportField(liderReports, 'qualifiedLeads')
     const meetingsScheduled = sumReportField(liderReports, 'meetingsScheduled')
@@ -191,7 +191,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       if (!closerMap[uid]) closerMap[uid] = { salesCount: 0, salesAmount: 0, clients: 0 }
       closerMap[uid].salesCount += Number((r.data as any).salesCount) || 0
       closerMap[uid].salesAmount += Number((r.data as any).salesAmount) || 0
-      closerMap[uid].clients += Number((r.data as any).clients) || 0
+      closerMap[uid].clients += Number((r.data as any).clientsReceived) || 0
     }
 
     const closers = managers.filter(m => m.managerType !== 'LIDER')
