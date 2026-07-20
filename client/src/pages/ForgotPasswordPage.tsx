@@ -2,8 +2,11 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { BarChart2, Mail, ArrowLeft, Copy, CheckCircle } from 'lucide-react'
+import { useT } from '../i18n'
+import LanguageSwitcher from '../components/ui/LanguageSwitcher'
 
 export default function ForgotPasswordPage() {
+  const { t } = useT()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ message: string; resetUrl?: string; note?: string } | null>(null)
@@ -18,7 +21,7 @@ export default function ForgotPasswordPage() {
       const res = await api.post('/auth/forgot-password', { email })
       setResult(res.data)
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Ошибка. Попробуйте позже.')
+      setError(err.response?.data?.error || t('forgot.error'))
     } finally {
       setLoading(false)
     }
@@ -35,20 +38,23 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
-        <div className="flex items-center gap-2 mb-8">
-          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
-            <BarChart2 className="w-5 h-5 text-white" />
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
+              <BarChart2 className="w-5 h-5 text-white" />
+            </div>
+            <span className="font-bold text-xl text-gray-900">SalesPlatform</span>
           </div>
-          <span className="font-bold text-xl text-gray-900">SalesPlatform</span>
+          <LanguageSwitcher />
         </div>
 
         {!result ? (
           <>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">Забыли пароль?</h1>
-            <p className="text-gray-500 text-sm mb-6">Введите email — мы пришлём ссылку для сброса пароля</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">{t('forgot.title')}</h1>
+            <p className="text-gray-500 text-sm mb-6">{t('forgot.subtitle')}</p>
             <form onSubmit={submit} className="space-y-4">
               <div>
-                <label className="label">Email</label>
+                <label className="label">{t('common.email')}</label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
@@ -63,7 +69,7 @@ export default function ForgotPasswordPage() {
               </div>
               {error && <p className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</p>}
               <button type="submit" className="btn-primary w-full py-2.5" disabled={loading}>
-                {loading ? 'Отправляем...' : 'Сбросить пароль'}
+                {loading ? t('forgot.sending') : t('forgot.resetPassword')}
               </button>
             </form>
           </>
@@ -72,12 +78,12 @@ export default function ForgotPasswordPage() {
             <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-7 h-7 text-green-600" />
             </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Готово!</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">{t('forgot.done')}</h2>
             <p className="text-gray-500 text-sm mb-4">{result.message}</p>
 
             {result.resetUrl && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-left mb-4">
-                <p className="text-xs font-medium text-yellow-800 mb-2">{result.note || 'Ссылка для сброса пароля:'}</p>
+                <p className="text-xs font-medium text-yellow-800 mb-2">{result.note || t('forgot.submit')}</p>
                 <div className="flex items-center gap-2">
                   <input
                     readOnly
@@ -89,10 +95,10 @@ export default function ForgotPasswordPage() {
                     onClick={copyLink}
                     className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors whitespace-nowrap"
                   >
-                    {copied ? <><CheckCircle className="w-3 h-3" /> Скопировано</> : <><Copy className="w-3 h-3" /> Копировать</>}
+                    {copied ? <><CheckCircle className="w-3 h-3" /> {t('forgot.copied')}</> : <><Copy className="w-3 h-3" /> {t('forgot.copy')}</>}
                   </button>
                 </div>
-                <p className="text-xs text-yellow-700 mt-2">⚠ Ссылка действительна 1 час.</p>
+                <p className="text-xs text-yellow-700 mt-2">⚠ {t('forgot.linkValid')}</p>
               </div>
             )}
           </div>
@@ -101,7 +107,7 @@ export default function ForgotPasswordPage() {
         <div className="mt-6 text-center">
           <Link to="/login" className="flex items-center justify-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
             <ArrowLeft className="w-4 h-4" />
-            Вернуться ко входу
+            {t('forgot.backToLogin')}
           </Link>
         </div>
       </div>

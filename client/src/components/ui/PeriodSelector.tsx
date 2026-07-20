@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { create } from 'zustand'
 import { CalendarRange } from 'lucide-react'
+import { useT } from '../../i18n'
 
 export type Period = 'today' | 'yesterday' | 'week' | 'month' | 'custom'
 
@@ -34,19 +35,20 @@ export function buildPeriodParams(state: PeriodState): string {
   return `period=${state.period}`
 }
 
-const presets: { value: Exclude<Period, 'custom'>; label: string }[] = [
-  { value: 'today',     label: 'Сегодня' },
-  { value: 'yesterday', label: 'Вчера' },
-  { value: 'week',      label: 'Неделя' },
-  { value: 'month',     label: 'Месяц' },
-]
-
 export default function PeriodSelector() {
   const { period, customFrom, customTo, setPeriod, setCustomRange } = usePeriodStore()
+  const { t } = useT()
   const [showPicker, setShowPicker] = useState(false)
   const [tmpFrom, setTmpFrom] = useState(customFrom)
   const [tmpTo, setTmpTo] = useState(customTo)
   const pickerRef = useRef<HTMLDivElement>(null)
+
+  const presets: { value: Exclude<Period, 'custom'>; labelKey: string }[] = [
+    { value: 'today',     labelKey: 'period.today' },
+    { value: 'yesterday', labelKey: 'period.yesterday' },
+    { value: 'week',      labelKey: 'period.week' },
+    { value: 'month',     labelKey: 'period.month' },
+  ]
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -83,7 +85,7 @@ export default function PeriodSelector() {
               period === o.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            {o.label}
+            {t(o.labelKey as any)}
           </button>
         ))}
       </div>
@@ -101,15 +103,15 @@ export default function PeriodSelector() {
           <CalendarRange className="w-4 h-4" />
           {period === 'custom'
             ? `${customFrom.slice(5).replace('-', '.')} – ${customTo.slice(5).replace('-', '.')}`
-            : 'Период'}
+            : t('period.custom')}
         </button>
 
         {showPicker && (
           <div className="absolute top-full mt-2 right-0 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-4 w-72">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Произвольный период</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{t('period.customLabel')}</p>
             <div className="grid grid-cols-2 gap-3 mb-3">
               <div>
-                <label className="text-xs text-gray-500 block mb-1">С</label>
+                <label className="text-xs text-gray-500 block mb-1">{t('period.from')}</label>
                 <input
                   type="date"
                   max={tmpTo || todayStr()}
@@ -119,7 +121,7 @@ export default function PeriodSelector() {
                 />
               </div>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">По</label>
+                <label className="text-xs text-gray-500 block mb-1">{t('period.to')}</label>
                 <input
                   type="date"
                   min={tmpFrom}
@@ -135,7 +137,7 @@ export default function PeriodSelector() {
               disabled={!tmpFrom || !tmpTo || tmpFrom > tmpTo}
               className="w-full bg-blue-600 text-white py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors"
             >
-              Применить
+              {t('period.apply')}
             </button>
           </div>
         )}

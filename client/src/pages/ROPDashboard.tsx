@@ -4,14 +4,9 @@ import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelect
 import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
 import AIInsights from '../components/ui/AIInsights'
+import { useT } from '../i18n'
 
 function fmt(n: number) { return n.toLocaleString('ru') }
-
-const STATUS = {
-  green:  { dot: 'bg-green-400',  bg: '',              label: 'В норме' },
-  yellow: { dot: 'bg-yellow-400', bg: 'bg-yellow-50',  label: 'Отстаёт' },
-  red:    { dot: 'bg-red-500',    bg: 'bg-red-50',     label: 'Нет отчёта' },
-}
 
 // Visual funnel component
 function Funnel({ steps }: { steps: { label: string; value: number; color?: string }[] }) {
@@ -50,6 +45,7 @@ function Funnel({ steps }: { steps: { label: string; value: number; color?: stri
 }
 
 export default function ROPDashboard() {
+  const { t } = useT()
   const periodState = usePeriodStore()
   const { period } = periodState
   const params = buildPeriodParams(periodState)
@@ -58,54 +54,60 @@ export default function ROPDashboard() {
     queryFn: () => api.get(`/dashboard/rop?${params}`).then(r => r.data),
   })
 
-  if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">Загрузка...</div>
+  const STATUS = {
+    green:  { dot: 'bg-green-400',  bg: '',              label: t('tracking.status.ok') },
+    yellow: { dot: 'bg-yellow-400', bg: 'bg-yellow-50',  label: t('tracking.status.behind') },
+    red:    { dot: 'bg-red-500',    bg: 'bg-red-50',     label: t('tracking.status.noReport') },
+  }
+
+  if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
   if (!data) return null
 
   const { summary, funnel, marketing, managerRating, liderRating } = data
 
   const funnelSteps = [
-    { label: 'Лидов получено',      value: funnel.leadsReceived,    color: 'bg-purple-400' },
-    { label: 'Квалифицировано',      value: funnel.qualifiedLeads,   color: 'bg-purple-500' },
-    { label: 'Записано на встречу',  value: funnel.meetingsScheduled,color: 'bg-blue-400' },
-    { label: 'Пришло на встречу',    value: funnel.meetingsAttended, color: 'bg-blue-500' },
-    { label: 'Продажи (сделки)',     value: funnel.salesCount,       color: 'bg-green-500' },
+    { label: t('dash.rop.funnelStepLeads'), value: funnel.leadsReceived,    color: 'bg-purple-400' },
+    { label: t('dash.rop.funnelStepQual'),  value: funnel.qualifiedLeads,   color: 'bg-purple-500' },
+    { label: t('dash.rop.funnelStepSched'), value: funnel.meetingsScheduled,color: 'bg-blue-400' },
+    { label: t('dash.rop.funnelStepAtt'),   value: funnel.meetingsAttended, color: 'bg-blue-500' },
+    { label: t('dash.rop.funnelStepSales'), value: funnel.salesCount,       color: 'bg-green-500' },
   ]
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Кабинет РОПа</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Показатели отдела продаж</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('dash.rop.title')}</h1>
+        <p className="text-gray-500 text-sm mt-0.5">{t('dash.rop.subtitle')}</p>
       </div>
 
       {/* Summary */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard label="План продаж" value={`₸ ${fmt(summary.salesPlan)}`} />
-        <StatCard label="Факт продаж" value={`₸ ${fmt(summary.salesAmount)}`} color="blue" />
-        <StatCard label="Выполнение" value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
-        <StatCard label="Сделок" value={summary.salesCount} />
-        <StatCard label="Конверсия" value={`${summary.conversion}%`} />
-        <StatCard label="Средний чек" value={`₸ ${fmt(summary.avgCheck)}`} />
+        <StatCard label={t('dash.rop.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
+        <StatCard label={t('dash.rop.salesFact')} value={`₸ ${fmt(summary.salesAmount)}`} color="blue" />
+        <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
+        <StatCard label={t('dash.rop.deals')} value={summary.salesCount} />
+        <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} />
+        <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck)}`} />
       </div>
 
-      <ProgressBar value={summary.planCompletion} label="Выполнение плана" />
+      <ProgressBar value={summary.planCompletion} label={t('dash.rop.planCompletion')} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Visual Funnel */}
         <div className="card lg:col-span-2">
-          <h3 className="font-semibold text-gray-900 mb-4">Воронка продаж</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">{t('dash.funnel.title')}</h3>
           <Funnel steps={funnelSteps} />
         </div>
 
         {/* Marketing */}
         <div className="card">
-          <h3 className="font-semibold text-gray-900 mb-4">Маркетинг</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">{t('dash.rop.marketingSection')}</h3>
           <div className="space-y-3 text-sm">
-            <div className="flex justify-between"><span className="text-gray-500">План лидов</span><span className="font-medium">{marketing.leadsplan}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Факт лидов</span><span className="font-medium text-blue-600">{marketing.totalLeads}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Квалифицированных</span><span className="font-medium">{marketing.qualifiedLeads}</span></div>
-            <div className="flex justify-between border-t border-gray-100 pt-2"><span className="text-gray-500">Стоимость лида</span><span className="font-medium">₸ {fmt(marketing.leadCost)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Бюджет</span><span className="font-medium">₸ {fmt(marketing.totalBudget)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">{t('dash.rop.leadsplanLabel')}</span><span className="font-medium">{marketing.leadsplan}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">{t('dash.rop.leadsFactLabel')}</span><span className="font-medium text-blue-600">{marketing.totalLeads}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">{t('dash.rop.qualifiedLabel')}</span><span className="font-medium">{marketing.qualifiedLeads}</span></div>
+            <div className="flex justify-between border-t border-gray-100 pt-2"><span className="text-gray-500">{t('dash.rop.leadCostLabel')}</span><span className="font-medium">₸ {fmt(marketing.leadCost)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">{t('dash.rop.budgetLabel')}</span><span className="font-medium">₸ {fmt(marketing.totalBudget)}</span></div>
           </div>
           {/* Legend */}
           <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
@@ -122,19 +124,19 @@ export default function ROPDashboard() {
       {/* Closer Rating */}
       {managerRating?.length > 0 && (
         <div className="card">
-          <h3 className="font-semibold text-gray-900 mb-1">Рейтинг клоузеров</h3>
-          <p className="text-xs text-gray-400 mb-4">По % выполнения плана. 🔴 — нет отчёта, 🟡 — &lt; 50%, 🟢 — норма</p>
+          <h3 className="font-semibold text-gray-900 mb-1">{t('dash.closerRating.title')}</h3>
+          <p className="text-xs text-gray-400 mb-4">{t('dash.rop.closerRatingNote')}</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b border-gray-100">
                   <th className="pb-2 font-medium w-6" />
-                  <th className="pb-2 font-medium">Менеджер</th>
-                  <th className="pb-2 font-medium text-right">План</th>
-                  <th className="pb-2 font-medium text-right">Факт</th>
-                  <th className="pb-2 font-medium text-right">Выполнение</th>
-                  <th className="pb-2 font-medium text-right">Сделок</th>
-                  <th className="pb-2 font-medium text-right">Конверсия</th>
+                  <th className="pb-2 font-medium">{t('dash.table.manager')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.plan')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.fact')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.completion')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.deals')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.conversion')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -164,21 +166,21 @@ export default function ROPDashboard() {
       {/* Lider Rating */}
       {liderRating?.length > 0 && (
         <div className="card">
-          <h3 className="font-semibold text-gray-900 mb-1">Рейтинг лидорубов</h3>
-          <p className="text-xs text-gray-400 mb-4">По % выполнения плана лидогенерации</p>
+          <h3 className="font-semibold text-gray-900 mb-1">{t('dash.liderRating.title')}</h3>
+          <p className="text-xs text-gray-400 mb-4">{t('dash.rop.liderRatingNote')}</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b border-gray-100">
                   <th className="pb-2 font-medium w-6" />
-                  <th className="pb-2 font-medium">Лидоруб</th>
-                  <th className="pb-2 font-medium text-right">План</th>
-                  <th className="pb-2 font-medium text-right">Лидов</th>
-                  <th className="pb-2 font-medium text-right">Выполнение</th>
-                  <th className="pb-2 font-medium text-right">Квалиф.</th>
-                  <th className="pb-2 font-medium text-right">% квал.</th>
-                  <th className="pb-2 font-medium text-right">На встречу</th>
-                  <th className="pb-2 font-medium text-right">Пришло</th>
+                  <th className="pb-2 font-medium">{t('dash.table.lider')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.plan')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.leadsCol')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.completion')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.qualified')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.qualPctCol')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.toMeetingCol')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.attendedCol')}</th>
                 </tr>
               </thead>
               <tbody>

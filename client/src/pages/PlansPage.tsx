@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { Save, Target, Users, TrendingUp, DollarSign, CheckCircle, ChevronLeft, ChevronRight, Info, Building2, UserCircle, Megaphone } from 'lucide-react'
+import { useT } from '../i18n'
 
 // ─── Plan configs ────────────────────────────────────────────────────────────
 
@@ -137,6 +138,7 @@ function ManagerRow({ name, role, plans, values, onChange }: {
 // ─── Main page ───────────────────────────────────────────────────────────────
 
 export default function PlansPage() {
+  const { t } = useT()
   const qc = useQueryClient()
   const [period, setPeriod] = useState(getPeriod(new Date()))
   const [saved, setSaved] = useState(false)
@@ -221,8 +223,8 @@ export default function PlansPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Плановые показатели</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Установите цели для отделов и каждого менеджера</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('plans.title')}</h1>
+          <p className="text-gray-500 text-sm mt-0.5">{t('plans.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Period picker */}
@@ -246,7 +248,7 @@ export default function PlansPage() {
             }`}
           >
             <Save className="w-4 h-4" />
-            {saved ? 'Сохранено ✓' : saveMutation.isPending ? 'Сохраняем...' : 'Сохранить'}
+            {saved ? t('common.saved') : saveMutation.isPending ? t('common.saving') : t('common.save')}
           </button>
         </div>
       </div>
@@ -255,8 +257,8 @@ export default function PlansPage() {
       {departments.length === 0 && (
         <div className="text-center py-16 text-gray-400">
           <Target className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p className="font-medium">Нет отделов</p>
-          <p className="text-sm">Сначала завершите настройку компании</p>
+          <p className="font-medium">{t('plans.noData')}</p>
+          <p className="text-sm">{t('plans.noDataDesc')}</p>
         </div>
       )}
 
@@ -279,8 +281,8 @@ export default function PlansPage() {
 
             {/* Department-level plan */}
             <SectionCard
-              title="План отдела (общий)"
-              subtitle="Цели для всего отдела продаж в целом"
+              title={t('plans.deptPlan')}
+              subtitle={t('plans.deptPlanSub')}
               icon={Target}
               iconColor="bg-blue-50"
             >
@@ -301,8 +303,8 @@ export default function PlansPage() {
             {/* Closers */}
             {closers.length > 0 && (
               <SectionCard
-                title={`Клоузеры (${closers.length} чел.)`}
-                subtitle="Личные планы по каждому клоузеру"
+                title={`${t('plans.closers')} (${closers.length})`}
+                subtitle={t('plans.closersSub')}
                 icon={TrendingUp}
                 iconColor="bg-green-50"
               >
@@ -326,8 +328,8 @@ export default function PlansPage() {
             {/* Liders */}
             {liders.length > 0 && (
               <SectionCard
-                title={`Лидорубы (${liders.length} чел.)`}
-                subtitle="Личные планы по каждому лидорубу"
+                title={`${t('plans.liders')} (${liders.length})`}
+                subtitle={t('plans.lidersSub')}
                 icon={Users}
                 iconColor="bg-purple-50"
               >
@@ -352,7 +354,7 @@ export default function PlansPage() {
             {closers.length === 0 && liders.length === 0 && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700 flex items-start gap-2">
                 <Info className="w-4 h-4 mt-0.5 shrink-0" />
-                <span>В этом отделе пока нет сотрудников. Добавьте менеджеров в разделе «Сотрудники», чтобы установить им личные планы.</span>
+                <span>{t('plans.noManagers')}</span>
               </div>
             )}
           </div>
@@ -364,11 +366,11 @@ export default function PlansPage() {
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Megaphone className="w-5 h-5 text-orange-500" />
-            <h2 className="font-bold text-gray-800 text-lg">Маркетинг</h2>
+            <h2 className="font-bold text-gray-800 text-lg">{t('plans.marketing')}</h2>
           </div>
           <SectionCard
-            title="План маркетинга (на компанию)"
-            subtitle="Цели по лидогенерации и рекламному бюджету на месяц"
+            title={t('plans.marketingCompany')}
+            subtitle={t('plans.marketingCompanySub')}
             icon={Megaphone}
             iconColor="bg-orange-50"
           >
@@ -390,12 +392,12 @@ export default function PlansPage() {
           <div key={dept.id} className="space-y-4">
             <div className="flex items-center gap-2">
               <Megaphone className="w-5 h-5 text-orange-500" />
-              <h2 className="font-bold text-gray-800 text-lg">Маркетинг</h2>
+              <h2 className="font-bold text-gray-800 text-lg">{t('plans.marketing')}</h2>
             </div>
 
             <SectionCard
-              title="План маркетинга"
-              subtitle="Цели по лидогенерации и рекламному бюджету"
+              title={t('plans.marketingDept')}
+              subtitle={t('plans.marketingDeptSub')}
               icon={Megaphone}
               iconColor="bg-orange-50"
             >
@@ -410,8 +412,8 @@ export default function PlansPage() {
 
             {marketers.length > 0 && (
               <SectionCard
-                title={`Маркетологи (${marketers.length} чел.)`}
-                subtitle="Личные планы по каждому маркетологу"
+                title={`${t('plans.marketers')} (${marketers.length})`}
+                subtitle={t('plans.marketersSub')}
                 icon={Users}
                 iconColor="bg-orange-50"
               >

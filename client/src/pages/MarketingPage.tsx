@@ -4,14 +4,14 @@ import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import { ChevronLeft, ChevronRight, Save, CheckCircle, Pencil, X } from 'lucide-react'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
+import { useT } from '../i18n'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getPeriod(d: Date) { return d.toISOString().slice(0, 7) }
-function formatMonth(p: string) {
-  const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
+function formatMonth(p: string, t: (k: any) => string) {
   const [y, m] = p.split('-')
-  return `${months[+m - 1]} ${y}`
+  return `${t(`month.${+m}` as any)} ${y}`
 }
 function shiftMonth(p: string, d: number) {
   const [y, m] = p.split('-').map(Number)
@@ -68,6 +68,7 @@ function StatCard({ label, value, sub, pctVal, note }: { label: string; value: s
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function MarketingPage() {
+  const { t } = useT()
   const qc = useQueryClient()
   const user = useAuthStore(s => s.user)
   const todayStr = new Date().toISOString().slice(0, 10)
@@ -193,8 +194,8 @@ export default function MarketingPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Маркетинг</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Лидогенерация и рекламный бюджет</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('nav.marketing')}</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{t('marketing.subtitle2')}</p>
         </div>
         {/* Month nav — only shown in month mode for browsing history */}
         {isMonthMode && (
@@ -202,7 +203,7 @@ export default function MarketingPage() {
             <button onClick={() => setMonthPeriod(p => shiftMonth(p, -1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
               <ChevronLeft className="w-4 h-4 text-gray-600" />
             </button>
-            <span className="px-3 text-sm font-semibold text-gray-800 min-w-[140px] text-center">{formatMonth(monthPeriod)}</span>
+            <span className="px-3 text-sm font-semibold text-gray-800 min-w-[140px] text-center">{formatMonth(monthPeriod, t)}</span>
             <button onClick={() => setMonthPeriod(p => shiftMonth(p, 1))} disabled={monthPeriod >= todayPeriod}
               className="p-1.5 hover:bg-white rounded-md transition-colors disabled:opacity-30">
               <ChevronRight className="w-4 h-4 text-gray-600" />
@@ -214,43 +215,43 @@ export default function MarketingPage() {
       {/* Plan row */}
       <div className="bg-white border border-gray-200 rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-gray-800 text-sm">Плановые показатели на {formatMonth(monthPeriod)}</h2>
+          <h2 className="font-semibold text-gray-800 text-sm">{t('marketing.planFor', { month: formatMonth(monthPeriod, t) })}</h2>
           {!editingPlan
             ? <button onClick={openEdit} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 transition-colors">
-                <Pencil className="w-3 h-3" /> Изменить
+                <Pencil className="w-3 h-3" /> {t('common.edit')}
               </button>
             : <button onClick={() => setEditingPlan(false)} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600">
-                <X className="w-3 h-3" /> Отмена
+                <X className="w-3 h-3" /> {t('common.cancel')}
               </button>
           }
         </div>
         {!editingPlan ? (
           <div className="flex gap-8">
             <div>
-              <p className="text-xs text-gray-400">Лидов план</p>
-              <p className="text-lg font-bold text-gray-900 mt-0.5">{leadsplan || <span className="text-gray-300 font-normal text-sm">Не задан</span>}</p>
+              <p className="text-xs text-gray-400">{t('marketing.planLeads')}</p>
+              <p className="text-lg font-bold text-gray-900 mt-0.5">{leadsplan || <span className="text-gray-300 font-normal text-sm">{t('marketing.notSet')}</span>}</p>
             </div>
             <div>
-              <p className="text-xs text-gray-400">Бюджет план</p>
-              <p className="text-lg font-bold text-gray-900 mt-0.5">{budgetPlan ? `₸ ${fmt(budgetPlan)}` : <span className="text-gray-300 font-normal text-sm">Не задан</span>}</p>
+              <p className="text-xs text-gray-400">{t('marketing.planBudget')}</p>
+              <p className="text-lg font-bold text-gray-900 mt-0.5">{budgetPlan ? `₸ ${fmt(budgetPlan)}` : <span className="text-gray-300 font-normal text-sm">{t('marketing.notSet')}</span>}</p>
             </div>
-            {planSaved && <p className="text-xs text-green-600 self-end mb-1 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Сохранено</p>}
+            {planSaved && <p className="text-xs text-green-600 self-end mb-1 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> {t('common.saved')}</p>}
           </div>
         ) : (
           <div className="flex items-end gap-3 flex-wrap">
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Лидов план (шт)</label>
+              <label className="text-xs text-gray-500 block mb-1">{t('marketing.planLeads')}</label>
               <input type="number" min="0" value={planLeads} onChange={e => setPlanLeads(e.target.value)} placeholder="0"
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-32 focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Рекламный бюджет план (₸)</label>
+              <label className="text-xs text-gray-500 block mb-1">{t('marketing.planBudget')}</label>
               <input type="number" min="0" value={planBudget} onChange={e => setPlanBudget(e.target.value)} placeholder="0"
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-48 focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
             <button onClick={() => savePlan.mutate()} disabled={savePlan.isPending || (!planLeads && !planBudget)}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors flex items-center gap-1.5">
-              <Save className="w-3.5 h-3.5" /> Сохранить
+              <Save className="w-3.5 h-3.5" /> {t('common.save')}
             </button>
           </div>
         )}
@@ -258,49 +259,49 @@ export default function MarketingPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Лидов получено" value={totalLeads}
+        <StatCard label={t('marketing.leadsReceived')} value={totalLeads}
           sub={leadsPct !== null ? `${leadsPct}% от плана (${leadsplan})` : leadsplan ? `план: ${leadsplan}` : undefined}
           pctVal={leadsPct} />
-        <StatCard label="Квалифицировано" value={totalQual}
+        <StatCard label={t('marketing.qualified')} value={totalQual}
           sub={totalLeads > 0 ? `${pct(totalQual, totalLeads)}% из лидов` : undefined}
           note="из отчётов лидорубов" />
-        <StatCard label="Стоимость лида" value={leadCost ? `₸ ${fmt(leadCost)}` : '—'}
+        <StatCard label={t('marketing.leadCost')} value={leadCost ? `₸ ${fmt(leadCost)}` : '—'}
           sub={leadCost ? (isBudgetPlan ? 'план. бюджет ÷ лиды' : 'факт. бюджет ÷ лиды') : 'нет данных бюджета'} />
-        <StatCard label="Конверсия лид→продажа" value={totalLeads > 0 ? `${pct(totalSales, totalLeads)}%` : '—'}
+        <StatCard label={t('marketing.conv')} value={totalLeads > 0 ? `${pct(totalSales, totalLeads)}%` : '—'}
           sub={totalLeads > 0 ? `${totalSales} из ${totalLeads} лидов` : 'нет данных по лидам'} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Funnel */}
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <h2 className="font-semibold text-gray-900 mb-4">Воронка — как работают лиды</h2>
+          <h2 className="font-semibold text-gray-900 mb-4">{t('marketing.funnelTitle')}</h2>
           <div className="space-y-1">
-            <FunnelRow label="Лидов получено" value={totalLeads} max={funnelMax} color="bg-blue-400" />
-            <FunnelRow label="Квалифицировано" value={totalQual} max={funnelMax} color="bg-purple-400"
+            <FunnelRow label={t('marketing.leadsReceived')} value={totalLeads} max={funnelMax} color="bg-blue-400" />
+            <FunnelRow label={t('marketing.qualified')} value={totalQual} max={funnelMax} color="bg-purple-400"
               conv={totalLeads > 0 ? pct(totalQual, totalLeads) : null} />
-            <FunnelRow label="Пришло на встречу" value={totalMeetings} max={funnelMax} color="bg-amber-400"
+            <FunnelRow label={t('marketing.funnelMeetings')} value={totalMeetings} max={funnelMax} color="bg-amber-400"
               conv={totalQual > 0 ? pct(totalMeetings, totalQual) : null} />
-            <FunnelRow label="Сделок закрыто" value={totalSales} max={funnelMax} color="bg-green-500"
+            <FunnelRow label={t('marketing.funnelSales')} value={totalSales} max={funnelMax} color="bg-green-500"
               conv={totalMeetings > 0 ? pct(totalSales, totalMeetings) : null} />
           </div>
           {totalLeads === 0 && (
-            <p className="text-xs text-gray-400 mt-4 text-center">Введите лиды за сегодня чтобы увидеть воронку →</p>
+            <p className="text-xs text-gray-400 mt-4 text-center">{t('marketing.funnelHint')}</p>
           )}
         </div>
 
         {/* Daily entry */}
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <h2 className="font-semibold text-gray-900 mb-1">Лиды за день</h2>
-          <p className="text-xs text-gray-400 mb-4">Сколько новых лидов пришло сегодня?</p>
+          <h2 className="font-semibold text-gray-900 mb-1">{t('marketing.dailyTitle')}</h2>
+          <p className="text-xs text-gray-400 mb-4">{t('marketing.dailySubtitle')}</p>
 
           <div className="flex items-end gap-3 flex-wrap mb-4">
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Дата</label>
+              <label className="text-xs text-gray-500 block mb-1">{t('marketing.date')}</label>
               <input type="date" value={entryDate} max={todayStr} onChange={e => onDateChange(e.target.value)}
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
             </div>
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Лидов</label>
+              <label className="text-xs text-gray-500 block mb-1">{t('marketing.leads')}</label>
               <div className="relative">
                 <input type="number" min="0" value={entryLeads} onChange={e => setEntryLeads(e.target.value)}
                   placeholder="0"
@@ -309,7 +310,7 @@ export default function MarketingPage() {
               </div>
             </div>
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Расход на рекламу <span className="text-gray-300">(необяз.)</span></label>
+              <label className="text-xs text-gray-500 block mb-1">{t('marketing.adSpend')} <span className="text-gray-300">{t('marketing.adSpendHint')}</span></label>
               <div className="relative">
                 <input type="number" min="0" value={entryBudget} onChange={e => setEntryBudget(e.target.value)}
                   placeholder="0"
@@ -319,21 +320,21 @@ export default function MarketingPage() {
             </div>
             <button onClick={() => saveEntry.mutate()} disabled={saveEntry.isPending || !entryLeads}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-blue-700 transition-colors flex items-center gap-1.5">
-              {entrySaved ? <><CheckCircle className="w-3.5 h-3.5" /> Записано</> : <><Save className="w-3.5 h-3.5" /> Сохранить</>}
+              {entrySaved ? <><CheckCircle className="w-3.5 h-3.5" /> {t('marketing.savedEntry')}</> : <><Save className="w-3.5 h-3.5" /> {t('common.save')}</>}
             </button>
           </div>
 
           {existingEntry && (
             <div className="bg-green-50 border border-green-100 rounded-lg px-3 py-2 text-xs text-green-700 flex items-center gap-2">
               <CheckCircle className="w-3.5 h-3.5 shrink-0" />
-              За {new Date(entryDate + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })} уже записано: {existingEntry.data?.leads} лидов
+              {t('marketing.existingEntry', { date: new Date(entryDate + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }), leads: existingEntry.data?.leads })}
             </div>
           )}
 
           {/* Mini calendar */}
           {mktReports.length > 0 && (
             <div className="mt-5">
-              <p className="text-xs text-gray-400 mb-2">История по дням</p>
+              <p className="text-xs text-gray-400 mb-2">{t('marketing.historyTitle')}</p>
               <div className="overflow-x-auto">
                 <div className="flex gap-1" style={{ minWidth: 'max-content' }}>
                   {days.map(d => {
@@ -363,30 +364,30 @@ export default function MarketingPage() {
 
       {/* Budget block */}
       <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h2 className="font-semibold text-gray-900 mb-4">Рекламный бюджет</h2>
+        <h2 className="font-semibold text-gray-900 mb-4">{t('marketing.budgetTitle')}</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-sm">
           <div>
-            <p className="text-xs text-gray-500 mb-1">План на месяц</p>
-            <p className="font-bold text-gray-900 text-lg">{budgetPlan ? `₸ ${fmt(budgetPlan)}` : <span className="text-gray-300 font-normal">Не задан</span>}</p>
+            <p className="text-xs text-gray-500 mb-1">{t('marketing.monthPlan')}</p>
+            <p className="font-bold text-gray-900 text-lg">{budgetPlan ? `₸ ${fmt(budgetPlan)}` : <span className="text-gray-300 font-normal">{t('marketing.notSet')}</span>}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-500 mb-1">Потрачено</p>
+            <p className="text-xs text-gray-500 mb-1">{t('marketing.spent')}</p>
             <p className="font-bold text-gray-900 text-lg">{totalBudget ? `₸ ${fmt(totalBudget)}` : <span className="text-gray-300 font-normal">—</span>}</p>
             {budgetPct !== null && <p className="text-xs text-gray-400 mt-0.5">{budgetPct}% от плана</p>}
           </div>
           <div>
-            <p className="text-xs text-gray-500 mb-1">Стоимость лида</p>
+            <p className="text-xs text-gray-500 mb-1">{t('marketing.leadCost')}</p>
             <p className="font-bold text-gray-900 text-lg">{leadCost ? `₸ ${fmt(leadCost)}` : '—'}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-500 mb-1">Ст-ть квал. лида</p>
+            <p className="text-xs text-gray-500 mb-1">{t('marketing.qualLeadCost')}</p>
             <p className="font-bold text-gray-900 text-lg">{totalQual > 0 && totalBudget > 0 ? `₸ ${fmt(Math.round(totalBudget / totalQual))}` : '—'}</p>
           </div>
         </div>
         {budgetPlan > 0 && (
           <div className="mt-4">
             <div className="flex justify-between text-xs text-gray-400 mb-1">
-              <span>Расход бюджета</span>
+              <span>{t('marketing.budgetProgress')}</span>
               <span>{budgetPct ?? 0}%</span>
             </div>
             <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -396,7 +397,7 @@ export default function MarketingPage() {
           </div>
         )}
         <p className="text-xs text-gray-300 mt-3">
-          Фактические расходы вводятся в разделе «Планы» → Маркетинг → Бюджет
+          {t('marketing.budgetNote')}
         </p>
       </div>
 

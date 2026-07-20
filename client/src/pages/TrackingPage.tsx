@@ -8,14 +8,14 @@ import {
   UserCircle, CheckCircle, TrendingUp, AlertCircle, Minus
 } from 'lucide-react'
 import { usePeriodStore } from '../components/ui/PeriodSelector'
+import { useT } from '../i18n'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function getPeriod(d: Date) { return d.toISOString().slice(0, 7) }
-function formatMonth(p: string) {
-  const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
+function formatMonth(p: string, t: (k: any) => string) {
   const [y, m] = p.split('-')
-  return `${months[+m - 1]} ${y}`
+  return `${t(`month.${+m}` as any)} ${y}`
 }
 function shiftMonth(p: string, d: number) {
   const [y, m] = p.split('-').map(Number)
@@ -54,21 +54,21 @@ function pct(fact: number, plan: number) {
 // ─── Manager type config ─────────────────────────────────────────────────────
 
 const CLOSER_FIELDS = [
-  { key: 'salesAmount',   label: 'Сумма продаж',     unit: '₸',  hint: 'Общая сумма закрытых сделок' },
-  { key: 'salesCount',    label: 'Кол-во сделок',    unit: 'шт', hint: 'Количество закрытых сделок' },
-  { key: 'clients',       label: 'Входящих заявок',  unit: 'шт', hint: 'Клиентов / заявок получено от лидорубов' },
-  { key: 'consultations', label: 'Встреч / звонков', unit: 'шт', hint: 'Встреч, консультаций или звонков проведено' },
+  { key: 'salesAmount',   labelKey: 'tracking.field.salesAmount',   unit: '₸'  },
+  { key: 'salesCount',    labelKey: 'tracking.field.salesCount',    unit: 'шт' },
+  { key: 'clients',       labelKey: 'tracking.field.clients',       unit: 'шт' },
+  { key: 'consultations', labelKey: 'tracking.field.consultations', unit: 'шт' },
 ]
 const LIDER_FIELDS = [
-  { key: 'leads',               label: 'Лидов получено',   unit: 'шт', hint: 'Новых лидов обработано' },
-  { key: 'qualifiedLeads',      label: 'Квалифицировано',  unit: 'шт', hint: 'Лидов прошло квалификацию' },
-  { key: 'meetingsScheduled',   label: 'Записано на встречу', unit: 'шт', hint: 'Клиентов записано' },
-  { key: 'meetingsAttended',    label: 'Пришло на встречу',unit: 'шт', hint: 'Клиентов дошло' },
+  { key: 'leads',             labelKey: 'tracking.field.leads',            unit: 'шт' },
+  { key: 'qualifiedLeads',    labelKey: 'tracking.field.qualifiedLeads',   unit: 'шт' },
+  { key: 'meetingsScheduled', labelKey: 'tracking.field.meetingsScheduled',unit: 'шт' },
+  { key: 'meetingsAttended',  labelKey: 'tracking.field.meetingsAttended', unit: 'шт' },
 ]
 const MARKETER_FIELDS = [
-  { key: 'leads',          label: 'Лидов',          unit: 'шт', hint: 'Лидов привлечено за день' },
-  { key: 'qualifiedLeads', label: 'Квалиф. лидов',  unit: 'шт', hint: 'Квалифицированных лидов' },
-  { key: 'budget',         label: 'Бюджет за день',  unit: '₸',  hint: 'Потрачено на рекламу' },
+  { key: 'leads',          labelKey: 'tracking.field.leadsM',         unit: 'шт' },
+  { key: 'qualifiedLeads', labelKey: 'tracking.field.qualifiedLeadsM',unit: 'шт' },
+  { key: 'budget',         labelKey: 'tracking.field.budget',         unit: '₸'  },
 ]
 
 function getFields(managerType: string | null, role: string) {
@@ -117,9 +117,9 @@ function pctBg(p: number | null): string {
 // ─── Entry form for one manager ──────────────────────────────────────────────
 
 function ManagerEntryCard({
-  user, date, existingData, onSave, saving
+  user, date, existingData, onSave, saving, t
 }: {
-  user: any; date: string; existingData: any; onSave: (data: any) => void; saving: boolean
+  user: any; date: string; existingData: any; onSave: (data: any) => void; saving: boolean; t: (k: any) => string
 }) {
   const fields = getFields(user.managerType, user.role)
   const [vals, setVals] = useState<Record<string, string>>(() => {
@@ -130,6 +130,7 @@ function ManagerEntryCard({
   const [comment, setComment] = useState(existingData?.comment || '')
 
   const hasData = Object.values(vals).some(v => v !== '')
+  const roleLabel = user.managerType === 'LIDER' ? t('tracking.role.lider') : user.role === 'MARKETER' ? t('tracking.role.marketer') : t('tracking.role.closer')
 
   return (
     <div className={`border rounded-xl p-4 transition-all ${hasData ? 'border-blue-200 bg-blue-50/30' : 'border-gray-200 bg-white'}`}>
@@ -142,8 +143,8 @@ function ManagerEntryCard({
         <div>
           <p className="font-semibold text-gray-900 text-sm">{user.name}</p>
           <p className="text-xs text-gray-400">
-            {user.managerType === 'LIDER' ? 'Лидоруб' : user.role === 'MARKETER' ? 'Маркетолог' : 'Клоузер'}
-            {hasData && <span className="ml-2 text-blue-500">● данные введены</span>}
+            {roleLabel}
+            {hasData && <span className="ml-2 text-blue-500">● {t('tracking.entry.dataEntered')}</span>}
           </p>
         </div>
       </div>
@@ -151,7 +152,7 @@ function ManagerEntryCard({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {fields.map(f => (
           <div key={f.key}>
-            <label className="text-xs text-gray-500 mb-1 block">{f.label}</label>
+            <label className="text-xs text-gray-500 mb-1 block">{t(f.labelKey as any)}</label>
             <div className="relative">
               <input
                 type="number" min="0"
@@ -168,7 +169,7 @@ function ManagerEntryCard({
 
       <div className="flex items-center gap-2 mt-3">
         <input
-          type="text" placeholder="Комментарий (необязательно)"
+          type="text" placeholder={t('tracking.entry.comment')}
           value={comment} onChange={e => setComment(e.target.value)}
           className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
         />
@@ -178,7 +179,7 @@ function ManagerEntryCard({
           className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-blue-700 transition-colors flex items-center gap-1.5"
         >
           <Save className="w-3.5 h-3.5" />
-          Сохранить
+          {t('tracking.entry.save')}
         </button>
       </div>
     </div>
@@ -189,6 +190,7 @@ function ManagerEntryCard({
 
 export default function TrackingPage() {
   const { user } = useAuthStore()
+  const { t } = useT()
   if (user && user.role !== 'OWNER' && user.role !== 'ROP') {
     return <Navigate to="/" replace />
   }
@@ -275,7 +277,7 @@ export default function TrackingPage() {
       setSavedUsers(s => new Set(s).add(userId))
       setTimeout(() => setSavedUsers(s => { const n = new Set(s); n.delete(userId); return n }), 2500)
     } catch (e: any) {
-      alert('Ошибка сохранения: ' + (e?.response?.data?.error || 'Попробуйте ещё раз'))
+      alert(t('tracking.saveError') + (e?.response?.data?.error || t('tracking.retry')))
     } finally {
       setSavingUser(null)
     }
@@ -293,8 +295,8 @@ export default function TrackingPage() {
       return (
         <div className="text-center py-16 text-gray-400">
           <UserCircle className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p className="font-medium">Нет сотрудников</p>
-          <p className="text-sm">Добавьте сотрудников в разделе «Сотрудники»</p>
+          <p className="font-medium">{t('tracking.entry.noEmployees')}</p>
+          <p className="text-sm">{t('tracking.entry.noEmployeesSub')}</p>
         </div>
       )
     }
@@ -310,6 +312,7 @@ export default function TrackingPage() {
             existingData={existingReport ? { ...existingReport.data, comment: existingReport.comment } : null}
             saving={savingUser === u.id}
             onSave={({ data, comment }) => saveReport(u.id, u.managerType, u.role, data, comment)}
+            t={t}
           />
         )
       })
@@ -318,7 +321,7 @@ export default function TrackingPage() {
       <div className="space-y-6">
         {/* Date picker */}
         <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700">Дата:</label>
+          <label className="text-sm font-medium text-gray-700">{t('tracking.entry.date')}</label>
           <input
             type="date"
             value={selectedDate}
@@ -327,14 +330,14 @@ export default function TrackingPage() {
             className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
           />
           {selectedDate === todayStr && (
-            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">Сегодня</span>
+            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">{t('tracking.entry.today')}</span>
           )}
         </div>
 
         {/* Closers */}
         {closers.length > 0 && (
           <div>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Клоузеры</h2>
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">{t('tracking.tabs.closers')}</h2>
             <div className="space-y-3">{renderManagerCards(closers)}</div>
           </div>
         )}
@@ -342,7 +345,7 @@ export default function TrackingPage() {
         {/* Liders */}
         {liders.length > 0 && (
           <div>
-            <h2 className="text-sm font-bold text-purple-400 uppercase tracking-wider mb-3">Лидорубы</h2>
+            <h2 className="text-sm font-bold text-purple-400 uppercase tracking-wider mb-3">{t('tracking.tabs.liders')}</h2>
             <div className="space-y-3">{renderManagerCards(liders)}</div>
           </div>
         )}
@@ -350,7 +353,7 @@ export default function TrackingPage() {
         {/* Marketers */}
         {marketers.length > 0 && (
           <div>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Маркетинг</h2>
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">{t('tracking.tabs.marketing')}</h2>
             <div className="space-y-3">{renderManagerCards(marketers)}</div>
           </div>
         )}
@@ -362,7 +365,7 @@ export default function TrackingPage() {
 
   const renderTableTab = () => {
     if (allManagers.length === 0) {
-      return <div className="text-center py-16 text-gray-400">Нет сотрудников</div>
+      return <div className="text-center py-16 text-gray-400">{t('tracking.entry.noEmployees')}</div>
     }
 
     const salesManagers = allManagers.filter(u => u.deptType === 'SALES')
@@ -413,13 +416,13 @@ export default function TrackingPage() {
         <div className={`rounded-xl border p-4 ${accentBg}`}>
           <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
             <h3 className={`text-sm font-bold uppercase tracking-wider ${accentHeading}`}>
-              Итого — {groupLabel} · {managers.length} чел.
+              {t('tracking.totalGroup', { group: groupLabel, n: managers.length })}
             </h3>
             <div className="flex items-center gap-4 text-sm">
               {totalPlan > 0 && (
                 <>
-                  <span className="text-gray-500">План: <strong className="text-gray-800">{fmt(totalPlan)} {primaryUnit}</strong></span>
-                  <span className="text-gray-500">Факт: <strong className="text-gray-800">{fmt(primaryTotal)} {primaryUnit}</strong></span>
+                  <span className="text-gray-500">{t('tracking.plan')}: <strong className="text-gray-800">{fmt(totalPlan)} {primaryUnit}</strong></span>
+                  <span className="text-gray-500">{t('tracking.fact')}: <strong className="text-gray-800">{fmt(primaryTotal)} {primaryUnit}</strong></span>
                   <span className={`font-bold text-base ${pctColor(completion)}`}>{completion !== null ? `${completion}%` : '—'}</span>
                 </>
               )}
@@ -429,7 +432,7 @@ export default function TrackingPage() {
           <div className={`grid gap-3 grid-cols-2 sm:grid-cols-${Math.min(fields.length, 4)}`}>
             {totals.map(({ field, total }) => (
               <div key={field.key} className="bg-white/70 rounded-lg p-3">
-                <p className="text-xs text-gray-500 mb-0.5">{field.label}</p>
+                <p className="text-xs text-gray-500 mb-0.5">{t(field.labelKey as any)}</p>
                 <p className={`text-xl font-bold ${field.key === primaryKey ? accentText : 'text-gray-800'}`}>
                   {total > 0 ? fmt(total) : '—'}
                 </p>
@@ -467,7 +470,7 @@ export default function TrackingPage() {
       const hasReportToday = reportsMap[u.id]?.[todayDateStr] !== undefined
         || !columnDates.includes(todayDateStr)
       const statusDot = !hasReportToday ? 'bg-red-500' : (p !== null && p < 50) ? 'bg-yellow-400' : 'bg-green-400'
-      const statusLabel = !hasReportToday ? 'Нет отчёта' : (p !== null && p < 50) ? 'Отстаёт' : 'В норме'
+      const statusLabel = !hasReportToday ? t('tracking.status.noReport') : (p !== null && p < 50) ? t('tracking.status.behind') : t('tracking.status.ok')
 
       return (
         <div key={u.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -484,7 +487,7 @@ export default function TrackingPage() {
               <div>
                 <p className="font-semibold text-gray-900 text-sm">{u.name}</p>
                 <p className="text-xs text-gray-400">
-                  {u.managerType === 'LIDER' ? 'Лидоруб' : u.role === 'MARKETER' ? 'Маркетолог' : 'Клоузер'}
+                  {u.managerType === 'LIDER' ? t('tracking.role.lider') : u.role === 'MARKETER' ? t('tracking.role.marketer') : t('tracking.role.closer')}
                   {columnDates.includes(todayDateStr) && (
                     <span className={`ml-2 font-medium ${!hasReportToday ? 'text-red-500' : (p !== null && p < 50) ? 'text-amber-500' : 'text-green-600'}`}>
                       ● {statusLabel}
@@ -495,20 +498,20 @@ export default function TrackingPage() {
             </div>
             <div className="flex items-center gap-6 text-right">
               <div>
-                <p className="text-xs text-gray-400">План</p>
+                <p className="text-xs text-gray-400">{t('tracking.plan')}</p>
                 <p className="font-bold text-gray-800 text-sm">{monthlyPlan ? fmt(monthlyPlan) : '—'} {monthlyPlan ? primaryUnit : ''}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400">Факт</p>
+                <p className="text-xs text-gray-400">{t('tracking.fact')}</p>
                 <p className="font-bold text-gray-800 text-sm">{fmt(primaryTotal)} {primaryUnit}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-400">Выполнение</p>
+                <p className="text-xs text-gray-400">{t('tracking.completion')}</p>
                 <p className={`font-bold text-sm ${pctColor(p)}`}>{p !== null ? `${p}%` : '—'}</p>
               </div>
               {monthlyPlan > 0 && primaryTotal < monthlyPlan && todayDay && isMonthMode && (
                 <div>
-                  <p className="text-xs text-gray-400">Нужно / день</p>
+                  <p className="text-xs text-gray-400">{t('tracking.perDay')}</p>
                   <p className="font-bold text-sm text-blue-600">{fmt(Math.max(0, dailyNeed))} {primaryUnit}</p>
                 </div>
               )}
@@ -520,13 +523,13 @@ export default function TrackingPage() {
               <thead>
                 <tr className="bg-gray-50">
                   <th className="sticky left-0 z-10 bg-gray-50 px-3 py-2 text-left font-medium text-gray-500 border-r border-gray-200 whitespace-nowrap min-w-[148px]">
-                    Показатель
+                    {t('tracking.metric')}
                   </th>
                   {columnDates.map(date => {
                     const isToday = date === todayDateStr
                     const d = new Date(date)
                     const dayNum = d.getDate()
-                    const dow = ['вс','пн','вт','ср','чт','пт','сб'][d.getDay()]
+                    const dow = t(`dow.${d.getDay()}` as any)
                     const label = !isMonthMode
                       ? `${String(dayNum).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}`
                       : String(dayNum)
@@ -538,7 +541,7 @@ export default function TrackingPage() {
                     )
                   })}
                   <th className="px-3 py-2 font-semibold text-center text-gray-700 bg-gray-100 border-l border-gray-200 whitespace-nowrap min-w-[64px]">
-                    Итого
+                    {t('tracking.total')}
                   </th>
                 </tr>
               </thead>
@@ -548,7 +551,7 @@ export default function TrackingPage() {
                   return (
                     <tr key={field.key} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}>
                       <td className={`sticky left-0 z-10 bg-inherit px-3 py-2 border-r border-gray-200 whitespace-nowrap ${isPrimary ? 'font-bold text-gray-800' : 'font-medium text-gray-600'}`}>
-                        {field.label} <span className="text-gray-400 font-normal text-[10px]">{field.unit}</span>
+                        {t(field.labelKey as any)} <span className="text-gray-400 font-normal text-[10px]">{field.unit}</span>
                       </td>
                       {dayVals.map((val, idx) => {
                         const date = columnDates[idx]
@@ -583,24 +586,24 @@ export default function TrackingPage() {
       <div className="space-y-8">
         {closers.length > 0 && (
           <div className="space-y-4">
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Клоузеры</h2>
-            {renderGroupSummary(closers, CLOSER_FIELDS, 'salesAmount', '₸', 'SALES_AMOUNT', 'blue', 'Клоузеры')}
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">{t('tracking.tabs.closers')}</h2>
+            {renderGroupSummary(closers, CLOSER_FIELDS, 'salesAmount', '₸', 'SALES_AMOUNT', 'blue', t('tracking.tabs.closers'))}
             <div className="space-y-6">{closers.map(renderManagerTable)}</div>
           </div>
         )}
 
         {liders.length > 0 && (
           <div className="space-y-4">
-            <h2 className="text-sm font-bold text-purple-400 uppercase tracking-wider">Лидорубы</h2>
-            {renderGroupSummary(liders, LIDER_FIELDS, 'leads', 'шт', 'LEADS', 'purple', 'Лидорубы')}
+            <h2 className="text-sm font-bold text-purple-400 uppercase tracking-wider">{t('tracking.tabs.liders')}</h2>
+            {renderGroupSummary(liders, LIDER_FIELDS, 'leads', 'шт', 'LEADS', 'purple', t('tracking.tabs.liders'))}
             <div className="space-y-6">{liders.map(renderManagerTable)}</div>
           </div>
         )}
 
         {marketers.length > 0 && (
           <div className="space-y-4">
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Маркетинг</h2>
-            {renderGroupSummary(marketers, MARKETER_FIELDS, 'leads', 'шт', 'LEADS', 'orange', 'Маркетинг')}
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">{t('tracking.tabs.marketing')}</h2>
+            {renderGroupSummary(marketers, MARKETER_FIELDS, 'leads', 'шт', 'LEADS', 'orange', t('tracking.tabs.marketing'))}
             <div className="space-y-6">{marketers.map(renderManagerTable)}</div>
           </div>
         )}
@@ -615,8 +618,8 @@ export default function TrackingPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Контроль плана</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Ежедневный ввод результатов и динамика по менеджерам</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('tracking.title')}</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{t('tracking.subtitle')}</p>
         </div>
         {/* Month nav — only in month mode */}
         {isMonthMode && (
@@ -624,7 +627,7 @@ export default function TrackingPage() {
             <button onClick={() => setPeriod(p => shiftMonth(p, -1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
               <ChevronLeft className="w-4 h-4 text-gray-600" />
             </button>
-            <span className="px-3 text-sm font-semibold text-gray-800 min-w-[130px] text-center">{formatMonth(period)}</span>
+            <span className="px-3 text-sm font-semibold text-gray-800 min-w-[130px] text-center">{formatMonth(period, t)}</span>
             <button onClick={() => setPeriod(p => shiftMonth(p, 1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
               <ChevronRight className="w-4 h-4 text-gray-600" />
             </button>
@@ -641,7 +644,7 @@ export default function TrackingPage() {
           }`}
         >
           <CalendarDays className="w-4 h-4" />
-          Ввод за день
+          {t('tracking.tabs.entry')}
         </button>
         <button
           onClick={() => setTab('table')}
@@ -650,7 +653,7 @@ export default function TrackingPage() {
           }`}
         >
           <TableProperties className="w-4 h-4" />
-          Таблица по дням
+          {t('tracking.tabs.table')}
         </button>
       </div>
 

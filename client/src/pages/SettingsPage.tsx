@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { Save, Pencil, Check, X, Trash2 } from 'lucide-react'
-
-const SPHERES = ['Образование', 'Медицинский центр', 'Недвижимость', 'IT и технологии', 'Розничная торговля', 'Услуги', 'Строительство', 'Другое']
+import { useT, getSpheres } from '../i18n'
 
 function DeptRenameRow({ dept }: { dept: any }) {
   const qc = useQueryClient()
+  const { t } = useT()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(dept.name)
   const [saving, setSaving] = useState(false)
@@ -21,20 +21,20 @@ function DeptRenameRow({ dept }: { dept: any }) {
       qc.invalidateQueries({ queryKey: ['departments'] })
       setEditing(false)
     } catch {
-      alert('Не удалось переименовать')
+      alert(t('settings.renameError'))
     } finally {
       setSaving(false)
     }
   }
 
   const deleteDept = async () => {
-    if (!window.confirm(`Удалить отдел "${dept.name}"?`)) return
+    if (!window.confirm(`${t('settings.deleteConfirm')} "${dept.name}"?`)) return
     setDeleting(true)
     try {
       await api.delete(`/company/departments/${dept.id}`)
       qc.invalidateQueries({ queryKey: ['departments'] })
     } catch (e: any) {
-      alert(e?.response?.data?.error || 'Не удалось удалить')
+      alert(e?.response?.data?.error || t('settings.deleteError'))
     } finally {
       setDeleting(false)
     }
@@ -62,12 +62,14 @@ function DeptRenameRow({ dept }: { dept: any }) {
       ) : (
         <>
           <span className="flex-1 text-sm text-gray-800">{dept.name}</span>
-          <span className="text-xs text-gray-400">{dept.type === 'SALES' ? 'Продажи' : 'Маркетинг'} · {dept.users?.length || 0} чел.</span>
-          <button onClick={() => setEditing(true)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Переименовать">
+          <span className="text-xs text-gray-400">
+            {dept.type === 'SALES' ? t('settings.sales') : t('nav.marketing')} · {dept.users?.length || 0} {t('users.active')}
+          </span>
+          <button onClick={() => setEditing(true)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title={t('common.rename')}>
             <Pencil className="w-3.5 h-3.5" />
           </button>
           {isEmpty && (
-            <button onClick={deleteDept} disabled={deleting} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Удалить пустой отдел">
+            <button onClick={deleteDept} disabled={deleting} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title={t('common.delete')}>
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}
@@ -78,10 +80,12 @@ function DeptRenameRow({ dept }: { dept: any }) {
 }
 
 export default function SettingsPage() {
+  const { t } = useT()
   const [saved, setSaved] = useState(false)
   const { data: company } = useQuery({ queryKey: ['company'], queryFn: () => api.get('/company').then(r => r.data) })
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: () => api.get('/company/departments').then(r => r.data) })
   const [form, setForm] = useState({ name: '', businessSphere: '', reportingStart: 1 })
+  const spheres = getSpheres(t)
 
   if (company && !form.name && company.name !== 'Моя компания') {
     setForm({ name: company.name, businessSphere: company.businessSphere || '', reportingStart: company.reportingStart || 1 })
@@ -90,43 +94,41 @@ export default function SettingsPage() {
   const save = useMutation({
     mutationFn: () => api.put('/company', form),
     onSuccess: () => { setSaved(true); setTimeout(() => setSaved(false), 2000) },
-    onError: () => alert('Не удалось сохранить'),
+    onError: () => alert(t('settings.saveError')),
   })
 
   return (
     <div className="max-w-xl space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Настройки компании</h1>
+      <h1 className="text-2xl font-bold text-gray-900">{t('settings.title')}</h1>
 
-      {/* Company info */}
       <div className="card space-y-4">
-        <h3 className="font-semibold text-gray-900">Основная информация</h3>
+        <h3 className="font-semibold text-gray-900">{t('settings.basicInfo')}</h3>
         <div>
-          <label className="label">Название компании</label>
+          <label className="label">{t('settings.companyName')}</label>
           <input className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="ООО «Компания»" />
         </div>
         <div>
-          <label className="label">Сфера бизнеса</label>
+          <label className="label">{t('settings.businessSphere')}</label>
           <select className="input" value={form.businessSphere} onChange={e => setForm(f => ({ ...f, businessSphere: e.target.value }))}>
-            <option value="">— выберите —</option>
-            {SPHERES.map(s => <option key={s} value={s}>{s}</option>)}
+            <option value="">{t('common.choose')}</option>
+            {spheres.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
         <div>
-          <label className="label">Начало отчётного месяца (день)</label>
+          <label className="label">{t('settings.reportingStart')}</label>
           <input type="number" className="input" min={1} max={28} value={form.reportingStart} onChange={e => setForm(f => ({ ...f, reportingStart: +e.target.value }))} />
-          <p className="text-xs text-gray-400 mt-1">По умолчанию — 1-е число. Можно изменить, например на 16-е.</p>
+          <p className="text-xs text-gray-400 mt-1">{t('settings.reportingNote')}</p>
         </div>
         <button onClick={() => save.mutate()} disabled={save.isPending} className="btn-primary flex items-center gap-2">
           <Save className="w-4 h-4" />
-          {saved ? 'Сохранено ✓' : 'Сохранить'}
+          {saved ? t('common.saved') : t('common.save')}
         </button>
       </div>
 
-      {/* Department names */}
       {departments.length > 0 && (
         <div className="card">
-          <h3 className="font-semibold text-gray-900 mb-1">Названия отделов</h3>
-          <p className="text-xs text-gray-400 mb-4">Нажмите карандаш чтобы переименовать, Enter для сохранения</p>
+          <h3 className="font-semibold text-gray-900 mb-1">{t('settings.deptNames')}</h3>
+          <p className="text-xs text-gray-400 mb-4">{t('settings.deptNamesNote')}</p>
           {departments.map((d: any) => <DeptRenameRow key={d.id} dept={d} />)}
         </div>
       )}

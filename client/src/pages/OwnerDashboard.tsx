@@ -7,6 +7,7 @@ import ProgressBar from '../components/ui/ProgressBar'
 import AIInsights from '../components/ui/AIInsights'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
+import { useT } from '../i18n'
 
 function fmt(n: number) { return n.toLocaleString('ru') }
 function pct(a: number, b: number) { return b > 0 ? Math.round((a / b) * 100) : 0 }
@@ -42,6 +43,7 @@ function FunnelStep({ label, value, sub, pctVal, color }: { label: string; value
 }
 
 export default function OwnerDashboard() {
+  const { t } = useT()
   const periodState = usePeriodStore()
   const [monthOffset, setMonthOffset] = useState(0)
 
@@ -58,7 +60,7 @@ export default function OwnerDashboard() {
     queryFn: () => api.get(`/dashboard/owner?${queryParams}`).then(r => r.data),
   })
 
-  if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">Загрузка...</div>
+  if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
   if (!data) return null
 
   const { summary, dailyChart, managerRating, liderRating } = data
@@ -76,8 +78,8 @@ export default function OwnerDashboard() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Дашборд собственника</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Общая картина компании</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('dash.owner.title')}</h1>
+          <p className="text-gray-500 text-sm mt-0.5">{t('dash.owner.subtitle')}</p>
         </div>
         {periodState.period === 'month' && (
           <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 self-center">
@@ -100,56 +102,56 @@ export default function OwnerDashboard() {
 
       {/* Row 1 — Sales */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-        <StatCard label="План продаж" value={`₸ ${fmt(summary.salesPlan)}`} />
-        <StatCard label="Факт продаж" value={`₸ ${fmt(summary.totalSalesAmount)}`} color="blue" />
-        <StatCard label="Выполнение" value={`${summary.planCompletion}%`}
+        <StatCard label={t('dash.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
+        <StatCard label={t('dash.salesFact')} value={`₸ ${fmt(summary.totalSalesAmount)}`} color="blue" />
+        <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`}
           color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
-        <StatCard label="Конверсия" value={`${summary.conversion}%`}
+        <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`}
           sub={summary.conversionLabel}
           color={summary.conversion >= 20 ? 'green' : summary.conversion >= 10 ? 'yellow' : 'red'} />
-        <StatCard label="Кол-во продаж" value={summary.totalSalesCount} />
-        <StatCard label="Средний чек" value={`₸ ${fmt(summary.avgCheck)}`} />
+        <StatCard label={t('dash.salesCount')} value={summary.totalSalesCount} />
+        <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck)}`} />
       </div>
 
-      <ProgressBar value={summary.planCompletion} label="Выполнение плана продаж" />
+      <ProgressBar value={summary.planCompletion} label={t('dash.planCompletion')} />
 
       {/* Row 2 — Marketing metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Лиды"
+          label={t('dash.leads')}
           value={summary.totalLeads}
-          sub={`план: ${fmt(summary.leadsplan)}`}
+          sub={`${t('dash.plan')} ${fmt(summary.leadsplan)}`}
           color={leadDeficit > 0 ? 'red' : 'green'}
-          extraSub={leadDeficit > 0 ? <span className="text-red-500 text-xs font-semibold">−{fmt(leadDeficit)} отстаём</span> : undefined}
+          extraSub={leadDeficit > 0 ? <span className="text-red-500 text-xs font-semibold">−{fmt(leadDeficit)} {t('dash.planBehind')}</span> : undefined}
         />
-        <StatCard label="Квалиф. лиды" value={summary.totalQualifiedLeads}
-          sub={summary.totalLeads > 0 ? `${leadsToQual}% от лидов` : undefined} />
-        <StatCard label="Стоимость лида" value={summary.leadCost ? `₸ ${fmt(summary.leadCost)}` : '—'}
-          sub={summary.totalBudget > 0 ? 'факт. бюджет' : summary.budgetPlan > 0 ? 'план. бюджет' : undefined} />
-        <StatCard label="Рекл. бюджет"
+        <StatCard label={t('dash.qualLeads')} value={summary.totalQualifiedLeads}
+          sub={summary.totalLeads > 0 ? `${leadsToQual}% ${t('dash.funnel.leads').toLowerCase()}` : undefined} />
+        <StatCard label={t('dash.leadCost')} value={summary.leadCost ? `₸ ${fmt(summary.leadCost)}` : '—'}
+          sub={summary.totalBudget > 0 ? t('dash.factBudget') : summary.budgetPlan > 0 ? t('dash.planBudget') : undefined} />
+        <StatCard label={t('dash.adBudget')}
           value={summary.budgetPlan ? `₸ ${fmt(summary.budgetPlan)}` : summary.totalBudget ? `₸ ${fmt(summary.totalBudget)}` : '—'}
-          sub={summary.totalBudget > 0 ? `факт: ₸ ${fmt(summary.totalBudget)}` : 'план'} />
+          sub={summary.totalBudget > 0 ? `${t('dash.factColon')} ₸ ${fmt(summary.totalBudget)}` : t('common.plan')} />
       </div>
 
       {/* Funnel: Marketing → Sales */}
       {summary.totalLeads > 0 && (
         <div className="card">
-          <h3 className="font-semibold text-gray-900 mb-4">Воронка продаж</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">{t('dash.funnel.title')}</h3>
           <div className="flex items-start gap-2 overflow-x-auto pb-2">
-            <FunnelStep label="Лиды" value={summary.totalLeads} color="text-blue-600" />
+            <FunnelStep label={t('dash.funnel.leads')} value={summary.totalLeads} color="text-blue-600" />
             <div className="flex items-center pt-4 flex-shrink-0">
               <ArrowRight className="w-4 h-4 text-gray-300" />
               <span className="text-xs text-gray-400 mx-1">{leadsToQual}%</span>
             </div>
-            <FunnelStep label="Квалифицировано" value={summary.totalQualifiedLeads} color="text-purple-600" />
+            <FunnelStep label={t('dash.funnel.qualified')} value={summary.totalQualifiedLeads} color="text-purple-600" />
             {summary.totalMeetingsScheduled > 0 && (
               <>
                 <div className="flex items-center pt-4 flex-shrink-0">
                   <ArrowRight className="w-4 h-4 text-gray-300" />
                   <span className="text-xs text-gray-400 mx-1">{qualToMeetings}%</span>
                 </div>
-                <FunnelStep label="Пришло на встречу" value={summary.totalMeetingsAttended}
-                  sub={`запланировано: ${fmt(summary.totalMeetingsScheduled)}`} color="text-orange-600" />
+                <FunnelStep label={t('dash.funnel.meetings')} value={summary.totalMeetingsAttended}
+                  sub={`${t('dash.funnel.planned')} ${fmt(summary.totalMeetingsScheduled)}`} color="text-orange-600" />
               </>
             )}
             <div className="flex items-center pt-4 flex-shrink-0">
@@ -158,7 +160,7 @@ export default function OwnerDashboard() {
                 {summary.totalMeetingsAttended > 0 ? meetingsToSale : leadsToSale}%
               </span>
             </div>
-            <FunnelStep label="Продажи" value={summary.totalSalesCount}
+            <FunnelStep label={t('dash.funnel.sales')} value={summary.totalSalesCount}
               sub={`₸ ${fmt(summary.totalSalesAmount)}`} color="text-green-600"
               pctVal={leadsToSale} />
           </div>
@@ -166,9 +168,9 @@ export default function OwnerDashboard() {
           {/* Conversion bar */}
           <div className="mt-4 grid grid-cols-3 gap-3 text-center">
             {[
-              { label: 'Лиды → квалиф.', val: leadsToQual },
-              { label: 'Квалиф. → встречи', val: qualToMeetings },
-              { label: 'Встречи → продажи', val: meetingsToSale },
+              { label: t('dash.funnel.leadsQual'), val: leadsToQual },
+              { label: t('dash.funnel.qualMeet'), val: qualToMeetings },
+              { label: t('dash.funnel.meetSales'), val: meetingsToSale },
             ].map(item => (
               <div key={item.label} className="bg-gray-50 rounded-lg p-2.5">
                 <div className={`text-lg font-bold ${item.val >= 30 ? 'text-green-600' : item.val >= 15 ? 'text-amber-500' : 'text-red-500'}`}>
@@ -184,14 +186,14 @@ export default function OwnerDashboard() {
       {/* Chart */}
       {dailyChart?.length > 0 && (
         <div className="card">
-          <h3 className="font-semibold text-gray-900 mb-4">Продажи по дням</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">{t('dash.chart.title')}</h3>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={dailyChart}>
               <XAxis dataKey="date" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip formatter={(v: number) => `₸ ${fmt(v)}`} />
               <Legend />
-              <Line type="monotone" dataKey="amount" name="Сумма продаж" stroke="#2563eb" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="amount" name={t('dash.chart.amount')} stroke="#2563eb" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -200,20 +202,20 @@ export default function OwnerDashboard() {
       {/* Closer Rating */}
       {managerRating?.length > 0 && (
         <div className="card">
-          <h3 className="font-semibold text-gray-900 mb-1">Рейтинг клоузеров</h3>
-          <p className="text-xs text-gray-400 mb-4">По % выполнения плана продаж</p>
+          <h3 className="font-semibold text-gray-900 mb-1">{t('dash.closerRating.title')}</h3>
+          <p className="text-xs text-gray-400 mb-4">{t('dash.closerRating.subtitle')}</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b border-gray-100">
                   <th className="pb-2 font-medium">#</th>
-                  <th className="pb-2 font-medium">Менеджер</th>
-                  <th className="pb-2 font-medium text-right">План</th>
-                  <th className="pb-2 font-medium text-right">Факт</th>
-                  <th className="pb-2 font-medium text-right">Выполнение</th>
-                  <th className="pb-2 font-medium text-right">Сделок</th>
-                  <th className="pb-2 font-medium text-right">Конверсия</th>
-                  <th className="pb-2 font-medium text-right">Ср. чек</th>
+                  <th className="pb-2 font-medium">{t('dash.table.manager')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.plan')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.fact')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.completion')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.deals')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.conversion')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.avgCheck')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -242,21 +244,21 @@ export default function OwnerDashboard() {
       {/* Lider Rating */}
       {liderRating?.length > 0 && (
         <div className="card">
-          <h3 className="font-semibold text-gray-900 mb-1">Рейтинг лидорубов</h3>
-          <p className="text-xs text-gray-400 mb-4">По % выполнения плана лидогенерации</p>
+          <h3 className="font-semibold text-gray-900 mb-1">{t('dash.liderRating.title')}</h3>
+          <p className="text-xs text-gray-400 mb-4">{t('dash.liderRating.subtitle')}</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b border-gray-100">
                   <th className="pb-2 font-medium">#</th>
-                  <th className="pb-2 font-medium">Лидоруб</th>
-                  <th className="pb-2 font-medium text-right">План лидов</th>
-                  <th className="pb-2 font-medium text-right">Получено</th>
-                  <th className="pb-2 font-medium text-right">Выполнение</th>
-                  <th className="pb-2 font-medium text-right">Квалиф.</th>
-                  <th className="pb-2 font-medium text-right">% квал.</th>
-                  <th className="pb-2 font-medium text-right">На встречу</th>
-                  <th className="pb-2 font-medium text-right">Пришло</th>
+                  <th className="pb-2 font-medium">{t('dash.table.lider')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.leadsplan')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.received')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.completion')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.qualified')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.pctQual')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.toMeeting')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.attended')}</th>
                 </tr>
               </thead>
               <tbody>

@@ -2,20 +2,30 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { UserPlus, Archive, Mail, Pencil, X, Check } from 'lucide-react'
-
-const roleLabels: Record<string, string> = { OWNER: 'Собственник', ROP: 'РОП', MANAGER: 'Менеджер', MARKETER: 'Маркетолог' }
-const managerTypeLabels: Record<string, string> = { LIDER: 'Лидоруб', CLOSER: 'Клоузер' }
-
-const emptyForm = { name: '', email: '', phone: '', role: 'MANAGER', managerType: 'CLOSER', departmentId: '' }
+import { useT } from '../i18n'
 
 export default function UsersPage() {
   const qc = useQueryClient()
+  const { t } = useT()
   const [showForm, setShowForm]     = useState(false)
-  const [form, setForm]             = useState(emptyForm)
+  const [form, setForm]             = useState({ name: '', email: '', phone: '', role: 'MANAGER', managerType: 'CLOSER', departmentId: '' })
   const [inviteLink, setInviteLink] = useState('')
   const [editingId, setEditingId]   = useState<string | null>(null)
   const [editForm, setEditForm]     = useState<any>({})
   const [editSaved, setEditSaved]   = useState(false)
+
+  const emptyForm = { name: '', email: '', phone: '', role: 'MANAGER', managerType: 'CLOSER', departmentId: '' }
+
+  const roleLabels: Record<string, string> = {
+    OWNER: t('role.OWNER'),
+    ROP: t('role.ROP'),
+    MANAGER: t('role.MANAGER'),
+    MARKETER: t('role.MARKETER'),
+  }
+  const managerTypeLabels: Record<string, string> = {
+    LIDER: t('users.managerType.LIDER'),
+    CLOSER: t('users.managerType.CLOSER'),
+  }
 
   const { data: users = [], isLoading } = useQuery({ queryKey: ['users'], queryFn: () => api.get('/users').then(r => r.data) })
   const { data: departments = [] }      = useQuery({ queryKey: ['departments'], queryFn: () => api.get('/company/departments').then(r => r.data) })
@@ -58,28 +68,28 @@ export default function UsersPage() {
     })
   }
 
-  if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">Загрузка...</div>
+  if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Сотрудники</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{users.filter((u: any) => u.status === 'ACTIVE').length} активных</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('users.title')}</h1>
+          <p className="text-gray-500 text-sm mt-0.5">{users.filter((u: any) => u.status === 'ACTIVE').length} {t('users.active')}</p>
         </div>
         <button onClick={() => { setShowForm(true); setEditingId(null) }} className="btn-primary flex items-center gap-2">
           <UserPlus className="w-4 h-4" />
-          Добавить сотрудника
+          {t('users.addEmployee')}
         </button>
       </div>
 
       {/* Invite link */}
       {inviteLink && (
         <div className="card border border-green-200 bg-green-50">
-          <p className="text-sm font-medium text-green-800 mb-2">✅ Приглашение создано! Ссылка для входа:</p>
+          <p className="text-sm font-medium text-green-800 mb-2">{t('users.inviteCreated')}</p>
           <div className="flex gap-2">
             <input readOnly value={inviteLink} className="input text-xs flex-1 bg-white" onClick={e => (e.target as HTMLInputElement).select()} />
-            <button onClick={() => navigator.clipboard.writeText(inviteLink)} className="btn-secondary text-sm whitespace-nowrap">Копировать</button>
+            <button onClick={() => navigator.clipboard.writeText(inviteLink)} className="btn-secondary text-sm whitespace-nowrap">{t('common.copy')}</button>
           </div>
         </div>
       )}
@@ -88,45 +98,45 @@ export default function UsersPage() {
       {showForm && (
         <div className="card border-2 border-blue-100">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900 flex items-center gap-2"><UserPlus className="w-4 h-4" /> Новый сотрудник</h3>
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2"><UserPlus className="w-4 h-4" /> {t('users.newEmployee')}</h3>
             <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2"><label className="label">ФИО *</label><input className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-            <div><label className="label">Email *</label><input type="email" className="input" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
-            <div><label className="label">Телефон</label><input className="input" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
+            <div className="col-span-2"><label className="label">{t('common.name')} *</label><input className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+            <div><label className="label">{t('common.email')} *</label><input type="email" className="input" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
+            <div><label className="label">{t('common.phone')}</label><input className="input" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></div>
             <div>
-              <label className="label">Роль *</label>
+              <label className="label">{t('common.role')} *</label>
               <select className="input" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
-                <option value="ROP">РОП</option>
-                <option value="MANAGER">Менеджер по продажам</option>
-                <option value="MARKETER">Маркетолог</option>
+                <option value="ROP">{t('role.ROP')}</option>
+                <option value="MANAGER">{t('role.MANAGER')}</option>
+                <option value="MARKETER">{t('role.MARKETER')}</option>
               </select>
             </div>
             {form.role === 'MANAGER' && (
               <div>
-                <label className="label">Тип менеджера</label>
+                <label className="label">{t('common.type')}</label>
                 <select className="input" value={form.managerType} onChange={e => setForm(f => ({ ...f, managerType: e.target.value }))}>
-                  <option value="CLOSER">Клоузер</option>
-                  <option value="LIDER">Лидоруб</option>
+                  <option value="CLOSER">{t('role.closer')}</option>
+                  <option value="LIDER">{t('role.lider')}</option>
                 </select>
               </div>
             )}
             {departments.length > 0 && (
               <div className="col-span-2">
-                <label className="label">Отдел</label>
+                <label className="label">{t('common.department')}</label>
                 <select className="input" value={form.departmentId} onChange={e => setForm(f => ({ ...f, departmentId: e.target.value }))}>
-                  <option value="">— не выбран —</option>
+                  <option value="">{t('common.notSelected')}</option>
                   {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
             )}
           </div>
           <div className="flex gap-3 mt-4">
-            <button onClick={() => setShowForm(false)} className="btn-secondary flex-1">Отмена</button>
+            <button onClick={() => setShowForm(false)} className="btn-secondary flex-1">{t('common.cancel')}</button>
             <button onClick={() => invite.mutate(form)} disabled={!form.name || !form.email || invite.isPending} className="btn-primary flex-1 flex items-center justify-center gap-2">
               <Mail className="w-4 h-4" />
-              {invite.isPending ? 'Отправляем...' : 'Отправить приглашение'}
+              {invite.isPending ? t('users.sending') : t('users.sendInvite')}
             </button>
           </div>
         </div>
@@ -137,10 +147,10 @@ export default function UsersPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-gray-500 border-b border-gray-100 bg-gray-50">
-              <th className="px-5 py-3 font-medium">Сотрудник</th>
-              <th className="px-4 py-3 font-medium">Роль</th>
-              <th className="px-4 py-3 font-medium">Отдел</th>
-              <th className="px-4 py-3 font-medium">Статус</th>
+              <th className="px-5 py-3 font-medium">{t('users.col.employee')}</th>
+              <th className="px-4 py-3 font-medium">{t('users.col.role')}</th>
+              <th className="px-4 py-3 font-medium">{t('users.col.dept')}</th>
+              <th className="px-4 py-3 font-medium">{t('users.col.status')}</th>
               <th className="px-4 py-3 font-medium w-20"></th>
             </tr>
           </thead>
@@ -160,7 +170,7 @@ export default function UsersPage() {
                   <td className="px-4 py-3 text-gray-500">{u.department?.name || '—'}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${u.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {u.status === 'ACTIVE' ? 'Активен' : 'Архив'}
+                      {u.status === 'ACTIVE' ? t('common.active') : t('common.archived')}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -169,14 +179,14 @@ export default function UsersPage() {
                         <button
                           onClick={() => editingId === u.id ? setEditingId(null) : startEdit(u)}
                           className={`p-1.5 rounded transition-colors ${editingId === u.id ? 'text-blue-600 bg-blue-100' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}`}
-                          title="Редактировать"
+                          title={t('common.edit')}
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => { if (confirm(`Архивировать ${u.name}?`)) archive.mutate(u.id) }}
+                          onClick={() => { if (confirm(`${t('users.archiveConfirm')} ${u.name}?`)) archive.mutate(u.id) }}
                           className="p-1.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                          title="Архивировать"
+                          title={t('common.archive')}
                         >
                           <Archive className="w-3.5 h-3.5" />
                         </button>
@@ -191,45 +201,45 @@ export default function UsersPage() {
                     <td colSpan={5} className="px-5 py-4">
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
                         <div>
-                          <label className="text-xs text-gray-500 block mb-1">ФИО</label>
+                          <label className="text-xs text-gray-500 block mb-1">{t('common.name')}</label>
                           <input className="input text-sm py-1.5" value={editForm.name}
                             onChange={e => setEditForm((f: any) => ({ ...f, name: e.target.value }))} />
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500 block mb-1">Email</label>
+                          <label className="text-xs text-gray-500 block mb-1">{t('common.email')}</label>
                           <input type="email" className="input text-sm py-1.5" value={editForm.email}
                             onChange={e => setEditForm((f: any) => ({ ...f, email: e.target.value }))} />
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500 block mb-1">Телефон</label>
+                          <label className="text-xs text-gray-500 block mb-1">{t('common.phone')}</label>
                           <input className="input text-sm py-1.5" value={editForm.phone}
                             onChange={e => setEditForm((f: any) => ({ ...f, phone: e.target.value }))} />
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500 block mb-1">Роль</label>
+                          <label className="text-xs text-gray-500 block mb-1">{t('common.role')}</label>
                           <select className="input text-sm py-1.5" value={editForm.role}
                             onChange={e => setEditForm((f: any) => ({ ...f, role: e.target.value }))}>
-                            <option value="ROP">РОП</option>
-                            <option value="MANAGER">Менеджер</option>
-                            <option value="MARKETER">Маркетолог</option>
+                            <option value="ROP">{t('role.ROP')}</option>
+                            <option value="MANAGER">{t('role.MANAGER')}</option>
+                            <option value="MARKETER">{t('role.MARKETER')}</option>
                           </select>
                         </div>
                         {editForm.role === 'MANAGER' && (
                           <div>
-                            <label className="text-xs text-gray-500 block mb-1">Тип</label>
+                            <label className="text-xs text-gray-500 block mb-1">{t('common.type')}</label>
                             <select className="input text-sm py-1.5" value={editForm.managerType}
                               onChange={e => setEditForm((f: any) => ({ ...f, managerType: e.target.value }))}>
-                              <option value="CLOSER">Клоузер</option>
-                              <option value="LIDER">Лидоруб</option>
+                              <option value="CLOSER">{t('role.closer')}</option>
+                              <option value="LIDER">{t('role.lider')}</option>
                             </select>
                           </div>
                         )}
                         {departments.length > 0 && (
                           <div>
-                            <label className="text-xs text-gray-500 block mb-1">Отдел</label>
+                            <label className="text-xs text-gray-500 block mb-1">{t('common.department')}</label>
                             <select className="input text-sm py-1.5" value={editForm.departmentId}
                               onChange={e => setEditForm((f: any) => ({ ...f, departmentId: e.target.value }))}>
-                              <option value="">— не выбран —</option>
+                              <option value="">{t('common.notSelected')}</option>
                               {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
                             </select>
                           </div>
@@ -241,11 +251,11 @@ export default function UsersPage() {
                           disabled={updateUser.isPending || !editForm.name}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors"
                         >
-                          {editSaved ? <><Check className="w-3.5 h-3.5" /> Сохранено</> : <><Check className="w-3.5 h-3.5" /> Сохранить</>}
+                          {editSaved ? <><Check className="w-3.5 h-3.5" /> {t('common.saved')}</> : <><Check className="w-3.5 h-3.5" /> {t('common.save')}</>}
                         </button>
                         <button onClick={() => setEditingId(null)}
                           className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                          <X className="w-3.5 h-3.5" /> Отмена
+                          <X className="w-3.5 h-3.5" /> {t('common.cancel')}
                         </button>
                       </div>
                     </td>
