@@ -177,4 +177,14 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   }
 })
 
+// Heartbeat — keeps lastSeenAt fresh (call every 5 min from client)
+router.post('/heartbeat', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    await prisma.user.update({ where: { id: req.user!.id }, data: { lastSeenAt: new Date() } }).catch(() => {})
+    res.json({ ok: true })
+  } catch {
+    res.json({ ok: true })
+  }
+})
+
 export default router

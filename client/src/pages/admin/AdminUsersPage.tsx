@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react'
 import { adminApi } from '../../api/adminClient'
 import { Link } from 'react-router-dom'
-import { Search, Clock, ExternalLink, Pencil, X, Check, KeyRound, Eye, EyeOff } from 'lucide-react'
+import { Search, Clock, ExternalLink, Pencil, X, Check, KeyRound, Eye, EyeOff, Wifi } from 'lucide-react'
+
+const ONLINE_THRESHOLD_MS = 15 * 60 * 1000 // 15 minutes
+
+function isOnline(lastSeenAt: string | null): boolean {
+  if (!lastSeenAt) return false
+  return Date.now() - new Date(lastSeenAt).getTime() < ONLINE_THRESHOLD_MS
+}
 
 const ROLE_LABELS: Record<string, string> = {
   OWNER: 'Собственник', ROP: 'РОП', MANAGER: 'Менеджер', MARKETER: 'Маркетолог',
@@ -136,8 +143,13 @@ export default function AdminUsersPage() {
                   <tr key={u.id} className={`border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors ${u.status !== 'ACTIVE' ? 'opacity-40' : ''} ${editingId === u.id ? 'bg-gray-800/50' : ''}`}>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 bg-gray-700 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                          {u.name.charAt(0).toUpperCase()}
+                        <div className="relative flex-shrink-0">
+                          <div className="w-7 h-7 bg-gray-700 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                            {u.name.charAt(0).toUpperCase()}
+                          </div>
+                          {isOnline(u.lastSeenAt) && (
+                            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-400 border-2 border-gray-900 rounded-full" title="В сети" />
+                          )}
                         </div>
                         <div>
                           <div className="text-white font-medium">{u.name}</div>
@@ -161,8 +173,17 @@ export default function AdminUsersPage() {
                       ) : '—'}
                     </td>
                     <td className="py-3 px-4">
-                      {u.lastLoginAt ? (
+                      {isOnline(u.lastSeenAt) ? (
+                        <span className="text-green-400 text-xs flex items-center gap-1 font-medium">
+                          <Wifi className="w-3 h-3" /> В сети
+                        </span>
+                      ) : u.lastSeenAt ? (
                         <span className="text-gray-500 text-xs flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {new Date(u.lastSeenAt).toLocaleString('ru', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      ) : u.lastLoginAt ? (
+                        <span className="text-gray-600 text-xs flex items-center gap-1">
                           <Clock className="w-3 h-3" />
                           {new Date(u.lastLoginAt).toLocaleString('ru', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                         </span>

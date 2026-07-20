@@ -10,6 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'secret'
 // ─── Super Admin Auth Middleware ───────────────────────────────────────────────
 interface AdminRequest extends Request {
   adminId?: string
+  adminEmail?: string
 }
 
 function requireSuperAdmin(req: AdminRequest, res: Response, next: NextFunction) {
@@ -19,10 +20,20 @@ function requireSuperAdmin(req: AdminRequest, res: Response, next: NextFunction)
     const payload = jwt.verify(auth.slice(7), JWT_SECRET) as any
     if (!payload.superAdmin) return res.status(403).json({ error: 'Forbidden' })
     req.adminId = payload.adminId
+    req.adminEmail = payload.adminEmail
     next()
   } catch {
     res.status(401).json({ error: 'Invalid token' })
   }
+}
+
+// ─── Audit helper ─────────────────────────────────────────────────────────────
+async function writeAudit(data: {
+  action: string; description: string; adminEmail?: string;
+  targetId?: string; targetType?: string; oldValue?: string; newValue?: string;
+  companyId?: string; companyName?: string;
+}) {
+  await prisma.auditLog.create({ data }).catch(console.error)
 }
 
 // ─── POST /api/admin/login ─────────────────────────────────────────────────────
@@ -37,7 +48,7 @@ router.post('/login', async (req: Request, res: Response) => {
     const valid = await bcrypt.compare(password, admin.passwordHash)
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' })
 
-    const token = jwt.sign({ adminId: admin.id, superAdmin: true }, JWT_SECRET, { expiresIn: '7d' })
+    const token = jwt.sign({ adminId: admin.id, adminEmail: admin.email, superAdmin: true }, JWT_SECRET, { expiresIn: '7d' })
     res.json({ token, admin: { id: admin.id, email: admin.email } })
   } catch (e) {
     console.error(e)
@@ -62,7 +73,6 @@ router.get('/stats', requireSuperAdmin, async (_req: AdminRequest, res: Response
 
     const uniqueActiveToday = new Set(recentSessions.map(s => s.userId)).size
 
-    // Companies registered per month (last 6 months)
     const sixMonthsAgo = new Date()
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
     const companiesByMonth = await prisma.company.groupBy({
@@ -72,14 +82,9 @@ router.get('/stats', requireSuperAdmin, async (_req: AdminRequest, res: Response
     })
 
     res.json({
-      totalCompanies,
-      activeCompanies,
+      totalCompanies, activeCompanies,
       inactiveCompanies: totalCompanies - activeCompanies,
-      totalUsers,
-      activeUsers,
-      totalReports,
-      uniqueActiveToday,
-      companiesByMonth,
+      totalUsers, activeUsers, totalReports, uniqueActiveToday, companiesByMonth,
     })
   } catch (e) {
     console.error(e)
@@ -117,7 +122,7 @@ router.get('/companies/:id', requireSuperAdmin, async (req: AdminRequest, res: R
         users: {
           select: {
             id: true, name: true, email: true, role: true, managerType: true,
-            status: true, lastLoginAt: true, createdAt: true,
+            status: true, lastLoginAt: true, lastSeenAt: true, createdAt: true,
             sessions: { orderBy: { loginAt: 'desc' }, take: 5 },
           },
         },
@@ -137,6 +142,8 @@ router.get('/companies/:id', requireSuperAdmin, async (req: AdminRequest, res: R
 router.patch('/companies/:id', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
   const { isActive, subscriptionPlan, trialEndsAt, notes, name } = req.body
   try {
+    const before = await prisma.company.findUnique({ where: { id: req.params.id }, select: { name: true, isActive: true, subscriptionPlan: true, trialEndsAt: true } })
+
     const company = await prisma.company.update({
       where: { id: req.params.id },
       data: {
@@ -147,6 +154,42 @@ router.patch('/companies/:id', requireSuperAdmin, async (req: AdminRequest, res:
         ...(name !== undefined && { name }),
       },
     })
+
+    // Audit logging
+    const adminEmail = req.adminEmail || 'admin'
+    if (isActive !== undefined && before?.isActive !== isActive) {
+      await writeAudit({
+        action: isActive ? 'COMPANY_ACTIVATED' : 'COMPANY_BLOCKED',
+        description: `${isActive ? 'Активировал' : 'Заблокировал'} компанию "${company.name}"`,
+        adminEmail, targetId: company.id, targetType: 'company',
+        oldValue: before?.isActive ? 'активна' : 'заблокирована',
+        newValue: isActive ? 'активна' : 'заблокирована',
+        companyId: company.id, companyName: company.name,
+      })
+    }
+    if (subscriptionPlan !== undefined && before?.subscriptionPlan !== subscriptionPlan) {
+      await writeAudit({
+        action: 'COMPANY_PLAN_CHANGED',
+        description: `Изменил тариф компании "${company.name}": ${before?.subscriptionPlan || '—'} → ${subscriptionPlan}`,
+        adminEmail, targetId: company.id, targetType: 'company',
+        oldValue: before?.subscriptionPlan || '—', newValue: subscriptionPlan,
+        companyId: company.id, companyName: company.name,
+      })
+    }
+    if (trialEndsAt !== undefined) {
+      const oldDate = before?.trialEndsAt ? new Date(before.trialEndsAt).toLocaleDateString('ru') : '—'
+      const newDate = trialEndsAt ? new Date(trialEndsAt).toLocaleDateString('ru') : '—'
+      if (oldDate !== newDate) {
+        await writeAudit({
+          action: 'COMPANY_ACCESS_DATE_CHANGED',
+          description: `Изменил дату доступа компании "${company.name}": ${oldDate} → ${newDate}`,
+          adminEmail, targetId: company.id, targetType: 'company',
+          oldValue: oldDate, newValue: newDate,
+          companyId: company.id, companyName: company.name,
+        })
+      }
+    }
+
     res.json(company)
   } catch (e) {
     console.error(e)
@@ -155,7 +198,6 @@ router.patch('/companies/:id', requireSuperAdmin, async (req: AdminRequest, res:
 })
 
 // ─── POST /api/admin/companies ─────────────────────────────────────────────────
-// Manually create company + owner account
 router.post('/companies', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
   const { companyName, ownerName, ownerEmail, ownerPassword, subscriptionPlan, trialEndsAt } = req.body
   if (!companyName || !ownerName || !ownerEmail || !ownerPassword) {
@@ -177,6 +219,15 @@ router.post('/companies', requireSuperAdmin, async (req: AdminRequest, res: Resp
       },
       include: { users: { where: { role: 'OWNER' } } },
     })
+
+    await writeAudit({
+      action: 'COMPANY_CREATED',
+      description: `Создал компанию "${companyName}" (владелец: ${ownerEmail}, тариф: ${subscriptionPlan || 'trial'})`,
+      adminEmail: req.adminEmail || 'admin',
+      targetId: company.id, targetType: 'company',
+      companyId: company.id, companyName: companyName,
+    })
+
     res.json(company)
   } catch (e) {
     console.error(e)
@@ -199,7 +250,7 @@ router.get('/users', requireSuperAdmin, async (req: AdminRequest, res: Response)
       take: 100,
       select: {
         id: true, name: true, email: true, role: true, managerType: true,
-        status: true, lastLoginAt: true, createdAt: true,
+        status: true, lastLoginAt: true, lastSeenAt: true, createdAt: true,
         company: { select: { id: true, name: true, isActive: true } },
       },
     })
@@ -214,12 +265,14 @@ router.get('/users', requireSuperAdmin, async (req: AdminRequest, res: Response)
 router.patch('/users/:id', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
   const { status, role, name, email, phone, managerType, newPassword } = req.body
   try {
-    let passwordHash: string | undefined
-    if (newPassword) {
-      passwordHash = await bcrypt.hash(newPassword, 10)
-    }
+    const before = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { name: true, email: true, role: true, status: true, managerType: true, company: { select: { id: true, name: true } } },
+    })
 
-    // Check email uniqueness if changing email
+    let passwordHash: string | undefined
+    if (newPassword) passwordHash = await bcrypt.hash(newPassword, 10)
+
     if (email) {
       const existing = await prisma.user.findUnique({ where: { email } })
       if (existing && existing.id !== req.params.id) {
@@ -240,10 +293,51 @@ router.patch('/users/:id', requireSuperAdmin, async (req: AdminRequest, res: Res
       },
       select: {
         id: true, name: true, email: true, role: true, managerType: true,
-        status: true, phone: true, lastLoginAt: true, createdAt: true,
+        status: true, phone: true, lastLoginAt: true, lastSeenAt: true, createdAt: true,
         company: { select: { id: true, name: true, isActive: true } },
       },
     })
+
+    const adminEmail = req.adminEmail || 'admin'
+    const companyId = before?.company?.id
+    const companyName = before?.company?.name
+
+    if (status !== undefined && before?.status !== status) {
+      await writeAudit({
+        action: status === 'ACTIVE' ? 'USER_ACTIVATED' : 'USER_BLOCKED',
+        description: `${status === 'ACTIVE' ? 'Разблокировал' : 'Заблокировал'} пользователя "${before?.name || ''}" (${before?.email || ''})`,
+        adminEmail, targetId: req.params.id, targetType: 'user',
+        oldValue: before?.status, newValue: status,
+        companyId, companyName,
+      })
+    }
+    if (role !== undefined && before?.role !== role) {
+      await writeAudit({
+        action: 'USER_ROLE_CHANGED',
+        description: `Изменил роль "${before?.name || ''}" (${before?.email || ''}): ${before?.role} → ${role}${managerType ? ' (' + managerType + ')' : ''}`,
+        adminEmail, targetId: req.params.id, targetType: 'user',
+        oldValue: before?.role, newValue: role + (managerType ? `/${managerType}` : ''),
+        companyId, companyName,
+      })
+    }
+    if (newPassword) {
+      await writeAudit({
+        action: 'USER_PASSWORD_RESET',
+        description: `Сбросил пароль пользователя "${before?.name || ''}" (${before?.email || ''})`,
+        adminEmail, targetId: req.params.id, targetType: 'user',
+        companyId, companyName,
+      })
+    }
+    if (name !== undefined && before?.name !== name) {
+      await writeAudit({
+        action: 'USER_NAME_CHANGED',
+        description: `Переименовал пользователя "${before?.name}" → "${name}"`,
+        adminEmail, targetId: req.params.id, targetType: 'user',
+        oldValue: before?.name, newValue: name,
+        companyId, companyName,
+      })
+    }
+
     res.json(user)
   } catch (e) {
     console.error(e)
@@ -262,6 +356,65 @@ router.get('/sessions', requireSuperAdmin, async (_req: AdminRequest, res: Respo
       },
     })
     res.json(sessions)
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ─── GET /api/admin/audit-logs ────────────────────────────────────────────────
+router.get('/audit-logs', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
+  const { from, to, companyId, search, page = '1', limit = '50' } = req.query
+  const skip = (parseInt(String(page)) - 1) * parseInt(String(limit))
+  try {
+    const where: any = {}
+    if (from || to) {
+      where.createdAt = {
+        ...(from && { gte: new Date(String(from)) }),
+        ...(to && { lte: new Date(String(to) + 'T23:59:59Z') }),
+      }
+    }
+    if (companyId) where.companyId = String(companyId)
+    if (search) {
+      where.OR = [
+        { description: { contains: String(search), mode: 'insensitive' } },
+        { adminEmail: { contains: String(search), mode: 'insensitive' } },
+        { companyName: { contains: String(search), mode: 'insensitive' } },
+      ]
+    }
+
+    const [logs, total] = await Promise.all([
+      prisma.auditLog.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take: parseInt(String(limit)) }),
+      prisma.auditLog.count({ where }),
+    ])
+
+    res.json({ logs, total, page: parseInt(String(page)), limit: parseInt(String(limit)) })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ─── DELETE /api/admin/audit-logs ─────────────────────────────────────────────
+router.delete('/audit-logs', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
+  const { from, to } = req.body
+  try {
+    const where: any = {}
+    if (from || to) {
+      where.createdAt = {
+        ...(from && { gte: new Date(String(from)) }),
+        ...(to && { lte: new Date(String(to) + 'T23:59:59Z') }),
+      }
+    }
+    const { count } = await prisma.auditLog.deleteMany({ where })
+
+    await writeAudit({
+      action: 'AUDIT_LOGS_CLEARED',
+      description: `Очистил историю изменений за период ${from || '—'} — ${to || '—'} (удалено ${count} записей)`,
+      adminEmail: req.adminEmail || 'admin',
+    })
+
+    res.json({ deleted: count })
   } catch (e) {
     console.error(e)
     res.status(500).json({ error: 'Server error' })

@@ -25,6 +25,7 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminCompaniesPage from './pages/admin/AdminCompaniesPage'
 import AdminCompanyDetailPage from './pages/admin/AdminCompanyDetailPage'
 import AdminUsersPage from './pages/admin/AdminUsersPage'
+import AdminAuditPage from './pages/admin/AdminAuditPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = useAuthStore(s => s.token)
@@ -75,6 +76,7 @@ export default function App() {
           <Route path="companies" element={<AdminCompaniesPage />} />
           <Route path="companies/:id" element={<AdminCompanyDetailPage />} />
           <Route path="users" element={<AdminUsersPage />} />
+          <Route path="audit" element={<AdminAuditPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -1,6 +1,6 @@
 import { Navigate, Outlet, Link, useLocation } from 'react-router-dom'
 import { useAdminStore } from '../../store/adminAuth'
-import { Shield, Building2, Users, BarChart2, LogOut } from 'lucide-react'
+import { Shield, Building2, Users, BarChart2, LogOut, History } from 'lucide-react'
 
 function NavItem({ to, icon: Icon, label }: { to: string; icon: any; label: string }) {
   const { pathname } = useLocation()
@@ -36,6 +36,7 @@ export default function AdminLayout() {
           <NavItem to="/admin" icon={BarChart2} label="Статистика" />
           <NavItem to="/admin/companies" icon={Building2} label="Компании" />
           <NavItem to="/admin/users" icon={Users} label="Пользователи" />
+          <NavItem to="/admin/audit" icon={History} label="История" />
         </nav>
         <div className="border-t border-gray-800 pt-4 mt-4">
           <div className="text-xs text-gray-500 px-1 mb-3 truncate">{admin?.email}</div>
