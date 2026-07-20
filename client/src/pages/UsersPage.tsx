@@ -236,16 +236,14 @@ export default function UsersPage() {
                   <td className="px-4 py-3">
                     {u.role !== 'OWNER' && u.status === 'ACTIVE' && (
                       <div className="flex items-center gap-1">
-                        {isInvitePending(u) && (
-                          <button
-                            onClick={() => resendInvite.mutate(u.id)}
-                            disabled={resendInvite.isPending}
-                            className="p-1.5 rounded text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition-colors disabled:opacity-40"
-                            title="Сгенерировать новую ссылку"
-                          >
-                            <RefreshCw className="w-3.5 h-3.5" />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => resendInvite.mutate(u.id)}
+                          disabled={resendInvite.isPending}
+                          className="p-1.5 rounded text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition-colors disabled:opacity-40"
+                          title={isInvitePending(u) ? 'Сгенерировать новую ссылку' : 'Сгенерировать ссылку для смены пароля'}
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           onClick={() => editingId === u.id ? setEditingId(null) : startEdit(u)}
                           className={`p-1.5 rounded transition-colors ${editingId === u.id ? 'text-blue-600 bg-blue-100' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}`}

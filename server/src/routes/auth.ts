@@ -82,6 +82,23 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 })
 
+// GET invite info — returns user name and whether this is a password reset (user already registered)
+router.get('/invite-info', async (req: Request, res: Response) => {
+  const token = req.query.token as string
+  if (!token) return res.status(400).json({ error: 'Missing token' })
+  try {
+    const user = await prisma.user.findUnique({ where: { inviteToken: token }, select: { name: true, email: true, passwordHash: true, invitedAt: true } })
+    if (!user) return res.status(404).json({ error: 'Invalid invite link' })
+    const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000
+    if (user.invitedAt && Date.now() - new Date(user.invitedAt).getTime() > THREE_DAYS_MS) {
+      return res.status(410).json({ error: 'Ссылка устарела.' })
+    }
+    res.json({ name: user.name, email: user.email, isPasswordReset: !!user.passwordHash })
+  } catch (e) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // Accept invite & set password
 router.post('/accept-invite', async (req: Request, res: Response) => {
   const { token, password } = req.body
