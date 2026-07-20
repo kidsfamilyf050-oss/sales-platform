@@ -74,6 +74,7 @@ model User {
   updatedAt    DateTime    @updatedAt
 
   reports       Report[]
+  sales         Sale[]
   notifications Notification[]
   planChanges   PlanChange[]
   sessions      UserSession[]
@@ -168,6 +169,26 @@ enum ReportType {
   LIDER
   CLOSER
   MARKETER
+}
+
+// Individual sale entries — added throughout the day, separate from daily stats report
+model Sale {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId     String
+  date          String   // YYYY-MM-DD local date
+  amount        Float
+  paymentType   String   // 'new_sale' | 'additional'
+  paymentMethod String   // 'cash' | 'card' | 'credit' | 'installment'
+  bank          String?
+  months        Int?
+  crmLink       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, date])
+  @@index([companyId, date])
 }
 
 model Notification {

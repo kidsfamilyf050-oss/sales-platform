@@ -1,24 +1,107 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { usePeriodStore } from '../components/ui/PeriodSelector'
 import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
-import { FileText, CheckCircle } from 'lucide-react'
+import { FileText, CheckCircle, Plus, Pencil, Trash2, ExternalLink, X, Check } from 'lucide-react'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useT } from '../i18n'
 
 function fmt(n: number) { return n.toLocaleString('ru') }
 
+interface Sale {
+  id?: string
+  amount: string
+  paymentType: 'new_sale' | 'additional'
+  paymentMethod: 'cash' | 'card' | 'credit' | 'installment'
+  bank: string
+  months: string
+  crmLink: string
+}
+
+const BANKS = [
+  'Kaspi Bank', 'Halyk Bank', 'Forte Bank', 'Bank CenterCredit',
+  'Jusan Bank', 'Freedom Bank', 'ATF Bank', 'Нурбанк', 'RBK Bank',
+  'Bereke Bank', 'Евразийский банк', 'Другой',
+]
+
+const emptySale = (): Sale => ({
+  amount: '', paymentType: 'new_sale', paymentMethod: 'card',
+  bank: 'Kaspi Bank', months: '12', crmLink: '',
+})
+
+const showBank = (m: string) => ['card', 'credit', 'installment'].includes(m)
+const showMonths = (m: string) => ['credit', 'installment'].includes(m)
+
+const today = new Date()
+const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+const PAYMENT_TYPE_LABEL: Record<string, string> = { new_sale: 'Новая', additional: 'Доплата' }
+const PAYMENT_METHOD_LABEL: Record<string, string> = { cash: 'Нал', card: 'Безнал', credit: 'Кредит', installment: 'Рассрочка' }
+
 export default function ManagerDashboard() {
   const { t } = useT()
   const { period } = usePeriodStore()
   const navigate = useNavigate()
+  const qc = useQueryClient()
+
+  // Main dashboard data
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard-manager', period],
     queryFn: () => api.get(`/dashboard/manager?period=${period}`).then(r => r.data),
   })
+
+  // Today's sales (separate from report)
+  const { data: todaySales = [] } = useQuery({
+    queryKey: ['sales-today'],
+    queryFn: () => api.get(`/sales?date=${todayStr}`).then(r => r.data),
+    refetchInterval: 30000,
+  })
+
+  // Sale form state
+  const [saleForm, setSaleForm] = useState<Sale | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+
+  const createSale = useMutation({
+    mutationFn: (data: any) => api.post('/sales', data).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sales-today'] }); qc.invalidateQueries({ queryKey: ['dashboard-manager'] }); setSaleForm(null); setEditingId(null) },
+  })
+
+  const updateSale = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => api.put(`/sales/${id}`, data).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sales-today'] }); qc.invalidateQueries({ queryKey: ['dashboard-manager'] }); setSaleForm(null); setEditingId(null) },
+  })
+
+  const deleteSale = useMutation({
+    mutationFn: (id: string) => api.delete(`/sales/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sales-today'] }); qc.invalidateQueries({ queryKey: ['dashboard-manager'] }) },
+  })
+
+  const openAdd = () => { setSaleForm(emptySale()); setEditingId(null) }
+  const openEdit = (s: any) => {
+    setSaleForm({ amount: String(s.amount), paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank || 'Kaspi Bank', months: String(s.months || '12'), crmLink: s.crmLink || '' })
+    setEditingId(s.id)
+  }
+
+  const saveSale = () => {
+    if (!saleForm || !saleForm.amount) return
+    const payload = {
+      date: todayStr,
+      amount: Number(saleForm.amount),
+      paymentType: saleForm.paymentType,
+      paymentMethod: saleForm.paymentMethod,
+      bank: showBank(saleForm.paymentMethod) ? saleForm.bank : null,
+      months: showMonths(saleForm.paymentMethod) ? Number(saleForm.months) : null,
+      crmLink: saleForm.crmLink || null,
+    }
+    if (editingId) updateSale.mutate({ id: editingId, data: payload })
+    else createSale.mutate(payload)
+  }
+
+  const totalToday = (todaySales as any[]).reduce((s: number, x: any) => s + (Number(x.amount) || 0), 0)
 
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
   if (!data) return null
@@ -29,6 +112,7 @@ export default function ManagerDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t('dash.manager.title')}</h1>
@@ -51,7 +135,7 @@ export default function ManagerDashboard() {
 
       {isCloser ? (
         <>
-          {/* Month stats */}
+          {/* Period stats */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             <StatCard label={t('dash.manager.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
             <StatCard label={t('dash.manager.salesPeriod')} value={`₸ ${fmt(summary.salesAmount)}`} color="blue" />
@@ -63,58 +147,170 @@ export default function ManagerDashboard() {
 
           <ProgressBar value={summary.planCompletion} label={t('dash.manager.planCompletionSales')} />
 
-          {/* Today */}
+          {/* ── TODAY'S SALES ── entered throughout the day */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="font-semibold text-gray-900">{t('report.closer.sales')} сегодня</h3>
+                {(todaySales as any[]).length > 0 && (
+                  <p className="text-xs text-gray-400 mt-0.5">{(todaySales as any[]).length} сд. · ₸ {fmt(totalToday)}</p>
+                )}
+              </div>
+              {!saleForm && (
+                <button onClick={openAdd}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+                  <Plus className="w-3.5 h-3.5" /> {t('report.closer.addSale')}
+                </button>
+              )}
+            </div>
+
+            {/* Sale list */}
+            {(todaySales as any[]).length > 0 && !saleForm && (
+              <div className="space-y-2 mb-3">
+                {(todaySales as any[]).map((s: any) => (
+                  <div key={s.id} className="flex items-start justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-gray-900">₸ {fmt(Number(s.amount))}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {PAYMENT_TYPE_LABEL[s.paymentType]}
+                        </span>
+                        <span className="text-xs text-gray-500">{PAYMENT_METHOD_LABEL[s.paymentMethod]}</span>
+                        {s.bank && showBank(s.paymentMethod) && <span className="text-xs text-gray-400">{s.bank}</span>}
+                        {s.months && showMonths(s.paymentMethod) && <span className="text-xs text-gray-400">{s.months} мес.</span>}
+                      </div>
+                      {s.crmLink && (
+                        <a href={s.crmLink} target="_blank" rel="noreferrer"
+                          className="flex items-center gap-1 text-xs text-blue-500 hover:underline mt-1 max-w-xs">
+                          <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{s.crmLink}</span>
+                        </a>
+                      )}
+                    </div>
+                    <div className="flex gap-0.5 ml-2 flex-shrink-0">
+                      <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => { if (confirm('Удалить продажу?')) deleteSale.mutate(s.id) }}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex justify-between items-center pt-1 border-t border-gray-100 text-sm">
+                  <span className="text-gray-500">{t('report.closer.total')}: {(todaySales as any[]).length} сделок</span>
+                  <span className="font-bold text-gray-900">₸ {fmt(totalToday)}</span>
+                </div>
+              </div>
+            )}
+
+            {(todaySales as any[]).length === 0 && !saleForm && (
+              <p className="text-sm text-gray-400 text-center py-6">{t('report.closer.noSales')}</p>
+            )}
+
+            {/* Inline sale form */}
+            {saleForm && (
+              <div className="p-4 border-2 border-blue-100 rounded-xl bg-blue-50/30 space-y-3">
+                <h4 className="text-sm font-semibold text-gray-700">
+                  {editingId ? t('report.closer.editSale') : t('report.closer.newSaleTitle')}
+                </h4>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">{t('report.closer.amount')} *</label>
+                    <input type="number" className="input" min="0" placeholder="0" autoFocus
+                      value={saleForm.amount}
+                      onChange={e => setSaleForm(f => f ? { ...f, amount: e.target.value } : f)} />
+                  </div>
+                  <div>
+                    <label className="label">{t('report.closer.saleType')}</label>
+                    <select className="input" value={saleForm.paymentType}
+                      onChange={e => setSaleForm(f => f ? { ...f, paymentType: e.target.value as any } : f)}>
+                      <option value="new_sale">{t('report.closer.newSale')}</option>
+                      <option value="additional">{t('report.closer.additional')}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">{t('report.closer.paymentMethod')}</label>
+                    <select className="input" value={saleForm.paymentMethod}
+                      onChange={e => {
+                        const m = e.target.value as Sale['paymentMethod']
+                        setSaleForm(f => f ? { ...f, paymentMethod: m, months: showMonths(m) ? (f.months || '12') : '' } : f)
+                      }}>
+                      <option value="cash">{t('report.closer.cash')}</option>
+                      <option value="card">{t('report.closer.card')}</option>
+                      <option value="credit">{t('report.closer.credit')}</option>
+                      <option value="installment">{t('report.closer.installment')}</option>
+                    </select>
+                  </div>
+                  {showBank(saleForm.paymentMethod) && (
+                    <div>
+                      <label className="label">{t('report.closer.bank')}</label>
+                      <select className="input" value={saleForm.bank}
+                        onChange={e => setSaleForm(f => f ? { ...f, bank: e.target.value } : f)}>
+                        {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {showMonths(saleForm.paymentMethod) && (
+                  <div>
+                    <label className="label">{t('report.closer.months')}</label>
+                    <div className="flex gap-2">
+                      {['6', '12', '24', '36'].map(m => (
+                        <button key={m} type="button"
+                          onClick={() => setSaleForm(f => f ? { ...f, months: m } : f)}
+                          className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                            saleForm.months === m ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'
+                          }`}>
+                          {m} мес.
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="label">{t('report.closer.crmLink')}</label>
+                  <input type="url" className="input" placeholder="https://..."
+                    value={saleForm.crmLink}
+                    onChange={e => setSaleForm(f => f ? { ...f, crmLink: e.target.value } : f)} />
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button onClick={() => { setSaleForm(null); setEditingId(null) }}
+                    className="btn-secondary flex items-center gap-1.5 flex-1 justify-center py-2">
+                    <X className="w-3.5 h-3.5" /> Отмена
+                  </button>
+                  <button onClick={saveSale} disabled={!saleForm.amount || createSale.isPending || updateSale.isPending}
+                    className="btn-primary flex items-center gap-1.5 flex-1 justify-center py-2 disabled:opacity-40">
+                    <Check className="w-3.5 h-3.5" /> Сохранить
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Stats from today's report (if submitted) */}
           {todayData && (
-            <div className="card border-blue-100 bg-blue-50/30">
-              <h3 className="font-semibold text-gray-900 mb-3 text-sm">{t('dash.manager.today')}</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-3">
-                <div>
-                  <p className="text-xs text-gray-400">{t('dash.manager.salesAmount')}</p>
-                  <p className="font-bold text-gray-900 mt-0.5">₸ {fmt(
-                    Array.isArray(todayData.sales)
-                      ? todayData.sales.reduce((s: number, x: any) => s + (Number(x.amount) || 0), 0)
-                      : (Number(todayData.salesAmount) || 0)
-                  )}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400">{t('dash.manager.deals')}</p>
-                  <p className="font-bold text-gray-900 mt-0.5">
-                    {Array.isArray(todayData.sales) ? todayData.sales.length : (todayData.salesCount || 0)}
-                  </p>
-                </div>
+            <div className="card border-gray-100 bg-gray-50/50">
+              <h3 className="font-semibold text-gray-700 mb-3 text-sm">{t('dash.manager.today')} — статистика</h3>
+              <div className="grid grid-cols-3 gap-3 text-sm">
                 <div><p className="text-xs text-gray-400">{t('dash.manager.clients')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.clientsReceived || 0}</p></div>
                 <div><p className="text-xs text-gray-400">{t('dash.manager.consultations')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.consultations || 0}</p></div>
+                <div><p className="text-xs text-gray-400">{t('report.closer.refusals')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.refusals || 0}</p></div>
               </div>
-              {/* Individual sales list */}
-              {Array.isArray(todayData.sales) && todayData.sales.length > 0 && (
-                <div className="space-y-1.5 border-t border-blue-100 pt-2">
-                  {todayData.sales.map((s: any, i: number) => (
-                    <div key={i} className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {s.paymentType === 'new_sale' ? 'Новая' : 'Доплата'}
-                        </span>
-                        <span className="text-gray-500">{s.paymentMethod === 'cash' ? 'Нал' : s.paymentMethod === 'card' ? 'Безнал' : s.paymentMethod === 'credit' ? 'Кредит' : 'Рассрочка'}</span>
-                        {s.bank && <span className="text-gray-400">{s.bank}</span>}
-                        {s.months && <span className="text-gray-400">{s.months} мес.</span>}
-                        {s.crmLink && (
-                          <a href={s.crmLink} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">сделка ↗</a>
-                        )}
-                      </div>
-                      <span className="font-semibold text-gray-900">₸ {fmt(Number(s.amount) || 0)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {todayReport.comment && (
-                <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-blue-100">💬 {todayReport.comment}</p>
+              {todayData.comment && (
+                <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-100">💬 {todayData.comment}</p>
               )}
             </div>
           )}
         </>
       ) : (
         <>
-          {/* Month stats — Lider */}
+          {/* Lider stats */}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             <StatCard label={t('dash.manager.leadsplan')} value={summary.leadsplan} />
             <StatCard label={t('dash.manager.leads')} value={summary.leads} color="blue" />
@@ -123,28 +319,23 @@ export default function ManagerDashboard() {
             <StatCard label={t('dash.manager.qualRate')} value={`${summary.qualRate}%`} />
             <StatCard label={t('dash.manager.meetingsAttended')} value={summary.meetingsAttended} />
           </div>
-
           <ProgressBar value={summary.planCompletion} label={t('dash.manager.planCompletionLider')} />
-
-          {/* Today */}
           {todayData && (
             <div className="card border-purple-100 bg-purple-50/30">
               <h3 className="font-semibold text-gray-900 mb-3 text-sm">{t('dash.manager.today')}</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                <div><p className="text-xs text-gray-400">{t('dash.manager.leads')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.leads || 0}</p></div>
+                <div><p className="text-xs text-gray-400">{t('dash.manager.leads')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.leads || todayData.leadsReceived || 0}</p></div>
                 <div><p className="text-xs text-gray-400">{t('dash.manager.qualified')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.qualifiedLeads || 0}</p></div>
                 <div><p className="text-xs text-gray-400">{t('dash.manager.meetings')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.meetingsScheduled || 0}</p></div>
                 <div><p className="text-xs text-gray-400">{t('dash.manager.attended')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.meetingsAttended || 0}</p></div>
               </div>
-              {todayReport.comment && (
-                <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-purple-100">💬 {todayReport.comment}</p>
-              )}
+              {todayData.comment && <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-purple-100">💬 {todayData.comment}</p>}
             </div>
           )}
         </>
       )}
 
-      {/* Recent reports */}
+      {/* Recent reports (history) */}
       {recentReports?.length > 0 && (
         <div className="card">
           <h3 className="font-semibold text-gray-900 mb-4">{t('dash.manager.history')}</h3>
@@ -159,7 +350,7 @@ export default function ManagerDashboard() {
                   </div>
                 ) : (
                   <div className="flex gap-6 text-right">
-                    <span className="text-gray-500">{t('dash.manager.leadsLabel')} <span className="font-medium text-gray-900">{(r.data as any).leads || 0}</span></span>
+                    <span className="text-gray-500">{t('dash.manager.leadsLabel')} <span className="font-medium text-gray-900">{(r.data as any).leads || (r.data as any).leadsReceived || 0}</span></span>
                     <span className="text-gray-500">{t('dash.manager.qualLabel')} <span className="font-medium text-gray-900">{(r.data as any).qualifiedLeads || 0}</span></span>
                     <span className="text-gray-500">{t('dash.manager.attendedLabel')} <span className="font-medium text-gray-900">{(r.data as any).meetingsAttended || 0}</span></span>
                   </div>
