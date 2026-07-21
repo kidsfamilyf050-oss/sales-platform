@@ -665,6 +665,20 @@ const ru = {
   'dash.consultations': 'Консультаций',
   'dash.refusals': 'Отказов',
   'dash.inWork': 'В работе',
+
+  // Click-to-detail hint (ROP table subtitles)
+  'dash.clickToDetail': 'Нажмите на строку чтобы увидеть детали',
+
+  // Marketing page dynamic strings
+  'marketing.pctFromPlan': '{{pct}}% от плана ({{plan}})',
+  'marketing.planShort': 'план: {{plan}}',
+  'marketing.pctOfLeads': '{{pct}}% из лидов',
+  'marketing.fromLiderReports': 'из отчётов лидорубов',
+  'marketing.planBudgetPerLead': 'план. бюджет ÷ лиды',
+  'marketing.factBudgetPerLead': 'факт. бюджет ÷ лиды',
+  'marketing.noBudgetData': 'нет данных бюджета',
+  'marketing.salesOfLeads': '{{sales}} из {{leads}} лидов',
+  'marketing.noLeadData': 'нет данных по лидам',
 }
 
 const kk: typeof ru = {
@@ -1328,6 +1342,20 @@ const kk: typeof ru = {
   'dash.consultations': 'Кеңестер',
   'dash.refusals': 'Бас тартулар',
   'dash.inWork': 'Жұмыста',
+
+  // Click-to-detail hint (ROP table subtitles)
+  'dash.clickToDetail': 'Жолды басыңыз, мәліметтерді қараңыз',
+
+  // Marketing page dynamic strings
+  'marketing.pctFromPlan': '{{pct}}% жоспардан ({{plan}})',
+  'marketing.planShort': 'жоспар: {{plan}}',
+  'marketing.pctOfLeads': '{{pct}}% лидтерден',
+  'marketing.fromLiderReports': 'лидоруб есептерінен',
+  'marketing.planBudgetPerLead': 'жоспар. бюджет ÷ лидтер',
+  'marketing.factBudgetPerLead': 'нақты бюджет ÷ лидтер',
+  'marketing.noBudgetData': 'бюджет деректері жоқ',
+  'marketing.salesOfLeads': '{{leads}} лидтен {{sales}}',
+  'marketing.noLeadData': 'лид деректері жоқ',
 }
 
 // ── Store ────────────────────────────────────────────────────────────────────

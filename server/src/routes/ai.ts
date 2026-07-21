@@ -5,7 +5,7 @@ import { generateAIInsights } from '../services/ai.service'
 const router = Router()
 
 router.post('/insights', authenticate, async (req: AuthRequest, res: Response) => {
-  const { summary, managerRating, funnel, period } = req.body
+  const { summary, managerRating, funnel, period, lang } = req.body
   try {
     const insights = await generateAIInsights({
       role: req.user!.role,
@@ -13,6 +13,7 @@ router.post('/insights', authenticate, async (req: AuthRequest, res: Response) =
       managerRating,
       funnel,
       period: period || 'текущий месяц',
+      lang: lang || 'ru',
     })
     res.json({ insights })
   } catch (e) {

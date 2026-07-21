@@ -11,14 +11,14 @@ interface AIInsightsProps {
 }
 
 export default function AIInsights({ data, managerRating, funnel, period }: AIInsightsProps) {
-  const { t } = useT()
+  const { t, lang } = useT()
   const [insights, setInsights] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const getInsights = async () => {
     setLoading(true)
     try {
-      const res = await api.post('/ai/insights', { summary: data, managerRating, funnel, period: period || 'текущий месяц' })
+      const res = await api.post('/ai/insights', { summary: data, managerRating, funnel, period: period || 'текущий месяц', lang })
       setInsights(res.data.insights)
     } catch {
       setInsights(t('ai.error'))

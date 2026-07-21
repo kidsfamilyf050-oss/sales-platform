@@ -233,7 +233,7 @@ export default function ROPDashboard() {
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
               <h3 className="font-semibold text-gray-900 mb-0.5">{t('dash.closerRating.title')}</h3>
-              <p className="text-xs text-gray-400">{t('dash.rop.closerRatingNote')} · Нажмите на строку чтобы увидеть детали</p>
+              <p className="text-xs text-gray-400">{t('dash.rop.closerRatingNote')} · {t('dash.clickToDetail')}</p>
             </div>
             {/* Status legend */}
             <div className="flex items-center gap-4 shrink-0">
@@ -313,7 +313,7 @@ export default function ROPDashboard() {
       {liderRating?.length > 0 && (
         <div className="card">
           <h3 className="font-semibold text-gray-900 mb-1">{t('dash.liderRating.title')}</h3>
-          <p className="text-xs text-gray-400 mb-4">{t('dash.rop.liderRatingNote')} · Нажмите на строку чтобы увидеть детали</p>
+          <p className="text-xs text-gray-400 mb-4">{t('dash.rop.liderRatingNote')} · {t('dash.clickToDetail')}</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -321,11 +321,11 @@ export default function ROPDashboard() {
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium">{t('dash.table.lider')}</th>
-                  <th className="pb-2 font-medium text-right">Записано</th>
-                  <th className="pb-2 font-medium text-right">Пришло</th>
-                  <th className="pb-2 font-medium text-right">Лидов</th>
-                  <th className="pb-2 font-medium text-right">Квал.</th>
-                  <th className="pb-2 font-medium text-right">% квал.</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.scheduledCol')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.attendedCol')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.leadsCol')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.qualified')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.pctQual')}</th>
                 </tr>
               </thead>
               <tbody>

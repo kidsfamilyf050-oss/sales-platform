@@ -260,15 +260,15 @@ export default function MarketingPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t('marketing.leadsReceived')} value={totalLeads}
-          sub={leadsPct !== null ? `${leadsPct}% от плана (${leadsplan})` : leadsplan ? `план: ${leadsplan}` : undefined}
+          sub={leadsPct !== null ? t('marketing.pctFromPlan', { pct: leadsPct, plan: leadsplan }) : leadsplan ? t('marketing.planShort', { plan: leadsplan }) : undefined}
           pctVal={leadsPct} />
         <StatCard label={t('marketing.qualified')} value={totalQual}
-          sub={totalLeads > 0 ? `${pct(totalQual, totalLeads)}% из лидов` : undefined}
-          note="из отчётов лидорубов" />
+          sub={totalLeads > 0 ? t('marketing.pctOfLeads', { pct: pct(totalQual, totalLeads) }) : undefined}
+          note={t('marketing.fromLiderReports')} />
         <StatCard label={t('marketing.leadCost')} value={leadCost ? `₸ ${fmt(leadCost)}` : '—'}
-          sub={leadCost ? (isBudgetPlan ? 'план. бюджет ÷ лиды' : 'факт. бюджет ÷ лиды') : 'нет данных бюджета'} />
+          sub={leadCost ? (isBudgetPlan ? t('marketing.planBudgetPerLead') : t('marketing.factBudgetPerLead')) : t('marketing.noBudgetData')} />
         <StatCard label={t('marketing.conv')} value={totalLeads > 0 ? `${pct(totalSales, totalLeads)}%` : '—'}
-          sub={totalLeads > 0 ? `${totalSales} из ${totalLeads} лидов` : 'нет данных по лидам'} />
+          sub={totalLeads > 0 ? t('marketing.salesOfLeads', { sales: totalSales, leads: totalLeads }) : t('marketing.noLeadData')} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
