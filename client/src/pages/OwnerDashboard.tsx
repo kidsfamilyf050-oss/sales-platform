@@ -10,7 +10,11 @@ import { ChevronLeft, ChevronRight, ChevronDown, ArrowRight, TrendingUp, Users, 
 import { useT } from '../i18n'
 
 function fmt(n: number) { return n.toLocaleString('ru-RU') }
-function pct(a: number, b: number) { return b > 0 ? Math.round((a / b) * 100) : 0 }
+function pct(a: number, b: number) {
+  if (b === 0) return 0
+  const v = (a / b) * 100
+  return v > 0 && v < 1 ? Math.round(v * 10) / 10 : Math.round(v)
+}
 
 const PAYMENT_TYPE_LABEL: Record<string, string> = { new_sale: 'Новая', additional: 'Доплата' }
 const PAYMENT_METHOD_LABEL: Record<string, string> = { cash: 'Нал', card: 'Безнал', credit: 'Кредит', installment: 'Рассрочка' }
@@ -205,14 +209,14 @@ export default function OwnerDashboard() {
                 <FunnelStep label={t('dash.funnel.leadsReceived')} value={summary.totalLiderLeads} color="text-blue-600" />
                 <FunnelArrow pctVal={leadsToQual} />
                 <FunnelStep label={t('dash.rop.funnelStepQual')} value={summary.totalQualifiedLeads}
-                  sub={`${leadsToQual}%`} color="text-purple-600" />
+                  color="text-purple-600" />
                 {summary.totalMeetingsScheduled > 0 && (
                   <>
                     <FunnelArrow pctVal={qualToScheduled} />
                     <FunnelStep label={t('dash.funnel.scheduled')} value={summary.totalMeetingsScheduled} color="text-orange-500" />
                     <FunnelArrow pctVal={scheduledToAtt} />
                     <FunnelStep label={t('dash.funnel.attended')} value={summary.totalMeetingsAttended}
-                      sub={`${scheduledToAtt}%`} color="text-orange-600" />
+                      color="text-orange-600" />
                   </>
                 )}
                 <FunnelArrow pctVal={summary.totalMeetingsAttended > 0 ? attToSale : leadsToSale} />

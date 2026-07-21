@@ -27,7 +27,7 @@ export default function ReportPage() {
   const isMarketer = user?.role === 'MARKETER'
 
   const [closer, setCloser] = useState({ clientsReceived: '', consultations: '', refusals: '', comment: '' })
-  const [lider, setLider] = useState({ leadsReceived: '', processed: '', qualifiedLeads: '', transferredToCloser: '', meetingsScheduled: '', meetingsAttended: '', comment: '' })
+  const [lider, setLider] = useState({ leadsReceived: '', processed: '', qualifiedLeads: '', meetingsScheduled: '', meetingsAttended: '', comment: '' })
   const [marketer, setMarketer] = useState({ adBudget: '', leadsCount: '', qualifiedLeads: '', comment: '' })
 
   // Load existing report when date changes
@@ -53,7 +53,6 @@ export default function ReportPage() {
             leadsReceived: String(d.leadsReceived || d.leads || ''),
             processed: String(d.processed || ''),
             qualifiedLeads: String(d.qualifiedLeads || ''),
-            transferredToCloser: String(d.transferredToCloser || ''),
             meetingsScheduled: String(d.meetingsScheduled || ''),
             meetingsAttended: String(d.meetingsAttended || ''),
             comment: d.comment || found.comment || '',
@@ -66,7 +65,7 @@ export default function ReportPage() {
           })
         } else {
           setCloser({ clientsReceived: '', consultations: '', refusals: '', comment: '' })
-          setLider({ leadsReceived: '', processed: '', qualifiedLeads: '', transferredToCloser: '', meetingsScheduled: '', meetingsAttended: '', comment: '' })
+          setLider({ leadsReceived: '', processed: '', qualifiedLeads: '', meetingsScheduled: '', meetingsAttended: '', comment: '' })
           setMarketer({ adBudget: '', leadsCount: '', qualifiedLeads: '', comment: '' })
         }
       })
@@ -172,8 +171,6 @@ export default function ReportPage() {
                   <input type="number" className="input" min="0" value={lider.processed} onChange={e => setLider(f => ({ ...f, processed: e.target.value }))} /></div>
                 <div><label className="label">{t('report.lider.qualified')}</label>
                   <input type="number" className="input" min="0" value={lider.qualifiedLeads} onChange={e => setLider(f => ({ ...f, qualifiedLeads: e.target.value }))} required /></div>
-                <div><label className="label">{t('report.lider.transferred')}</label>
-                  <input type="number" className="input" min="0" value={lider.transferredToCloser} onChange={e => setLider(f => ({ ...f, transferredToCloser: e.target.value }))} /></div>
                 <div><label className="label">Записано на встречу</label>
                   <input type="number" className="input" min="0" value={lider.meetingsScheduled} onChange={e => setLider(f => ({ ...f, meetingsScheduled: e.target.value }))} /></div>
                 <div><label className="label">Пришло на встречу</label>

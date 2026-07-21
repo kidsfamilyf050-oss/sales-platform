@@ -26,7 +26,11 @@ function fmt(n: number) {
   if (n >= 1_000) return Math.round(n / 1_000) + 'тыс'
   return n.toLocaleString('ru-RU')
 }
-function pct(a: number, b: number) { return b > 0 ? Math.round((a / b) * 100) : 0 }
+function pct(a: number, b: number) {
+  if (b === 0) return 0
+  const v = (a / b) * 100
+  return v > 0 && v < 1 ? Math.round(v * 10) / 10 : Math.round(v)
+}
 
 // ─── Funnel bar ───────────────────────────────────────────────────────────────
 

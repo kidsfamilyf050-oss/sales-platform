@@ -158,7 +158,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
           id: u.id, name: u.name, type: 'CLOSER', plan,
           salesCount: stats.salesCount, salesAmount: stats.salesAmount, completion,
           consultations, refusals, inWork,
-          conversion: clients > 0 ? Math.round((stats.salesCount / clients) * 100) : 0,
+          conversion: clients > 0 ? Math.round((stats.salesCount / clients) * 1000) / 10 : 0,
           avgCheck: stats.salesCount > 0 ? Math.round(stats.salesAmount / stats.salesCount) : 0,
           sales: userSales,
         }
@@ -315,7 +315,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       return {
         id: m.id, name: m.name, managerType: m.managerType,
         plan: managerPlan, salesAmount: stats.salesAmount, salesCount: stats.salesCount,
-        completion, conversion: clients > 0 ? Math.round((stats.salesCount / clients) * 100) : 0,
+        completion, conversion: clients > 0 ? Math.round((stats.salesCount / clients) * 1000) / 10 : 0,
         avgCheck: stats.salesCount > 0 ? Math.round(stats.salesAmount / stats.salesCount) : 0,
         consultations, refusals, inWork,
         status, reportedToday,
@@ -369,7 +369,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     res.json({
       summary: {
         salesPlan, salesAmount: totalSalesAmount, salesCount: totalSalesCount,
-        conversion: clientsReceived > 0 ? Math.round((totalSalesCount / clientsReceived) * 100) : 0,
+        conversion: clientsReceived > 0 ? Math.round((totalSalesCount / clientsReceived) * 1000) / 10 : 0,
         avgCheck: totalSalesCount > 0 ? Math.round(totalSalesAmount / totalSalesCount) : 0,
         planCompletion: salesPlan > 0 ? Math.round((totalSalesAmount / salesPlan) * 100) : 0,
         totalConsultations, totalRefusals, totalInWork,
@@ -420,7 +420,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const inWork = Math.max(0, consultations - salesCount - refusals)
       const salesPlan = plans.find(p => p.type === 'SALES_AMOUNT')?.value || 0
       // Conversion = deals / clients received (from report stats)
-      const conversion = clientsReceived > 0 ? Math.round((salesCount / clientsReceived) * 100) : 0
+      const conversion = clientsReceived > 0 ? Math.round((salesCount / clientsReceived) * 1000) / 10 : 0
 
       res.json({
         type: 'CLOSER',
