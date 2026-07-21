@@ -18,6 +18,7 @@ import SettingsPage from './pages/SettingsPage'
 import PlansPage from './pages/PlansPage'
 import TrackingPage from './pages/TrackingPage'
 import MarketingPage from './pages/MarketingPage'
+import ROPLinksPage from './pages/ROPLinksPage'
 // Admin
 import AdminLoginPage from './pages/admin/AdminLoginPage'
 import AdminLayout from './pages/admin/AdminLayout'
@@ -68,6 +69,7 @@ export default function App() {
           <Route path="/tracking" element={<TrackingPage />} />
           <Route path="/marketing" element={<MarketingPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/rop/links" element={<ROPLinksPage />} />
         </Route>
         {/* Super Admin Panel */}
         <Route path="/admin/login" element={<AdminLoginPage />} />

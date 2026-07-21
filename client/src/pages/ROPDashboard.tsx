@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
 import AIInsights from '../components/ui/AIInsights'
 import { useT } from '../i18n'
-import { ChevronDown, ChevronRight, ExternalLink, Download, Link2, X, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, ExternalLink, Download } from 'lucide-react'
 import { useAuthStore } from '../store/auth'
 
 function fmt(n: number) { return n.toLocaleString('ru') }
@@ -169,28 +170,18 @@ async function downloadExport(endpoint: string, params: string) {
 
 export default function ROPDashboard() {
   const { t } = useT()
+  const navigate = useNavigate()
   const periodState = usePeriodStore()
   const { period } = periodState
   const params = buildPeriodParams(periodState)
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard-rop', params],
     queryFn: () => api.get(`/dashboard/rop?${params}`).then(r => r.data),
-    refetchInterval: 60000, // refresh every minute — keep pulse live
+    refetchInterval: 60000,
   })
 
-  const qc = useQueryClient()
   const [expandedManagers, setExpandedManagers] = useState<Set<string>>(new Set())
-  const [ropLinkModal, setRopLinkModal] = useState<'REFUSAL' | 'IN_WORK' | null>(null)
 
-  const ropDealLinksQuery = useQuery({
-    queryKey: ['rop-deal-links', params, ropLinkModal],
-    queryFn: () => api.get(`/deal-links/all?${params}&type=${ropLinkModal}`).then(r => r.data),
-    enabled: !!ropLinkModal,
-  })
-  const deleteRopLink = useMutation({
-    mutationFn: (id: string) => api.delete(`/deal-links/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['rop-deal-links'] }),
-  })
   const toggleExpand = (id: string) => setExpandedManagers(prev => {
     const next = new Set(prev)
     next.has(id) ? next.delete(id) : next.add(id)
@@ -243,18 +234,26 @@ export default function ROPDashboard() {
         <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck)}`} />
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         <div
-          onClick={() => setRopLinkModal('REFUSAL')}
-          className="cursor-pointer hover:opacity-80 transition-opacity"
-          title="Нажмите, чтобы увидеть CRM-ссылки отказников"
+          onClick={() => navigate('/rop/links')}
+          className="cursor-pointer group"
+          title="Открыть CRM-ссылки отказников"
         >
-          <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red" sub="нажмите для ссылок" />
+          <div className="card transition-all duration-150 group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent">
+            <p className="text-xs text-gray-400 group-hover:text-red-500 transition-colors font-medium uppercase tracking-wide mb-1">{t('dash.refusals')}</p>
+            <p className="text-2xl font-bold text-red-500">{summary.totalRefusals ?? 0}</p>
+            <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">нажмите → CRM-ссылки</p>
+          </div>
         </div>
         <div
-          onClick={() => setRopLinkModal('IN_WORK')}
-          className="cursor-pointer hover:opacity-80 transition-opacity"
-          title="Нажмите, чтобы увидеть CRM-ссылки сделок в работе"
+          onClick={() => navigate('/rop/links')}
+          className="cursor-pointer group"
+          title="Открыть CRM-ссылки сделок в работе"
         >
-          <StatCard label={t('dash.inWork')} value={summary.totalInWork ?? 0} color="yellow" sub="нажмите для ссылок" />
+          <div className="card transition-all duration-150 group-hover:shadow-md group-hover:border-amber-200 group-hover:bg-amber-50/40 border border-transparent">
+            <p className="text-xs text-gray-400 group-hover:text-amber-600 transition-colors font-medium uppercase tracking-wide mb-1">{t('dash.inWork')}</p>
+            <p className="text-2xl font-bold text-amber-500">{summary.totalInWork ?? 0}</p>
+            <p className="text-xs text-gray-300 group-hover:text-amber-400 mt-1 transition-colors">нажмите → CRM-ссылки</p>
+          </div>
         </div>
       </div>
 
@@ -350,14 +349,14 @@ export default function ROPDashboard() {
                         <td className="py-2.5 text-right">{m.conversion}%</td>
                         <td className="py-2.5 text-right">{m.consultations ?? 0}</td>
                         <td className="py-2.5 text-right">
-                          <button onClick={(e) => { e.stopPropagation(); setRopLinkModal('REFUSAL') }}
-                            className="text-red-500 hover:text-red-700 hover:underline font-medium cursor-pointer" title="Смотреть CRM ссылки отказников">
+                          <button onClick={(e) => { e.stopPropagation(); navigate('/rop/links') }}
+                            className="text-red-500 hover:text-red-700 hover:underline font-semibold cursor-pointer transition-colors" title="Смотреть CRM ссылки отказников">
                             {m.refusals ?? 0}
                           </button>
                         </td>
                         <td className="py-2.5 text-right">
-                          <button onClick={(e) => { e.stopPropagation(); setRopLinkModal('IN_WORK') }}
-                            className="text-amber-600 hover:text-amber-800 hover:underline font-medium cursor-pointer" title="Смотреть CRM ссылки в работе">
+                          <button onClick={(e) => { e.stopPropagation(); navigate('/rop/links') }}
+                            className="text-amber-600 hover:text-amber-800 hover:underline font-semibold cursor-pointer transition-colors" title="Смотреть CRM ссылки в работе">
                             {m.inWork ?? 0}
                           </button>
                         </td>
@@ -438,65 +437,6 @@ export default function ROPDashboard() {
       )}
 
       <AIInsights data={summary} managerRating={managerRating} funnel={funnel} period={period} />
-
-      {/* ── ROP DEAL LINKS MODAL — all closers' refusals/in-work links ── */}
-      {ropLinkModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40" onClick={() => setRopLinkModal(null)}>
-          <div className="bg-white w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className={`flex items-center justify-between px-4 py-3 border-b rounded-t-2xl ${ropLinkModal === 'REFUSAL' ? 'bg-red-50 border-red-100' : 'bg-amber-50 border-amber-100'}`}>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${ropLinkModal === 'REFUSAL' ? 'bg-red-400' : 'bg-amber-400'}`} />
-                  <h3 className="font-semibold text-gray-900">
-                    {ropLinkModal === 'REFUSAL' ? 'Отказники' : 'В работе'} — CRM ссылки клоузеров
-                  </h3>
-                </div>
-                <p className="text-xs text-gray-400 mt-0.5">За выбранный период · все менеджеры</p>
-              </div>
-              <button onClick={() => setRopLinkModal(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-              {ropDealLinksQuery.isLoading && <p className="text-sm text-gray-400 text-center py-4">Загрузка...</p>}
-              {!ropDealLinksQuery.isLoading && (ropDealLinksQuery.data as any[] || []).length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-4">Нет ссылок за этот период</p>
-              )}
-              {/* Group by manager */}
-              {(() => {
-                const links: any[] = ropDealLinksQuery.data || []
-                const byManager: Record<string, { name: string; items: any[] }> = {}
-                for (const l of links) {
-                  if (!byManager[l.user.id]) byManager[l.user.id] = { name: l.user.name, items: [] }
-                  byManager[l.user.id].items.push(l)
-                }
-                return Object.values(byManager).map(mgr => (
-                  <div key={mgr.name}>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">{mgr.name}</p>
-                    <div className="space-y-1.5">
-                      {mgr.items.map((dl: any) => (
-                        <div key={dl.id} className="flex items-start gap-2 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
-                          <Link2 className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
-                          <div className="flex-1 min-w-0">
-                            <a href={dl.link} target="_blank" rel="noreferrer"
-                              className="text-sm text-blue-600 hover:underline block truncate">{dl.link}</a>
-                            {dl.note && <p className="text-xs text-gray-400 mt-0.5">{dl.note}</p>}
-                            <p className="text-xs text-gray-300 mt-0.5">{dl.date}</p>
-                          </div>
-                          <button onClick={() => deleteRopLink.mutate(dl.id)}
-                            className="p-1 rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))
-              })()}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
