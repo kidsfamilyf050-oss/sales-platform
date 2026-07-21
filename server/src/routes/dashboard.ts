@@ -65,89 +65,88 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
   const { period = 'month', from, to } = req.query
   const { start, end } = getPeriodDates(period as string, from as string, to as string)
   const periodKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
+  const fromStr = dateToStr(start)
+  const toStr = dateToStr(end)
 
   try {
-    const [salesDepts, marketingDepts, allUsers, plans, closerReports, liderReports, marketerReports] = await Promise.all([
+    const [salesDepts, allUsers, plans, closerReports, liderReports, marketerReports, periodSales] = await Promise.all([
       prisma.department.findMany({ where: { companyId: req.user!.companyId, type: 'SALES' }, include: { users: { where: { status: 'ACTIVE', role: 'MANAGER' } } } }),
-      prisma.department.findMany({ where: { companyId: req.user!.companyId, type: 'MARKETING' } }),
       prisma.user.findMany({ where: { companyId: req.user!.companyId, status: 'ACTIVE', role: 'MANAGER' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'CLOSER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true, departmentId: true, managerType: true } } } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'LIDER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true, departmentId: true, managerType: true } } } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'MARKETER', date: { gte: start, lte: end } } }),
+      // Sales from Sale model — truth source
+      prisma.sale.findMany({ where: { companyId: req.user!.companyId, date: { gte: fromStr, lte: toStr } }, include: { user: { select: { id: true, name: true } } } }),
     ])
 
-    const totalSalesAmount = sumCloserSalesAmount(closerReports)
-    const totalSalesCount = sumCloserSalesCount(closerReports)
-    const totalClients = sumReportField(closerReports, 'clientsReceived')
-    // Marketing: leads & budget come from MARKETER reports
-    const totalLeads = marketerReports.reduce((s, r) => s + (Number((r.data as any).leads) || Number((r.data as any).leadsCount) || 0), 0)
-    const totalBudget = marketerReports.reduce((s, r) => s + (Number((r.data as any).budget) || Number((r.data as any).adBudget) || 0), 0)
-    // Qualified leads, meetings come from LIDER reports
-    const totalLiderLeads = sumLiderLeads(liderReports)
-    const totalQualifiedLeads = sumReportField(liderReports, 'qualifiedLeads')
-    const totalMeetingsScheduled = sumReportField(liderReports, 'meetingsScheduled')
-    const totalMeetingsAttended = sumReportField(liderReports, 'meetingsAttended')
+    // ── Sales (Sale model) ─────────────────────────────────────────────────
+    const totalSalesAmount = periodSales.reduce((s, x) => s + x.amount, 0)
+    const totalSalesCount  = periodSales.length
+    const totalClients     = sumReportField(closerReports, 'clientsReceived')
 
-    // Sum all department + company level plans (not per-user)
-    const salesPlan = plans.filter(p => !p.userId && p.type === 'SALES_AMOUNT').reduce((s, p) => s + p.value, 0)
-    // Company-level marketing plans (no userId, no departmentId)
+    // ── Marketing metrics (MARKETER reports) ──────────────────────────────
+    const marketingLeads = marketerReports.reduce((s, r) => s + (Number((r.data as any).leadsCount) || Number((r.data as any).leads) || 0), 0)
+    const totalBudget    = marketerReports.reduce((s, r) => s + (Number((r.data as any).adBudget) || Number((r.data as any).budget) || 0), 0)
+
+    // ── Lider funnel (LIDER reports) ──────────────────────────────────────
+    const totalLiderLeads        = sumLiderLeads(liderReports)
+    const totalQualifiedLeads    = sumReportField(liderReports, 'qualifiedLeads')
+    const totalMeetingsScheduled = sumReportField(liderReports, 'meetingsScheduled')
+    const totalMeetingsAttended  = sumReportField(liderReports, 'meetingsAttended')
+
+    // ── Plans ─────────────────────────────────────────────────────────────
+    const salesPlan  = plans.filter(p => !p.userId && p.type === 'SALES_AMOUNT').reduce((s, p) => s + p.value, 0)
     const leadsplan  = plans.find(p => !p.userId && !p.departmentId && p.type === 'LEADS')?.value  || 0
     const budgetPlan = plans.find(p => !p.userId && !p.departmentId && p.type === 'BUDGET')?.value || 0
 
     const avgCheck = totalSalesCount > 0 ? totalSalesAmount / totalSalesCount : 0
-    // Конверсия: если есть лиды от маркетинга — от лидов; иначе — от входящих заявок (clients)
-    const conversionBase = totalLeads > 0 ? totalLeads : totalClients
-    const conversionLabel = totalLeads > 0 ? 'лиды → продажи' : 'заявки → продажи'
+    // Конверсия: встречи → продажи (основная); если нет встреч — клиенты → продажи
+    const conversionBase  = totalMeetingsAttended > 0 ? totalMeetingsAttended : totalClients
+    const conversionLabel = totalMeetingsAttended > 0 ? 'встречи → продажи' : 'клиенты → продажи'
     const conversion = conversionBase > 0 ? (totalSalesCount / conversionBase) * 100 : 0
-    // Стоимость лида: фактический бюджет если есть, иначе плановый
     const effectiveBudget = totalBudget > 0 ? totalBudget : budgetPlan
-    const leadCost = totalLeads > 0 ? effectiveBudget / totalLeads : 0
+    const leadCost = marketingLeads > 0 ? effectiveBudget / marketingLeads : 0
 
-    // Daily chart data (closers)
-    const dailySales: Record<string, { sales: number; amount: number }> = {}
-    for (const r of closerReports) {
-      const d = r.date.toISOString().split('T')[0]
-      const rd = r.data as any
-      if (!dailySales[d]) dailySales[d] = { sales: 0, amount: 0 }
-      if (Array.isArray(rd.sales)) {
-        dailySales[d].sales += rd.sales.length
-        dailySales[d].amount += rd.sales.reduce((s: number, x: any) => s + (Number(x.amount) || 0), 0)
-      } else {
-        dailySales[d].sales += Number(rd.salesCount) || 0
-        dailySales[d].amount += Number(rd.salesAmount) || 0
-      }
+    // ── Daily chart from Sale model ────────────────────────────────────────
+    const dailySalesMap: Record<string, { sales: number; amount: number }> = {}
+    for (const s of periodSales) {
+      if (!dailySalesMap[s.date]) dailySalesMap[s.date] = { sales: 0, amount: 0 }
+      dailySalesMap[s.date].sales++
+      dailySalesMap[s.date].amount += s.amount
     }
 
-    // Closer rating
-    const closerStats: Record<string, { name: string; salesCount: number; salesAmount: number; clients: number }> = {}
-    for (const r of closerReports) {
-      const uid = r.user.id
-      const rd = r.data as any
-      if (!closerStats[uid]) closerStats[uid] = { name: r.user.name, salesCount: 0, salesAmount: 0, clients: 0 }
-      if (Array.isArray(rd.sales)) {
-        closerStats[uid].salesCount += rd.sales.length
-        closerStats[uid].salesAmount += rd.sales.reduce((s: number, x: any) => s + (Number(x.amount) || 0), 0)
-      } else {
-        closerStats[uid].salesCount += Number(rd.salesCount) || 0
-        closerStats[uid].salesAmount += Number(rd.salesAmount) || 0
-      }
-      closerStats[uid].clients += Number(rd.clientsReceived) || 0
+    // ── Sales per user (Sale model) ────────────────────────────────────────
+    const salesByUser: Record<string, { salesCount: number; salesAmount: number }> = {}
+    for (const s of periodSales) {
+      if (!salesByUser[s.userId]) salesByUser[s.userId] = { salesCount: 0, salesAmount: 0 }
+      salesByUser[s.userId].salesCount++
+      salesByUser[s.userId].salesAmount += s.amount
     }
-    const managerRating = Object.entries(closerStats)
-      .map(([id, s]) => {
-        const plan = plans.find(p => p.userId === id && p.type === 'SALES_AMOUNT')?.value || 0
-        const completion = plan > 0 ? Math.round((s.salesAmount / plan) * 100) : 0
+    const clientsByUser: Record<string, number> = {}
+    for (const r of closerReports) {
+      clientsByUser[r.user.id] = (clientsByUser[r.user.id] || 0) + (Number((r.data as any).clientsReceived) || 0)
+    }
+
+    // ── Manager (closer) rating ────────────────────────────────────────────
+    const closerUsers = allUsers.filter(u => u.managerType !== 'LIDER')
+    const managerRating = closerUsers
+      .map(u => {
+        const stats = salesByUser[u.id] || { salesCount: 0, salesAmount: 0 }
+        const clients = clientsByUser[u.id] || 0
+        const plan = plans.find(p => p.userId === u.id && p.type === 'SALES_AMOUNT')?.value || 0
+        const completion = plan > 0 ? Math.round((stats.salesAmount / plan) * 100) : 0
         return {
-          id, name: s.name, type: 'CLOSER', plan,
-          salesCount: s.salesCount, salesAmount: s.salesAmount, completion,
-          conversion: s.clients > 0 ? Math.round((s.salesCount / s.clients) * 100) : 0,
-          avgCheck: s.salesCount > 0 ? Math.round(s.salesAmount / s.salesCount) : 0,
+          id: u.id, name: u.name, type: 'CLOSER', plan,
+          salesCount: stats.salesCount, salesAmount: stats.salesAmount, completion,
+          conversion: clients > 0 ? Math.round((stats.salesCount / clients) * 100) : 0,
+          avgCheck: stats.salesCount > 0 ? Math.round(stats.salesAmount / stats.salesCount) : 0,
         }
       })
+      .filter(m => m.salesAmount > 0 || m.plan > 0)
       .sort((a, b) => b.completion - a.completion)
 
-    // Lider rating
+    // ── Lider rating ───────────────────────────────────────────────────────
     const liderStats: Record<string, { name: string; leads: number; qualifiedLeads: number; meetingsScheduled: number; meetingsAttended: number }> = {}
     for (const r of liderReports) {
       const uid = r.user.id
@@ -161,16 +160,15 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const liderRating = Object.entries(liderStats)
       .map(([id, s]) => {
         const meetingsPlan = plans.find(p => p.userId === id && p.type === 'MEETINGS_SCHEDULED')?.value || 0
-        const leadsplan = plans.find(p => p.userId === id && p.type === 'LEADS')?.value || 0
         const completion = meetingsPlan > 0 ? Math.round((s.meetingsScheduled / meetingsPlan) * 100) : 0
         return {
-          id, name: s.name, type: 'LIDER', meetingsPlan, leadsplan,
+          id, name: s.name, type: 'LIDER', meetingsPlan,
           leads: s.leads, qualifiedLeads: s.qualifiedLeads,
           meetingsScheduled: s.meetingsScheduled, meetingsAttended: s.meetingsAttended,
           completion, qualRate: s.leads > 0 ? Math.round((s.qualifiedLeads / s.leads) * 100) : 0,
         }
       })
-      .sort((a, b) => b.completion - a.completion)
+      .sort((a, b) => b.meetingsScheduled - a.meetingsScheduled)
 
     res.json({
       summary: {
@@ -178,14 +176,16 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         conversion: Math.round(conversion * 10) / 10,
         conversionLabel,
         planCompletion: salesPlan > 0 ? Math.round((totalSalesAmount / salesPlan) * 100) : 0,
-        totalLeads, totalQualifiedLeads, totalBudget, budgetPlan, leadCost: Math.round(leadCost),
-        totalMeetingsScheduled, totalMeetingsAttended,
-        leadsplan, totalManagers: allUsers.length,
+        // Marketing block (from MARKETER reports)
+        marketingLeads, leadsplan, totalBudget, budgetPlan, leadCost: Math.round(leadCost),
+        // Lider funnel (from LIDER reports)
+        totalLiderLeads, totalQualifiedLeads, totalMeetingsScheduled, totalMeetingsAttended,
+        totalManagers: allUsers.length,
         bestManager: managerRating[0]?.name || '—',
         worstManager: managerRating[managerRating.length - 1]?.name || '—',
       },
       departments: salesDepts,
-      dailyChart: Object.entries(dailySales).map(([date, v]) => ({ date, ...v })).sort((a, b) => a.date.localeCompare(b.date)),
+      dailyChart: Object.entries(dailySalesMap).map(([date, v]) => ({ date, ...v })).sort((a, b) => a.date.localeCompare(b.date)),
       managerRating,
       liderRating,
     })
