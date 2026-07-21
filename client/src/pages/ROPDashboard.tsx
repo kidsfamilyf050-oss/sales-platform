@@ -269,15 +269,15 @@ export default function ROPDashboard() {
                   return (
                     <>
                       <tr key={m.id}
-                        className={`border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors`}
+                        className={`border-b border-gray-50 cursor-pointer hover:opacity-90 transition-colors ${STATUS[m.status as keyof typeof STATUS]?.bg}`}
                         onClick={() => toggleExpand(m.id)}>
-                        <td className="py-2.5 pl-1 pr-2">
-                          <div className={`w-1.5 h-8 rounded-full ${STATUS[m.status as keyof typeof STATUS]?.dot}`} />
+                        <td className="py-3 pl-3">
+                          <div className={`w-2.5 h-2.5 rounded-full ${STATUS[m.status as keyof typeof STATUS]?.dot}`} />
                         </td>
-                        <td className="py-2.5 text-gray-400">
+                        <td className="py-3 text-gray-400">
                           {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                         </td>
-                        <td className="py-2.5 font-medium text-gray-900">
+                        <td className="py-3 font-medium text-gray-900">
                           {m.name}
                           {m.todaySales?.length > 0 && (
                             <span className="ml-2 text-xs bg-blue-100 text-blue-700 rounded-full px-1.5 py-0.5 font-medium">
@@ -334,15 +334,15 @@ export default function ROPDashboard() {
                   return (
                     <>
                       <tr key={m.id}
-                        className={`border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors`}
+                        className={`border-b border-gray-50 cursor-pointer hover:opacity-90 transition-colors ${STATUS[m.status as keyof typeof STATUS]?.bg}`}
                         onClick={() => toggleExpand(m.id)}>
-                        <td className="py-2.5 pl-1 pr-2">
-                          <div className={`w-1.5 h-8 rounded-full ${STATUS[m.status as keyof typeof STATUS]?.dot}`} />
+                        <td className="py-3 pl-3">
+                          <div className={`w-2.5 h-2.5 rounded-full ${STATUS[m.status as keyof typeof STATUS]?.dot}`} />
                         </td>
-                        <td className="py-2.5 text-gray-400">
+                        <td className="py-3 text-gray-400">
                           {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                         </td>
-                        <td className="py-2.5 font-medium text-gray-900">{m.name}</td>
+                        <td className="py-3 font-medium text-gray-900">{m.name}</td>
                         <td className="py-2.5 text-right font-medium">{m.meetingsScheduled.toLocaleString('ru-RU')}</td>
                         <td className="py-2.5 text-right">{m.meetingsAttended.toLocaleString('ru-RU')}</td>
                         <td className="py-2.5 text-right text-gray-500">{m.leads.toLocaleString('ru-RU')}</td>
