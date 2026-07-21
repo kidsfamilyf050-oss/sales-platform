@@ -321,8 +321,9 @@ export default function ROPDashboard() {
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium">{t('dash.table.lider')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.scheduledCol')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.attendedCol')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.completion')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.scheduledCol')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.leadsCol')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.qualified')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.pctQual')}</th>
@@ -343,8 +344,13 @@ export default function ROPDashboard() {
                           {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                         </td>
                         <td className="py-3 font-medium text-gray-900">{m.name}</td>
-                        <td className="py-2.5 text-right font-medium">{m.meetingsScheduled.toLocaleString('ru-RU')}</td>
-                        <td className="py-2.5 text-right">{m.meetingsAttended.toLocaleString('ru-RU')}</td>
+                        <td className="py-2.5 text-right font-bold text-blue-600">{m.meetingsAttended.toLocaleString('ru-RU')}</td>
+                        <td className="py-2.5 text-right">
+                          <span className={`font-semibold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                            {m.meetingsPlan > 0 ? `${m.completion}%` : '—'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 text-right text-gray-500">{m.meetingsScheduled.toLocaleString('ru-RU')}</td>
                         <td className="py-2.5 text-right text-gray-500">{m.leads.toLocaleString('ru-RU')}</td>
                         <td className="py-2.5 text-right text-gray-500">{m.qualifiedLeads.toLocaleString('ru-RU')}</td>
                         <td className="py-2.5 text-right text-gray-400">{m.qualRate}%</td>

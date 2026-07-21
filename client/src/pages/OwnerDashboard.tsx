@@ -390,34 +390,31 @@ export default function OwnerDashboard() {
                 <tr className="text-left text-gray-500 border-b border-gray-100">
                   <th className="pb-2 font-medium w-6">#</th>
                   <th className="pb-2 font-medium">{t('dash.table.lider')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.attended')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.completion')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.scheduledCol')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.leadsCol')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.qualified')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.pctQual')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.scheduledCol')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.attended')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.attendance')}</th>
                 </tr>
               </thead>
               <tbody>
-                {liderRating.map((m: any, i: number) => {
-                  const showRate = pct(m.meetingsAttended, m.meetingsScheduled)
-                  return (
-                    <tr key={m.id} className="border-b border-gray-50 hover:bg-gray-50">
-                      <td className="py-2.5 text-gray-400 font-medium">{i + 1}</td>
-                      <td className="py-2.5 font-medium text-gray-900">{m.name}</td>
-                      <td className="py-2.5 text-right text-gray-600">{fmt(m.leads)}</td>
-                      <td className="py-2.5 text-right font-medium">{fmt(m.qualifiedLeads)}</td>
-                      <td className="py-2.5 text-right text-gray-500">{m.qualRate}%</td>
-                      <td className="py-2.5 text-right font-bold text-blue-600">{fmt(m.meetingsScheduled)}</td>
-                      <td className="py-2.5 text-right">{fmt(m.meetingsAttended)}</td>
-                      <td className="py-2.5 text-right">
-                        <span className={showRate >= 70 ? 'text-green-600 font-medium' : showRate >= 40 ? 'text-amber-500' : 'text-red-500'}>
-                          {m.meetingsScheduled > 0 ? `${showRate}%` : '—'}
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })}
+                {liderRating.map((m: any, i: number) => (
+                  <tr key={m.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="py-2.5 text-gray-400 font-medium">{i + 1}</td>
+                    <td className="py-2.5 font-medium text-gray-900">{m.name}</td>
+                    <td className="py-2.5 text-right font-bold text-blue-600">{fmt(m.meetingsAttended)}</td>
+                    <td className="py-2.5 text-right">
+                      <span className={`font-semibold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                        {m.meetingsPlan > 0 ? `${m.completion}%` : '—'}
+                      </span>
+                    </td>
+                    <td className="py-2.5 text-right text-gray-500">{fmt(m.meetingsScheduled)}</td>
+                    <td className="py-2.5 text-right text-gray-600">{fmt(m.leads)}</td>
+                    <td className="py-2.5 text-right font-medium">{fmt(m.qualifiedLeads)}</td>
+                    <td className="py-2.5 text-right text-gray-500">{m.qualRate}%</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

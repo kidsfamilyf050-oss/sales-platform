@@ -554,8 +554,8 @@ const ru = {
   'dash.manager.leadsplan': 'План лидов',
   'dash.manager.qualRate': '% квалификации',
   'dash.manager.meetingsAttended': 'Пришло на встречу',
-  'dash.manager.meetingsPlan': 'План встреч',
-  'dash.manager.planCompletionMeetings': 'Выполнение плана по встречам',
+  'dash.manager.meetingsPlan': 'План встреч (пришло)',
+  'dash.manager.planCompletionMeetings': 'Выполнение плана по проведённым встречам',
 
   // Marketer Dashboard extra
   'dash.marketer.title': 'Кабинет маркетолога',
@@ -591,6 +591,7 @@ const ru = {
   'plans.field.liderLeads': 'Лидов',
   'plans.field.liderQualLeads': 'Квалифиц. лидов',
   'plans.field.liderMeetings': 'Записано',
+  'plans.field.liderMeetingsAtt': 'Проведённые встречи',
   'plans.field.mktLeads': 'Плановых лидов',
   'plans.field.mktQualLeads': 'Квалифиц. лидов',
   'plans.field.mktBudget': 'Рекламный бюджет',
@@ -612,6 +613,7 @@ const ru = {
   'plans.hint.liderLeads': 'Личный план по лидам',
   'plans.hint.liderQualLeads': 'Личный план по квалификации',
   'plans.hint.liderMeetings': 'Личный план по записям на встречу',
+  'plans.hint.liderMeetingsAtt': 'Сколько встреч с менеджером должен провести лидоруб за месяц (люди, которые реально пришли)',
   'plans.hint.mktLeads': 'Сколько лидов должен привести маркетинг',
   'plans.hint.mktQualLeads': 'Целевое количество квалифицированных лидов',
   'plans.hint.mktBudget': 'Плановый бюджет на рекламу',
@@ -1233,7 +1235,7 @@ const kk: typeof ru = {
   'dash.manager.leadsplan': 'Лид жоспары',
   'dash.manager.qualRate': '% саралау',
   'dash.manager.meetingsAttended': 'Кездесуге келді',
-  'dash.manager.meetingsPlan': 'Кездесу жоспары',
+  'dash.manager.meetingsPlan': 'Кездесу жоспары (келді)',
   'dash.manager.planCompletionMeetings': 'Кездесу жоспарын орындау',
 
   // Marketer Dashboard extra
@@ -1270,6 +1272,7 @@ const kk: typeof ru = {
   'plans.field.liderLeads': 'Лидтер',
   'plans.field.liderQualLeads': 'Сарал. лидтер',
   'plans.field.liderMeetings': 'Жазылды',
+  'plans.field.liderMeetingsAtt': 'Өткізілген кездесулер',
   'plans.field.mktLeads': 'Жоспарлы лидтер',
   'plans.field.mktQualLeads': 'Сарал. лидтер',
   'plans.field.mktBudget': 'Жарнамалық бюджет',
@@ -1291,6 +1294,7 @@ const kk: typeof ru = {
   'plans.hint.liderLeads': 'Лидтер бойынша жеке жоспар',
   'plans.hint.liderQualLeads': 'Саралау бойынша жеке жоспар',
   'plans.hint.liderMeetings': 'Кездесуге жазылу бойынша жеке жоспар',
+  'plans.hint.liderMeetingsAtt': 'Лидоруб айына менеджермен қанша кездесу өткізуі керек (іс жүзінде келген адамдар)',
   'plans.hint.mktLeads': 'Маркетинг қанша лид әкелуі керек',
   'plans.hint.mktQualLeads': 'Сараланған лидтердің мақсатты саны',
   'plans.hint.mktBudget': 'Жарнамаға арналған жоспарлы бюджет',
