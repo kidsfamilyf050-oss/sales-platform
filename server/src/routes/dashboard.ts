@@ -151,7 +151,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         const refusals = refusalsByUser[u.id] || 0
         const inWork = Math.max(0, consultations - stats.salesCount - refusals)
         const plan = plans.find(p => p.userId === u.id && p.type === 'SALES_AMOUNT')?.value || 0
-        const completion = plan > 0 ? Math.round((stats.salesAmount / plan) * 100) : 0
+        const completion = plan > 0 ? Math.round((stats.salesAmount / plan) * 1000) / 10 : 0
         const userSales = periodSales.filter(s => s.userId === u.id)
           .map(s => ({ id: s.id, amount: s.amount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date }))
         return {
@@ -180,12 +180,12 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const liderRating = Object.entries(liderStats)
       .map(([id, s]) => {
         const meetingsPlan = plans.find(p => p.userId === id && p.type === 'MEETINGS_ATTENDED')?.value || 0
-        const completion = meetingsPlan > 0 ? Math.round((s.meetingsAttended / meetingsPlan) * 100) : 0
+        const completion = meetingsPlan > 0 ? Math.round((s.meetingsAttended / meetingsPlan) * 1000) / 10 : 0
         return {
           id, name: s.name, type: 'LIDER', meetingsPlan,
           leads: s.leads, qualifiedLeads: s.qualifiedLeads,
           meetingsScheduled: s.meetingsScheduled, meetingsAttended: s.meetingsAttended,
-          completion, qualRate: s.leads > 0 ? Math.round((s.qualifiedLeads / s.leads) * 100) : 0,
+          completion, qualRate: s.leads > 0 ? Math.round((s.qualifiedLeads / s.leads) * 1000) / 10 : 0,
         }
       })
       .sort((a, b) => b.completion - a.completion || b.meetingsAttended - a.meetingsAttended)
@@ -195,7 +195,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         salesPlan, totalSalesAmount, totalSalesCount, avgCheck: Math.round(avgCheck),
         conversion: Math.round(conversion * 10) / 10,
         conversionLabel,
-        planCompletion: salesPlan > 0 ? Math.round((totalSalesAmount / salesPlan) * 100) : 0,
+        planCompletion: salesPlan > 0 ? Math.round((totalSalesAmount / salesPlan) * 1000) / 10 : 0,
         totalConsultations, totalRefusals, totalInWork,
         // Marketing block (from MARKETER reports)
         marketingLeads, leadsplan, totalBudget, budgetPlan, leadCost: Math.round(leadCost),
@@ -307,7 +307,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       const refusals = refusalsByManager[m.id] || 0
       const inWork = Math.max(0, consultations - stats.salesCount - refusals)
       const managerPlan = plans.find(p => p.userId === m.id && p.type === 'SALES_AMOUNT')?.value || 0
-      const completion = managerPlan > 0 ? Math.round((stats.salesAmount / managerPlan) * 100) : 0
+      const completion = managerPlan > 0 ? Math.round((stats.salesAmount / managerPlan) * 1000) / 10 : 0
       const reportedToday = todayReportedIds.has(m.id)
       let status: 'red' | 'yellow' | 'green' = 'green'
       if (!reportedToday) status = 'red'
@@ -346,7 +346,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       // Primary plan: MEETINGS_ATTENDED (people who actually came to the meeting)
       const meetingsPlan = plans.find(p => p.userId === m.id && p.type === 'MEETINGS_ATTENDED')?.value || 0
       const leadsplan = plans.find(p => p.userId === m.id && p.type === 'LEADS')?.value || 0
-      const completion = meetingsPlan > 0 ? Math.round((stats.meetingsAttended / meetingsPlan) * 100) : 0
+      const completion = meetingsPlan > 0 ? Math.round((stats.meetingsAttended / meetingsPlan) * 1000) / 10 : 0
       const reportedToday = todayReportedIds.has(m.id)
       let status: 'red' | 'yellow' | 'green' = 'green'
       if (!reportedToday) status = 'red'
@@ -355,7 +355,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         id: m.id, name: m.name,
         meetingsPlan, leadsplan, leads: stats.leads, qualifiedLeads: stats.qualifiedLeads,
         meetingsScheduled: stats.meetingsScheduled, meetingsAttended: stats.meetingsAttended,
-        completion, qualRate: stats.leads > 0 ? Math.round((stats.qualifiedLeads / stats.leads) * 100) : 0,
+        completion, qualRate: stats.leads > 0 ? Math.round((stats.qualifiedLeads / stats.leads) * 1000) / 10 : 0,
         status, reportedToday,
         todayReport: todayReportByManager[m.id] || null,
       }
@@ -371,7 +371,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         salesPlan, salesAmount: totalSalesAmount, salesCount: totalSalesCount,
         conversion: clientsReceived > 0 ? Math.round((totalSalesCount / clientsReceived) * 1000) / 10 : 0,
         avgCheck: totalSalesCount > 0 ? Math.round(totalSalesAmount / totalSalesCount) : 0,
-        planCompletion: salesPlan > 0 ? Math.round((totalSalesAmount / salesPlan) * 100) : 0,
+        planCompletion: salesPlan > 0 ? Math.round((totalSalesAmount / salesPlan) * 1000) / 10 : 0,
         totalConsultations, totalRefusals, totalInWork,
       },
       funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount: totalSalesCount },
@@ -426,7 +426,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         type: 'CLOSER',
         summary: {
           salesPlan, salesAmount, salesCount,
-          planCompletion: salesPlan > 0 ? Math.round((salesAmount / salesPlan) * 100) : 0,
+          planCompletion: salesPlan > 0 ? Math.round((salesAmount / salesPlan) * 1000) / 10 : 0,
           conversion,
           avgCheck: salesCount > 0 ? Math.round(salesAmount / salesCount) : 0,
           consultations, refusals, inWork,
@@ -453,7 +453,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         summary: {
           leadsplan, leads,
           meetingsScheduledPlan: meetingsAttendedPlan, meetingsScheduled, meetingsAttended,
-          planCompletion: meetingsAttendedPlan > 0 ? Math.round((meetingsAttended / meetingsAttendedPlan) * 100) : 0,
+          planCompletion: meetingsAttendedPlan > 0 ? Math.round((meetingsAttended / meetingsAttendedPlan) * 1000) / 10 : 0,
           qualifiedLeads,
           qualRate: leads > 0 ? Math.round((qualifiedLeads / leads) * 100) : 0,
         },
@@ -511,7 +511,7 @@ router.get('/marketer', authenticate, async (req: AuthRequest, res: Response) =>
         leadsplan, totalLeads, totalQualified, totalBudget, budgetPlan,
         leadCost: totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0,
         qualifiedLeadCost: totalQualified > 0 ? Math.round(totalBudget / totalQualified) : 0,
-        planCompletion: leadsplan > 0 ? Math.round((totalLeads / leadsplan) * 100) : 0,
+        planCompletion: leadsplan > 0 ? Math.round((totalLeads / leadsplan) * 1000) / 10 : 0,
         avgLeadsPerDay: Math.round(avgLeadsPerDay * 10) / 10,
         projectedLeads,
       },

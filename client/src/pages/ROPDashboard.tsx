@@ -6,7 +6,8 @@ import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
 import AIInsights from '../components/ui/AIInsights'
 import { useT } from '../i18n'
-import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react'
+import { ChevronDown, ChevronRight, ExternalLink, Download } from 'lucide-react'
+import { useAuthStore } from '../store/auth'
 
 function fmt(n: number) { return n.toLocaleString('ru') }
 
@@ -148,6 +149,24 @@ function LiderDetail({ m }: { m: any }) {
   )
 }
 
+async function downloadExport(endpoint: string, params: string) {
+  const token = useAuthStore.getState().token
+  const baseUrl = import.meta.env.VITE_API_URL || '/api'
+  const res = await fetch(`${baseUrl}/export/${endpoint}?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) { alert('Ошибка экспорта'); return }
+  const blob = await res.blob()
+  const cd = res.headers.get('Content-Disposition') || ''
+  const nameMatch = cd.match(/filename\*=UTF-8''(.+)/)
+  const filename = nameMatch ? decodeURIComponent(nameMatch[1]) : 'report.xlsx'
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = filename
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  URL.revokeObjectURL(a.href)
+}
+
 export default function ROPDashboard() {
   const { t } = useT()
   const periodState = usePeriodStore()
@@ -187,9 +206,19 @@ export default function ROPDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">{t('dash.rop.title')}</h1>
-        <p className="text-gray-500 text-sm mt-0.5">{t('dash.rop.subtitle')}</p>
+      <div className="flex items-start justify-between gap-2 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{t('dash.rop.title')}</h1>
+          <p className="text-gray-500 text-sm mt-0.5">{t('dash.rop.subtitle')}</p>
+        </div>
+        <button
+          onClick={() => downloadExport('rop', params)}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+          title="Скачать отчёт Excel"
+        >
+          <Download className="w-4 h-4" />
+          <span className="hidden sm:inline">Экспорт в Excel</span>
+        </button>
       </div>
 
       {/* Summary */}

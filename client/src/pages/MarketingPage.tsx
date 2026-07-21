@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
-import { ChevronLeft, ChevronRight, Save, CheckCircle, Pencil, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Save, CheckCircle, Pencil, X, Download } from 'lucide-react'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 import { useT } from '../i18n'
 
@@ -70,6 +70,24 @@ function StatCard({ label, value, sub, pctVal, note }: { label: string; value: s
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
+
+async function downloadExport(endpoint: string, params: string) {
+  const token = useAuthStore.getState().token
+  const baseUrl = import.meta.env.VITE_API_URL || '/api'
+  const res = await fetch(`${baseUrl}/export/${endpoint}?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) { alert('Ошибка экспорта'); return }
+  const blob = await res.blob()
+  const cd = res.headers.get('Content-Disposition') || ''
+  const nameMatch = cd.match(/filename\*=UTF-8''(.+)/)
+  const filename = nameMatch ? decodeURIComponent(nameMatch[1]) : 'report.xlsx'
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = filename
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  URL.revokeObjectURL(a.href)
+}
 
 export default function MarketingPage() {
   const { t } = useT()
@@ -201,6 +219,15 @@ export default function MarketingPage() {
           <h1 className="text-2xl font-bold text-gray-900">{t('nav.marketing')}</h1>
           <p className="text-sm text-gray-500 mt-0.5">{t('marketing.subtitle2')}</p>
         </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadExport('marketer', apiParams)}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+            title="Скачать отчёт Excel"
+          >
+            <Download className="w-4 h-4" />
+            <span className="hidden sm:inline">Экспорт в Excel</span>
+          </button>
         {/* Month nav — only shown in month mode for browsing history */}
         {isMonthMode && (
           <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
@@ -214,6 +241,7 @@ export default function MarketingPage() {
             </button>
           </div>
         )}
+        </div>
       </div>
 
       {/* Plan row */}

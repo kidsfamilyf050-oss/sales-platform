@@ -5,10 +5,12 @@ import { api } from '../api/client'
 import { usePeriodStore } from '../components/ui/PeriodSelector'
 import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
-import { FileText, CheckCircle, Plus, Pencil, Trash2, ExternalLink, X, Check, Calendar } from 'lucide-react'
+import { FileText, CheckCircle, Plus, Pencil, Trash2, ExternalLink, X, Check, Calendar, Download } from 'lucide-react'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useT } from '../i18n'
+import { useAuthStore } from '../store/auth'
+import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 
 function fmt(n: number) { return n.toLocaleString('ru') }
 
@@ -45,9 +47,28 @@ const todayStr = localDateStr(new Date())
 const PAYMENT_TYPE_LABEL: Record<string, string> = { new_sale: 'Новая', additional: 'Доплата' }
 const PAYMENT_METHOD_LABEL: Record<string, string> = { cash: 'Нал', card: 'Безнал', credit: 'Кредит', installment: 'Рассрочка' }
 
+async function downloadExport(endpoint: string, params: string) {
+  const token = useAuthStore.getState().token
+  const baseUrl = import.meta.env.VITE_API_URL || '/api'
+  const res = await fetch(`${baseUrl}/export/${endpoint}?${params}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) { alert('Ошибка экспорта'); return }
+  const blob = await res.blob()
+  const cd = res.headers.get('Content-Disposition') || ''
+  const nameMatch = cd.match(/filename\*=UTF-8''(.+)/)
+  const filename = nameMatch ? decodeURIComponent(nameMatch[1]) : 'report.xlsx'
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = filename
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  URL.revokeObjectURL(a.href)
+}
+
 export default function ManagerDashboard() {
   const { t } = useT()
-  const { period } = usePeriodStore()
+  const periodStore = usePeriodStore()
+  const { period } = periodStore
   const navigate = useNavigate()
   const qc = useQueryClient()
 
@@ -121,12 +142,20 @@ export default function ManagerDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-2 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t('dash.manager.title')}</h1>
           <p className="text-gray-500 text-sm mt-0.5">{isCloser ? t('role.closer') : t('role.lider')}</p>
         </div>
-        <div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => downloadExport('manager', buildPeriodParams(periodStore))}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+            title="Скачать отчёт Excel"
+          >
+            <Download className="w-4 h-4" />
+            <span className="hidden sm:inline">Экспорт</span>
+          </button>
           {todayReport ? (
             <div className="flex items-center gap-2 text-green-600 bg-green-50 border border-green-200 px-3 py-2 rounded-lg text-sm font-medium">
               <CheckCircle className="w-4 h-4" />
