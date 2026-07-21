@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
-import { FileText, CheckCircle, Plus, Pencil, Trash2, ExternalLink, X, Check, Calendar, Download, Link2 } from 'lucide-react'
+import { FileText, CheckCircle, Plus, Pencil, Trash2, ExternalLink, X, Check, Calendar, Download, Link2, ChevronRight } from 'lucide-react'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useT } from '../i18n'
@@ -96,7 +96,8 @@ export default function ManagerDashboard() {
     refetchInterval: 60000,
   })
 
-  // CRM links archive for closer — all deal links for the selected period
+  // CRM links archive for closer — modal
+  const [showLinkModal, setShowLinkModal] = useState(false)
   const [linkArchiveTab, setLinkArchiveTab] = useState<'REFUSAL' | 'IN_WORK'>('REFUSAL')
   const [selectedLinkIds, setSelectedLinkIds] = useState<Set<string>>(new Set())
 
@@ -609,131 +610,165 @@ export default function ManagerDashboard() {
         </>
       )}
 
-      {/* ── CRM LINKS ARCHIVE (for closer) — always visible ── */}
+      {/* ── CRM LINKS BUTTON (for closer) ── */}
       {isCloser && (() => {
+        const allLinks: any[] = dealLinksArchive.data || []
+        const refusalCount = allLinks.filter(l => l.type === 'REFUSAL').length
+        const inWorkCount = allLinks.filter(l => l.type === 'IN_WORK').length
+        const total = allLinks.length
+        return (
+          <button
+            onClick={() => { setShowLinkModal(true); setSelectedLinkIds(new Set()); setEditingLinkId(null) }}
+            className="w-full card flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer text-left group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center group-hover:bg-blue-50 transition-colors">
+                <Link2 className="w-4 h-4 text-gray-500 group-hover:text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-800">Архив CRM-ссылок</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {total === 0 ? 'Нет ссылок за период' : (
+                    <>
+                      {refusalCount > 0 && <span className="text-red-500 font-medium">{refusalCount} отказ{refusalCount === 1 ? '' : refusalCount < 5 ? 'а' : 'ов'}</span>}
+                      {refusalCount > 0 && inWorkCount > 0 && <span className="text-gray-300 mx-1">·</span>}
+                      {inWorkCount > 0 && <span className="text-amber-600 font-medium">{inWorkCount} в работе</span>}
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-400 shrink-0" />
+          </button>
+        )
+      })()}
+
+      {/* ── CRM LINKS MODAL (for closer) ── */}
+      {isCloser && showLinkModal && (() => {
         const allLinks: any[] = dealLinksArchive.data || []
         const tabLinks = allLinks.filter(l => l.type === linkArchiveTab)
         const refusalCount = allLinks.filter(l => l.type === 'REFUSAL').length
         const inWorkCount = allLinks.filter(l => l.type === 'IN_WORK').length
         return (
-          <div className="card">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-gray-900">📋 Архив CRM-ссылок</h3>
-              {selectedLinkIds.size > 0 && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40"
+            onClick={() => { setShowLinkModal(false); setEditingLinkId(null); setSelectedLinkIds(new Set()) }}>
+            <div className="bg-white w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col"
+              onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100">
+                <div>
+                  <h3 className="font-semibold text-gray-900">Архив CRM-ссылок</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">За выбранный период</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {selectedLinkIds.size > 0 && (
+                    <button
+                      onClick={() => deleteBulkLinks(Array.from(selectedLinkIds))}
+                      className="flex items-center gap-1.5 text-xs text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" /> Удалить ({selectedLinkIds.size})
+                    </button>
+                  )}
+                  <button onClick={() => { setShowLinkModal(false); setEditingLinkId(null); setSelectedLinkIds(new Set()) }}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              {/* Tabs */}
+              <div className="flex gap-1 mx-4 mt-3 mb-1 bg-gray-100 rounded-xl p-1 shrink-0">
                 <button
-                  onClick={() => deleteBulkLinks(Array.from(selectedLinkIds))}
-                  className="flex items-center gap-1.5 text-xs text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 px-2.5 py-1.5 rounded-lg transition-colors"
+                  onClick={() => { setLinkArchiveTab('REFUSAL'); setSelectedLinkIds(new Set()); setEditingLinkId(null) }}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 ${linkArchiveTab === 'REFUSAL' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
-                  <Trash2 className="w-3 h-3" /> Удалить выбранные ({selectedLinkIds.size})
+                  <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
+                  Отказники
+                  {refusalCount > 0 && <span className="px-1.5 py-0.5 bg-red-100 text-red-600 rounded-full text-[10px] font-bold">{refusalCount}</span>}
                 </button>
-              )}
-            </div>
-            {/* Tabs */}
-            <div className="flex gap-1 mb-3 bg-gray-100 rounded-xl p-1">
-              <button
-                onClick={() => { setLinkArchiveTab('REFUSAL'); setSelectedLinkIds(new Set()) }}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${linkArchiveTab === 'REFUSAL' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                ❌ Отказники {refusalCount > 0 && <span className="ml-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded-full text-[10px]">{refusalCount}</span>}
-              </button>
-              <button
-                onClick={() => { setLinkArchiveTab('IN_WORK'); setSelectedLinkIds(new Set()) }}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${linkArchiveTab === 'IN_WORK' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                🕐 В работе {inWorkCount > 0 && <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-600 rounded-full text-[10px]">{inWorkCount}</span>}
-              </button>
-            </div>
-            {/* Links list */}
-            {dealLinksArchive.isLoading && <p className="text-sm text-gray-400 text-center py-4">Загрузка...</p>}
-            {!dealLinksArchive.isLoading && tabLinks.length === 0 && (
-              <div className="text-center py-6">
-                <p className="text-sm text-gray-400 mb-2">Нет ссылок за этот период</p>
                 <button
-                  onClick={() => navigate('/report')}
-                  className="text-sm text-blue-600 hover:underline font-medium"
+                  onClick={() => { setLinkArchiveTab('IN_WORK'); setSelectedLinkIds(new Set()); setEditingLinkId(null) }}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 ${linkArchiveTab === 'IN_WORK' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                 >
-                  + Заполнить отчёт и добавить ссылки
+                  <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                  В работе
+                  {inWorkCount > 0 && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-600 rounded-full text-[10px] font-bold">{inWorkCount}</span>}
                 </button>
               </div>
-            )}
-            <div className="space-y-1.5">
-              {tabLinks.map((dl: any) => {
-                const checked = selectedLinkIds.has(dl.id)
-                const isEditing = editingLinkId === dl.id
-                return (
-                  <div key={dl.id} className={`rounded-xl border transition-colors ${checked ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'}`}>
-                    {isEditing ? (
-                      // Inline edit form
-                      <div className="p-3 space-y-2">
-                        <input
-                          type="url"
-                          className="input text-sm py-1.5"
-                          value={editLinkForm.link}
-                          onChange={e => setEditLinkForm(f => ({ ...f, link: e.target.value }))}
-                          placeholder="https://..."
-                          autoFocus
-                        />
-                        <input
-                          type="text"
-                          className="input text-sm py-1.5"
-                          value={editLinkForm.note}
-                          onChange={e => setEditLinkForm(f => ({ ...f, note: e.target.value }))}
-                          placeholder="Заметка..."
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setEditingLinkId(null)}
-                            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded"
-                          >
-                            <X className="w-3 h-3" /> Отмена
-                          </button>
-                          <button
-                            onClick={() => updateDealLink.mutate({ id: dl.id, link: editLinkForm.link, note: editLinkForm.note })}
-                            disabled={!editLinkForm.link.trim() || updateDealLink.isPending}
-                            className="flex items-center gap-1 text-xs text-white bg-blue-600 hover:bg-blue-700 px-2.5 py-1 rounded disabled:opacity-40"
-                          >
-                            <Check className="w-3 h-3" /> Сохранить
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      // Normal view
-                      <div className="flex items-start gap-2 px-3 py-2.5">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => {
-                            setSelectedLinkIds(prev => {
-                              const next = new Set(prev)
-                              checked ? next.delete(dl.id) : next.add(dl.id)
-                              return next
-                            })
-                          }}
-                          className="mt-0.5 shrink-0 accent-blue-600"
-                        />
-                        <Link2 className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
-                        <div className="flex-1 min-w-0">
-                          <a href={dl.link} target="_blank" rel="noreferrer"
-                            className="text-sm text-blue-600 hover:underline block truncate font-medium">{dl.link}</a>
-                          {dl.note && <p className="text-xs text-gray-600 mt-0.5">{dl.note}</p>}
-                          <p className="text-xs text-gray-400 mt-0.5">{dl.date}</p>
-                        </div>
-                        <button
-                          onClick={() => { setEditingLinkId(dl.id); setEditLinkForm({ link: dl.link, note: dl.note || '' }) }}
-                          className="p-1 rounded text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition-colors shrink-0"
-                          title="Редактировать"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => deleteDealLink.mutate(dl.id)}
-                          className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
+              {/* Links list */}
+              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1.5">
+                {dealLinksArchive.isLoading && <p className="text-sm text-gray-400 text-center py-6">Загрузка...</p>}
+                {!dealLinksArchive.isLoading && tabLinks.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-gray-400 mb-3">Нет ссылок за этот период</p>
+                    <button
+                      onClick={() => { setShowLinkModal(false); navigate('/report') }}
+                      className="text-sm text-blue-600 hover:underline font-medium"
+                    >
+                      Заполнить отчёт и добавить ссылки
+                    </button>
                   </div>
-                )
-              })}
+                )}
+                {tabLinks.map((dl: any) => {
+                  const checked = selectedLinkIds.has(dl.id)
+                  const isEditing = editingLinkId === dl.id
+                  return (
+                    <div key={dl.id} className={`rounded-xl border transition-colors ${checked ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'}`}>
+                      {isEditing ? (
+                        <div className="p-3 space-y-2">
+                          <input type="url" className="input text-sm py-1.5"
+                            value={editLinkForm.link}
+                            onChange={e => setEditLinkForm(f => ({ ...f, link: e.target.value }))}
+                            placeholder="https://..." autoFocus />
+                          <input type="text" className="input text-sm py-1.5"
+                            value={editLinkForm.note}
+                            onChange={e => setEditLinkForm(f => ({ ...f, note: e.target.value }))}
+                            placeholder="Заметка..." />
+                          <div className="flex gap-2">
+                            <button onClick={() => setEditingLinkId(null)}
+                              className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded">
+                              <X className="w-3 h-3" /> Отмена
+                            </button>
+                            <button
+                              onClick={() => updateDealLink.mutate({ id: dl.id, link: editLinkForm.link, note: editLinkForm.note })}
+                              disabled={!editLinkForm.link.trim() || updateDealLink.isPending}
+                              className="flex items-center gap-1 text-xs text-white bg-blue-600 hover:bg-blue-700 px-2.5 py-1 rounded disabled:opacity-40">
+                              <Check className="w-3 h-3" /> Сохранить
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-2 px-3 py-2.5">
+                          <input type="checkbox" checked={checked}
+                            onChange={() => {
+                              setSelectedLinkIds(prev => {
+                                const next = new Set(prev)
+                                checked ? next.delete(dl.id) : next.add(dl.id)
+                                return next
+                              })
+                            }}
+                            className="mt-0.5 shrink-0 accent-blue-600" />
+                          <Link2 className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <a href={dl.link} target="_blank" rel="noreferrer"
+                              className="text-sm text-blue-600 hover:underline block truncate font-medium">{dl.link}</a>
+                            {dl.note && <p className="text-xs text-gray-600 mt-0.5">{dl.note}</p>}
+                            <p className="text-xs text-gray-400 mt-0.5">{dl.date}</p>
+                          </div>
+                          <button
+                            onClick={() => { setEditingLinkId(dl.id); setEditLinkForm({ link: dl.link, note: dl.note || '' }) }}
+                            className="p-1 rounded text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition-colors shrink-0" title="Редактировать">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => deleteDealLink.mutate(dl.id)}
+                            className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
         )

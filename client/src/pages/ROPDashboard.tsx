@@ -247,14 +247,14 @@ export default function ROPDashboard() {
           className="cursor-pointer hover:opacity-80 transition-opacity"
           title="Нажмите, чтобы увидеть CRM-ссылки отказников"
         >
-          <StatCard label={`${t('dash.refusals')} 🔗`} value={summary.totalRefusals ?? 0} color="red" />
+          <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red" sub="нажмите для ссылок" />
         </div>
         <div
           onClick={() => setRopLinkModal('IN_WORK')}
           className="cursor-pointer hover:opacity-80 transition-opacity"
           title="Нажмите, чтобы увидеть CRM-ссылки сделок в работе"
         >
-          <StatCard label={`${t('dash.inWork')} 🔗`} value={summary.totalInWork ?? 0} color="yellow" />
+          <StatCard label={t('dash.inWork')} value={summary.totalInWork ?? 0} color="yellow" sub="нажмите для ссылок" />
         </div>
       </div>
 
@@ -445,9 +445,12 @@ export default function ROPDashboard() {
           <div className="bg-white w-full sm:max-w-xl rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className={`flex items-center justify-between px-4 py-3 border-b rounded-t-2xl ${ropLinkModal === 'REFUSAL' ? 'bg-red-50 border-red-100' : 'bg-amber-50 border-amber-100'}`}>
               <div>
-                <h3 className="font-semibold text-gray-900">
-                  {ropLinkModal === 'REFUSAL' ? '❌ Отказники' : '🕐 В работе'} — CRM ссылки клоузеров
-                </h3>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${ropLinkModal === 'REFUSAL' ? 'bg-red-400' : 'bg-amber-400'}`} />
+                  <h3 className="font-semibold text-gray-900">
+                    {ropLinkModal === 'REFUSAL' ? 'Отказники' : 'В работе'} — CRM ссылки клоузеров
+                  </h3>
+                </div>
                 <p className="text-xs text-gray-400 mt-0.5">За выбранный период · все менеджеры</p>
               </div>
               <button onClick={() => setRopLinkModal(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600">

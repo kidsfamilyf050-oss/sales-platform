@@ -168,10 +168,14 @@ export default function ReportPage() {
     type: 'REFUSAL' | 'IN_WORK',
     items: DealLinkItem[],
     label: string,
-    colorClass: string
+    dotColor: string,
+    borderClass: string
   ) => (
-    <div className={`rounded-xl border p-3 space-y-2 ${colorClass}`}>
-      <p className="text-sm font-semibold text-gray-700">{label}</p>
+    <div className={`rounded-xl border p-3 space-y-2 bg-gray-50/60 ${borderClass}`}>
+      <div className="flex items-center gap-2">
+        <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`} />
+        <p className="text-sm font-semibold text-gray-700">{label}</p>
+      </div>
       {linksLoading ? (
         <p className="text-xs text-gray-400 py-1">Загрузка...</p>
       ) : (
@@ -343,14 +347,16 @@ export default function ReportPage() {
           {renderLinkSection(
             'REFUSAL',
             refusalLinks,
-            '❌ CRM-ссылки отказников',
-            'bg-red-50/60 border-red-100'
+            'CRM-ссылки отказников',
+            'bg-red-400',
+            'border-red-100'
           )}
           {renderLinkSection(
             'IN_WORK',
             inWorkLinks,
-            '🕐 CRM-ссылки сделок в работе',
-            'bg-amber-50/60 border-amber-100'
+            'CRM-ссылки сделок в работе',
+            'bg-amber-400',
+            'border-amber-100'
           )}
           <p className="text-xs text-gray-400 text-center pb-2">
             Ссылки сохраняются вместе с отчётом при нажатии «Сохранить отчёт»
