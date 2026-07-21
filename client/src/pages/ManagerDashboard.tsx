@@ -96,25 +96,26 @@ export default function ManagerDashboard() {
     refetchInterval: 60000,
   })
 
-  // Deal links modal state
-  const [dealLinkModal, setDealLinkModal] = useState<'REFUSAL' | 'IN_WORK' | null>(null)
-  const [newLink, setNewLink] = useState('')
-  const [newLinkNote, setNewLinkNote] = useState('')
+  // CRM links archive for closer — all deal links for the selected period
+  const [linkArchiveTab, setLinkArchiveTab] = useState<'REFUSAL' | 'IN_WORK'>('REFUSAL')
+  const [selectedLinkIds, setSelectedLinkIds] = useState<Set<string>>(new Set())
 
-  const dealLinksQuery = useQuery({
-    queryKey: ['deal-links', period, dealLinkModal],
-    queryFn: () => api.get(`/deal-links?period=${period}&type=${dealLinkModal}`).then(r => r.data),
-    enabled: !!dealLinkModal,
+  const dealLinksArchive = useQuery({
+    queryKey: ['deal-links-archive', period],
+    queryFn: () => api.get(`/deal-links?period=${period}`).then(r => r.data),
+    refetchInterval: 30000,
   })
 
-  const addDealLink = useMutation({
-    mutationFn: (data: any) => api.post('/deal-links', data).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['deal-links'] }); setNewLink(''); setNewLinkNote('') },
-  })
   const deleteDealLink = useMutation({
     mutationFn: (id: string) => api.delete(`/deal-links/${id}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['deal-links'] }) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['deal-links-archive'] }) },
   })
+
+  const deleteBulkLinks = async (ids: string[]) => {
+    await Promise.all(ids.map(id => api.delete(`/deal-links/${id}`)))
+    qc.invalidateQueries({ queryKey: ['deal-links-archive'] })
+    setSelectedLinkIds(new Set())
+  }
 
   // Sales for selected date
   const { data: todaySales = [] } = useQuery({
@@ -215,12 +216,8 @@ export default function ManagerDashboard() {
             <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} />
             <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck)}`} />
             <StatCard label={t('dash.consultations')} value={summary.consultations ?? 0} />
-            <button onClick={() => setDealLinkModal('REFUSAL')} className="text-left w-full">
-              <StatCard label={`${t('dash.refusals')} 🔗`} value={summary.refusals ?? 0} color="red" />
-            </button>
-            <button onClick={() => setDealLinkModal('IN_WORK')} className="text-left w-full">
-              <StatCard label={`${t('dash.inWork')} 🔗`} value={summary.inWork ?? 0} color="yellow" />
-            </button>
+            <StatCard label={t('dash.refusals')} value={summary.refusals ?? 0} color="red" />
+            <StatCard label={t('dash.inWork')} value={summary.inWork ?? 0} color="yellow" />
           </div>
 
           <ProgressBar value={summary.planCompletion} label={t('dash.manager.planCompletionSales')} />
@@ -603,81 +600,83 @@ export default function ManagerDashboard() {
         </>
       )}
 
-      {/* ── DEAL LINKS MODAL (Отказники / В работе) ── */}
-      {dealLinkModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40" onClick={() => setDealLinkModal(null)}>
-          <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            {/* Header */}
-            <div className={`flex items-center justify-between px-4 py-3 border-b rounded-t-2xl ${dealLinkModal === 'REFUSAL' ? 'bg-red-50 border-red-100' : 'bg-amber-50 border-amber-100'}`}>
-              <div>
-                <h3 className="font-semibold text-gray-900">
-                  {dealLinkModal === 'REFUSAL' ? '❌ Отказники' : '🕐 В работе'} — CRM ссылки
-                </h3>
-                <p className="text-xs text-gray-400 mt-0.5">За выбранный период</p>
-              </div>
-              <button onClick={() => setDealLinkModal(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Links list */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-              {dealLinksQuery.isLoading && <p className="text-sm text-gray-400 text-center py-4">Загрузка...</p>}
-              {!dealLinksQuery.isLoading && (dealLinksQuery.data as any[] || []).length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-4">Нет ссылок за этот период</p>
+      {/* ── CRM LINKS ARCHIVE (for closer) ── */}
+      {isCloser && (() => {
+        const allLinks: any[] = dealLinksArchive.data || []
+        const tabLinks = allLinks.filter(l => l.type === linkArchiveTab)
+        const refusalCount = allLinks.filter(l => l.type === 'REFUSAL').length
+        const inWorkCount = allLinks.filter(l => l.type === 'IN_WORK').length
+        if (allLinks.length === 0 && !dealLinksArchive.isLoading) return null
+        return (
+          <div className="card">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-900">📋 Архив CRM-ссылок</h3>
+              {selectedLinkIds.size > 0 && (
+                <button
+                  onClick={() => deleteBulkLinks(Array.from(selectedLinkIds))}
+                  className="flex items-center gap-1.5 text-xs text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 px-2.5 py-1.5 rounded-lg transition-colors"
+                >
+                  <Trash2 className="w-3 h-3" /> Удалить выбранные ({selectedLinkIds.size})
+                </button>
               )}
-              {(dealLinksQuery.data as any[] || []).map((dl: any) => (
-                <div key={dl.id} className="flex items-start gap-2 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
-                  <Link2 className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <a href={dl.link} target="_blank" rel="noreferrer"
-                      className="text-sm text-blue-600 hover:underline block truncate">{dl.link}</a>
-                    {dl.note && <p className="text-xs text-gray-400 mt-0.5">{dl.note}</p>}
-                    <p className="text-xs text-gray-300 mt-0.5">{dl.date}</p>
-                  </div>
-                  <button onClick={() => deleteDealLink.mutate(dl.id)}
-                    className="p-1 rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
             </div>
-
-            {/* Add link form */}
-            <div className="px-4 py-3 border-t border-gray-100 space-y-2">
-              <input
-                type="url"
-                className="input text-sm"
-                placeholder="https://crm.link/client/..."
-                value={newLink}
-                onChange={e => setNewLink(e.target.value)}
-              />
-              <input
-                type="text"
-                className="input text-sm"
-                placeholder="Заметка (необязательно)"
-                value={newLinkNote}
-                onChange={e => setNewLinkNote(e.target.value)}
-              />
+            {/* Tabs */}
+            <div className="flex gap-1 mb-3 bg-gray-100 rounded-xl p-1">
               <button
-                onClick={() => {
-                  if (!newLink) return
-                  addDealLink.mutate({
-                    type: dealLinkModal,
-                    link: newLink,
-                    note: newLinkNote || null,
-                    date: todayStr,
-                  })
-                }}
-                disabled={!newLink || addDealLink.isPending}
-                className="btn-primary w-full py-2 text-sm disabled:opacity-40 flex items-center justify-center gap-1.5"
+                onClick={() => { setLinkArchiveTab('REFUSAL'); setSelectedLinkIds(new Set()) }}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${linkArchiveTab === 'REFUSAL' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
               >
-                <Plus className="w-3.5 h-3.5" /> Добавить ссылку
+                ❌ Отказники {refusalCount > 0 && <span className="ml-1 px-1.5 py-0.5 bg-red-100 text-red-600 rounded-full text-[10px]">{refusalCount}</span>}
               </button>
+              <button
+                onClick={() => { setLinkArchiveTab('IN_WORK'); setSelectedLinkIds(new Set()) }}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${linkArchiveTab === 'IN_WORK' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                🕐 В работе {inWorkCount > 0 && <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-600 rounded-full text-[10px]">{inWorkCount}</span>}
+              </button>
+            </div>
+            {/* Links list */}
+            {dealLinksArchive.isLoading && <p className="text-sm text-gray-400 text-center py-4">Загрузка...</p>}
+            {!dealLinksArchive.isLoading && tabLinks.length === 0 && (
+              <p className="text-sm text-gray-400 text-center py-4">
+                Нет ссылок за этот период. Добавьте через <button onClick={() => navigate('/report')} className="text-blue-600 hover:underline">Заполнить отчёт</button>
+              </p>
+            )}
+            <div className="space-y-1.5">
+              {tabLinks.map((dl: any) => {
+                const checked = selectedLinkIds.has(dl.id)
+                return (
+                  <div key={dl.id} className={`flex items-start gap-2 px-3 py-2.5 rounded-xl border transition-colors ${checked ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'}`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        setSelectedLinkIds(prev => {
+                          const next = new Set(prev)
+                          checked ? next.delete(dl.id) : next.add(dl.id)
+                          return next
+                        })
+                      }}
+                      className="mt-0.5 shrink-0 accent-blue-600"
+                    />
+                    <Link2 className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <a href={dl.link} target="_blank" rel="noreferrer"
+                        className="text-sm text-blue-600 hover:underline block truncate font-medium">{dl.link}</a>
+                      {dl.note && <p className="text-xs text-gray-600 mt-0.5">{dl.note}</p>}
+                      <p className="text-xs text-gray-400 mt-0.5">{dl.date}</p>
+                    </div>
+                    <button onClick={() => deleteDealLink.mutate(dl.id)}
+                      className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Recent reports (history) */}
       {recentReports?.length > 0 && (
@@ -689,7 +688,6 @@ export default function ManagerDashboard() {
                 <span className="text-gray-500 w-24 shrink-0">{format(new Date(r.date), 'd MMM', { locale: ru })}</span>
                 {isCloser ? (
                   <div className="flex gap-4 text-right flex-wrap">
-                    <span className="text-gray-500">{t('dash.rop.clientsLabel')}: <span className="font-medium text-gray-900">{(r.data as any).clientsReceived || 0}</span></span>
                     <span className="text-gray-500">{t('dash.rop.consultationsLabel')}: <span className="font-medium text-gray-900">{(r.data as any).consultations || 0}</span></span>
                     <span className="text-gray-500">{t('dash.rop.refusalsLabel')}: <span className="font-medium text-gray-900">{(r.data as any).refusals || 0}</span></span>
                   </div>
