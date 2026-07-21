@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
-import { CheckCircle, Calendar, Plus, Trash2, Check, X, Link2 } from 'lucide-react'
+import { CheckCircle, Calendar, Plus, Trash2 } from 'lucide-react'
 import { useT } from '../i18n'
 
 function localDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-type DealLinkItem = { id?: string; link: string; note: string; saved: boolean }
+type DealLinkItem = { id?: string; link: string; note: string }
 
 export default function ReportPage() {
   const { user } = useAuthStore()
@@ -32,18 +32,19 @@ export default function ReportPage() {
   const [lider, setLider] = useState({ leadsReceived: '', processed: '', qualifiedLeads: '', meetingsScheduled: '', meetingsAttended: '', comment: '' })
   const [marketer, setMarketer] = useState({ adBudget: '', leadsCount: '', qualifiedLeads: '', comment: '' })
 
-  // CRM links state
+  // CRM links state — separate from report loading so they don't flicker
   const [refusalLinks, setRefusalLinks] = useState<DealLinkItem[]>([])
   const [inWorkLinks, setInWorkLinks] = useState<DealLinkItem[]>([])
-  const [linkSaving, setLinkSaving] = useState<Record<string, boolean>>({})
+  const [deletedLinkIds, setDeletedLinkIds] = useState<string[]>([])
+  const [linksLoading, setLinksLoading] = useState(false)
 
-  // Load report + CRM links when date changes
+  // Load report when date changes
   useEffect(() => {
     if (!selectedDate) return
     setLoadingReport(true)
     setExistingReport(null)
 
-    const loadReport = api.get(`/reports/my?from=${selectedDate}&to=${selectedDate}`)
+    api.get(`/reports/my?from=${selectedDate}&to=${selectedDate}`)
       .then(r => {
         const reports: any[] = r.data
         const myType = isCloser ? 'CLOSER' : isLider ? 'LIDER' : 'MARKETER'
@@ -77,54 +78,41 @@ export default function ReportPage() {
         }
       })
       .catch(() => {})
-
-    const loadLinks = isCloser
-      ? api.get(`/deal-links?from=${selectedDate}&to=${selectedDate}`)
-          .then(r => {
-            const all: any[] = r.data
-            setRefusalLinks(all.filter(l => l.type === 'REFUSAL').map(l => ({ id: l.id, link: l.link, note: l.note || '', saved: true })))
-            setInWorkLinks(all.filter(l => l.type === 'IN_WORK').map(l => ({ id: l.id, link: l.link, note: l.note || '', saved: true })))
-          })
-          .catch(() => {})
-      : Promise.resolve()
-
-    Promise.all([loadReport, loadLinks]).finally(() => setLoadingReport(false))
+      .finally(() => setLoadingReport(false))
   }, [selectedDate])
 
+  // Load CRM links separately (closer only) — independent of report loading to avoid flickering
+  useEffect(() => {
+    if (!isCloser || !selectedDate) return
+    setLinksLoading(true)
+    setDeletedLinkIds([])
+    api.get(`/deal-links?from=${selectedDate}&to=${selectedDate}`)
+      .then(r => {
+        const all: any[] = r.data
+        setRefusalLinks(all.filter(l => l.type === 'REFUSAL').map(l => ({ id: l.id, link: l.link, note: l.note || '' })))
+        setInWorkLinks(all.filter(l => l.type === 'IN_WORK').map(l => ({ id: l.id, link: l.link, note: l.note || '' })))
+      })
+      .catch(() => {})
+      .finally(() => setLinksLoading(false))
+  }, [selectedDate, isCloser])
+
   // CRM link helpers
-  const addPendingLink = (type: 'REFUSAL' | 'IN_WORK') => {
+  const addLink = (type: 'REFUSAL' | 'IN_WORK') => {
     const setter = type === 'REFUSAL' ? setRefusalLinks : setInWorkLinks
-    setter(prev => [...prev, { link: '', note: '', saved: false }])
+    setter(prev => [...prev, { link: '', note: '' }])
   }
 
-  const removePendingLink = (type: 'REFUSAL' | 'IN_WORK', idx: number) => {
+  const removeLink = (type: 'REFUSAL' | 'IN_WORK', idx: number) => {
+    const items = type === 'REFUSAL' ? refusalLinks : inWorkLinks
     const setter = type === 'REFUSAL' ? setRefusalLinks : setInWorkLinks
+    const item = items[idx]
+    if (item.id) setDeletedLinkIds(prev => [...prev, item.id!])
     setter(prev => prev.filter((_, i) => i !== idx))
   }
 
-  const updatePendingLink = (type: 'REFUSAL' | 'IN_WORK', idx: number, field: 'link' | 'note', val: string) => {
+  const updateLink = (type: 'REFUSAL' | 'IN_WORK', idx: number, field: 'link' | 'note', val: string) => {
     const setter = type === 'REFUSAL' ? setRefusalLinks : setInWorkLinks
     setter(prev => prev.map((l, i) => i === idx ? { ...l, [field]: val } : l))
-  }
-
-  const saveLink = async (type: 'REFUSAL' | 'IN_WORK', idx: number) => {
-    const items = type === 'REFUSAL' ? refusalLinks : inWorkLinks
-    const item = items[idx]
-    if (!item.link.trim()) return
-    const key = `${type}-${idx}`
-    setLinkSaving(prev => ({ ...prev, [key]: true }))
-    try {
-      const res = await api.post('/deal-links', { type, link: item.link.trim(), note: item.note.trim() || null, date: selectedDate })
-      const setter = type === 'REFUSAL' ? setRefusalLinks : setInWorkLinks
-      setter(prev => prev.map((l, i) => i === idx ? { ...l, id: res.data.id, saved: true } : l))
-    } catch {}
-    setLinkSaving(prev => ({ ...prev, [key]: false }))
-  }
-
-  const deleteLink = async (type: 'REFUSAL' | 'IN_WORK', id: string) => {
-    await api.delete(`/deal-links/${id}`)
-    const setter = type === 'REFUSAL' ? setRefusalLinks : setInWorkLinks
-    setter(prev => prev.filter(l => l.id !== id))
   }
 
   const submit = async (e: React.FormEvent) => {
@@ -136,7 +124,21 @@ export default function ReportPage() {
       if (isCloser) { type = 'CLOSER'; data = { ...closer } }
       else if (isLider) { type = 'LIDER'; data = { ...lider } }
       else { type = 'MARKETER'; data = { ...marketer } }
+
+      // Save report
       await api.post('/reports', { date: selectedDate, type, data, comment: data.comment, departmentId: user?.departmentId })
+
+      // Save CRM links together with the report (closer only)
+      if (isCloser) {
+        const newRefusals = refusalLinks.filter(l => !l.id && l.link.trim())
+        const newInWork = inWorkLinks.filter(l => !l.id && l.link.trim())
+        await Promise.all([
+          ...newRefusals.map(l => api.post('/deal-links', { type: 'REFUSAL', link: l.link.trim(), note: l.note.trim() || null, date: selectedDate })),
+          ...newInWork.map(l => api.post('/deal-links', { type: 'IN_WORK', link: l.link.trim(), note: l.note.trim() || null, date: selectedDate })),
+          ...deletedLinkIds.map(id => api.delete(`/deal-links/${id}`)),
+        ])
+      }
+
       setDone(true)
       setTimeout(() => navigate(-1), 1500)
     } catch (err: any) {
@@ -161,78 +163,57 @@ export default function ReportPage() {
     ? `Сегодня, ${new Date().toLocaleDateString('ru', { day: 'numeric', month: 'long' })}`
     : new Date(selectedDate + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'long', year: 'numeric' })
 
-  // Reusable CRM links section component (inline)
+  // CRM links section renderer
   const renderLinkSection = (
     type: 'REFUSAL' | 'IN_WORK',
     items: DealLinkItem[],
     label: string,
-    color: string
+    colorClass: string
   ) => (
-    <div className={`rounded-xl border p-3 space-y-2 ${color}`}>
+    <div className={`rounded-xl border p-3 space-y-2 ${colorClass}`}>
       <p className="text-sm font-semibold text-gray-700">{label}</p>
-      {items.map((l, i) => (
-        <div key={l.id || `pending-${i}`} className="space-y-1.5">
-          {l.saved ? (
-            // Saved link - readonly row with delete
-            <div className="flex items-start gap-2 bg-white rounded-lg px-2.5 py-2 border border-gray-100">
-              <Link2 className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <a href={l.link} target="_blank" rel="noreferrer"
-                  className="text-sm text-blue-600 hover:underline block truncate">{l.link}</a>
-                {l.note && <p className="text-xs text-gray-400 mt-0.5">{l.note}</p>}
+      {linksLoading ? (
+        <p className="text-xs text-gray-400 py-1">Загрузка...</p>
+      ) : (
+        <>
+          {items.map((l, i) => (
+            <div key={l.id || `new-${type}-${i}`} className="bg-white rounded-lg border border-gray-100 p-2.5 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <input
+                  type="url"
+                  className="input text-sm py-1.5 flex-1"
+                  placeholder="https://crm.example.com/deal/..."
+                  value={l.link}
+                  onChange={e => updateLink(type, i, 'link', e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeLink(type, i)}
+                  className="p-1.5 rounded text-gray-300 hover:text-red-500 transition-colors shrink-0"
+                  title="Удалить"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
-              <button type="button" onClick={() => l.id && deleteLink(type, l.id)}
-                className="p-1 rounded text-gray-300 hover:text-red-500 transition-colors shrink-0">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ) : (
-            // Pending link - editable row
-            <div className="bg-white rounded-lg border border-blue-100 p-2.5 space-y-1.5">
-              <input
-                type="url"
-                className="input text-sm py-1.5"
-                placeholder="https://crm.example.com/deal/..."
-                value={l.link}
-                onChange={e => updatePendingLink(type, i, 'link', e.target.value)}
-                autoFocus={i === items.length - 1}
-              />
               <input
                 type="text"
                 className="input text-sm py-1.5"
                 placeholder="Заметка (имя клиента, статус...)"
                 value={l.note}
-                onChange={e => updatePendingLink(type, i, 'note', e.target.value)}
+                onChange={e => updateLink(type, i, 'note', e.target.value)}
               />
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => removePendingLink(type, i)}
-                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 px-2 py-1 rounded"
-                >
-                  <X className="w-3 h-3" /> Отмена
-                </button>
-                <button
-                  type="button"
-                  onClick={() => saveLink(type, i)}
-                  disabled={!l.link.trim() || linkSaving[`${type}-${i}`]}
-                  className="flex items-center gap-1 text-xs text-white bg-blue-600 hover:bg-blue-700 px-2.5 py-1 rounded disabled:opacity-40"
-                >
-                  <Check className="w-3 h-3" />
-                  {linkSaving[`${type}-${i}`] ? 'Сохранение...' : 'Сохранить'}
-                </button>
-              </div>
+              {l.id && <p className="text-[10px] text-gray-300">Сохранено ранее · будет обновлено при сохранении отчёта</p>}
             </div>
-          )}
-        </div>
-      ))}
-      <button
-        type="button"
-        onClick={() => addPendingLink(type)}
-        className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 py-0.5"
-      >
-        <Plus className="w-3.5 h-3.5" /> Добавить ссылку
-      </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => addLink(type)}
+            className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 py-0.5"
+          >
+            <Plus className="w-3.5 h-3.5" /> Добавить ссылку
+          </button>
+        </>
+      )}
     </div>
   )
 
@@ -260,6 +241,7 @@ export default function ReportPage() {
         />
       </div>
 
+      {/* Main report form */}
       {loadingReport ? (
         <div className="card text-center text-gray-400 py-8">Загрузка данных...</div>
       ) : (
@@ -271,54 +253,36 @@ export default function ReportPage() {
           )}
 
           {isCloser && (
-            <>
-              <div className="card space-y-4">
-                <p className="text-xs text-gray-400 bg-blue-50 rounded-lg px-3 py-2">
-                  💡 Продажи вносятся отдельно — кнопка «+ Продажа» в кабинете. Здесь только статистика дня.
-                </p>
-                <div>
-                  <label className="label">{t('report.closer.consultations')}</label>
-                  <input type="number" className="input" min="0" value={closer.consultations}
-                    onChange={e => setCloser(f => ({ ...f, consultations: e.target.value }))} required />
-                </div>
-                <div>
-                  <label className="label">{t('report.closer.refusals')}</label>
-                  <input type="number" className="input" min="0" value={closer.refusals}
-                    onChange={e => setCloser(f => ({ ...f, refusals: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="label">{t('common.comment')}</label>
-                  <textarea className="input" rows={3} value={closer.comment}
-                    onChange={e => setCloser(f => ({ ...f, comment: e.target.value }))}
-                    placeholder={t('report.closer.commentPlaceholder')} />
-                </div>
-
-                {error && <p className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</p>}
-
-                <div className="flex gap-3 pt-1">
-                  <button type="button" onClick={() => navigate(-1)} className="btn-secondary flex-1">{t('common.cancel')}</button>
-                  <button type="submit" disabled={loading} className="btn-primary flex-1">
-                    {loading ? t('report.submitting') : existingReport ? 'Сохранить изменения' : t('report.submit')}
-                  </button>
-                </div>
+            <div className="card space-y-4">
+              <p className="text-xs text-gray-400 bg-blue-50 rounded-lg px-3 py-2">
+                💡 Продажи вносятся отдельно — кнопка «+ Продажа» в кабинете. Здесь только статистика дня.
+              </p>
+              <div>
+                <label className="label">{t('report.closer.consultations')}</label>
+                <input type="number" className="input" min="0" value={closer.consultations}
+                  onChange={e => setCloser(f => ({ ...f, consultations: e.target.value }))} required />
+              </div>
+              <div>
+                <label className="label">{t('report.closer.refusals')}</label>
+                <input type="number" className="input" min="0" value={closer.refusals}
+                  onChange={e => setCloser(f => ({ ...f, refusals: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">{t('common.comment')}</label>
+                <textarea className="input" rows={3} value={closer.comment}
+                  onChange={e => setCloser(f => ({ ...f, comment: e.target.value }))}
+                  placeholder={t('report.closer.commentPlaceholder')} />
               </div>
 
-              {/* CRM links sections — outside main form card, always visible */}
-              <div className="space-y-3">
-                {renderLinkSection(
-                  'REFUSAL',
-                  refusalLinks,
-                  '❌ CRM-ссылки отказников',
-                  'bg-red-50/60 border-red-100'
-                )}
-                {renderLinkSection(
-                  'IN_WORK',
-                  inWorkLinks,
-                  '🕐 CRM-ссылки сделок в работе',
-                  'bg-amber-50/60 border-amber-100'
-                )}
+              {error && <p className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</p>}
+
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => navigate(-1)} className="btn-secondary flex-1">{t('common.cancel')}</button>
+                <button type="submit" disabled={loading} className="btn-primary flex-1">
+                  {loading ? t('report.submitting') : existingReport ? 'Сохранить изменения' : t('report.submit')}
+                </button>
               </div>
-            </>
+            </div>
           )}
 
           {isLider && (
@@ -371,6 +335,27 @@ export default function ReportPage() {
             </div>
           )}
         </form>
+      )}
+
+      {/* CRM link sections — ALWAYS visible for closer, independent of report loading */}
+      {isCloser && (
+        <div className="space-y-3 mt-4">
+          {renderLinkSection(
+            'REFUSAL',
+            refusalLinks,
+            '❌ CRM-ссылки отказников',
+            'bg-red-50/60 border-red-100'
+          )}
+          {renderLinkSection(
+            'IN_WORK',
+            inWorkLinks,
+            '🕐 CRM-ссылки сделок в работе',
+            'bg-amber-50/60 border-amber-100'
+          )}
+          <p className="text-xs text-gray-400 text-center pb-2">
+            Ссылки сохраняются вместе с отчётом при нажатии «Сохранить отчёт»
+          </p>
+        </div>
       )}
     </div>
   )

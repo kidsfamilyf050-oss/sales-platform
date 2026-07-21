@@ -117,6 +117,15 @@ export default function ManagerDashboard() {
     setSelectedLinkIds(new Set())
   }
 
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null)
+  const [editLinkForm, setEditLinkForm] = useState({ link: '', note: '' })
+
+  const updateDealLink = useMutation({
+    mutationFn: ({ id, link, note }: { id: string; link: string; note: string }) =>
+      api.put(`/deal-links/${id}`, { link, note }).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['deal-links-archive'] }); setEditingLinkId(null) },
+  })
+
   // Sales for selected date
   const { data: todaySales = [] } = useQuery({
     queryKey: ['sales-today', salesDate],
@@ -600,13 +609,12 @@ export default function ManagerDashboard() {
         </>
       )}
 
-      {/* ── CRM LINKS ARCHIVE (for closer) ── */}
+      {/* ── CRM LINKS ARCHIVE (for closer) — always visible ── */}
       {isCloser && (() => {
         const allLinks: any[] = dealLinksArchive.data || []
         const tabLinks = allLinks.filter(l => l.type === linkArchiveTab)
         const refusalCount = allLinks.filter(l => l.type === 'REFUSAL').length
         const inWorkCount = allLinks.filter(l => l.type === 'IN_WORK').length
-        if (allLinks.length === 0 && !dealLinksArchive.isLoading) return null
         return (
           <div className="card">
             <div className="flex items-center justify-between mb-3">
@@ -638,38 +646,91 @@ export default function ManagerDashboard() {
             {/* Links list */}
             {dealLinksArchive.isLoading && <p className="text-sm text-gray-400 text-center py-4">Загрузка...</p>}
             {!dealLinksArchive.isLoading && tabLinks.length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-4">
-                Нет ссылок за этот период. Добавьте через <button onClick={() => navigate('/report')} className="text-blue-600 hover:underline">Заполнить отчёт</button>
-              </p>
+              <div className="text-center py-6">
+                <p className="text-sm text-gray-400 mb-2">Нет ссылок за этот период</p>
+                <button
+                  onClick={() => navigate('/report')}
+                  className="text-sm text-blue-600 hover:underline font-medium"
+                >
+                  + Заполнить отчёт и добавить ссылки
+                </button>
+              </div>
             )}
             <div className="space-y-1.5">
               {tabLinks.map((dl: any) => {
                 const checked = selectedLinkIds.has(dl.id)
+                const isEditing = editingLinkId === dl.id
                 return (
-                  <div key={dl.id} className={`flex items-start gap-2 px-3 py-2.5 rounded-xl border transition-colors ${checked ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'}`}>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => {
-                        setSelectedLinkIds(prev => {
-                          const next = new Set(prev)
-                          checked ? next.delete(dl.id) : next.add(dl.id)
-                          return next
-                        })
-                      }}
-                      className="mt-0.5 shrink-0 accent-blue-600"
-                    />
-                    <Link2 className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <a href={dl.link} target="_blank" rel="noreferrer"
-                        className="text-sm text-blue-600 hover:underline block truncate font-medium">{dl.link}</a>
-                      {dl.note && <p className="text-xs text-gray-600 mt-0.5">{dl.note}</p>}
-                      <p className="text-xs text-gray-400 mt-0.5">{dl.date}</p>
-                    </div>
-                    <button onClick={() => deleteDealLink.mutate(dl.id)}
-                      className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  <div key={dl.id} className={`rounded-xl border transition-colors ${checked ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'}`}>
+                    {isEditing ? (
+                      // Inline edit form
+                      <div className="p-3 space-y-2">
+                        <input
+                          type="url"
+                          className="input text-sm py-1.5"
+                          value={editLinkForm.link}
+                          onChange={e => setEditLinkForm(f => ({ ...f, link: e.target.value }))}
+                          placeholder="https://..."
+                          autoFocus
+                        />
+                        <input
+                          type="text"
+                          className="input text-sm py-1.5"
+                          value={editLinkForm.note}
+                          onChange={e => setEditLinkForm(f => ({ ...f, note: e.target.value }))}
+                          placeholder="Заметка..."
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setEditingLinkId(null)}
+                            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded"
+                          >
+                            <X className="w-3 h-3" /> Отмена
+                          </button>
+                          <button
+                            onClick={() => updateDealLink.mutate({ id: dl.id, link: editLinkForm.link, note: editLinkForm.note })}
+                            disabled={!editLinkForm.link.trim() || updateDealLink.isPending}
+                            className="flex items-center gap-1 text-xs text-white bg-blue-600 hover:bg-blue-700 px-2.5 py-1 rounded disabled:opacity-40"
+                          >
+                            <Check className="w-3 h-3" /> Сохранить
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      // Normal view
+                      <div className="flex items-start gap-2 px-3 py-2.5">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            setSelectedLinkIds(prev => {
+                              const next = new Set(prev)
+                              checked ? next.delete(dl.id) : next.add(dl.id)
+                              return next
+                            })
+                          }}
+                          className="mt-0.5 shrink-0 accent-blue-600"
+                        />
+                        <Link2 className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <a href={dl.link} target="_blank" rel="noreferrer"
+                            className="text-sm text-blue-600 hover:underline block truncate font-medium">{dl.link}</a>
+                          {dl.note && <p className="text-xs text-gray-600 mt-0.5">{dl.note}</p>}
+                          <p className="text-xs text-gray-400 mt-0.5">{dl.date}</p>
+                        </div>
+                        <button
+                          onClick={() => { setEditingLinkId(dl.id); setEditLinkForm({ link: dl.link, note: dl.note || '' }) }}
+                          className="p-1 rounded text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition-colors shrink-0"
+                          title="Редактировать"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => deleteDealLink.mutate(dl.id)}
+                          className="p-1 rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )
               })}

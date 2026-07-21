@@ -91,6 +91,26 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   }
 })
 
+// PUT /api/deal-links/:id — update link/note
+router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  const { link, note } = req.body
+  if (!link) return res.status(400).json({ error: 'link required' })
+  try {
+    const dl = await prisma.dealLink.findUnique({ where: { id: req.params.id } })
+    if (!dl) return res.status(404).json({ error: 'Not found' })
+    if (dl.userId !== req.user!.id && req.user!.role !== 'OWNER' && req.user!.role !== 'ROP') {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    const updated = await prisma.dealLink.update({
+      where: { id: req.params.id },
+      data: { link, note: note || null },
+    })
+    res.json(updated)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // DELETE /api/deal-links/:id — delete own link
 router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {

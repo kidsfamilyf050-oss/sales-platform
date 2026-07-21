@@ -242,8 +242,20 @@ export default function ROPDashboard() {
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} sub={t('dash.rop.conversionSub')} />
         <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck)}`} />
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
-        <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red" />
-        <StatCard label={t('dash.inWork')} value={summary.totalInWork ?? 0} color="yellow" />
+        <div
+          onClick={() => setRopLinkModal('REFUSAL')}
+          className="cursor-pointer hover:opacity-80 transition-opacity"
+          title="Нажмите, чтобы увидеть CRM-ссылки отказников"
+        >
+          <StatCard label={`${t('dash.refusals')} 🔗`} value={summary.totalRefusals ?? 0} color="red" />
+        </div>
+        <div
+          onClick={() => setRopLinkModal('IN_WORK')}
+          className="cursor-pointer hover:opacity-80 transition-opacity"
+          title="Нажмите, чтобы увидеть CRM-ссылки сделок в работе"
+        >
+          <StatCard label={`${t('dash.inWork')} 🔗`} value={summary.totalInWork ?? 0} color="yellow" />
+        </div>
       </div>
 
       <ProgressBar value={summary.planCompletion} label={t('dash.rop.planCompletion')} />
@@ -338,14 +350,14 @@ export default function ROPDashboard() {
                         <td className="py-2.5 text-right">{m.conversion}%</td>
                         <td className="py-2.5 text-right">{m.consultations ?? 0}</td>
                         <td className="py-2.5 text-right">
-                          <button onClick={() => setRopLinkModal('REFUSAL')}
-                            className="text-red-500 hover:text-red-700 hover:underline font-medium cursor-pointer" title="Смотреть CRM ссылки">
+                          <button onClick={(e) => { e.stopPropagation(); setRopLinkModal('REFUSAL') }}
+                            className="text-red-500 hover:text-red-700 hover:underline font-medium cursor-pointer" title="Смотреть CRM ссылки отказников">
                             {m.refusals ?? 0}
                           </button>
                         </td>
                         <td className="py-2.5 text-right">
-                          <button onClick={() => setRopLinkModal('IN_WORK')}
-                            className="text-amber-600 hover:text-amber-800 hover:underline font-medium cursor-pointer" title="Смотреть CRM ссылки">
+                          <button onClick={(e) => { e.stopPropagation(); setRopLinkModal('IN_WORK') }}
+                            className="text-amber-600 hover:text-amber-800 hover:underline font-medium cursor-pointer" title="Смотреть CRM ссылки в работе">
                             {m.inWork ?? 0}
                           </button>
                         </td>
