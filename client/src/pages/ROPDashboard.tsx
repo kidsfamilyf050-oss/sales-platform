@@ -59,7 +59,7 @@ function ManagerDetail({ m }: { m: any }) {
 
   return (
     <tr>
-      <td colSpan={9} className="pb-3 px-0">
+      <td colSpan={12} className="pb-3 px-0">
         <div className="ml-6 mr-2 bg-gray-50 rounded-xl border border-gray-100 p-4 space-y-3">
           {/* Period sales */}
           <div>
@@ -123,7 +123,7 @@ function LiderDetail({ m }: { m: any }) {
   const report = m.todayReport
   if (!report) return (
     <tr>
-      <td colSpan={9} className="pb-3">
+      <td colSpan={12} className="pb-3">
         <div className="ml-6 mr-2 bg-gray-50 rounded-xl border border-gray-100 p-3">
           <p className="text-xs text-gray-400">{t('dash.rop.noReport')}</p>
         </div>
@@ -132,7 +132,7 @@ function LiderDetail({ m }: { m: any }) {
   )
   return (
     <tr>
-      <td colSpan={9} className="pb-3">
+      <td colSpan={12} className="pb-3">
         <div className="ml-6 mr-2 bg-gray-50 rounded-xl border border-gray-100 p-3">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{t('dash.rop.dayStats')}</p>
           <div className="flex gap-6 text-xs flex-wrap">
@@ -193,13 +193,16 @@ export default function ROPDashboard() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
         <StatCard label={t('dash.rop.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
         <StatCard label={t('dash.rop.salesFact')} value={`₸ ${fmt(summary.salesAmount)}`} color="blue" />
         <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
         <StatCard label={t('dash.rop.deals')} value={summary.salesCount} />
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} />
         <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck)}`} />
+        <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
+        <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red" />
+        <StatCard label={t('dash.inWork')} value={summary.totalInWork ?? 0} color="yellow" />
       </div>
 
       <ProgressBar value={summary.planCompletion} label={t('dash.rop.planCompletion')} />
@@ -251,6 +254,9 @@ export default function ROPDashboard() {
                   <th className="pb-2 font-medium text-right">{t('dash.table.deals')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.avgCheck')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.conversion')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.consultations')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.refusals')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.inWork')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -285,6 +291,9 @@ export default function ROPDashboard() {
                         <td className="py-2.5 text-right">{m.salesCount}</td>
                         <td className="py-2.5 text-right text-gray-500">{m.avgCheck > 0 ? `₸ ${fmt(m.avgCheck)}` : '—'}</td>
                         <td className="py-2.5 text-right">{m.conversion}%</td>
+                        <td className="py-2.5 text-right">{m.consultations ?? 0}</td>
+                        <td className="py-2.5 text-right text-red-500">{m.refusals ?? 0}</td>
+                        <td className="py-2.5 text-right text-amber-600">{m.inWork ?? 0}</td>
                       </tr>
                       {isOpen && <ManagerDetail key={`detail-${m.id}`} m={m} />}
                     </>

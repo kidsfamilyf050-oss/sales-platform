@@ -81,9 +81,12 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     ])
 
     // ── Sales (Sale model) ─────────────────────────────────────────────────
-    const totalSalesAmount = periodSales.reduce((s, x) => s + x.amount, 0)
-    const totalSalesCount  = periodSales.length
-    const totalClients     = sumReportField(closerReports, 'clientsReceived')
+    const totalSalesAmount   = periodSales.reduce((s, x) => s + x.amount, 0)
+    const totalSalesCount    = periodSales.length
+    const totalClients       = sumReportField(closerReports, 'clientsReceived')
+    const totalConsultations = sumReportField(closerReports, 'consultations')
+    const totalRefusals      = sumReportField(closerReports, 'refusals')
+    const totalInWork        = Math.max(0, totalConsultations - totalSalesCount - totalRefusals)
 
     // ── Marketing metrics (MARKETER reports) ──────────────────────────────
     const marketingLeads = marketerReports.reduce((s, r) => s + (Number((r.data as any).leadsCount) || Number((r.data as any).leads) || 0), 0)
@@ -129,8 +132,13 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       salesByUser[s.userId].salesAmount += s.amount
     }
     const clientsByUser: Record<string, number> = {}
+    const consultationsByUser: Record<string, number> = {}
+    const refusalsByUser: Record<string, number> = {}
     for (const r of closerReports) {
-      clientsByUser[r.user.id] = (clientsByUser[r.user.id] || 0) + (Number((r.data as any).clientsReceived) || 0)
+      const uid = r.user.id
+      clientsByUser[uid] = (clientsByUser[uid] || 0) + (Number((r.data as any).clientsReceived) || 0)
+      consultationsByUser[uid] = (consultationsByUser[uid] || 0) + (Number((r.data as any).consultations) || 0)
+      refusalsByUser[uid] = (refusalsByUser[uid] || 0) + (Number((r.data as any).refusals) || 0)
     }
 
     // ── Manager (closer) rating ────────────────────────────────────────────
@@ -139,6 +147,9 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       .map(u => {
         const stats = salesByUser[u.id] || { salesCount: 0, salesAmount: 0 }
         const clients = clientsByUser[u.id] || 0
+        const consultations = consultationsByUser[u.id] || 0
+        const refusals = refusalsByUser[u.id] || 0
+        const inWork = Math.max(0, consultations - stats.salesCount - refusals)
         const plan = plans.find(p => p.userId === u.id && p.type === 'SALES_AMOUNT')?.value || 0
         const completion = plan > 0 ? Math.round((stats.salesAmount / plan) * 100) : 0
         const userSales = periodSales.filter(s => s.userId === u.id)
@@ -146,6 +157,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         return {
           id: u.id, name: u.name, type: 'CLOSER', plan,
           salesCount: stats.salesCount, salesAmount: stats.salesAmount, completion,
+          consultations, refusals, inWork,
           conversion: clients > 0 ? Math.round((stats.salesCount / clients) * 100) : 0,
           avgCheck: stats.salesCount > 0 ? Math.round(stats.salesAmount / stats.salesCount) : 0,
           sales: userSales,
@@ -184,6 +196,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         conversion: Math.round(conversion * 10) / 10,
         conversionLabel,
         planCompletion: salesPlan > 0 ? Math.round((totalSalesAmount / salesPlan) * 100) : 0,
+        totalConsultations, totalRefusals, totalInWork,
         // Marketing block (from MARKETER reports)
         marketingLeads, leadsplan, totalBudget, budgetPlan, leadCost: Math.round(leadCost),
         // Lider funnel (from LIDER reports)
@@ -271,16 +284,28 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       periodSalesByManager[s.userId].push({ id: s.id, amount: s.amount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date })
     }
 
-    // Closer clients per manager (from reports)
+    // Closer clients/consultations/refusals per manager (from reports)
     const clientsByManager: Record<string, number> = {}
+    const consultationsByManager: Record<string, number> = {}
+    const refusalsByManager: Record<string, number> = {}
     for (const r of closerReports) {
-      clientsByManager[r.user.id] = (clientsByManager[r.user.id] || 0) + (Number((r.data as any).clientsReceived) || 0)
+      const uid = r.user.id
+      clientsByManager[uid] = (clientsByManager[uid] || 0) + (Number((r.data as any).clientsReceived) || 0)
+      consultationsByManager[uid] = (consultationsByManager[uid] || 0) + (Number((r.data as any).consultations) || 0)
+      refusalsByManager[uid] = (refusalsByManager[uid] || 0) + (Number((r.data as any).refusals) || 0)
     }
+
+    const totalConsultations = sumReportField(closerReports, 'consultations')
+    const totalRefusals = sumReportField(closerReports, 'refusals')
+    const totalInWork = Math.max(0, totalConsultations - totalSalesCount - totalRefusals)
 
     const closers = managers.filter(m => m.managerType !== 'LIDER')
     const managerRating = closers.map(m => {
       const stats = salesByUser[m.id] || { salesCount: 0, salesAmount: 0 }
       const clients = clientsByManager[m.id] || 0
+      const consultations = consultationsByManager[m.id] || 0
+      const refusals = refusalsByManager[m.id] || 0
+      const inWork = Math.max(0, consultations - stats.salesCount - refusals)
       const managerPlan = plans.find(p => p.userId === m.id && p.type === 'SALES_AMOUNT')?.value || 0
       const completion = managerPlan > 0 ? Math.round((stats.salesAmount / managerPlan) * 100) : 0
       const reportedToday = todayReportedIds.has(m.id)
@@ -292,6 +317,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         plan: managerPlan, salesAmount: stats.salesAmount, salesCount: stats.salesCount,
         completion, conversion: clients > 0 ? Math.round((stats.salesCount / clients) * 100) : 0,
         avgCheck: stats.salesCount > 0 ? Math.round(stats.salesAmount / stats.salesCount) : 0,
+        consultations, refusals, inWork,
         status, reportedToday,
         // Period sales for expanded view (matches selected date range)
         sales: periodSalesByManager[m.id] || [],
@@ -346,6 +372,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         conversion: clientsReceived > 0 ? Math.round((totalSalesCount / clientsReceived) * 100) : 0,
         avgCheck: totalSalesCount > 0 ? Math.round(totalSalesAmount / totalSalesCount) : 0,
         planCompletion: salesPlan > 0 ? Math.round((totalSalesAmount / salesPlan) * 100) : 0,
+        totalConsultations, totalRefusals, totalInWork,
       },
       funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount: totalSalesCount },
       marketing: { leadsplan, totalLeads, totalBudget, leadCost: totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0, qualifiedLeads },
@@ -389,6 +416,8 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       // Clients received from daily reports
       const clientsReceived = sumReportField(reports, 'clientsReceived')
       const consultations = sumReportField(reports, 'consultations')
+      const refusals = sumReportField(reports, 'refusals')
+      const inWork = Math.max(0, consultations - salesCount - refusals)
       const salesPlan = plans.find(p => p.type === 'SALES_AMOUNT')?.value || 0
       // Conversion = deals / clients received (from report stats)
       const conversion = clientsReceived > 0 ? Math.round((salesCount / clientsReceived) * 100) : 0
@@ -400,6 +429,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           planCompletion: salesPlan > 0 ? Math.round((salesAmount / salesPlan) * 100) : 0,
           conversion,
           avgCheck: salesCount > 0 ? Math.round(salesAmount / salesCount) : 0,
+          consultations, refusals, inWork,
         },
         todayReport,
         recentReports: reports.slice(0, 7),

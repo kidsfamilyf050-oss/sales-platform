@@ -659,6 +659,11 @@ const ru = {
   'dash.rop.consultationsLabel': 'Консультаций',
   'dash.rop.refusalsLabel': 'Отказов',
   'dash.rop.noReport': 'Отчёт за день ещё не сдан',
+
+  // Consultations / refusals / in-work metrics
+  'dash.consultations': 'Консультаций',
+  'dash.refusals': 'Отказов',
+  'dash.inWork': 'В работе',
 }
 
 const kk: typeof ru = {
@@ -1316,6 +1321,11 @@ const kk: typeof ru = {
   'dash.rop.consultationsLabel': 'Кеңестер',
   'dash.rop.refusalsLabel': 'Бас тартулар',
   'dash.rop.noReport': 'Күн есебі берілмеді',
+
+  // Consultations / refusals / in-work metrics
+  'dash.consultations': 'Кеңестер',
+  'dash.refusals': 'Бас тартулар',
+  'dash.inWork': 'Жұмыста',
 }
 
 // ── Store ────────────────────────────────────────────────────────────────────

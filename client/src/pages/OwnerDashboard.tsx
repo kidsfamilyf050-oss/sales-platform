@@ -73,7 +73,7 @@ function ManagerSalesDetail({ m }: { m: any }) {
   const sales: any[] = m.sales || []
   return (
     <tr>
-      <td colSpan={9} className="pb-3 px-0">
+      <td colSpan={12} className="pb-3 px-0">
         <div className="ml-6 mr-2 bg-gray-50 rounded-xl border border-gray-100 p-4">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
             {t('dash.periodSales')}
@@ -177,7 +177,7 @@ export default function OwnerDashboard() {
       </div>
 
       {/* ── Block 1: Sales KPIs ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
         <StatCard label={t('dash.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
         <StatCard label={t('dash.salesFact')} value={`₸ ${fmt(summary.totalSalesAmount)}`} color="blue" />
         <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`}
@@ -187,6 +187,9 @@ export default function OwnerDashboard() {
           color={summary.conversion >= 20 ? 'green' : summary.conversion >= 10 ? 'yellow' : 'red'} />
         <StatCard label={t('dash.salesCount')} value={summary.totalSalesCount} />
         <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck)}`} />
+        <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
+        <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red" />
+        <StatCard label={t('dash.inWork')} value={summary.totalInWork ?? 0} color="yellow" />
       </div>
 
       <ProgressBar value={summary.planCompletion} label={t('dash.planCompletion')} />
@@ -325,6 +328,9 @@ export default function OwnerDashboard() {
                   <th className="pb-2 font-medium text-right">{t('dash.table.deals')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.avgCheck')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.conversion')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.consultations')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.refusals')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.inWork')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -352,6 +358,9 @@ export default function OwnerDashboard() {
                         <td className="py-2.5 text-right font-medium">{m.salesCount}</td>
                         <td className="py-2.5 text-right font-medium">{m.avgCheck > 0 ? `₸ ${fmt(m.avgCheck)}` : '—'}</td>
                         <td className="py-2.5 text-right text-gray-500">{m.conversion > 0 ? `${m.conversion}%` : '—'}</td>
+                        <td className="py-2.5 text-right">{m.consultations ?? 0}</td>
+                        <td className="py-2.5 text-right text-red-500">{m.refusals ?? 0}</td>
+                        <td className="py-2.5 text-right text-amber-600">{m.inWork ?? 0}</td>
                       </tr>
                       {isExpanded && <ManagerSalesDetail key={`${m.id}-detail`} m={m} />}
                     </>

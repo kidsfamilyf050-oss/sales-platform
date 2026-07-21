@@ -144,13 +144,16 @@ export default function ManagerDashboard() {
       {isCloser ? (
         <>
           {/* Period stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
             <StatCard label={t('dash.manager.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
             <StatCard label={t('dash.manager.salesPeriod')} value={`₸ ${fmt(summary.salesAmount)}`} color="blue" />
             <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
             <StatCard label={t('dash.manager.deals')} value={summary.salesCount} />
             <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} />
             <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck)}`} />
+            <StatCard label={t('dash.consultations')} value={summary.consultations ?? 0} />
+            <StatCard label={t('dash.refusals')} value={summary.refusals ?? 0} color="red" />
+            <StatCard label={t('dash.inWork')} value={summary.inWork ?? 0} color="yellow" />
           </div>
 
           <ProgressBar value={summary.planCompletion} label={t('dash.manager.planCompletionSales')} />
