@@ -26,7 +26,7 @@ export default function ReportPage() {
   const isLider = user?.managerType === 'LIDER'
   const isMarketer = user?.role === 'MARKETER'
 
-  const [closer, setCloser] = useState({ clientsReceived: '', consultations: '', refusals: '', comment: '' })
+  const [closer, setCloser] = useState({ consultations: '', refusals: '', comment: '' })
   const [lider, setLider] = useState({ leadsReceived: '', processed: '', qualifiedLeads: '', meetingsScheduled: '', meetingsAttended: '', comment: '' })
   const [marketer, setMarketer] = useState({ adBudget: '', leadsCount: '', qualifiedLeads: '', comment: '' })
 
@@ -44,7 +44,6 @@ export default function ReportPage() {
           setExistingReport(found)
           const d = found.data as any
           if (isCloser) setCloser({
-            clientsReceived: String(d.clientsReceived || ''),
             consultations: String(d.consultations || ''),
             refusals: String(d.refusals || ''),
             comment: d.comment || found.comment || '',
@@ -64,7 +63,7 @@ export default function ReportPage() {
             comment: d.comment || found.comment || '',
           })
         } else {
-          setCloser({ clientsReceived: '', consultations: '', refusals: '', comment: '' })
+          setCloser({ consultations: '', refusals: '', comment: '' })
           setLider({ leadsReceived: '', processed: '', qualifiedLeads: '', meetingsScheduled: '', meetingsAttended: '', comment: '' })
           setMarketer({ adBudget: '', leadsCount: '', qualifiedLeads: '', comment: '' })
         }
@@ -146,12 +145,9 @@ export default function ReportPage() {
               <p className="text-xs text-gray-400 bg-blue-50 rounded-lg px-3 py-2">
                 💡 Продажи вносятся отдельно — кнопка «+ Продажа» в кабинете. Здесь только статистика дня.
               </p>
-              <div><label className="label">{t('report.closer.clients')}</label>
-                <input type="number" className="input" min="0" value={closer.clientsReceived}
-                  onChange={e => setCloser(f => ({ ...f, clientsReceived: e.target.value }))} required /></div>
               <div><label className="label">{t('report.closer.consultations')}</label>
                 <input type="number" className="input" min="0" value={closer.consultations}
-                  onChange={e => setCloser(f => ({ ...f, consultations: e.target.value }))} /></div>
+                  onChange={e => setCloser(f => ({ ...f, consultations: e.target.value }))} required /></div>
               <div><label className="label">{t('report.closer.refusals')}</label>
                 <input type="number" className="input" min="0" value={closer.refusals}
                   onChange={e => setCloser(f => ({ ...f, refusals: e.target.value }))} /></div>

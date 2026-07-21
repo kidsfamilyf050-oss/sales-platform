@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
-import { FileText, CheckCircle, Plus, Pencil, Trash2, ExternalLink, X, Check, Calendar, Download } from 'lucide-react'
+import { FileText, CheckCircle, Plus, Pencil, Trash2, ExternalLink, X, Check, Calendar, Download, Link2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useT } from '../i18n'
@@ -96,6 +96,26 @@ export default function ManagerDashboard() {
     refetchInterval: 60000,
   })
 
+  // Deal links modal state
+  const [dealLinkModal, setDealLinkModal] = useState<'REFUSAL' | 'IN_WORK' | null>(null)
+  const [newLink, setNewLink] = useState('')
+  const [newLinkNote, setNewLinkNote] = useState('')
+
+  const dealLinksQuery = useQuery({
+    queryKey: ['deal-links', period, dealLinkModal],
+    queryFn: () => api.get(`/deal-links?period=${period}&type=${dealLinkModal}`).then(r => r.data),
+    enabled: !!dealLinkModal,
+  })
+
+  const addDealLink = useMutation({
+    mutationFn: (data: any) => api.post('/deal-links', data).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['deal-links'] }); setNewLink(''); setNewLinkNote('') },
+  })
+  const deleteDealLink = useMutation({
+    mutationFn: (id: string) => api.delete(`/deal-links/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['deal-links'] }) },
+  })
+
   // Sales for selected date
   const { data: todaySales = [] } = useQuery({
     queryKey: ['sales-today', salesDate],
@@ -129,7 +149,7 @@ export default function ManagerDashboard() {
   }
 
   const saveSale = () => {
-    if (!saleForm || !saleForm.amount) return
+    if (!saleForm || !saleForm.amount || !saleForm.crmLink) return
     const payload = {
       date: salesDate,
       amount: Number(saleForm.amount),
@@ -195,14 +215,18 @@ export default function ManagerDashboard() {
             <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} />
             <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck)}`} />
             <StatCard label={t('dash.consultations')} value={summary.consultations ?? 0} />
-            <StatCard label={t('dash.refusals')} value={summary.refusals ?? 0} color="red" />
-            <StatCard label={t('dash.inWork')} value={summary.inWork ?? 0} color="yellow" />
+            <button onClick={() => setDealLinkModal('REFUSAL')} className="text-left w-full">
+              <StatCard label={`${t('dash.refusals')} 🔗`} value={summary.refusals ?? 0} color="red" />
+            </button>
+            <button onClick={() => setDealLinkModal('IN_WORK')} className="text-left w-full">
+              <StatCard label={`${t('dash.inWork')} 🔗`} value={summary.inWork ?? 0} color="yellow" />
+            </button>
           </div>
 
           <ProgressBar value={summary.planCompletion} label={t('dash.manager.planCompletionSales')} />
 
           {/* Closer leaderboard — competitive ranking */}
-          {closerRankingData?.ranking?.length > 1 && (
+          {closerRankingData?.ranking?.length > 0 && (
             <div className="card">
               <div className="mb-3">
                 <h3 className="font-semibold text-gray-900">Рейтинг клоузеров</h3>
@@ -442,8 +466,8 @@ export default function ManagerDashboard() {
                 )}
 
                 <div>
-                  <label className="label">{t('report.closer.crmLink')}</label>
-                  <input type="url" className="input" placeholder="https://..."
+                  <label className="label">{t('report.closer.crmLink')} <span className="text-red-500">*</span></label>
+                  <input type="url" className="input" placeholder="https://..." required
                     value={saleForm.crmLink}
                     onChange={e => setSaleForm(f => f ? { ...f, crmLink: e.target.value } : f)} />
                 </div>
@@ -460,8 +484,8 @@ export default function ManagerDashboard() {
                     className="btn-secondary flex items-center gap-1.5 flex-1 justify-center py-2">
                     <X className="w-3.5 h-3.5" /> Отмена
                   </button>
-                  <button onClick={saveSale} disabled={!saleForm.amount || createSale.isPending || updateSale.isPending}
-                    className="btn-primary flex items-center gap-1.5 flex-1 justify-center py-2 disabled:opacity-40">
+                  <button onClick={saveSale} disabled={!saleForm.amount || !saleForm.crmLink || createSale.isPending || updateSale.isPending}
+                    className="btn-primary flex items-center gap-1.5 flex-1 justify-center py-2 disabled:opacity-40" title={!saleForm?.crmLink ? 'Заполните ссылку CRM' : ''}>
                     <Check className="w-3.5 h-3.5" /> Сохранить
                   </button>
                 </div>
@@ -531,7 +555,7 @@ export default function ManagerDashboard() {
           )}
 
           {/* Lider leaderboard — competitive ranking */}
-          {rankingData?.ranking?.length > 1 && (
+          {rankingData?.ranking?.length > 0 && (
             <div className="card">
               <div className="mb-3">
                 <h3 className="font-semibold text-gray-900">{t('dash.lider.ranking')}</h3>
@@ -577,6 +601,82 @@ export default function ManagerDashboard() {
             </div>
           )}
         </>
+      )}
+
+      {/* ── DEAL LINKS MODAL (Отказники / В работе) ── */}
+      {dealLinkModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40" onClick={() => setDealLinkModal(null)}>
+          <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className={`flex items-center justify-between px-4 py-3 border-b rounded-t-2xl ${dealLinkModal === 'REFUSAL' ? 'bg-red-50 border-red-100' : 'bg-amber-50 border-amber-100'}`}>
+              <div>
+                <h3 className="font-semibold text-gray-900">
+                  {dealLinkModal === 'REFUSAL' ? '❌ Отказники' : '🕐 В работе'} — CRM ссылки
+                </h3>
+                <p className="text-xs text-gray-400 mt-0.5">За выбранный период</p>
+              </div>
+              <button onClick={() => setDealLinkModal(null)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Links list */}
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+              {dealLinksQuery.isLoading && <p className="text-sm text-gray-400 text-center py-4">Загрузка...</p>}
+              {!dealLinksQuery.isLoading && (dealLinksQuery.data as any[] || []).length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-4">Нет ссылок за этот период</p>
+              )}
+              {(dealLinksQuery.data as any[] || []).map((dl: any) => (
+                <div key={dl.id} className="flex items-start gap-2 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+                  <Link2 className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <a href={dl.link} target="_blank" rel="noreferrer"
+                      className="text-sm text-blue-600 hover:underline block truncate">{dl.link}</a>
+                    {dl.note && <p className="text-xs text-gray-400 mt-0.5">{dl.note}</p>}
+                    <p className="text-xs text-gray-300 mt-0.5">{dl.date}</p>
+                  </div>
+                  <button onClick={() => deleteDealLink.mutate(dl.id)}
+                    className="p-1 rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Add link form */}
+            <div className="px-4 py-3 border-t border-gray-100 space-y-2">
+              <input
+                type="url"
+                className="input text-sm"
+                placeholder="https://crm.link/client/..."
+                value={newLink}
+                onChange={e => setNewLink(e.target.value)}
+              />
+              <input
+                type="text"
+                className="input text-sm"
+                placeholder="Заметка (необязательно)"
+                value={newLinkNote}
+                onChange={e => setNewLinkNote(e.target.value)}
+              />
+              <button
+                onClick={() => {
+                  if (!newLink) return
+                  addDealLink.mutate({
+                    type: dealLinkModal,
+                    link: newLink,
+                    note: newLinkNote || null,
+                    date: todayStr,
+                  })
+                }}
+                disabled={!newLink || addDealLink.isPending}
+                className="btn-primary w-full py-2 text-sm disabled:opacity-40 flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" /> Добавить ссылку
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Recent reports (history) */}

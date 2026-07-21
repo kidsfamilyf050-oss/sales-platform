@@ -75,6 +75,7 @@ model User {
 
   reports       Report[]
   sales         Sale[]
+  dealLinks     DealLink[]
   notifications Notification[]
   planChanges   PlanChange[]
   sessions      UserSession[]
@@ -190,6 +191,22 @@ model Sale {
 
   @@index([userId, date])
   @@index([companyId, date])
+}
+
+// CRM links for refusals and in-work deals tracked by closer
+model DealLink {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String
+  type      String   // 'REFUSAL' | 'IN_WORK'
+  link      String
+  note      String?
+  date      String   // YYYY-MM-DD
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([companyId, type, date])
 }
 
 model Notification {
