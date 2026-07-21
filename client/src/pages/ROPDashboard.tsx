@@ -350,12 +350,13 @@ export default function ROPDashboard() {
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium">{t('dash.table.lider')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.attendedCol')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.completion')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.scheduledCol')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.pctPlan')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.leadsCol')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.qualified')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.pctQual')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.qualified')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.pctScheduled')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.scheduledCol')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.pctAttended')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -373,16 +374,24 @@ export default function ROPDashboard() {
                           {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                         </td>
                         <td className="py-3 font-medium text-gray-900">{m.name}</td>
-                        <td className="py-2.5 text-right font-bold text-blue-600">{m.meetingsAttended.toLocaleString('ru-RU')}</td>
+                        {/* 1. % выполнения плана */}
                         <td className="py-2.5 text-right">
                           <span className={`font-semibold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
                             {m.meetingsPlan > 0 ? `${m.completion}%` : '—'}
                           </span>
                         </td>
-                        <td className="py-2.5 text-right text-gray-500">{m.meetingsScheduled.toLocaleString('ru-RU')}</td>
-                        <td className="py-2.5 text-right text-gray-500">{m.leads.toLocaleString('ru-RU')}</td>
+                        {/* 2. Лидов */}
+                        <td className="py-2.5 text-right text-gray-700">{m.leads.toLocaleString('ru-RU')}</td>
+                        {/* 3. % квал. */}
+                        <td className="py-2.5 text-right text-gray-500 text-xs">{m.qualRate}%</td>
+                        {/* 4. Квалиф. кол-во */}
                         <td className="py-2.5 text-right text-gray-500">{m.qualifiedLeads.toLocaleString('ru-RU')}</td>
-                        <td className="py-2.5 text-right text-gray-400">{m.qualRate}%</td>
+                        {/* 5. % записано */}
+                        <td className="py-2.5 text-right text-gray-500 text-xs">{m.pctScheduled ?? 0}%</td>
+                        {/* 6. Записано кол-во */}
+                        <td className="py-2.5 text-right text-gray-500">{m.meetingsScheduled.toLocaleString('ru-RU')}</td>
+                        {/* 7. % проведено (записано→консультация) */}
+                        <td className="py-2.5 text-right font-bold text-blue-600">{m.pctAttended ?? 0}%</td>
                       </tr>
                       {isOpen && <LiderDetail key={`lider-detail-${m.id}`} m={m} />}
                     </>

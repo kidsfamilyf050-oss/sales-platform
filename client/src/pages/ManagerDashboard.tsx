@@ -80,6 +80,14 @@ export default function ManagerDashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard-manager', period],
     queryFn: () => api.get(`/dashboard/manager?period=${period}`).then(r => r.data),
+    refetchInterval: 60000,
+  })
+
+  // Lider ranking (only used for lider view — shows competitive leaderboard)
+  const { data: rankingData } = useQuery({
+    queryKey: ['lider-ranking', period],
+    queryFn: () => api.get(`/dashboard/lider-ranking?period=${period}`).then(r => r.data),
+    refetchInterval: 60000,
   })
 
   // Sales for selected date
@@ -426,8 +434,8 @@ export default function ManagerDashboard() {
         </>
       ) : (
         <>
-          {/* Lider stats — primary KPI: meetings attended (people who came) */}
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+          {/* Lider stats — primary KPI: consultations conducted */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
             <StatCard label={t('dash.manager.meetingsPlan')} value={summary.meetingsScheduledPlan} />
             <StatCard label={t('dash.manager.attended')} value={summary.meetingsAttended} color="blue" />
             <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
@@ -435,7 +443,28 @@ export default function ManagerDashboard() {
             <StatCard label={t('dash.manager.qualified')} value={summary.qualifiedLeads} sub={`${summary.qualRate}% квал.`} />
             <StatCard label={t('dash.manager.leads')} value={summary.leads} sub={summary.leadsplan > 0 ? `план ${summary.leadsplan}` : undefined} />
           </div>
+
+          {/* Conversion: записано → проведено */}
+          {summary.meetingsScheduled > 0 && (
+            <div className="card bg-blue-50/40 border border-blue-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 mb-0.5">{t('dash.manager.schedToAtt')}</p>
+                  <p className="text-sm text-gray-600">
+                    <span className="font-bold text-blue-700 text-xl">{summary.schedToAttRate}%</span>
+                    <span className="ml-2 text-gray-400">({summary.meetingsAttended} из {summary.meetingsScheduled} записанных)</span>
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-400">лиды → записано</p>
+                  <p className="font-semibold text-gray-700">{summary.leadsToSchedRate}%</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <ProgressBar value={summary.planCompletion} label={t('dash.manager.planCompletionMeetings')} />
+
           {todayData && (
             <div className="card border-purple-100 bg-purple-50/30">
               <h3 className="font-semibold text-gray-900 mb-3 text-sm">{t('dash.manager.today')}</h3>
@@ -446,6 +475,53 @@ export default function ManagerDashboard() {
                 <div><p className="text-xs text-gray-400">{t('dash.manager.attended')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.meetingsAttended || 0}</p></div>
               </div>
               {todayData.comment && <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-purple-100">💬 {todayData.comment}</p>}
+            </div>
+          )}
+
+          {/* Lider leaderboard — competitive ranking */}
+          {rankingData?.ranking?.length > 1 && (
+            <div className="card">
+              <div className="mb-3">
+                <h3 className="font-semibold text-gray-900">{t('dash.lider.ranking')}</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{t('dash.lider.rankingNote')}</p>
+              </div>
+              <div className="space-y-1.5">
+                {rankingData.ranking.map((r: any, idx: number) => {
+                  const isMe = r.id === rankingData.currentUserId
+                  const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`
+                  return (
+                    <div key={r.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                      isMe
+                        ? 'bg-blue-50 border-2 border-blue-300 shadow-sm'
+                        : 'bg-gray-50 border border-gray-100'
+                    }`}>
+                      <span className="text-base w-7 text-center shrink-0">{medal}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-sm font-semibold truncate ${isMe ? 'text-blue-800' : 'text-gray-800'}`}>{r.name}</span>
+                          {isMe && <span className="text-xs font-bold text-blue-600 shrink-0">{t('dash.lider.rankMe')}</span>}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {/* Progress bar */}
+                          <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+                            <div
+                              className={`h-1.5 rounded-full ${r.completion >= 75 ? 'bg-green-500' : r.completion >= 50 ? 'bg-amber-400' : 'bg-red-400'}`}
+                              style={{ width: `${Math.min(100, r.completion)}%` }}
+                            />
+                          </div>
+                          <span className={`text-xs font-bold w-12 text-right shrink-0 ${r.completion >= 75 ? 'text-green-600' : r.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                            {r.plan > 0 ? `${r.completion}%` : '—'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className={`text-sm font-bold ${isMe ? 'text-blue-700' : 'text-gray-700'}`}>{r.meetingsAttended}</p>
+                        <p className="text-xs text-gray-400">из {r.plan}</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
         </>

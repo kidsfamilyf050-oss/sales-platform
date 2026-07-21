@@ -239,7 +239,7 @@ const ru = {
   'dash.table.qualified': 'Квалиф.',
   'dash.table.pctQual': '% квал.',
   'dash.table.toMeeting': 'На встречу',
-  'dash.table.attended': 'Пришло',
+  'dash.table.attended': 'Консультаций',
   'dash.planCompletion': 'Выполнение плана продаж',
   'dash.planBehind': 'отстаём',
   'dash.factBudget': 'факт. бюджет',
@@ -267,7 +267,7 @@ const ru = {
   'dash.manager.qualified': 'Квалифицировано',
   'dash.manager.transferred': 'Передано клоузеру',
   'dash.manager.meetings': 'Записано на встречу',
-  'dash.manager.attended': 'Пришло на встречу',
+  'dash.manager.attended': 'Проведено консультаций',
   'dash.manager.noData': 'Нет данных за этот период',
 
   // Tracking
@@ -323,7 +323,7 @@ const ru = {
   'tracking.field.leads': 'Лидов получено',
   'tracking.field.qualifiedLeads': 'Квалифицировано',
   'tracking.field.meetingsScheduled': 'Записано на встречу',
-  'tracking.field.meetingsAttended': 'Пришло на встречу',
+  'tracking.field.meetingsAttended': 'Проведено консультаций',
   'tracking.field.leadsM': 'Лидов',
   'tracking.field.qualifiedLeadsM': 'Квалиф. лидов',
   'tracking.field.budget': 'Бюджет за день',
@@ -534,7 +534,10 @@ const ru = {
   'dash.table.leadsCol': 'Лидов',
   'dash.table.qualPctCol': '% квал.',
   'dash.table.toMeetingCol': 'На встречу',
-  'dash.table.attendedCol': 'Пришло',
+  'dash.table.attendedCol': 'Консультаций',
+  'dash.table.pctScheduled': '% записано',
+  'dash.table.pctAttended': '% проведено',
+  'dash.table.pctPlan': '% план',
 
   // Manager Dashboard extra
   'dash.manager.reportDone': 'Отчёт сдан',
@@ -550,12 +553,17 @@ const ru = {
   'dash.manager.amountLabel': 'Сумма:',
   'dash.manager.leadsLabel': 'Лидов:',
   'dash.manager.qualLabel': 'Квал.:',
-  'dash.manager.attendedLabel': 'Пришло:',
+  'dash.manager.attendedLabel': 'Консультаций:',
   'dash.manager.leadsplan': 'План лидов',
   'dash.manager.qualRate': '% квалификации',
-  'dash.manager.meetingsAttended': 'Пришло на встречу',
-  'dash.manager.meetingsPlan': 'План встреч (пришло)',
-  'dash.manager.planCompletionMeetings': 'Выполнение плана по проведённым встречам',
+  'dash.manager.meetingsAttended': 'Проведено консультаций',
+  'dash.manager.meetingsPlan': 'План консультаций',
+  'dash.manager.planCompletionMeetings': 'Выполнение плана по консультациям',
+  'dash.manager.schedToAtt': 'Конверсия записано → консультация',
+  'dash.lider.ranking': 'Рейтинг лидорубов',
+  'dash.lider.rankingNote': 'Соревнуйся с коллегами — твоё место в команде',
+  'dash.lider.rankMe': '← Ты здесь',
+  'dash.lider.pctAttended': '% проведения',
 
   // Marketer Dashboard extra
   'dash.marketer.title': 'Кабинет маркетолога',
@@ -591,7 +599,7 @@ const ru = {
   'plans.field.liderLeads': 'Лидов',
   'plans.field.liderQualLeads': 'Квалифиц. лидов',
   'plans.field.liderMeetings': 'Записано',
-  'plans.field.liderMeetingsAtt': 'Проведённые встречи',
+  'plans.field.liderMeetingsAtt': 'Проведённые консультации',
   'plans.field.mktLeads': 'Плановых лидов',
   'plans.field.mktQualLeads': 'Квалифиц. лидов',
   'plans.field.mktBudget': 'Рекламный бюджет',
@@ -638,7 +646,7 @@ const ru = {
   // Funnel steps (short labels for Owner dashboard)
   'dash.funnel.leadsReceived': 'Лидов получено',
   'dash.funnel.scheduled': 'Записано',
-  'dash.funnel.attended': 'Пришло',
+  'dash.funnel.attended': 'Консультации',
   'dash.funnel.noData': 'Нет данных от лидорубов за этот период',
 
   // Marketing block (Owner)
@@ -920,7 +928,7 @@ const kk: typeof ru = {
   'dash.table.qualified': 'Сараланды',
   'dash.table.pctQual': '% сарал.',
   'dash.table.toMeeting': 'Кездесуге',
-  'dash.table.attended': 'Келді',
+  'dash.table.attended': 'Консультациялар',
   'dash.planCompletion': 'Сатылым жоспарын орындау',
   'dash.planBehind': 'артта қалдық',
   'dash.factBudget': 'нақты бюджет',
@@ -948,7 +956,7 @@ const kk: typeof ru = {
   'dash.manager.qualified': 'Сараланды',
   'dash.manager.transferred': 'Клоузерге берілді',
   'dash.manager.meetings': 'Кездесуге жазылды',
-  'dash.manager.attended': 'Кездесуге келді',
+  'dash.manager.attended': 'Өткізілген консультациялар',
   'dash.manager.noData': 'Бұл кезең үшін деректер жоқ',
 
   // Tracking
@@ -1004,7 +1012,7 @@ const kk: typeof ru = {
   'tracking.field.leads': 'Алынған лидтер',
   'tracking.field.qualifiedLeads': 'Сараланды',
   'tracking.field.meetingsScheduled': 'Кездесуге жазылды',
-  'tracking.field.meetingsAttended': 'Кездесуге келді',
+  'tracking.field.meetingsAttended': 'Өткізілген консультациялар',
   'tracking.field.leadsM': 'Лидтер',
   'tracking.field.qualifiedLeadsM': 'Сарал. лидтер',
   'tracking.field.budget': 'Күндік бюджет',
@@ -1215,7 +1223,10 @@ const kk: typeof ru = {
   'dash.table.leadsCol': 'Лидтер',
   'dash.table.qualPctCol': '% сарал.',
   'dash.table.toMeetingCol': 'Кездесуге',
-  'dash.table.attendedCol': 'Келді',
+  'dash.table.attendedCol': 'Консультациялар',
+  'dash.table.pctScheduled': '% жазылды',
+  'dash.table.pctAttended': '% өткізілді',
+  'dash.table.pctPlan': '% жоспар',
 
   // Manager Dashboard extra
   'dash.manager.reportDone': 'Есеп тапсырылды',
@@ -1231,12 +1242,17 @@ const kk: typeof ru = {
   'dash.manager.amountLabel': 'Сома:',
   'dash.manager.leadsLabel': 'Лидтер:',
   'dash.manager.qualLabel': 'Сарал.:',
-  'dash.manager.attendedLabel': 'Келді:',
+  'dash.manager.attendedLabel': 'Консультациялар:',
   'dash.manager.leadsplan': 'Лид жоспары',
   'dash.manager.qualRate': '% саралау',
-  'dash.manager.meetingsAttended': 'Кездесуге келді',
-  'dash.manager.meetingsPlan': 'Кездесу жоспары (келді)',
-  'dash.manager.planCompletionMeetings': 'Кездесу жоспарын орындау',
+  'dash.manager.meetingsAttended': 'Өткізілген консультациялар',
+  'dash.manager.meetingsPlan': 'Консультация жоспары',
+  'dash.manager.planCompletionMeetings': 'Консультация жоспарын орындау',
+  'dash.manager.schedToAtt': 'Конверсия жазылды → консультация',
+  'dash.lider.ranking': 'Лидоруб рейтингі',
+  'dash.lider.rankingNote': 'Командадағы орныңды біл',
+  'dash.lider.rankMe': '← Сен',
+  'dash.lider.pctAttended': '% өткізілді',
 
   // Marketer Dashboard extra
   'dash.marketer.title': 'Маркетолог кабинеті',
@@ -1272,7 +1288,7 @@ const kk: typeof ru = {
   'plans.field.liderLeads': 'Лидтер',
   'plans.field.liderQualLeads': 'Сарал. лидтер',
   'plans.field.liderMeetings': 'Жазылды',
-  'plans.field.liderMeetingsAtt': 'Өткізілген кездесулер',
+  'plans.field.liderMeetingsAtt': 'Өткізілген консультациялар',
   'plans.field.mktLeads': 'Жоспарлы лидтер',
   'plans.field.mktQualLeads': 'Сарал. лидтер',
   'plans.field.mktBudget': 'Жарнамалық бюджет',
@@ -1319,7 +1335,7 @@ const kk: typeof ru = {
   // Funnel steps (short labels for Owner dashboard)
   'dash.funnel.leadsReceived': 'Лидтер алынды',
   'dash.funnel.scheduled': 'Жазылды',
-  'dash.funnel.attended': 'Келді',
+  'dash.funnel.attended': 'Консультациялар',
   'dash.funnel.noData': 'Осы кезең үшін лидорубтардан деректер жоқ',
 
   // Marketing block (Owner)

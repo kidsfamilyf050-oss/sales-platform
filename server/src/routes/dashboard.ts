@@ -185,7 +185,10 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
           id, name: s.name, type: 'LIDER', meetingsPlan,
           leads: s.leads, qualifiedLeads: s.qualifiedLeads,
           meetingsScheduled: s.meetingsScheduled, meetingsAttended: s.meetingsAttended,
-          completion, qualRate: s.leads > 0 ? Math.round((s.qualifiedLeads / s.leads) * 1000) / 10 : 0,
+          completion,
+          qualRate: s.leads > 0 ? Math.round((s.qualifiedLeads / s.leads) * 1000) / 10 : 0,
+          pctScheduled: s.leads > 0 ? Math.round((s.meetingsScheduled / s.leads) * 1000) / 10 : 0,
+          pctAttended: s.meetingsScheduled > 0 ? Math.round((s.meetingsAttended / s.meetingsScheduled) * 1000) / 10 : 0,
         }
       })
       .sort((a, b) => b.completion - a.completion || b.meetingsAttended - a.meetingsAttended)
@@ -355,7 +358,10 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         id: m.id, name: m.name,
         meetingsPlan, leadsplan, leads: stats.leads, qualifiedLeads: stats.qualifiedLeads,
         meetingsScheduled: stats.meetingsScheduled, meetingsAttended: stats.meetingsAttended,
-        completion, qualRate: stats.leads > 0 ? Math.round((stats.qualifiedLeads / stats.leads) * 1000) / 10 : 0,
+        completion,
+        qualRate: stats.leads > 0 ? Math.round((stats.qualifiedLeads / stats.leads) * 1000) / 10 : 0,
+        pctScheduled: stats.leads > 0 ? Math.round((stats.meetingsScheduled / stats.leads) * 1000) / 10 : 0,
+        pctAttended: stats.meetingsScheduled > 0 ? Math.round((stats.meetingsAttended / stats.meetingsScheduled) * 1000) / 10 : 0,
         status, reportedToday,
         todayReport: todayReportByManager[m.id] || null,
       }
@@ -447,6 +453,10 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       // Primary KPI for lider = meetings attended (people who actually came)
       const meetingsAttendedPlan = plans.find(p => p.type === 'MEETINGS_ATTENDED')?.value || 0
       const leadsplan = plans.find(p => p.type === 'LEADS')?.value || 0
+      // Conversion: записано → проведено (how many scheduled actually came)
+      const schedToAttRate = meetingsScheduled > 0 ? Math.round((meetingsAttended / meetingsScheduled) * 1000) / 10 : 0
+      // Conversion: лиды → записано
+      const leadsToSchedRate = leads > 0 ? Math.round((meetingsScheduled / leads) * 1000) / 10 : 0
 
       res.json({
         type: 'LIDER',
@@ -455,7 +465,9 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           meetingsScheduledPlan: meetingsAttendedPlan, meetingsScheduled, meetingsAttended,
           planCompletion: meetingsAttendedPlan > 0 ? Math.round((meetingsAttended / meetingsAttendedPlan) * 1000) / 10 : 0,
           qualifiedLeads,
-          qualRate: leads > 0 ? Math.round((qualifiedLeads / leads) * 100) : 0,
+          qualRate: leads > 0 ? Math.round((qualifiedLeads / leads) * 1000) / 10 : 0,
+          schedToAttRate,
+          leadsToSchedRate,
         },
         todayReport,
         recentReports: reports.slice(0, 7),
@@ -518,6 +530,54 @@ router.get('/marketer', authenticate, async (req: AuthRequest, res: Response) =>
       dailyChart,
       todayReport,
     })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// Lider ranking — used by personal lider dashboard to show competitive leaderboard
+router.get('/lider-ranking', authenticate, async (req: AuthRequest, res: Response) => {
+  const { period = 'month', from, to } = req.query
+  const { start, end } = getPeriodDates(period as string, from as string, to as string)
+  const periodKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
+
+  try {
+    const [liders, plans, liderReports] = await Promise.all([
+      prisma.user.findMany({ where: { companyId: req.user!.companyId, status: 'ACTIVE', role: 'MANAGER', managerType: 'LIDER' } }),
+      prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey } }),
+      prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, managerType: 'LIDER' }, type: 'LIDER', date: { gte: start, lte: end } }, include: { user: { select: { id: true } } } }),
+    ])
+
+    const statsMap: Record<string, { leads: number; qualifiedLeads: number; meetingsScheduled: number; meetingsAttended: number }> = {}
+    for (const r of liderReports) {
+      const uid = r.user.id; const d = r.data as any
+      if (!statsMap[uid]) statsMap[uid] = { leads: 0, qualifiedLeads: 0, meetingsScheduled: 0, meetingsAttended: 0 }
+      statsMap[uid].leads += Number(d.leadsReceived) || Number(d.leads) || 0
+      statsMap[uid].qualifiedLeads += Number(d.qualifiedLeads) || 0
+      statsMap[uid].meetingsScheduled += Number(d.meetingsScheduled) || 0
+      statsMap[uid].meetingsAttended += Number(d.meetingsAttended) || 0
+    }
+
+    const ranking = liders.map(u => {
+      const s = statsMap[u.id] || { leads: 0, qualifiedLeads: 0, meetingsScheduled: 0, meetingsAttended: 0 }
+      const plan = plans.find(p => p.userId === u.id && p.type === 'MEETINGS_ATTENDED')?.value || 0
+      const completion = plan > 0 ? Math.round((s.meetingsAttended / plan) * 1000) / 10 : 0
+      const pctAttended = s.meetingsScheduled > 0 ? Math.round((s.meetingsAttended / s.meetingsScheduled) * 1000) / 10 : 0
+      return {
+        id: u.id,
+        name: u.name,
+        meetingsAttended: s.meetingsAttended,
+        meetingsScheduled: s.meetingsScheduled,
+        plan,
+        completion,
+        pctAttended,
+      }
+    })
+    .filter(u => u.plan > 0 || u.meetingsAttended > 0)
+    .sort((a, b) => b.completion - a.completion || b.meetingsAttended - a.meetingsAttended)
+
+    res.json({ ranking, currentUserId: req.user!.id })
   } catch (e) {
     console.error(e)
     res.status(500).json({ error: 'Server error' })
