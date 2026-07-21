@@ -96,7 +96,12 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const totalMeetingsAttended  = sumReportField(liderReports, 'meetingsAttended')
 
     // ── Plans ─────────────────────────────────────────────────────────────
-    const salesPlan  = plans.filter(p => !p.userId && p.type === 'SALES_AMOUNT').reduce((s, p) => s + p.value, 0)
+    // Sum department-level SALES_AMOUNT plans; fall back to company-wide plan only if no dept plans exist.
+    // NEVER mix dept plans and company-wide plan — that causes double-counting.
+    const deptSalesPlans = plans.filter(p => p.departmentId && !p.userId && p.type === 'SALES_AMOUNT')
+    const salesPlan = deptSalesPlans.length > 0
+      ? deptSalesPlans.reduce((s, p) => s + p.value, 0)
+      : (plans.find(p => !p.departmentId && !p.userId && p.type === 'SALES_AMOUNT')?.value || 0)
     const leadsplan  = plans.find(p => !p.userId && !p.departmentId && p.type === 'LEADS')?.value  || 0
     const budgetPlan = plans.find(p => !p.userId && !p.departmentId && p.type === 'BUDGET')?.value || 0
 
@@ -242,8 +247,9 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const meetingsScheduled = sumReportField(liderReports, 'meetingsScheduled')
     const meetingsAttended = sumReportField(liderReports, 'meetingsAttended')
 
-    const salesPlan = plans.find(p => p.departmentId === deptId && p.type === 'SALES_AMOUNT')?.value ||
-      plans.find(p => !p.departmentId && p.type === 'SALES_AMOUNT')?.value || 0
+    // Dept plan first; fall back to company-wide (explicitly exclude personal plans with !p.userId)
+    const salesPlan = plans.find(p => p.departmentId === deptId && !p.userId && p.type === 'SALES_AMOUNT')?.value ||
+      plans.find(p => !p.departmentId && !p.userId && p.type === 'SALES_AMOUNT')?.value || 0
 
     // Today's report data per manager
     const todayReportByManager: Record<string, any> = {}
