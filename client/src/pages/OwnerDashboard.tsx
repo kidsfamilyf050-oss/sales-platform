@@ -5,12 +5,15 @@ import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelect
 import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
 import AIInsights from '../components/ui/AIInsights'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { ChevronLeft, ChevronRight, ArrowRight, TrendingUp, Users } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts'
+import { ChevronLeft, ChevronRight, ChevronDown, ArrowRight, TrendingUp, Users, ExternalLink } from 'lucide-react'
 import { useT } from '../i18n'
 
 function fmt(n: number) { return n.toLocaleString('ru-RU') }
 function pct(a: number, b: number) { return b > 0 ? Math.round((a / b) * 100) : 0 }
+
+const PAYMENT_TYPE_LABEL: Record<string, string> = { new_sale: 'Новая', additional: 'Доплата' }
+const PAYMENT_METHOD_LABEL: Record<string, string> = { cash: 'Нал', card: 'Безнал', credit: 'Кредит', installment: 'Рассрочка' }
 
 function getMonthRange(offset: number) {
   const now = new Date()
@@ -37,11 +40,11 @@ function FunnelArrow({ pctVal }: { pctVal: number }) {
   )
 }
 
-function FunnelStep({ label, value, sub, color, dimmed }: {
-  label: string; value: number; sub?: string; color: string; dimmed?: boolean
+function FunnelStep({ label, value, sub, color }: {
+  label: string; value: number; sub?: string; color: string
 }) {
   return (
-    <div className={`flex-1 min-w-[80px] ${dimmed ? 'opacity-60' : ''}`}>
+    <div className="flex-1 min-w-[80px]">
       <div className="text-xs text-gray-500 mb-1 leading-tight">{label}</div>
       <div className={`text-xl font-bold ${color}`}>{fmt(value)}</div>
       {sub && <div className="text-[11px] text-gray-400 mt-0.5">{sub}</div>}
@@ -49,21 +52,81 @@ function FunnelStep({ label, value, sub, color, dimmed }: {
   )
 }
 
+// Custom tooltip for chart
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
+  const entry = payload[0]?.payload
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg shadow-md p-3 text-sm">
+      <p className="font-semibold text-gray-700 mb-1">{label}</p>
+      <p className="text-blue-600 font-bold">₸ {fmt(payload[0]?.value || 0)}</p>
+      {entry?.sales > 0 && (
+        <p className="text-gray-500 text-xs mt-0.5">{entry.sales} сделок</p>
+      )}
+    </div>
+  )
+}
+
+// Expandable sales detail for a manager
+function ManagerSalesDetail({ m }: { m: any }) {
+  const sales: any[] = m.sales || []
+  return (
+    <tr>
+      <td colSpan={9} className="pb-3 px-0">
+        <div className="ml-6 mr-2 bg-gray-50 rounded-xl border border-gray-100 p-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+            Продажи за период
+            {sales.length > 0 && (
+              <span className="text-blue-600 font-bold ml-2">· {sales.length} сд · ₸ {fmt(m.salesAmount)}</span>
+            )}
+          </p>
+          {sales.length === 0 ? (
+            <p className="text-xs text-gray-400">Продаж нет за выбранный период</p>
+          ) : (
+            <div className="space-y-1.5">
+              {sales.map((s: any) => (
+                <div key={s.id} className="flex items-center gap-3 text-xs bg-white rounded-lg px-3 py-2 border border-gray-100">
+                  <span className="font-bold text-gray-900 whitespace-nowrap min-w-[90px]">₸ {fmt(Number(s.amount))}</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {PAYMENT_TYPE_LABEL[s.paymentType] || s.paymentType}
+                  </span>
+                  {s.paymentMethod && (
+                    <span className="text-gray-500 shrink-0">{PAYMENT_METHOD_LABEL[s.paymentMethod] || s.paymentMethod}</span>
+                  )}
+                  {s.bank && <span className="text-gray-400 shrink-0">{s.bank}</span>}
+                  {s.months && <span className="text-gray-400 shrink-0">{s.months} мес.</span>}
+                  {s.date && <span className="text-gray-400 shrink-0">{s.date}</span>}
+                  {s.crmLink && (
+                    <a href={s.crmLink} target="_blank" rel="noreferrer"
+                      className="flex items-center gap-1 text-blue-500 hover:underline shrink-0">
+                      <ExternalLink className="w-3 h-3" /> CRM
+                    </a>
+                  )}
+                  {s.comment && <span className="text-gray-400 italic truncate">💬 {s.comment}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </td>
+    </tr>
+  )
+}
+
 export default function OwnerDashboard() {
   const { t } = useT()
   const periodState = usePeriodStore()
   const [monthOffset, setMonthOffset] = useState(0)
+  const [expandedManager, setExpandedManager] = useState<string | null>(null)
 
+  // Build query params — always using actual dates/period strings
   const queryParams = periodState.period === 'month'
     ? (() => { const r = getMonthRange(monthOffset); return `from=${r.from}&to=${r.to}` })()
     : buildPeriodParams(periodState)
 
-  const queryKey = periodState.period === 'custom'
-    ? ['dashboard-owner', 'custom', periodState.customFrom, periodState.customTo]
-    : ['dashboard-owner', periodState.period, monthOffset]
-
+  // Use queryParams string as key so React Query refetches whenever params change
   const { data, isLoading } = useQuery({
-    queryKey,
+    queryKey: ['dashboard-owner', queryParams],
     queryFn: () => api.get(`/dashboard/owner?${queryParams}`).then(r => r.data),
   })
 
@@ -79,9 +142,11 @@ export default function OwnerDashboard() {
   const scheduledToAtt  = pct(summary.totalMeetingsAttended, summary.totalMeetingsScheduled)
   const attToSale       = pct(summary.totalSalesCount, summary.totalMeetingsAttended)
   const leadsToSale     = pct(summary.totalSalesCount, summary.totalLiderLeads)
+  const hasFunnel       = summary.totalLiderLeads > 0 || summary.totalQualifiedLeads > 0
+  const leadDeficit     = summary.leadsplan > 0 ? summary.leadsplan - summary.marketingLeads : 0
 
-  const leadDeficit = summary.leadsplan > 0 ? summary.leadsplan - summary.marketingLeads : 0
-  const hasFunnel = summary.totalLiderLeads > 0 || summary.totalQualifiedLeads > 0
+  // Chart: pick best color per bar based on relative amount
+  const maxAmount = Math.max(...(dailyChart || []).map((d: any) => d.amount), 1)
 
   return (
     <div className="space-y-6">
@@ -125,7 +190,7 @@ export default function OwnerDashboard() {
 
       <ProgressBar value={summary.planCompletion} label={t('dash.planCompletion')} />
 
-      {/* ── Block 2: Funnel (Lider → Sale) + Marketing side by side ── */}
+      {/* ── Block 2: Funnel + Marketing ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Funnel */}
         <div className="card lg:col-span-2">
@@ -140,8 +205,7 @@ export default function OwnerDashboard() {
                 {summary.totalMeetingsScheduled > 0 && (
                   <>
                     <FunnelArrow pctVal={qualToScheduled} />
-                    <FunnelStep label="Записано" value={summary.totalMeetingsScheduled}
-                      color="text-orange-500" />
+                    <FunnelStep label="Записано" value={summary.totalMeetingsScheduled} color="text-orange-500" />
                     <FunnelArrow pctVal={scheduledToAtt} />
                     <FunnelStep label="Пришло" value={summary.totalMeetingsAttended}
                       sub={`${scheduledToAtt}% явка`} color="text-orange-600" />
@@ -151,7 +215,6 @@ export default function OwnerDashboard() {
                 <FunnelStep label="Продажи" value={summary.totalSalesCount}
                   sub={`₸ ${fmt(summary.totalSalesAmount)}`} color="text-green-600" />
               </div>
-              {/* Conversion summary */}
               <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                 {[
                   { label: 'Лиды → квалиф.', val: leadsToQual },
@@ -210,28 +273,37 @@ export default function OwnerDashboard() {
         </div>
       </div>
 
-      {/* ── Block 3: Daily sales chart ── */}
+      {/* ── Block 3: Daily sales chart (clean single-axis) ── */}
       {dailyChart?.length > 0 && (
         <div className="card">
-          <h3 className="font-semibold text-gray-900 mb-4">{t('dash.chart.title')}</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-900">{t('dash.chart.title')}</h3>
+            <div className="flex items-center gap-4 text-xs text-gray-500">
+              <span>Всего: <span className="font-bold text-gray-800">₸ {fmt(summary.totalSalesAmount)}</span></span>
+              <span>{summary.totalSalesCount} сделок</span>
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={dailyChart}>
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} yAxisId="amount" orientation="left" tickFormatter={v => `${Math.round(v / 1000)}k`} />
-              <YAxis tick={{ fontSize: 11 }} yAxisId="sales" orientation="right" />
-              <Tooltip
-                formatter={(v: number, name: string) =>
-                  name === 'amount' ? [`₸ ${fmt(v)}`, 'Сумма'] : [v, 'Продаж']
-                }
-              />
-              <Bar dataKey="amount" name="amount" yAxisId="amount" fill="#3b82f6" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="sales"  name="sales"  yAxisId="sales"  fill="#10b981" radius={[3, 3, 0, 0]} />
+            <BarChart data={dailyChart} margin={{ top: 4, right: 4, bottom: 0, left: 0 }} barSize={28}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false}
+                tickFormatter={v => v >= 1000000 ? `${Math.round(v / 1000000)}M` : v >= 1000 ? `${Math.round(v / 1000)}k` : String(v)} />
+              <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f3f4f6' }} />
+              <Bar dataKey="amount" name="amount" radius={[4, 4, 0, 0]}>
+                {dailyChart.map((entry: any, idx: number) => (
+                  <Cell
+                    key={`cell-${idx}`}
+                    fill={entry.amount >= maxAmount * 0.8 ? '#3b82f6' : entry.amount >= maxAmount * 0.4 ? '#60a5fa' : '#bfdbfe'}
+                  />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      {/* ── Block 4: Closer rating ── */}
+      {/* ── Block 4: Closer rating with expandable rows ── */}
       {managerRating?.length > 0 && (
         <div className="card">
           <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
@@ -243,33 +315,47 @@ export default function OwnerDashboard() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b border-gray-100">
+                  <th className="pb-2 font-medium w-6"></th>
                   <th className="pb-2 font-medium w-6">#</th>
                   <th className="pb-2 font-medium">{t('dash.table.manager')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.plan')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.fact')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.completion')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.deals')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.conversion')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.avgCheck')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.conversion')}</th>
                 </tr>
               </thead>
               <tbody>
-                {managerRating.map((m: any, i: number) => (
-                  <tr key={m.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-2.5 text-gray-400 font-medium">{i + 1}</td>
-                    <td className="py-2.5 font-medium text-gray-900">{m.name}</td>
-                    <td className="py-2.5 text-right text-gray-500">₸ {fmt(m.plan)}</td>
-                    <td className="py-2.5 text-right font-medium">₸ {fmt(m.salesAmount)}</td>
-                    <td className="py-2.5 text-right">
-                      <span className={`font-bold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
-                        {m.plan > 0 ? `${m.completion}%` : '—'}
-                      </span>
-                    </td>
-                    <td className="py-2.5 text-right">{m.salesCount}</td>
-                    <td className="py-2.5 text-right">{m.conversion > 0 ? `${m.conversion}%` : '—'}</td>
-                    <td className="py-2.5 text-right">{m.avgCheck > 0 ? `₸ ${fmt(m.avgCheck)}` : '—'}</td>
-                  </tr>
-                ))}
+                {managerRating.map((m: any, i: number) => {
+                  const isExpanded = expandedManager === m.id
+                  return (
+                    <>
+                      <tr
+                        key={m.id}
+                        className={`border-b border-gray-50 cursor-pointer hover:bg-blue-50 transition-colors ${isExpanded ? 'bg-blue-50' : ''}`}
+                        onClick={() => setExpandedManager(isExpanded ? null : m.id)}
+                      >
+                        <td className="py-2.5 text-gray-400">
+                          <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? '' : '-rotate-90'}`} />
+                        </td>
+                        <td className="py-2.5 text-gray-400 font-medium">{i + 1}</td>
+                        <td className="py-2.5 font-medium text-gray-900">{m.name}</td>
+                        <td className="py-2.5 text-right text-gray-500">₸ {fmt(m.plan)}</td>
+                        <td className="py-2.5 text-right font-bold text-blue-600">₸ {fmt(m.salesAmount)}</td>
+                        <td className="py-2.5 text-right">
+                          <span className={`font-bold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                            {m.plan > 0 ? `${m.completion}%` : '—'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 text-right font-medium">{m.salesCount}</td>
+                        <td className="py-2.5 text-right font-medium">{m.avgCheck > 0 ? `₸ ${fmt(m.avgCheck)}` : '—'}</td>
+                        <td className="py-2.5 text-right text-gray-500">{m.conversion > 0 ? `${m.conversion}%` : '—'}</td>
+                      </tr>
+                      {isExpanded && <ManagerSalesDetail key={`${m.id}-detail`} m={m} />}
+                    </>
+                  )
+                })}
               </tbody>
             </table>
           </div>

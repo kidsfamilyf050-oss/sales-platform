@@ -136,11 +136,14 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         const clients = clientsByUser[u.id] || 0
         const plan = plans.find(p => p.userId === u.id && p.type === 'SALES_AMOUNT')?.value || 0
         const completion = plan > 0 ? Math.round((stats.salesAmount / plan) * 100) : 0
+        const userSales = periodSales.filter(s => s.userId === u.id)
+          .map(s => ({ id: s.id, amount: s.amount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date }))
         return {
           id: u.id, name: u.name, type: 'CLOSER', plan,
           salesCount: stats.salesCount, salesAmount: stats.salesAmount, completion,
           conversion: clients > 0 ? Math.round((stats.salesCount / clients) * 100) : 0,
           avgCheck: stats.salesCount > 0 ? Math.round(stats.salesAmount / stats.salesCount) : 0,
+          sales: userSales,
         }
       })
       .filter(m => m.salesAmount > 0 || m.plan > 0)
@@ -275,6 +278,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         id: m.id, name: m.name, managerType: m.managerType,
         plan: managerPlan, salesAmount: stats.salesAmount, salesCount: stats.salesCount,
         completion, conversion: clients > 0 ? Math.round((stats.salesCount / clients) * 100) : 0,
+        avgCheck: stats.salesCount > 0 ? Math.round(stats.salesAmount / stats.salesCount) : 0,
         status, reportedToday,
         // Today's detail for expanded view
         todayReport: todayReportByManager[m.id] || null,

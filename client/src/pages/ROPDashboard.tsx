@@ -241,6 +241,7 @@ export default function ROPDashboard() {
                   <th className="pb-2 font-medium text-right">{t('dash.table.fact')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.completion')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.deals')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.avgCheck')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.conversion')}</th>
                 </tr>
               </thead>
@@ -274,6 +275,7 @@ export default function ROPDashboard() {
                           </span>
                         </td>
                         <td className="py-2.5 text-right">{m.salesCount}</td>
+                        <td className="py-2.5 text-right text-gray-500">{m.avgCheck > 0 ? `₸ ${fmt(m.avgCheck)}` : '—'}</td>
                         <td className="py-2.5 text-right">{m.conversion}%</td>
                       </tr>
                       {isOpen && <ManagerDetail key={`detail-${m.id}`} m={m} />}
