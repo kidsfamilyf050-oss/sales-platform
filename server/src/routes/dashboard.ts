@@ -589,12 +589,15 @@ router.get('/closer-ranking', authenticate, async (req: AuthRequest, res: Respon
   const { period = 'month', from, to } = req.query
   const { start, end } = getPeriodDates(period as string, from as string, to as string)
   const periodKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
+  // Sale.date is a String field (YYYY-MM-DD) — must use string comparison, not Date objects
+  const fromStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`
+  const toStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`
 
   try {
     const [closers, plans, sales] = await Promise.all([
       prisma.user.findMany({ where: { companyId: req.user!.companyId, status: 'ACTIVE', role: 'MANAGER', managerType: 'CLOSER' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey } }),
-      prisma.sale.findMany({ where: { user: { companyId: req.user!.companyId, managerType: 'CLOSER' }, date: { gte: start, lte: end } }, include: { user: { select: { id: true } } } }),
+      prisma.sale.findMany({ where: { user: { companyId: req.user!.companyId, managerType: 'CLOSER' }, date: { gte: fromStr, lte: toStr } }, include: { user: { select: { id: true } } } }),
     ])
 
     const salesMap: Record<string, { salesAmount: number; salesCount: number }> = {}
