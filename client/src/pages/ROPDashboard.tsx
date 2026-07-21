@@ -49,33 +49,40 @@ function Funnel({ steps }: { steps: { label: string; value: number; color?: stri
   )
 }
 
-// Expanded manager row — shows today's sales and report
+// Expanded manager row — shows period sales and today's report
 function ManagerDetail({ m }: { m: any }) {
-  const sales: any[] = m.todaySales || []
+  const { t } = useT()
+  // m.sales = period sales (matches selected period); m.todaySales = today only (for status)
+  const periodSales: any[] = m.sales || []
+  const periodTotal = periodSales.reduce((s: number, x: any) => s + Number(x.amount), 0)
   const report = m.todayReport
 
   return (
     <tr>
-      <td colSpan={8} className="pb-3 px-0">
+      <td colSpan={9} className="pb-3 px-0">
         <div className="ml-6 mr-2 bg-gray-50 rounded-xl border border-gray-100 p-4 space-y-3">
-          {/* Today's sales */}
+          {/* Period sales */}
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              Продажи сегодня {sales.length > 0 && <span className="text-blue-600 font-bold">· {sales.length} сд · ₸{fmt(m.todaySalesTotal)}</span>}
+              {t('dash.periodSales')}
+              {periodSales.length > 0 && (
+                <span className="text-blue-600 font-bold ml-1">· {periodSales.length} · ₸ {fmt(periodTotal)}</span>
+              )}
             </p>
-            {sales.length === 0 ? (
-              <p className="text-xs text-gray-400">Продаж ещё нет</p>
+            {periodSales.length === 0 ? (
+              <p className="text-xs text-gray-400">{t('dash.noSalesPeriod')}</p>
             ) : (
               <div className="space-y-1.5">
-                {sales.map((s: any) => (
-                  <div key={s.id} className="flex items-start gap-3 text-xs bg-white rounded-lg px-3 py-2 border border-gray-100">
-                    <span className="font-bold text-gray-900 whitespace-nowrap">₸ {fmt(Number(s.amount))}</span>
+                {periodSales.map((s: any) => (
+                  <div key={s.id} className="flex items-center gap-3 text-xs bg-white rounded-lg px-3 py-2 border border-gray-100">
+                    <span className="font-bold text-gray-900 whitespace-nowrap min-w-[90px]">₸ {fmt(Number(s.amount))}</span>
                     <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                       {PAYMENT_TYPE_LABEL[s.paymentType] || s.paymentType}
                     </span>
-                    <span className="text-gray-500 shrink-0">{PAYMENT_METHOD_LABEL[s.paymentMethod] || s.paymentMethod}</span>
+                    {s.paymentMethod && <span className="text-gray-500 shrink-0">{PAYMENT_METHOD_LABEL[s.paymentMethod] || s.paymentMethod}</span>}
                     {s.bank && <span className="text-gray-400 shrink-0">{s.bank}</span>}
                     {s.months && <span className="text-gray-400 shrink-0">{s.months} мес.</span>}
+                    {s.date && <span className="text-gray-400 shrink-0">{s.date}</span>}
                     {s.crmLink && (
                       <a href={s.crmLink} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-blue-500 hover:underline shrink-0">
                         <ExternalLink className="w-3 h-3" /> CRM
@@ -91,17 +98,17 @@ function ManagerDetail({ m }: { m: any }) {
           {/* Today's report stats */}
           {report ? (
             <div className="border-t border-gray-100 pt-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Статистика дня</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{t('dash.rop.dayStats')}</p>
               <div className="flex gap-6 text-xs flex-wrap">
-                <span className="text-gray-500">Клиентов: <span className="font-bold text-gray-900">{report.clientsReceived || 0}</span></span>
-                <span className="text-gray-500">Консультаций: <span className="font-bold text-gray-900">{report.consultations || 0}</span></span>
-                <span className="text-gray-500">Отказов: <span className="font-bold text-gray-900">{report.refusals || 0}</span></span>
+                <span className="text-gray-500">{t('dash.rop.clientsLabel')}: <span className="font-bold text-gray-900">{report.clientsReceived || 0}</span></span>
+                <span className="text-gray-500">{t('dash.rop.consultationsLabel')}: <span className="font-bold text-gray-900">{report.consultations || 0}</span></span>
+                <span className="text-gray-500">{t('dash.rop.refusalsLabel')}: <span className="font-bold text-gray-900">{report.refusals || 0}</span></span>
                 {report.comment && <span className="text-gray-400 italic">💬 {report.comment}</span>}
               </div>
             </div>
           ) : (
             <div className="border-t border-gray-100 pt-3">
-              <p className="text-xs text-gray-400">Отчёт за день ещё не сдан</p>
+              <p className="text-xs text-gray-400">{t('dash.rop.noReport')}</p>
             </div>
           )}
         </div>
@@ -112,12 +119,13 @@ function ManagerDetail({ m }: { m: any }) {
 
 // Lider expanded row
 function LiderDetail({ m }: { m: any }) {
+  const { t } = useT()
   const report = m.todayReport
   if (!report) return (
     <tr>
       <td colSpan={9} className="pb-3">
         <div className="ml-6 mr-2 bg-gray-50 rounded-xl border border-gray-100 p-3">
-          <p className="text-xs text-gray-400">Отчёт за день ещё не сдан</p>
+          <p className="text-xs text-gray-400">{t('dash.rop.noReport')}</p>
         </div>
       </td>
     </tr>
@@ -126,12 +134,12 @@ function LiderDetail({ m }: { m: any }) {
     <tr>
       <td colSpan={9} className="pb-3">
         <div className="ml-6 mr-2 bg-gray-50 rounded-xl border border-gray-100 p-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Сегодня</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{t('dash.rop.dayStats')}</p>
           <div className="flex gap-6 text-xs flex-wrap">
-            <span className="text-gray-500">Лидов получено: <span className="font-bold text-gray-900">{report.leadsReceived || report.leads || 0}</span></span>
-            <span className="text-gray-500">Квалифицировано: <span className="font-bold text-gray-900">{report.qualifiedLeads || 0}</span></span>
-            <span className="text-gray-500">Записано: <span className="font-bold text-gray-900">{report.meetingsScheduled || 0}</span></span>
-            <span className="text-gray-500">Пришло: <span className="font-bold text-gray-900">{report.meetingsAttended || 0}</span></span>
+            <span className="text-gray-500">{t('dash.funnel.leadsReceived')}: <span className="font-bold text-gray-900">{report.leadsReceived || report.leads || 0}</span></span>
+            <span className="text-gray-500">{t('dash.rop.funnelStepQual')}: <span className="font-bold text-gray-900">{report.qualifiedLeads || 0}</span></span>
+            <span className="text-gray-500">{t('dash.funnel.scheduled')}: <span className="font-bold text-gray-900">{report.meetingsScheduled || 0}</span></span>
+            <span className="text-gray-500">{t('dash.funnel.attended')}: <span className="font-bold text-gray-900">{report.meetingsAttended || 0}</span></span>
             {report.comment && <span className="text-gray-400 italic">💬 {report.comment}</span>}
           </div>
         </div>

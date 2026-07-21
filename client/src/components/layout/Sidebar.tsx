@@ -79,6 +79,15 @@ export default function Sidebar({ onClose }: Props) {
         <div className="px-3 py-2 mb-1">
           <p className="text-xs font-medium text-gray-900 truncate">{user?.name}</p>
           <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+          {user && (
+            <p className="text-[11px] font-medium mt-0.5">
+              <span className="inline-block bg-blue-50 text-blue-700 rounded-full px-2 py-0.5">
+                {user.role === 'MANAGER'
+                  ? (user.managerType === 'LIDER' ? t('role.lider') : t('role.closer'))
+                  : t(`role.${user.role}` as any)}
+              </span>
+            </p>
+          )}
         </div>
         <button
           onClick={logout}

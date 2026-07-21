@@ -69,19 +69,20 @@ function ChartTooltip({ active, payload, label }: any) {
 
 // Expandable sales detail for a manager
 function ManagerSalesDetail({ m }: { m: any }) {
+  const { t } = useT()
   const sales: any[] = m.sales || []
   return (
     <tr>
       <td colSpan={9} className="pb-3 px-0">
         <div className="ml-6 mr-2 bg-gray-50 rounded-xl border border-gray-100 p-4">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-            Продажи за период
+            {t('dash.periodSales')}
             {sales.length > 0 && (
-              <span className="text-blue-600 font-bold ml-2">· {sales.length} сд · ₸ {fmt(m.salesAmount)}</span>
+              <span className="text-blue-600 font-bold ml-2">· {sales.length} · ₸ {fmt(m.salesAmount)}</span>
             )}
           </p>
           {sales.length === 0 ? (
-            <p className="text-xs text-gray-400">Продаж нет за выбранный период</p>
+            <p className="text-xs text-gray-400">{t('dash.noSalesPeriod')}</p>
           ) : (
             <div className="space-y-1.5">
               {sales.map((s: any) => (
@@ -198,28 +199,28 @@ export default function OwnerDashboard() {
           {hasFunnel ? (
             <>
               <div className="flex items-start gap-1 overflow-x-auto pb-2 flex-nowrap">
-                <FunnelStep label="Лидов получено" value={summary.totalLiderLeads} color="text-blue-600" />
+                <FunnelStep label={t('dash.funnel.leadsReceived')} value={summary.totalLiderLeads} color="text-blue-600" />
                 <FunnelArrow pctVal={leadsToQual} />
-                <FunnelStep label="Квалифицировано" value={summary.totalQualifiedLeads}
-                  sub={`${leadsToQual}% от лидов`} color="text-purple-600" />
+                <FunnelStep label={t('dash.rop.funnelStepQual')} value={summary.totalQualifiedLeads}
+                  sub={`${leadsToQual}%`} color="text-purple-600" />
                 {summary.totalMeetingsScheduled > 0 && (
                   <>
                     <FunnelArrow pctVal={qualToScheduled} />
-                    <FunnelStep label="Записано" value={summary.totalMeetingsScheduled} color="text-orange-500" />
+                    <FunnelStep label={t('dash.funnel.scheduled')} value={summary.totalMeetingsScheduled} color="text-orange-500" />
                     <FunnelArrow pctVal={scheduledToAtt} />
-                    <FunnelStep label="Пришло" value={summary.totalMeetingsAttended}
-                      sub={`${scheduledToAtt}% явка`} color="text-orange-600" />
+                    <FunnelStep label={t('dash.funnel.attended')} value={summary.totalMeetingsAttended}
+                      sub={`${scheduledToAtt}%`} color="text-orange-600" />
                   </>
                 )}
                 <FunnelArrow pctVal={summary.totalMeetingsAttended > 0 ? attToSale : leadsToSale} />
-                <FunnelStep label="Продажи" value={summary.totalSalesCount}
+                <FunnelStep label={t('dash.funnel.sales')} value={summary.totalSalesCount}
                   sub={`₸ ${fmt(summary.totalSalesAmount)}`} color="text-green-600" />
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                 {[
-                  { label: 'Лиды → квалиф.', val: leadsToQual },
-                  { label: 'Квалиф. → встречи', val: qualToScheduled },
-                  { label: 'Встречи → продажи', val: attToSale },
+                  { label: t('dash.funnel.leadsQual'), val: leadsToQual },
+                  { label: t('dash.funnel.qualMeet'), val: qualToScheduled },
+                  { label: t('dash.funnel.meetSales'), val: attToSale },
                 ].map(item => (
                   <div key={item.label} className="bg-gray-50 rounded-lg p-2">
                     <div className={`text-base font-bold ${item.val >= 50 ? 'text-green-600' : item.val >= 25 ? 'text-amber-500' : 'text-red-500'}`}>
@@ -231,7 +232,7 @@ export default function OwnerDashboard() {
               </div>
             </>
           ) : (
-            <p className="text-sm text-gray-400 py-6 text-center">Нет данных от лидорубов за этот период</p>
+            <p className="text-sm text-gray-400 py-6 text-center">{t('dash.funnel.noData')}</p>
           )}
         </div>
 
@@ -239,33 +240,33 @@ export default function OwnerDashboard() {
         <div className="card">
           <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-orange-500" />
-            Маркетинг
+            {t('dash.rop.marketingSection')}
           </h3>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between items-center">
-              <span className="text-gray-500">Лидов план</span>
+              <span className="text-gray-500">{t('dash.marketing.leadsPlan')}</span>
               <span className="font-medium">{fmt(summary.leadsplan)}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-500">Лидов факт</span>
+              <span className="text-gray-500">{t('dash.marketing.leadsFact')}</span>
               <span className={`font-bold ${summary.marketingLeads >= summary.leadsplan && summary.leadsplan > 0 ? 'text-green-600' : 'text-blue-600'}`}>
                 {fmt(summary.marketingLeads)}
               </span>
             </div>
             {leadDeficit > 0 && (
-              <div className="text-xs text-red-500 font-medium">−{fmt(leadDeficit)} отстаём</div>
+              <div className="text-xs text-red-500 font-medium">−{fmt(leadDeficit)} {t('dash.marketing.behind')}</div>
             )}
             <div className="border-t border-gray-100 pt-2 flex justify-between items-center">
-              <span className="text-gray-500">Бюджет план</span>
+              <span className="text-gray-500">{t('dash.marketing.budgetPlan')}</span>
               <span className="font-medium">₸ {fmt(summary.budgetPlan)}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-500">Бюджет факт</span>
+              <span className="text-gray-500">{t('dash.marketing.budgetFact')}</span>
               <span className="font-medium">₸ {fmt(summary.totalBudget)}</span>
             </div>
             {summary.leadCost > 0 && (
               <div className="flex justify-between items-center border-t border-gray-100 pt-2">
-                <span className="text-gray-500">Стоимость лида</span>
+                <span className="text-gray-500">{t('dash.rop.leadCostLabel')}</span>
                 <span className="font-bold text-gray-800">₸ {fmt(summary.leadCost)}</span>
               </div>
             )}
@@ -376,12 +377,12 @@ export default function OwnerDashboard() {
                 <tr className="text-left text-gray-500 border-b border-gray-100">
                   <th className="pb-2 font-medium w-6">#</th>
                   <th className="pb-2 font-medium">{t('dash.table.lider')}</th>
-                  <th className="pb-2 font-medium text-right">Лидов</th>
-                  <th className="pb-2 font-medium text-right">Квал.</th>
-                  <th className="pb-2 font-medium text-right">% квал.</th>
-                  <th className="pb-2 font-medium text-right">Записано</th>
-                  <th className="pb-2 font-medium text-right">Пришло</th>
-                  <th className="pb-2 font-medium text-right">Явка %</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.leadsCol')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.qualified')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.pctQual')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.scheduledCol')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.attended')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.attendance')}</th>
                 </tr>
               </thead>
               <tbody>

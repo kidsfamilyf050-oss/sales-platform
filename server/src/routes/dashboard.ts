@@ -251,11 +251,18 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       todayReportByManager[r.userId] = r.data
     }
 
-    // Today's sales per manager
+    // Today's sales per manager (for status dots and "today" detail)
     const todaySalesByManager: Record<string, any[]> = {}
     for (const s of todaySales) {
       if (!todaySalesByManager[s.userId]) todaySalesByManager[s.userId] = []
       todaySalesByManager[s.userId].push(s)
+    }
+
+    // Period sales per manager (for expanded view matching selected period)
+    const periodSalesByManager: Record<string, any[]> = {}
+    for (const s of periodSales) {
+      if (!periodSalesByManager[s.userId]) periodSalesByManager[s.userId] = []
+      periodSalesByManager[s.userId].push({ id: s.id, amount: s.amount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date })
     }
 
     // Closer clients per manager (from reports)
@@ -280,7 +287,9 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         completion, conversion: clients > 0 ? Math.round((stats.salesCount / clients) * 100) : 0,
         avgCheck: stats.salesCount > 0 ? Math.round(stats.salesAmount / stats.salesCount) : 0,
         status, reportedToday,
-        // Today's detail for expanded view
+        // Period sales for expanded view (matches selected date range)
+        sales: periodSalesByManager[m.id] || [],
+        // Today's detail for status tracking
         todayReport: todayReportByManager[m.id] || null,
         todaySales: todaySalesByManager[m.id] || [],
         todaySalesTotal: (todaySalesByManager[m.id] || []).reduce((s: number, x: any) => s + x.amount, 0),

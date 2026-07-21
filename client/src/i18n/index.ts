@@ -629,6 +629,36 @@ const ru = {
 
   // Owner dashboard conversion subtitle
   'dash.conversionSub': 'лиды → продажи',
+
+  // Funnel steps (short labels for Owner dashboard)
+  'dash.funnel.leadsReceived': 'Лидов получено',
+  'dash.funnel.scheduled': 'Записано',
+  'dash.funnel.attended': 'Пришло',
+  'dash.funnel.noData': 'Нет данных от лидорубов за этот период',
+
+  // Marketing block (Owner)
+  'dash.marketing.leadsPlan': 'Лидов план',
+  'dash.marketing.leadsFact': 'Лидов факт',
+  'dash.marketing.behind': 'отстаём',
+  'dash.marketing.budgetPlan': 'Бюджет план',
+  'dash.marketing.budgetFact': 'Бюджет факт',
+
+  // Lider table columns (Owner dashboard)
+  'dash.table.scheduledCol': 'Записано',
+  'dash.table.attendance': 'Явка %',
+
+  // Sales expanded rows
+  'dash.periodSales': 'Продажи за период',
+  'dash.noSalesPeriod': 'Продаж нет за выбранный период',
+  'dash.todaySales': 'Продажи сегодня',
+  'dash.noSalesToday': 'Продаж ещё нет',
+
+  // ROP expanded manager detail
+  'dash.rop.dayStats': 'Статистика дня',
+  'dash.rop.clientsLabel': 'Клиентов',
+  'dash.rop.consultationsLabel': 'Консультаций',
+  'dash.rop.refusalsLabel': 'Отказов',
+  'dash.rop.noReport': 'Отчёт за день ещё не сдан',
 }
 
 const kk: typeof ru = {
@@ -1256,6 +1286,36 @@ const kk: typeof ru = {
 
   // Owner dashboard conversion subtitle
   'dash.conversionSub': 'лидтер → сатылым',
+
+  // Funnel steps (short labels for Owner dashboard)
+  'dash.funnel.leadsReceived': 'Лидтер алынды',
+  'dash.funnel.scheduled': 'Жазылды',
+  'dash.funnel.attended': 'Келді',
+  'dash.funnel.noData': 'Осы кезең үшін лидорубтардан деректер жоқ',
+
+  // Marketing block (Owner)
+  'dash.marketing.leadsPlan': 'Лид жоспары',
+  'dash.marketing.leadsFact': 'Нақты лидтер',
+  'dash.marketing.behind': 'артта қалдық',
+  'dash.marketing.budgetPlan': 'Бюджет жоспары',
+  'dash.marketing.budgetFact': 'Нақты бюджет',
+
+  // Lider table columns (Owner dashboard)
+  'dash.table.scheduledCol': 'Жазылды',
+  'dash.table.attendance': 'Қатысу %',
+
+  // Sales expanded rows
+  'dash.periodSales': 'Кезең сатылымдары',
+  'dash.noSalesPeriod': 'Таңдалған кезең үшін сатылым жоқ',
+  'dash.todaySales': 'Бүгінгі сатылымдар',
+  'dash.noSalesToday': 'Сатылым әлі жоқ',
+
+  // ROP expanded manager detail
+  'dash.rop.dayStats': 'Күн статистикасы',
+  'dash.rop.clientsLabel': 'Клиент',
+  'dash.rop.consultationsLabel': 'Кеңестер',
+  'dash.rop.refusalsLabel': 'Бас тартулар',
+  'dash.rop.noReport': 'Күн есебі берілмеді',
 }
 
 // ── Store ────────────────────────────────────────────────────────────────────
