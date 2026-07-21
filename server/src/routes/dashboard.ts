@@ -584,4 +584,48 @@ router.get('/lider-ranking', authenticate, async (req: AuthRequest, res: Respons
   }
 })
 
+// Closer ranking — used by personal closer dashboard to show competitive leaderboard
+router.get('/closer-ranking', authenticate, async (req: AuthRequest, res: Response) => {
+  const { period = 'month', from, to } = req.query
+  const { start, end } = getPeriodDates(period as string, from as string, to as string)
+  const periodKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
+
+  try {
+    const [closers, plans, sales] = await Promise.all([
+      prisma.user.findMany({ where: { companyId: req.user!.companyId, status: 'ACTIVE', role: 'MANAGER', managerType: 'CLOSER' } }),
+      prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey } }),
+      prisma.sale.findMany({ where: { user: { companyId: req.user!.companyId, managerType: 'CLOSER' }, date: { gte: start, lte: end } }, include: { user: { select: { id: true } } } }),
+    ])
+
+    const salesMap: Record<string, { salesAmount: number; salesCount: number }> = {}
+    for (const s of sales) {
+      const uid = s.user.id
+      if (!salesMap[uid]) salesMap[uid] = { salesAmount: 0, salesCount: 0 }
+      salesMap[uid].salesAmount += Number(s.amount) || 0
+      salesMap[uid].salesCount += 1
+    }
+
+    const ranking = closers.map(u => {
+      const s = salesMap[u.id] || { salesAmount: 0, salesCount: 0 }
+      const plan = plans.find(p => p.userId === u.id && p.type === 'SALES_AMOUNT')?.value || 0
+      const completion = plan > 0 ? Math.round((s.salesAmount / plan) * 1000) / 10 : 0
+      return {
+        id: u.id,
+        name: u.name,
+        salesAmount: s.salesAmount,
+        salesCount: s.salesCount,
+        plan,
+        completion,
+      }
+    })
+    .filter(u => u.plan > 0 || u.salesAmount > 0)
+    .sort((a, b) => b.completion - a.completion || b.salesAmount - a.salesAmount)
+
+    res.json({ ranking, currentUserId: req.user!.id })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 export default router

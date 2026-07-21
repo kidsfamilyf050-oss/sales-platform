@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import { usePeriodStore } from '../components/ui/PeriodSelector'
 import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
 import { FileText, CheckCircle, Plus, Pencil, Trash2, ExternalLink, X, Check, Calendar, Download } from 'lucide-react'
@@ -87,6 +86,13 @@ export default function ManagerDashboard() {
   const { data: rankingData } = useQuery({
     queryKey: ['lider-ranking', period],
     queryFn: () => api.get(`/dashboard/lider-ranking?period=${period}`).then(r => r.data),
+    refetchInterval: 60000,
+  })
+
+  // Closer ranking (only used for closer view — shows competitive leaderboard)
+  const { data: closerRankingData } = useQuery({
+    queryKey: ['closer-ranking', period],
+    queryFn: () => api.get(`/dashboard/closer-ranking?period=${period}`).then(r => r.data),
     refetchInterval: 60000,
   })
 
@@ -194,6 +200,52 @@ export default function ManagerDashboard() {
           </div>
 
           <ProgressBar value={summary.planCompletion} label={t('dash.manager.planCompletionSales')} />
+
+          {/* Closer leaderboard — competitive ranking */}
+          {closerRankingData?.ranking?.length > 1 && (
+            <div className="card">
+              <div className="mb-3">
+                <h3 className="font-semibold text-gray-900">Рейтинг клоузеров</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Соревнуйся с коллегами — твоё место в команде</p>
+              </div>
+              <div className="space-y-1.5">
+                {closerRankingData.ranking.map((r: any, idx: number) => {
+                  const isMe = r.id === closerRankingData.currentUserId
+                  const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`
+                  return (
+                    <div key={r.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                      isMe
+                        ? 'bg-blue-50 border-2 border-blue-300 shadow-sm'
+                        : 'bg-gray-50 border border-gray-100'
+                    }`}>
+                      <span className="text-base w-7 text-center shrink-0">{medal}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-sm font-semibold truncate ${isMe ? 'text-blue-800' : 'text-gray-800'}`}>{r.name}</span>
+                          {isMe && <span className="text-xs font-bold text-blue-600 shrink-0">← Ты здесь</span>}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+                            <div
+                              className={`h-1.5 rounded-full ${r.completion >= 75 ? 'bg-green-500' : r.completion >= 50 ? 'bg-amber-400' : 'bg-red-400'}`}
+                              style={{ width: `${Math.min(100, r.completion)}%` }}
+                            />
+                          </div>
+                          <span className={`text-xs font-bold w-12 text-right shrink-0 ${r.completion >= 75 ? 'text-green-600' : r.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                            {r.plan > 0 ? `${r.completion}%` : '—'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className={`text-sm font-bold ${isMe ? 'text-blue-700' : 'text-gray-700'}`}>₸ {fmt(r.salesAmount)}</p>
+                        <p className="text-xs text-gray-400">{r.salesCount} сд.</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* ── PERIOD SALES ── all sales in selected period */}
           <div className="card">
