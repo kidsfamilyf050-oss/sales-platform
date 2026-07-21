@@ -224,23 +224,27 @@ export default function ROPDashboard() {
             <div className="flex justify-between border-t border-gray-100 pt-2"><span className="text-gray-500">{t('dash.rop.leadCostLabel')}</span><span className="font-medium">₸ {fmt(marketing.leadCost)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">{t('dash.rop.budgetLabel')}</span><span className="font-medium">₸ {fmt(marketing.totalBudget)}</span></div>
           </div>
-          {/* Legend */}
-          <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
-            {Object.entries(STATUS).map(([key, cfg]) => (
-              <div key={key} className="flex items-center gap-2 text-xs text-gray-500">
-                <div className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-                {cfg.label}
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
       {/* ── CLOSER RATING — expandable ── */}
       {managerRating?.length > 0 && (
         <div className="card">
-          <h3 className="font-semibold text-gray-900 mb-1">{t('dash.closerRating.title')}</h3>
-          <p className="text-xs text-gray-400 mb-4">{t('dash.rop.closerRatingNote')} · Нажмите на строку чтобы увидеть детали</p>
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-0.5">{t('dash.closerRating.title')}</h3>
+              <p className="text-xs text-gray-400">{t('dash.rop.closerRatingNote')} · Нажмите на строку чтобы увидеть детали</p>
+            </div>
+            {/* Status legend */}
+            <div className="flex items-center gap-4 shrink-0">
+              {Object.entries(STATUS).map(([key, cfg]) => (
+                <div key={key} className="flex items-center gap-1.5 text-xs text-gray-500 whitespace-nowrap">
+                  <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${cfg.dot}`} />
+                  {cfg.label}
+                </div>
+              ))}
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -265,10 +269,10 @@ export default function ROPDashboard() {
                   return (
                     <>
                       <tr key={m.id}
-                        className={`border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors ${STATUS[m.status as keyof typeof STATUS]?.bg}`}
+                        className={`border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors`}
                         onClick={() => toggleExpand(m.id)}>
-                        <td className="py-2.5">
-                          <div className={`w-2.5 h-2.5 rounded-full ${STATUS[m.status as keyof typeof STATUS]?.dot}`} />
+                        <td className="py-2.5 pl-1 pr-2">
+                          <div className={`w-1.5 h-8 rounded-full ${STATUS[m.status as keyof typeof STATUS]?.dot}`} />
                         </td>
                         <td className="py-2.5 text-gray-400">
                           {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
@@ -330,10 +334,10 @@ export default function ROPDashboard() {
                   return (
                     <>
                       <tr key={m.id}
-                        className={`border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors ${STATUS[m.status as keyof typeof STATUS]?.bg}`}
+                        className={`border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors`}
                         onClick={() => toggleExpand(m.id)}>
-                        <td className="py-2.5">
-                          <div className={`w-2.5 h-2.5 rounded-full ${STATUS[m.status as keyof typeof STATUS]?.dot}`} />
+                        <td className="py-2.5 pl-1 pr-2">
+                          <div className={`w-1.5 h-8 rounded-full ${STATUS[m.status as keyof typeof STATUS]?.dot}`} />
                         </td>
                         <td className="py-2.5 text-gray-400">
                           {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
