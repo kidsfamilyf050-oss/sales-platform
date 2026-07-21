@@ -114,7 +114,7 @@ export default function ManagerDashboard() {
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
   if (!data) return null
 
-  const { summary, todayReport, recentReports, type } = data
+  const { summary, todayReport, recentReports, periodSales: periodSalesData = [], type } = data
   const isCloser = type === 'CLOSER'
   const todayData = todayReport?.data as any
 
@@ -157,6 +157,60 @@ export default function ManagerDashboard() {
           </div>
 
           <ProgressBar value={summary.planCompletion} label={t('dash.manager.planCompletionSales')} />
+
+          {/* ── PERIOD SALES ── all sales in selected period */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="font-semibold text-gray-900">{t('dash.periodSales')}</h3>
+                {(periodSalesData as any[]).length > 0 && (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {(periodSalesData as any[]).length} сд. · ₸ {fmt((periodSalesData as any[]).reduce((s: number, x: any) => s + Number(x.amount), 0))}
+                  </p>
+                )}
+              </div>
+            </div>
+            {(periodSalesData as any[]).length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-4">{t('dash.noSalesPeriod')}</p>
+            ) : (
+              <div className="space-y-2">
+                {(periodSalesData as any[]).map((s: any) => (
+                  <div key={s.id} className="flex items-start justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-gray-400 w-16 shrink-0">{new Date(s.date + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
+                        <span className="font-bold text-gray-900">₸ {fmt(Number(s.amount))}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {PAYMENT_TYPE_LABEL[s.paymentType]}
+                        </span>
+                        <span className="text-xs text-gray-500">{PAYMENT_METHOD_LABEL[s.paymentMethod]}</span>
+                        {s.bank && showBank(s.paymentMethod) && <span className="text-xs text-gray-400">{s.bank}</span>}
+                        {s.months && showMonths(s.paymentMethod) && <span className="text-xs text-gray-400">{s.months} мес.</span>}
+                      </div>
+                      {s.crmLink && (
+                        <a href={s.crmLink} target="_blank" rel="noreferrer"
+                          className="flex items-center gap-1 text-xs text-blue-500 hover:underline mt-1 max-w-xs">
+                          <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{s.crmLink}</span>
+                        </a>
+                      )}
+                      {s.comment && <p className="text-xs text-gray-500 mt-1">💬 {s.comment}</p>}
+                    </div>
+                    <div className="flex gap-0.5 ml-2 flex-shrink-0">
+                      <button onClick={() => { setSalesDate(s.date); openEdit(s) }}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => { if (confirm('Удалить продажу?')) deleteSale.mutate(s.id) }}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* ── TODAY'S SALES ── entered throughout the day */}
           <div className="card">
@@ -377,9 +431,10 @@ export default function ManagerDashboard() {
               <div key={r.id} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0 text-sm">
                 <span className="text-gray-500 w-24 shrink-0">{format(new Date(r.date), 'd MMM', { locale: ru })}</span>
                 {isCloser ? (
-                  <div className="flex gap-6 text-right">
-                    <span className="text-gray-500">{t('dash.manager.dealsLabel')} <span className="font-medium text-gray-900">{(r.data as any).salesCount || 0}</span></span>
-                    <span className="text-gray-500">{t('dash.manager.amountLabel')} <span className="font-medium text-gray-900">₸ {fmt(Number((r.data as any).salesAmount) || 0)}</span></span>
+                  <div className="flex gap-4 text-right flex-wrap">
+                    <span className="text-gray-500">{t('dash.rop.clientsLabel')}: <span className="font-medium text-gray-900">{(r.data as any).clientsReceived || 0}</span></span>
+                    <span className="text-gray-500">{t('dash.rop.consultationsLabel')}: <span className="font-medium text-gray-900">{(r.data as any).consultations || 0}</span></span>
+                    <span className="text-gray-500">{t('dash.rop.refusalsLabel')}: <span className="font-medium text-gray-900">{(r.data as any).refusals || 0}</span></span>
                   </div>
                 ) : (
                   <div className="flex gap-6 text-right">

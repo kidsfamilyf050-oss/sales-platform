@@ -629,6 +629,8 @@ const ru = {
 
   // Owner dashboard conversion subtitle
   'dash.conversionSub': 'лиды → продажи',
+  'dash.owner.conversionSubMeetings': 'встречи → продажи',
+  'dash.owner.conversionSubClients': 'клиенты → продажи',
   'dash.rop.conversionSub': 'клиенты → продажи',
 
   // Funnel steps (short labels for Owner dashboard)
@@ -1306,6 +1308,8 @@ const kk: typeof ru = {
 
   // Owner dashboard conversion subtitle
   'dash.conversionSub': 'лидтер → сатылым',
+  'dash.owner.conversionSubMeetings': 'кездесулер → сатылым',
+  'dash.owner.conversionSubClients': 'клиенттер → сатылым',
   'dash.rop.conversionSub': 'клиенттер → сатылым',
 
   // Funnel steps (short labels for Owner dashboard)

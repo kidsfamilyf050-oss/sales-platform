@@ -431,6 +431,11 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           avgCheck: salesCount > 0 ? Math.round(salesAmount / salesCount) : 0,
           consultations, refusals, inWork,
         },
+        periodSales: periodSales.map(s => ({
+          id: s.id, date: s.date, amount: s.amount,
+          paymentType: s.paymentType, paymentMethod: s.paymentMethod,
+          bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment,
+        })),
         todayReport,
         recentReports: reports.slice(0, 7),
       })
