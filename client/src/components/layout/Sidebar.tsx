@@ -25,6 +25,15 @@ export default function Sidebar({ onClose }: Props) {
   })
   const incomingCount: number = Array.isArray(incomingLeads) ? incomingLeads.length : 0
 
+  // Badge: active tasks count for closer and lider
+  const { data: activeTasks } = useQuery({
+    queryKey: ['sidebar-tasks'],
+    queryFn: () => api.get('/lead-tasks?completed=false').then(r => r.data),
+    refetchInterval: 30000,
+    enabled: isCloser || isLider,
+  })
+  const activeTasksCount: number = Array.isArray(activeTasks) ? activeTasks.length : 0
+
   const navByRole: Record<string, { to: string; label: string; icon: any }[]> = {
     OWNER: [
       { to: '/dashboard/owner', label: t('nav.dashboard'), icon: BarChart2 },
@@ -80,7 +89,8 @@ export default function Sidebar({ onClose }: Props) {
 
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
         {navItems.map(({ to, label, icon: Icon }) => {
-          const showBadge = isCloser && to === '/closer/leads' && incomingCount > 0
+          const showIncomingBadge = isCloser && to === '/closer/leads' && incomingCount > 0
+          const showTasksBadge = (isCloser && to === '/closer/tasks' || isLider && to === '/lider/tasks') && activeTasksCount > 0
           return (
             <NavLink
               key={to}
@@ -94,9 +104,14 @@ export default function Sidebar({ onClose }: Props) {
             >
               <Icon className="w-4 h-4 shrink-0" />
               <span className="flex-1">{label}</span>
-              {showBadge && (
+              {showIncomingBadge && (
                 <span className="text-[11px] font-bold bg-blue-600 text-white rounded-full px-1.5 py-0.5 min-w-[18px] text-center animate-pulse">
                   {incomingCount}
+                </span>
+              )}
+              {showTasksBadge && (
+                <span className="text-[11px] font-bold bg-orange-500 text-white rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+                  {activeTasksCount}
                 </span>
               )}
             </NavLink>

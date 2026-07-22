@@ -377,7 +377,7 @@ export default function OwnerDashboard() {
       )}
 
       {/* ── Block 5: Lider rating ── */}
-      {liderRating?.length > 0 && (
+      {liderRating && (
         <div className="card">
           <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
             <Users className="w-4 h-4 text-purple-600" />

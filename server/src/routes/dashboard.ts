@@ -183,12 +183,15 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       if (l.assignedToId) ownerLiderStatsMap[uid].meetingsScheduled++  // "Передано"
       if (['IN_WORK', 'REFUSED', 'SOLD'].includes(l.status)) ownerLiderStatsMap[uid].meetingsAttended++
     }
-    const liderRating = Object.entries(ownerLiderStatsMap)
-      .map(([id, s]) => {
-        const meetingsPlan = plans.find(p => p.userId === id && p.type === 'MEETINGS_ATTENDED')?.value || 0
+    // Include ALL lider users, even those with zero leads in period
+    const allLiderUsers = allUsers.filter(u => u.managerType === 'LIDER')
+    const liderRating = allLiderUsers
+      .map(u => {
+        const s = ownerLiderStatsMap[u.id] || { leads: 0, qualifiedLeads: 0, meetingsScheduled: 0, meetingsAttended: 0 }
+        const meetingsPlan = plans.find(p => p.userId === u.id && p.type === 'MEETINGS_ATTENDED')?.value || 0
         const completion = meetingsPlan > 0 ? Math.round((s.meetingsAttended / meetingsPlan) * 1000) / 10 : 0
         return {
-          id, name: s.name, type: 'LIDER', meetingsPlan,
+          id: u.id, name: u.name, type: 'LIDER', meetingsPlan,
           leads: s.leads, qualifiedLeads: s.qualifiedLeads,
           meetingsScheduled: s.meetingsScheduled, meetingsAttended: s.meetingsAttended,
           completion,
