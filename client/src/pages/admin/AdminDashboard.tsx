@@ -47,7 +47,7 @@ export default function AdminDashboard() {
     setResetting(true)
     try {
       const r = await adminApi.post('/api/admin/reset-all-data', { confirm: 'RESET_ALL' })
-      alert(`Готово! Удалено: продаж — ${r.data.deleted.sales}, отчётов — ${r.data.deleted.reports}, CRM-ссылок — ${r.data.deleted.dealLinks}`)
+      alert(`Готово! Удалено: лидов — ${r.data.deleted.leads}, задач — ${r.data.deleted.leadTasks}, продаж — ${r.data.deleted.sales}, отчётов — ${r.data.deleted.reports}, CRM-ссылок — ${r.data.deleted.dealLinks}`)
     } catch (e: any) {
       alert(e?.response?.data?.error || 'Ошибка при сбросе')
     } finally {
@@ -129,7 +129,7 @@ export default function AdminDashboard() {
               className="w-full flex items-center gap-3 p-3 bg-red-950/50 hover:bg-red-950 border border-red-700 rounded-lg transition-colors text-red-400 text-sm disabled:opacity-50"
             >
               <Trash2 className="w-4 h-4" />
-              {resetting ? 'Удаление...' : '🗑 Сбросить ВСЕ данные (все компании)'}
+              {resetting ? 'Удаление...' : '🗑 Сбросить ВСЕ данные (лиды, продажи, отчёты)'}
             </button>
           </div>
         </div>

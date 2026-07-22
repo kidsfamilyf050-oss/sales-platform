@@ -22,6 +22,7 @@ import ROPLinksPage from './pages/ROPLinksPage'
 import LiderLeadsPage from './pages/LiderLeadsPage'
 import CloserLeadsPage from './pages/CloserLeadsPage'
 import CloserTasksPage from './pages/CloserTasksPage'
+import LiderTasksPage from './pages/LiderTasksPage'
 import CloserArchivePage from './pages/CloserArchivePage'
 import ROPTasksPage from './pages/ROPTasksPage'
 // Admin
@@ -78,6 +79,7 @@ export default function App() {
           <Route path="/lider/leads" element={<LiderLeadsPage />} />
           <Route path="/closer/leads" element={<CloserLeadsPage />} />
           <Route path="/closer/tasks" element={<CloserTasksPage />} />
+          <Route path="/lider/tasks" element={<LiderTasksPage />} />
           <Route path="/closer/archive" element={<CloserArchivePage />} />
           <Route path="/rop/tasks" element={<ROPTasksPage />} />
         </Route>

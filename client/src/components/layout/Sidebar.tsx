@@ -46,6 +46,7 @@ export default function Sidebar({ onClose }: Props) {
     MANAGER: isLider ? [
       { to: '/dashboard/manager', label: t('nav.myOffice'), icon: BarChart2 },
       { to: '/lider/leads', label: 'Лиды', icon: UserPlus },
+      { to: '/lider/tasks', label: 'Задачи', icon: CheckSquare },
     ] : [
       { to: '/dashboard/manager', label: t('nav.myOffice'), icon: BarChart2 },
       { to: '/closer/leads', label: 'Заявки', icon: Inbox },

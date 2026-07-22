@@ -167,8 +167,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
           sales: userSales,
         }
       })
-      .filter(m => m.salesAmount > 0 || m.plan > 0)
-      .sort((a, b) => b.completion - a.completion)
+      .sort((a, b) => b.completion - a.completion || b.salesAmount - a.salesAmount)
 
     // ── Lider rating (from Lead model) ────────────────────────────────────
     const ownerLiderLeadsFull = await prisma.lead.findMany({

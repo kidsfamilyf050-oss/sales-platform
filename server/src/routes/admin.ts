@@ -422,25 +422,29 @@ router.delete('/audit-logs', requireSuperAdmin, async (req: AdminRequest, res: R
 })
 
 // ─── POST /api/admin/reset-all-data ───────────────────────────────────────────
-// Deletes ALL Sales, Reports, and DealLinks across every company. Plans, Users,
-// Leads, LeadTasks, SalesChannels and everything else are kept intact.
+// Wipes ALL transactional data across every company:
+//   Sales, Reports, DealLinks, LeadTasks, Leads
+// Keeps: Plans, Users, Companies, Departments, SalesChannels
 router.post('/reset-all-data', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
   const { confirm } = req.body
   if (confirm !== 'RESET_ALL') return res.status(400).json({ error: 'Передайте confirm: "RESET_ALL"' })
   try {
-    const [sales, reports, dealLinks] = await Promise.all([
+    // Order matters: delete children before parents
+    const [sales, reports, dealLinks, leadTasks, leads] = await Promise.all([
       prisma.sale.deleteMany({}),
       prisma.report.deleteMany({}),
       prisma.dealLink.deleteMany({}),
+      prisma.leadTask.deleteMany({}),
+      prisma.lead.deleteMany({}),
     ])
 
     await writeAudit({
       action: 'GLOBAL_DATA_RESET',
-      description: `Глобальный сброс данных: удалено ${sales.count} продаж, ${reports.count} отчётов, ${dealLinks.count} CRM-ссылок`,
+      description: `Глобальный сброс данных: продаж ${sales.count}, отчётов ${reports.count}, CRM-ссылок ${dealLinks.count}, задач ${leadTasks.count}, лидов ${leads.count}`,
       adminEmail: req.adminEmail || 'admin',
     })
 
-    res.json({ ok: true, deleted: { sales: sales.count, reports: reports.count, dealLinks: dealLinks.count } })
+    res.json({ ok: true, deleted: { sales: sales.count, reports: reports.count, dealLinks: dealLinks.count, leadTasks: leadTasks.count, leads: leads.count } })
   } catch (e) {
     console.error(e)
     res.status(500).json({ error: 'Server error' })
