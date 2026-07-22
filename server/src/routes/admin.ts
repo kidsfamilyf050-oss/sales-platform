@@ -421,4 +421,30 @@ router.delete('/audit-logs', requireSuperAdmin, async (req: AdminRequest, res: R
   }
 })
 
+// ─── POST /api/admin/reset-all-data ───────────────────────────────────────────
+// Deletes ALL Sales, Reports, and DealLinks across every company. Plans, Users,
+// Leads, LeadTasks, SalesChannels and everything else are kept intact.
+router.post('/reset-all-data', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
+  const { confirm } = req.body
+  if (confirm !== 'RESET_ALL') return res.status(400).json({ error: 'Передайте confirm: "RESET_ALL"' })
+  try {
+    const [sales, reports, dealLinks] = await Promise.all([
+      prisma.sale.deleteMany({}),
+      prisma.report.deleteMany({}),
+      prisma.dealLink.deleteMany({}),
+    ])
+
+    await writeAudit({
+      action: 'GLOBAL_DATA_RESET',
+      description: `Глобальный сброс данных: удалено ${sales.count} продаж, ${reports.count} отчётов, ${dealLinks.count} CRM-ссылок`,
+      adminEmail: req.adminEmail || 'admin',
+    })
+
+    res.json({ ok: true, deleted: { sales: sales.count, reports: reports.count, dealLinks: dealLinks.count } })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 export default router

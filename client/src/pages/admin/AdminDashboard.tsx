@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { adminApi } from '../../api/adminClient'
-import { Building2, Users, FileText, Activity, TrendingUp, TrendingDown } from 'lucide-react'
+import { Building2, Users, FileText, Activity, TrendingUp, TrendingDown, Trash2 } from 'lucide-react'
 
 interface Stats {
   totalCompanies: number
@@ -32,6 +32,7 @@ function StatCard({ label, value, sub, icon: Icon, color }: {
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [resetting, setResetting] = useState(false)
 
   useEffect(() => {
     adminApi.get('/api/admin/stats')
@@ -39,6 +40,20 @@ export default function AdminDashboard() {
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [])
+
+  const handleResetAll = async () => {
+    if (!window.confirm('ВНИМАНИЕ! Удалить ВСЕ продажи, отчёты и CRM-ссылки во ВСЕХ компаниях? Это необратимо.')) return
+    if (!window.confirm('Подтвердите ещё раз: все данные будут удалены навсегда.')) return
+    setResetting(true)
+    try {
+      const r = await adminApi.post('/api/admin/reset-all-data', { confirm: 'RESET_ALL' })
+      alert(`Готово! Удалено: продаж — ${r.data.deleted.sales}, отчётов — ${r.data.deleted.reports}, CRM-ссылок — ${r.data.deleted.dealLinks}`)
+    } catch (e: any) {
+      alert(e?.response?.data?.error || 'Ошибка при сбросе')
+    } finally {
+      setResetting(false)
+    }
+  }
 
   if (loading) return (
     <div className="p-8 text-gray-500 flex items-center gap-2">
@@ -108,6 +123,14 @@ export default function AdminDashboard() {
               <Building2 className="w-4 h-4" />
               + Создать компанию вручную
             </a>
+            <button
+              onClick={handleResetAll}
+              disabled={resetting}
+              className="w-full flex items-center gap-3 p-3 bg-red-950/50 hover:bg-red-950 border border-red-700 rounded-lg transition-colors text-red-400 text-sm disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" />
+              {resetting ? 'Удаление...' : '🗑 Сбросить ВСЕ данные (все компании)'}
+            </button>
           </div>
         </div>
       </div>
