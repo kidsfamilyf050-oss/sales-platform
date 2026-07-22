@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { BarChart2, Users, FileText, Settings, TrendingUp, Target, LogOut, Activity, X, Inbox, CheckSquare, UserPlus, Archive } from 'lucide-react'
+import { BarChart2, Users, FileText, Settings, TrendingUp, Target, LogOut, Activity, X, Inbox, CheckSquare, UserPlus, Archive, ClipboardList } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useT } from '../../i18n'
 import { api } from '../../api/client'
@@ -37,6 +37,7 @@ export default function Sidebar({ onClose }: Props) {
     ROP: [
       { to: '/dashboard/rop', label: t('nav.dashboard'), icon: BarChart2 },
       { to: '/tracking', label: t('nav.control'), icon: Activity },
+      { to: '/rop/tasks', label: 'Задачи', icon: ClipboardList },
       { to: '/marketing', label: t('nav.marketing'), icon: TrendingUp },
       { to: '/users', label: t('nav.users'), icon: Users },
       { to: '/plans', label: t('nav.plans'), icon: Target },
@@ -50,7 +51,6 @@ export default function Sidebar({ onClose }: Props) {
       { to: '/closer/leads', label: 'Заявки', icon: Inbox },
       { to: '/closer/tasks', label: 'Задачи', icon: CheckSquare },
       { to: '/closer/archive', label: 'Архив', icon: Archive },
-      { to: '/report', label: t('nav.fillReport'), icon: FileText },
     ],
     MARKETER: [
       { to: '/dashboard/marketer', label: t('nav.myOffice'), icon: TrendingUp },

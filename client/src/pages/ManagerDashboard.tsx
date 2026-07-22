@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
-import { FileText, CheckCircle, Plus, Pencil, Trash2, ExternalLink, X, Check, Download, ChevronRight, Archive } from 'lucide-react'
+import { Plus, Pencil, Trash2, ExternalLink, X, Check, Download, ChevronRight, Archive } from 'lucide-react'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useT } from '../i18n'
@@ -171,17 +171,7 @@ export default function ManagerDashboard() {
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">Экспорт</span>
           </button>
-          {todayReport ? (
-            <div className="flex items-center gap-2 text-green-600 bg-green-50 border border-green-200 px-3 py-2 rounded-lg text-sm font-medium">
-              <CheckCircle className="w-4 h-4" />
-              {t('dash.manager.reportDone')}
-            </div>
-          ) : (
-            <button onClick={() => navigate('/report')} className="btn-primary flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              {t('dash.manager.fillReport')}
-            </button>
-          )}
+          {/* Closer/Lider no longer fill daily reports */}
         </div>
       </div>
 

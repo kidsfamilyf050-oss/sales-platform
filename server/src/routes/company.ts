@@ -106,4 +106,22 @@ router.get('/departments', authenticate, async (req: AuthRequest, res: Response)
   }
 })
 
+// DELETE all transactional data (sales, reports, deal links) keeping plans/users/leads
+// OWNER only — used to reset data for a fresh start
+router.post('/reset-data', authenticate, requireRole('OWNER'), async (req: AuthRequest, res: Response) => {
+  const { confirm } = req.body
+  if (confirm !== 'RESET') return res.status(400).json({ error: 'Передайте confirm: "RESET"' })
+  try {
+    const companyId = req.user!.companyId
+    const [sales, reports, dealLinks] = await Promise.all([
+      prisma.sale.deleteMany({ where: { companyId } }),
+      prisma.report.deleteMany({ where: { user: { companyId } } }),
+      prisma.dealLink.deleteMany({ where: { companyId } }),
+    ])
+    res.json({ ok: true, deleted: { sales: sales.count, reports: reports.count, dealLinks: dealLinks.count } })
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
 export default router

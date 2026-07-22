@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
-import { Save, Pencil, Check, X, Trash2 } from 'lucide-react'
+import { Save, Pencil, Check, X, Trash2, AlertTriangle } from 'lucide-react'
 import { useT, getSpheres } from '../i18n'
+import { useAuthStore } from '../store/auth'
 
 function DeptRenameRow({ dept }: { dept: any }) {
   const qc = useQueryClient()
@@ -81,7 +82,10 @@ function DeptRenameRow({ dept }: { dept: any }) {
 
 export default function SettingsPage() {
   const { t } = useT()
+  const { user } = useAuthStore()
+  const isOwner = user?.role === 'OWNER'
   const [saved, setSaved] = useState(false)
+  const [resetting, setResetting] = useState(false)
   const { data: company } = useQuery({ queryKey: ['company'], queryFn: () => api.get('/company').then(r => r.data) })
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: () => api.get('/company/departments').then(r => r.data) })
   const [form, setForm] = useState({ name: '', businessSphere: '', reportingStart: 1 })
@@ -130,6 +134,40 @@ export default function SettingsPage() {
           <h3 className="font-semibold text-gray-900 mb-1">{t('settings.deptNames')}</h3>
           <p className="text-xs text-gray-400 mb-4">{t('settings.deptNamesNote')}</p>
           {departments.map((d: any) => <DeptRenameRow key={d.id} dept={d} />)}
+        </div>
+      )}
+
+      {isOwner && (
+        <div className="card border-red-100 bg-red-50/30">
+          <div className="flex items-start gap-3 mb-4">
+            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-semibold text-red-700">Сброс данных</h3>
+              <p className="text-xs text-red-500 mt-1">
+                Удалит все продажи, отчёты и CRM-ссылки. Планы, пользователи и заявки останутся.
+                Действие необратимо.
+              </p>
+            </div>
+          </div>
+          <button
+            disabled={resetting}
+            onClick={async () => {
+              if (!window.confirm('Удалить все продажи и отчёты? Это необратимо.')) return
+              if (!window.confirm('Вы уверены? Данные будут удалены навсегда.')) return
+              setResetting(true)
+              try {
+                const res = await api.post('/company/reset-data', { confirm: 'RESET' })
+                alert(`Удалено: продаж ${res.data.deleted.sales}, отчётов ${res.data.deleted.reports}, CRM-ссылок ${res.data.deleted.dealLinks}`)
+              } catch (e: any) {
+                alert(e?.response?.data?.error || 'Ошибка при сбросе')
+              } finally {
+                setResetting(false)
+              }
+            }}
+            className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors disabled:opacity-50"
+          >
+            {resetting ? 'Удаление...' : 'Сбросить данные'}
+          </button>
         </div>
       )}
     </div>

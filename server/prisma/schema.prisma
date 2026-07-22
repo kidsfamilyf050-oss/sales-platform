@@ -75,15 +75,16 @@ model User {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
-  reports        Report[]
-  sales          Sale[]
-  dealLinks      DealLink[]
-  notifications  Notification[]
-  planChanges    PlanChange[]
-  sessions       UserSession[]
-  leadsCreated   Lead[]         @relation("LeadCreatedBy")
-  leadsAssigned  Lead[]         @relation("LeadAssignedTo")
-  leadTasks      LeadTask[]
+  reports           Report[]
+  sales             Sale[]
+  dealLinks         DealLink[]
+  notifications     Notification[]
+  planChanges       PlanChange[]
+  sessions          UserSession[]
+  leadsCreated      Lead[]      @relation("LeadCreatedBy")
+  leadsAssigned     Lead[]      @relation("LeadAssignedTo")
+  leadTasksAssigned LeadTask[]  @relation("LeadTaskAssignee")
+  leadTasksCreated  LeadTask[]  @relation("LeadTaskCreator")
 }
 
 model UserSession {
@@ -303,18 +304,22 @@ model Lead {
 }
 
 model LeadTask {
-  id        String   @id @default(cuid())
-  leadId    String
-  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  title     String
-  dueDate   String   // YYYY-MM-DD
-  completed Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  leadId      String?                                                                              // optional: null = standalone task
+  lead        Lead?    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId      String                                                                               // assigned to
+  user        User     @relation("LeadTaskAssignee", fields: [userId], references: [id], onDelete: Cascade)
+  createdById String?                                                                              // null = self, else ROP/OWNER who assigned
+  createdBy   User?    @relation("LeadTaskCreator", fields: [createdById], references: [id])
+  title       String
+  dueDate     String   // YYYY-MM-DD
+  completed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([userId, completed])
   @@index([leadId])
+  @@index([createdById])
 }
 
 model AuditLog {

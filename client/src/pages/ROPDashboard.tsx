@@ -200,11 +200,11 @@ export default function ROPDashboard() {
   const { summary, funnel, marketing, managerRating, liderRating } = data
 
   const funnelSteps = [
-    { label: t('dash.rop.funnelStepLeads'), value: funnel.leadsReceived,    color: 'bg-purple-400' },
-    { label: t('dash.rop.funnelStepQual'),  value: funnel.qualifiedLeads,   color: 'bg-purple-500' },
-    { label: t('dash.rop.funnelStepSched'), value: funnel.meetingsScheduled,color: 'bg-blue-400' },
-    { label: t('dash.rop.funnelStepAtt'),   value: funnel.meetingsAttended, color: 'bg-blue-500' },
-    { label: t('dash.rop.funnelStepSales'), value: funnel.salesCount,       color: 'bg-green-500' },
+    { label: 'Лидов получено',      value: funnel.leadsReceived,    color: 'bg-purple-400' },
+    { label: 'Квалифицировано',     value: funnel.qualifiedLeads,   color: 'bg-purple-500' },
+    { label: 'Передано клоузеру',   value: funnel.meetingsScheduled,color: 'bg-blue-400' },
+    { label: 'В работе у клоузера', value: funnel.meetingsAttended, color: 'bg-blue-500' },
+    { label: 'Продажи (сделки)',    value: funnel.salesCount,       color: 'bg-green-500' },
   ]
 
   return (
@@ -383,13 +383,13 @@ export default function ROPDashboard() {
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium">{t('dash.table.lider')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.pctPlan')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.leadsCol')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.pctQual')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.qualified')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.pctScheduled')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.scheduledCol')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.pctAttended')}</th>
+                  <th className="pb-2 font-medium text-right">% план</th>
+                  <th className="pb-2 font-medium text-right">Лидов</th>
+                  <th className="pb-2 font-medium text-right">% квал.</th>
+                  <th className="pb-2 font-medium text-right">Квалиф.</th>
+                  <th className="pb-2 font-medium text-right">% передано</th>
+                  <th className="pb-2 font-medium text-right">Передано</th>
+                  <th className="pb-2 font-medium text-right">% в работе</th>
                 </tr>
               </thead>
               <tbody>
