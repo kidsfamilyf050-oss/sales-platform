@@ -1,7 +1,9 @@
 import { NavLink } from 'react-router-dom'
-import { BarChart2, Users, FileText, Settings, TrendingUp, Target, LogOut, Activity, X, Inbox, CheckSquare, UserPlus } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { BarChart2, Users, FileText, Settings, TrendingUp, Target, LogOut, Activity, X, Inbox, CheckSquare, UserPlus, Archive } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useT } from '../../i18n'
+import { api } from '../../api/client'
 
 interface Props {
   onClose?: () => void
@@ -13,6 +15,15 @@ export default function Sidebar({ onClose }: Props) {
 
   const isLider = user?.role === 'MANAGER' && user?.managerType === 'LIDER'
   const isCloser = user?.role === 'MANAGER' && user?.managerType !== 'LIDER'
+
+  // Badge: incoming leads count for closer
+  const { data: incomingLeads } = useQuery({
+    queryKey: ['sidebar-incoming'],
+    queryFn: () => api.get('/leads/incoming').then(r => r.data),
+    refetchInterval: 30000,
+    enabled: isCloser,
+  })
+  const incomingCount: number = Array.isArray(incomingLeads) ? incomingLeads.length : 0
 
   const navByRole: Record<string, { to: string; label: string; icon: any }[]> = {
     OWNER: [
@@ -38,6 +49,7 @@ export default function Sidebar({ onClose }: Props) {
       { to: '/dashboard/manager', label: t('nav.myOffice'), icon: BarChart2 },
       { to: '/closer/leads', label: 'Заявки', icon: Inbox },
       { to: '/closer/tasks', label: 'Задачи', icon: CheckSquare },
+      { to: '/closer/archive', label: 'Архив', icon: Archive },
       { to: '/report', label: t('nav.fillReport'), icon: FileText },
     ],
     MARKETER: [
@@ -66,21 +78,29 @@ export default function Sidebar({ onClose }: Props) {
       </div>
 
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            onClick={onClose}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`
-            }
-          >
-            <Icon className="w-4 h-4 shrink-0" />
-            {label}
-          </NavLink>
-        ))}
+        {navItems.map(({ to, label, icon: Icon }) => {
+          const showBadge = isCloser && to === '/closer/leads' && incomingCount > 0
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`
+              }
+            >
+              <Icon className="w-4 h-4 shrink-0" />
+              <span className="flex-1">{label}</span>
+              {showBadge && (
+                <span className="text-[11px] font-bold bg-blue-600 text-white rounded-full px-1.5 py-0.5 min-w-[18px] text-center animate-pulse">
+                  {incomingCount}
+                </span>
+              )}
+            </NavLink>
+          )
+        })}
       </nav>
 
       <div className="p-3 border-t border-gray-100">

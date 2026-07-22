@@ -191,6 +191,7 @@ model Sale {
   months        Int?
   crmLink       String?
   comment       String?
+  leadId        String?  @unique  // if created from a Lead (prevents duplicates)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

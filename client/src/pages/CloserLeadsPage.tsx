@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import PeriodSelector, { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
-import { Phone, Calendar, User, ChevronDown, ChevronUp, Check, X, CheckSquare, Plus, ExternalLink, Banknote } from 'lucide-react'
+import { Phone, Calendar, User, ChevronDown, ChevronUp, Check, X, CheckSquare, Plus, ExternalLink, Banknote, Pencil } from 'lucide-react'
 
 type Lead = {
   id: string
@@ -17,7 +17,6 @@ type Lead = {
   createdBy: { id: string; name: string }
   assignedTo: { id: string; name: string } | null
   tasks: { id: string; title: string; dueDate: string; completed: boolean }[]
-  // closer fields
   amount: number | null
   paymentType: string | null
   paymentMethod: string | null
@@ -90,8 +89,8 @@ function AddTaskModal({ leadId, onClose }: { leadId: string; onClose: () => void
   )
 }
 
-// ── Sell Form (inside expanded card) ─────────────────────────────────────────
-function SellForm({ lead, onSuccess }: { lead: Lead; onSuccess: () => void }) {
+// ── Edit Lead Modal ───────────────────────────────────────────────────────────
+function EditLeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const qc = useQueryClient()
   const [form, setForm] = useState({
     amount: lead.amount ? String(lead.amount) : '',
@@ -105,13 +104,94 @@ function SellForm({ lead, onSuccess }: { lead: Lead; onSuccess: () => void }) {
   const [error, setError] = useState('')
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
+  const saveMut = useMutation({
+    mutationFn: () => api.put(`/leads/${lead.id}`, {
+      ...form,
+      amount: form.amount ? Number(form.amount) : null,
+      months: form.months ? Number(form.months) : null,
+    }).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['closer-leads'] }); onClose() },
+    onError: (e: any) => setError(e.response?.data?.error || 'Ошибка'),
+  })
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <h3 className="font-bold text-gray-900 mb-4">Редактировать заявку — {lead.clientName}</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium text-gray-500 block mb-1">Сумма</label>
+            <input type="number" className="input" value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="0" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 block mb-1">Тип оплаты</label>
+            <select className="input" value={form.paymentType} onChange={e => set('paymentType', e.target.value)}>
+              {PAYMENT_TYPE.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 block mb-1">Способ оплаты</label>
+            <select className="input" value={form.paymentMethod} onChange={e => set('paymentMethod', e.target.value)}>
+              {PAYMENT_METHOD.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 block mb-1">Банк</label>
+            <select className="input" value={form.bank} onChange={e => set('bank', e.target.value)}>
+              <option value="">— не выбран —</option>
+              {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
+          {(form.paymentMethod === 'credit' || form.paymentMethod === 'installment') && (
+            <div>
+              <label className="text-xs font-medium text-gray-500 block mb-1">Месяцев</label>
+              <input type="number" className="input" value={form.months} onChange={e => set('months', e.target.value)} placeholder="12" />
+            </div>
+          )}
+          <div className="col-span-2">
+            <label className="text-xs font-medium text-gray-500 block mb-1">Ссылка на сделку в CRM</label>
+            <input type="url" className="input" value={form.crmLink} onChange={e => set('crmLink', e.target.value)} placeholder="https://..." />
+          </div>
+          <div className="col-span-2">
+            <label className="text-xs font-medium text-gray-500 block mb-1">Комментарий</label>
+            <textarea className="input resize-none h-16" value={form.closerComment} onChange={e => set('closerComment', e.target.value)} placeholder="Заметки по сделке..." />
+          </div>
+        </div>
+        {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg mt-3">{error}</p>}
+        <div className="flex gap-3 mt-5">
+          <button onClick={onClose} className="flex-1 btn-outline">Отмена</button>
+          <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending} className="flex-1 btn-primary">
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── In-Work Section (combined sell form + refuse + task) ──────────────────────
+function InWorkSection({ lead }: { lead: Lead }) {
+  const qc = useQueryClient()
+  const [form, setForm] = useState({
+    amount: lead.amount ? String(lead.amount) : '',
+    paymentType: lead.paymentType || 'new_sale',
+    paymentMethod: lead.paymentMethod || 'card',
+    bank: lead.bank || '',
+    months: lead.months ? String(lead.months) : '',
+    crmLink: lead.crmLink || '',
+    closerComment: lead.closerComment || '',
+  })
+  const [error, setError] = useState('')
+  const [showTaskForm, setShowTaskForm] = useState(false)
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+
   const sellMut = useMutation({
     mutationFn: () => api.put(`/leads/${lead.id}/sell`, {
       ...form,
       amount: Number(form.amount),
       months: form.months ? Number(form.months) : null,
     }).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['closer-leads'] }); onSuccess() },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['closer-leads'] }),
     onError: (e: any) => setError(e.response?.data?.error || 'Ошибка'),
   })
 
@@ -121,7 +201,13 @@ function SellForm({ lead, onSuccess }: { lead: Lead; onSuccess: () => void }) {
       amount: form.amount ? Number(form.amount) : null,
       months: form.months ? Number(form.months) : null,
     }).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['closer-leads'] }); onSuccess() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['closer-leads'] }); setError('') },
+    onError: (e: any) => setError(e.response?.data?.error || 'Ошибка'),
+  })
+
+  const refuseMut = useMutation({
+    mutationFn: () => api.put(`/leads/${lead.id}/refuse`, { crmLink: form.crmLink }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['closer-leads'] }),
     onError: (e: any) => setError(e.response?.data?.error || 'Ошибка'),
   })
 
@@ -159,7 +245,10 @@ function SellForm({ lead, onSuccess }: { lead: Lead; onSuccess: () => void }) {
           </div>
         )}
         <div className="col-span-2">
-          <label className="text-xs font-medium text-gray-500 block mb-1">Ссылка на сделку в CRM</label>
+          <label className="text-xs font-medium text-gray-500 block mb-1">
+            Ссылка на сделку в CRM <span className="text-red-500">*</span>
+            <span className="text-gray-400 font-normal ml-1">(обязательна для отказа и продажи)</span>
+          </label>
           <input type="url" className="input" value={form.crmLink} onChange={e => set('crmLink', e.target.value)} placeholder="https://..." />
         </div>
         <div className="col-span-2">
@@ -167,75 +256,61 @@ function SellForm({ lead, onSuccess }: { lead: Lead; onSuccess: () => void }) {
           <textarea className="input resize-none h-16" value={form.closerComment} onChange={e => set('closerComment', e.target.value)} placeholder="Заметки по сделке..." />
         </div>
       </div>
+
       {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+
+      {/* Primary actions */}
       <div className="flex gap-2">
         <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending}
           className="flex-1 btn-outline text-sm py-2">
           Сохранить черновик
         </button>
         <button onClick={() => {
+          setError('')
           if (!form.amount || !form.crmLink) return setError('Заполните сумму и CRM-ссылку')
           sellMut.mutate()
         }} disabled={sellMut.isPending}
-          className="flex-1 btn-primary text-sm py-2 bg-green-600 hover:bg-green-700">
+          className="flex-1 text-sm py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-40">
           <Check className="w-4 h-4 inline mr-1" />Закрыть как продажу
         </button>
       </div>
-    </div>
-  )
-}
 
-// ── Refuse Section ────────────────────────────────────────────────────────────
-function RefuseSection({ lead }: { lead: Lead }) {
-  const qc = useQueryClient()
-  const [showTaskForm, setShowTaskForm] = useState(false)
-  const [error, setError] = useState('')
-
-  const refuseMut = useMutation({
-    mutationFn: () => api.put(`/leads/${lead.id}/refuse`).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['closer-leads'] }),
-    onError: (e: any) => setError(e.response?.data?.error || 'Нужно добавить задачу перед отказом'),
-  })
-
-  const hasTask = lead.tasks.length > 0
-
-  return (
-    <div className="border-t border-gray-100 pt-3">
-      {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg mb-3">{error}</p>}
-      {!hasTask && (
-        <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg mb-3">
-          Перед отказом нужно добавить задачу (например, «перезвонить через неделю»)
-        </p>
-      )}
-      <div className="flex gap-2">
+      {/* Secondary actions */}
+      <div className="flex gap-2 border-t border-gray-100 pt-3">
         <button
           onClick={() => setShowTaskForm(true)}
-          className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors"
+          className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors flex-1 justify-center"
         >
-          <Plus className="w-4 h-4" /> Добавить задачу
+          <Plus className="w-4 h-4" /> Оставить в работе
         </button>
         <button
-          onClick={() => refuseMut.mutate()}
+          onClick={() => {
+            setError('')
+            if (!form.crmLink) return setError('Заполните CRM-ссылку для отказа')
+            refuseMut.mutate()
+          }}
           disabled={refuseMut.isPending}
           className="flex items-center gap-1.5 text-sm text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-2 rounded-lg font-medium transition-colors disabled:opacity-40"
         >
           <X className="w-4 h-4" /> Отказ
         </button>
       </div>
+
       {showTaskForm && <AddTaskModal leadId={lead.id} onClose={() => setShowTaskForm(false)} />}
     </div>
   )
 }
 
 // ── Lead Card ─────────────────────────────────────────────────────────────────
-function LeadCard({ lead, showAccept = false, showWork = false }: {
+function LeadCard({ lead, showAccept = false, showWork = false, readonly = false }: {
   lead: Lead
   showAccept?: boolean
   showWork?: boolean
+  readonly?: boolean
 }) {
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
-  const [showTaskForm, setShowTaskForm] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   const acceptMut = useMutation({
     mutationFn: () => api.put(`/leads/${lead.id}/accept`).then(r => r.data),
@@ -244,6 +319,14 @@ function LeadCard({ lead, showAccept = false, showWork = false }: {
 
   const completedTasks = lead.tasks.filter(t => t.completed).length
   const totalTasks = lead.tasks.length
+
+  const statusColor = lead.status === 'SOLD'
+    ? 'text-green-600 bg-green-50'
+    : lead.status === 'REFUSED'
+    ? 'text-red-600 bg-red-50'
+    : 'text-amber-600 bg-amber-50'
+
+  const statusLabel = lead.status === 'SOLD' ? 'Продажа' : lead.status === 'REFUSED' ? 'Отказ' : 'В работе'
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -254,6 +337,7 @@ function LeadCard({ lead, showAccept = false, showWork = false }: {
             <p className="font-semibold text-gray-900">{lead.clientName}</p>
             {lead.isQualified && <span className="text-[11px] font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Квал.</span>}
             {lead.isScheduled && <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">Записан</span>}
+            {readonly && <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${statusColor}`}>{statusLabel}</span>}
             {totalTasks > 0 && (
               <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${completedTasks === totalTasks ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                 <CheckSquare className="w-3 h-3 inline mr-0.5" />{completedTasks}/{totalTasks}
@@ -276,6 +360,15 @@ function LeadCard({ lead, showAccept = false, showWork = false }: {
               className="flex items-center gap-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 rounded-lg font-medium transition-colors"
             >
               <Check className="w-4 h-4" /> Принять
+            </button>
+          )}
+          {readonly && (
+            <button
+              onClick={e => { e.stopPropagation(); setShowEditModal(true) }}
+              className="p-1.5 rounded-lg text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+              title="Редактировать"
+            >
+              <Pencil className="w-4 h-4" />
             </button>
           )}
           <div className="text-gray-300">
@@ -317,22 +410,11 @@ function LeadCard({ lead, showAccept = false, showWork = false }: {
             </div>
           )}
 
-          {/* Action buttons + sell form for IN_WORK */}
-          {showWork && (
-            <>
-              <SellForm lead={lead} onSuccess={() => setOpen(false)} />
-              <RefuseSection lead={lead} />
-              <button
-                onClick={() => setShowTaskForm(true)}
-                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                <Plus className="w-4 h-4" /> Добавить задачу
-              </button>
-            </>
-          )}
+          {/* IN_WORK: sell/refuse/task section */}
+          {showWork && <InWorkSection lead={lead} />}
 
-          {/* CRM link if present */}
-          {lead.crmLink && (
+          {/* CRM link for non-IN_WORK leads */}
+          {!showWork && lead.crmLink && (
             <a href={lead.crmLink} target="_blank" rel="noreferrer"
               className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
               <ExternalLink className="w-4 h-4" /> Открыть в CRM
@@ -341,7 +423,7 @@ function LeadCard({ lead, showAccept = false, showWork = false }: {
         </div>
       )}
 
-      {showTaskForm && <AddTaskModal leadId={lead.id} onClose={() => setShowTaskForm(false)} />}
+      {showEditModal && <EditLeadModal lead={lead} onClose={() => setShowEditModal(false)} />}
     </div>
   )
 }
@@ -394,7 +476,7 @@ export default function CloserLeadsPage() {
 
       {/* Period + tabs */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 flex-wrap">
           {tabs.map(t => (
             <button
               key={t.key}
@@ -441,6 +523,7 @@ export default function CloserLeadsPage() {
               lead={lead}
               showAccept={tab === 'incoming'}
               showWork={tab === 'inwork'}
+              readonly={tab === 'refused' || tab === 'sold'}
             />
           ))}
         </div>

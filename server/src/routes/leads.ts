@@ -299,16 +299,18 @@ router.put('/:id/accept', authenticate, async (req: AuthRequest, res: Response) 
   }
 })
 
-// ── PUT /api/leads/:id/refuse — closer refuses (requires task already set) ────
+// ── PUT /api/leads/:id/refuse — closer refuses (requires CRM link) ───────────
 router.put('/:id/refuse', authenticate, async (req: AuthRequest, res: Response) => {
+  const { crmLink } = req.body
   try {
-    const lead = await prisma.lead.findUnique({ where: { id: req.params.id }, include: { tasks: true } })
+    const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
     if (!lead) return res.status(404).json({ error: 'Not found' })
     if (lead.assignedToId !== req.user!.id) return res.status(403).json({ error: 'Forbidden' })
-    if (lead.tasks.length === 0) return res.status(400).json({ error: 'Нужно добавить хотя бы одну задачу перед отказом' })
+    const finalCrmLink = crmLink?.trim() || lead.crmLink
+    if (!finalCrmLink) return res.status(400).json({ error: 'Нужна CRM-ссылка для отказа' })
     const updated = await prisma.lead.update({
       where: { id: req.params.id },
-      data: { status: 'REFUSED' },
+      data: { status: 'REFUSED', crmLink: finalCrmLink },
       include: INCLUDE_FULL,
     })
     res.json(updated)
@@ -327,17 +329,64 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
     const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
     if (!lead) return res.status(404).json({ error: 'Not found' })
     if (lead.assignedToId !== req.user!.id) return res.status(403).json({ error: 'Forbidden' })
+
+    const [updated] = await Promise.all([
+      prisma.lead.update({
+        where: { id: req.params.id },
+        data: {
+          status: 'SOLD',
+          amount: Number(amount),
+          paymentType, paymentMethod,
+          bank: bank?.trim() || null,
+          months: months ? Number(months) : null,
+          crmLink: crmLink?.trim() || null,
+          closerComment: closerComment?.trim() || null,
+        },
+        include: INCLUDE_FULL,
+      }),
+      // Also upsert a Sale record so it appears in the dashboard
+      prisma.sale.upsert({
+        where: { leadId: req.params.id },
+        create: {
+          userId: req.user!.id,
+          companyId: req.user!.companyId,
+          date: lead.date,
+          amount: Number(amount),
+          paymentType, paymentMethod,
+          bank: bank?.trim() || null,
+          months: months ? Number(months) : null,
+          crmLink: crmLink?.trim() || null,
+          comment: closerComment?.trim() || null,
+          leadId: req.params.id,
+        },
+        update: {
+          date: lead.date,
+          amount: Number(amount),
+          paymentType, paymentMethod,
+          bank: bank?.trim() || null,
+          months: months ? Number(months) : null,
+          crmLink: crmLink?.trim() || null,
+          comment: closerComment?.trim() || null,
+        },
+      }),
+    ])
+    res.json(updated)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── PUT /api/leads/:id/restore — restore REFUSED lead back to IN_WORK ────────
+router.put('/:id/restore', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
+    if (!lead) return res.status(404).json({ error: 'Not found' })
+    if (lead.assignedToId !== req.user!.id && req.user!.role !== 'OWNER' && req.user!.role !== 'ROP') {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
     const updated = await prisma.lead.update({
       where: { id: req.params.id },
-      data: {
-        status: 'SOLD',
-        amount: Number(amount),
-        paymentType, paymentMethod,
-        bank: bank?.trim() || null,
-        months: months ? Number(months) : null,
-        crmLink: crmLink?.trim() || null,
-        closerComment: closerComment?.trim() || null,
-      },
+      data: { status: 'IN_WORK' },
       include: INCLUDE_FULL,
     })
     res.json(updated)

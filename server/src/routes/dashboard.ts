@@ -440,11 +440,17 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const conversion = consultations > 0 ? Math.round((salesCount / consultations) * 1000) / 10 : 0
 
       // Lead-based stats for closer
-      const [pendingLeadsCount, inWorkLeadsCount, pendingTasksCount] = await Promise.all([
+      const [pendingLeadsCount, inWorkLeadsCount, pendingTasksCount, leadRefusedCount, leadSoldCount] = await Promise.all([
         prisma.lead.count({ where: { assignedToId: userId, status: 'ASSIGNED' } }),
         prisma.lead.count({ where: { assignedToId: userId, status: 'IN_WORK' } }),
         prisma.leadTask.count({ where: { userId, completed: false } }),
+        prisma.lead.count({ where: { assignedToId: userId, status: 'REFUSED', date: { gte: fromStr, lte: toStr } } }),
+        prisma.lead.count({ where: { assignedToId: userId, status: 'SOLD', date: { gte: fromStr, lte: toStr } } }),
       ])
+
+      // Lead-based totals for period stats display
+      const leadTotal = inWorkLeadsCount + leadRefusedCount + leadSoldCount
+      const leadConversion = leadTotal > 0 ? Math.round((leadSoldCount / leadTotal) * 1000) / 10 : 0
 
       res.json({
         type: 'CLOSER',
@@ -455,6 +461,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           avgCheck: salesCount > 0 ? Math.round(salesAmount / salesCount) : 0,
           consultations, refusals, inWork,
           pendingLeadsCount, inWorkLeadsCount, pendingTasksCount,
+          leadRefusedCount, leadSoldCount, leadTotal, leadConversion,
         },
         periodSales: periodSales.map(s => ({
           id: s.id, date: s.date, amount: s.amount,
