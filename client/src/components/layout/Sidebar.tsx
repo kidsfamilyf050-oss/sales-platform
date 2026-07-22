@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { BarChart2, Users, FileText, Settings, TrendingUp, Target, LogOut, Activity, X } from 'lucide-react'
+import { BarChart2, Users, FileText, Settings, TrendingUp, Target, LogOut, Activity, X, Inbox, CheckSquare, UserPlus } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useT } from '../../i18n'
 
@@ -11,30 +11,38 @@ export default function Sidebar({ onClose }: Props) {
   const { user, logout } = useAuthStore()
   const { t } = useT()
 
-  const navByRole: Record<string, { to: string; labelKey: string; icon: any }[]> = {
+  const isLider = user?.role === 'MANAGER' && user?.managerType === 'LIDER'
+  const isCloser = user?.role === 'MANAGER' && user?.managerType !== 'LIDER'
+
+  const navByRole: Record<string, { to: string; label: string; icon: any }[]> = {
     OWNER: [
-      { to: '/dashboard/owner', labelKey: 'nav.dashboard', icon: BarChart2 },
-      { to: '/tracking', labelKey: 'nav.control', icon: Activity },
-      { to: '/marketing', labelKey: 'nav.marketing', icon: TrendingUp },
-      { to: '/users', labelKey: 'nav.users', icon: Users },
-      { to: '/plans', labelKey: 'nav.plans', icon: Target },
-      { to: '/settings', labelKey: 'nav.settings', icon: Settings },
+      { to: '/dashboard/owner', label: t('nav.dashboard'), icon: BarChart2 },
+      { to: '/tracking', label: t('nav.control'), icon: Activity },
+      { to: '/marketing', label: t('nav.marketing'), icon: TrendingUp },
+      { to: '/users', label: t('nav.users'), icon: Users },
+      { to: '/plans', label: t('nav.plans'), icon: Target },
+      { to: '/settings', label: t('nav.settings'), icon: Settings },
     ],
     ROP: [
-      { to: '/dashboard/rop', labelKey: 'nav.dashboard', icon: BarChart2 },
-      { to: '/tracking', labelKey: 'nav.control', icon: Activity },
-      { to: '/marketing', labelKey: 'nav.marketing', icon: TrendingUp },
-      { to: '/users', labelKey: 'nav.users', icon: Users },
-      { to: '/plans', labelKey: 'nav.plans', icon: Target },
-      { to: '/settings', labelKey: 'nav.settings', icon: Settings },
+      { to: '/dashboard/rop', label: t('nav.dashboard'), icon: BarChart2 },
+      { to: '/tracking', label: t('nav.control'), icon: Activity },
+      { to: '/marketing', label: t('nav.marketing'), icon: TrendingUp },
+      { to: '/users', label: t('nav.users'), icon: Users },
+      { to: '/plans', label: t('nav.plans'), icon: Target },
+      { to: '/settings', label: t('nav.settings'), icon: Settings },
     ],
-    MANAGER: [
-      { to: '/dashboard/manager', labelKey: 'nav.myOffice', icon: BarChart2 },
-      { to: '/report', labelKey: 'nav.fillReport', icon: FileText },
+    MANAGER: isLider ? [
+      { to: '/dashboard/manager', label: t('nav.myOffice'), icon: BarChart2 },
+      { to: '/lider/leads', label: 'Лиды', icon: UserPlus },
+    ] : [
+      { to: '/dashboard/manager', label: t('nav.myOffice'), icon: BarChart2 },
+      { to: '/closer/leads', label: 'Заявки', icon: Inbox },
+      { to: '/closer/tasks', label: 'Задачи', icon: CheckSquare },
+      { to: '/report', label: t('nav.fillReport'), icon: FileText },
     ],
     MARKETER: [
-      { to: '/dashboard/marketer', labelKey: 'nav.myOffice', icon: TrendingUp },
-      { to: '/report', labelKey: 'nav.fillReport', icon: FileText },
+      { to: '/dashboard/marketer', label: t('nav.myOffice'), icon: TrendingUp },
+      { to: '/report', label: t('nav.fillReport'), icon: FileText },
     ],
   }
 
@@ -58,7 +66,7 @@ export default function Sidebar({ onClose }: Props) {
       </div>
 
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ to, labelKey, icon: Icon }) => (
+        {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
@@ -70,7 +78,7 @@ export default function Sidebar({ onClose }: Props) {
             }
           >
             <Icon className="w-4 h-4 shrink-0" />
-            {t(labelKey as any)}
+            {label}
           </NavLink>
         ))}
       </nav>

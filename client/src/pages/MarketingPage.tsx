@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
-import { ChevronLeft, ChevronRight, Save, CheckCircle, Pencil, X, Download } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Save, CheckCircle, Pencil, X, Download, Plus, Trash2, Radio } from 'lucide-react'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 import { useT } from '../i18n'
 
@@ -433,6 +433,105 @@ export default function MarketingPage() {
         </p>
       </div>
 
+      {/* ── Sales Channels ─────────────────────────────────────── */}
+      <SalesChannelsSection />
+
+    </div>
+  )
+}
+
+// ── Sales Channels Management ─────────────────────────────────────────────────
+function SalesChannelsSection() {
+  const qc = useQueryClient()
+  const [newName, setNewName] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+
+  const channelsQ = useQuery({
+    queryKey: ['sales-channels'],
+    queryFn: () => api.get('/sales-channels').then(r => r.data as { id: string; name: string; createdAt: string }[]),
+  })
+
+  const createMut = useMutation({
+    mutationFn: () => api.post('/sales-channels', { name: newName.trim() }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sales-channels'] }); setNewName('') },
+  })
+  const updateMut = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => api.put(`/sales-channels/${id}`, { name }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sales-channels'] }); setEditingId(null) },
+  })
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/sales-channels/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sales-channels'] }),
+  })
+
+  const channels = channelsQ.data || []
+
+  return (
+    <div className="card">
+      <div className="flex items-center gap-2 mb-4">
+        <Radio className="w-5 h-5 text-blue-500" />
+        <h2 className="font-semibold text-gray-900">Каналы продаж</h2>
+      </div>
+      <p className="text-sm text-gray-400 mb-4">Используются лидорубами при добавлении лидов. Добавьте актуальные каналы вашей компании.</p>
+
+      <div className="space-y-2 mb-4">
+        {channels.map((ch: { id: string; name: string }) => (
+          <div key={ch.id} className="flex items-center gap-2 py-2 px-3 bg-gray-50 rounded-xl border border-gray-100">
+            {editingId === ch.id ? (
+              <>
+                <input
+                  className="input flex-1 py-1.5 text-sm"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && updateMut.mutate({ id: ch.id, name: editName })}
+                  autoFocus
+                />
+                <button onClick={() => updateMut.mutate({ id: ch.id, name: editName })}
+                  className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors">
+                  <CheckCircle className="w-4 h-4" />
+                </button>
+                <button onClick={() => setEditingId(null)}
+                  className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="flex-1 text-sm font-medium text-gray-800">{ch.name}</span>
+                <button onClick={() => { setEditingId(ch.id); setEditName(ch.name) }}
+                  className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => { if (confirm('Удалить канал?')) deleteMut.mutate(ch.id) }}
+                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
+          </div>
+        ))}
+        {channels.length === 0 && (
+          <p className="text-sm text-gray-400 text-center py-4">Нет каналов продаж. Добавьте первый.</p>
+        )}
+      </div>
+
+      <div className="flex gap-2">
+        <input
+          className="input flex-1"
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && newName.trim() && createMut.mutate()}
+          placeholder="Новый канал (Instagram, OLX, 2GIS...)"
+        />
+        <button
+          onClick={() => newName.trim() && createMut.mutate()}
+          disabled={!newName.trim() || createMut.isPending}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40 font-medium transition-colors text-sm"
+        >
+          <Plus className="w-4 h-4" /> Добавить
+        </button>
+      </div>
     </div>
   )
 }

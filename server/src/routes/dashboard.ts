@@ -92,11 +92,15 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const marketingLeads = marketerReports.reduce((s, r) => s + (Number((r.data as any).leadsCount) || Number((r.data as any).leads) || 0), 0)
     const totalBudget    = marketerReports.reduce((s, r) => s + (Number((r.data as any).adBudget) || Number((r.data as any).budget) || 0), 0)
 
-    // ── Lider funnel (LIDER reports) ──────────────────────────────────────
-    const totalLiderLeads        = sumLiderLeads(liderReports)
-    const totalQualifiedLeads    = sumReportField(liderReports, 'qualifiedLeads')
-    const totalMeetingsScheduled = sumReportField(liderReports, 'meetingsScheduled')
-    const totalMeetingsAttended  = sumReportField(liderReports, 'meetingsAttended')
+    // ── Lider funnel (Lead model — live per-lead data) ────────────────────
+    const allLiderLeads = await prisma.lead.findMany({
+      where: { createdBy: { companyId: req.user!.companyId }, date: { gte: fromStr, lte: toStr } },
+      select: { isQualified: true, isScheduled: true, status: true },
+    })
+    const totalLiderLeads        = allLiderLeads.length
+    const totalQualifiedLeads    = allLiderLeads.filter(l => l.isQualified).length
+    const totalMeetingsScheduled = allLiderLeads.filter(l => l.isScheduled).length
+    const totalMeetingsAttended  = allLiderLeads.filter(l => l.status === 'IN_WORK' || l.status === 'SOLD').length
 
     // ── Plans ─────────────────────────────────────────────────────────────
     // Sum department-level SALES_AMOUNT plans; fall back to company-wide plan only if no dept plans exist.
@@ -166,18 +170,21 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       .filter(m => m.salesAmount > 0 || m.plan > 0)
       .sort((a, b) => b.completion - a.completion)
 
-    // ── Lider rating ───────────────────────────────────────────────────────
-    const liderStats: Record<string, { name: string; leads: number; qualifiedLeads: number; meetingsScheduled: number; meetingsAttended: number }> = {}
-    for (const r of liderReports) {
-      const uid = r.user.id
-      const d = r.data as any
-      if (!liderStats[uid]) liderStats[uid] = { name: r.user.name, leads: 0, qualifiedLeads: 0, meetingsScheduled: 0, meetingsAttended: 0 }
-      liderStats[uid].leads += Number(d.leadsReceived) || Number(d.leads) || 0
-      liderStats[uid].qualifiedLeads += Number(d.qualifiedLeads) || 0
-      liderStats[uid].meetingsScheduled += Number(d.meetingsScheduled) || 0
-      liderStats[uid].meetingsAttended += Number(d.meetingsAttended) || 0
+    // ── Lider rating (from Lead model) ────────────────────────────────────
+    const ownerLiderLeadsFull = await prisma.lead.findMany({
+      where: { createdBy: { companyId: req.user!.companyId, managerType: 'LIDER' }, date: { gte: fromStr, lte: toStr } },
+      select: { createdById: true, createdBy: { select: { name: true } }, isQualified: true, isScheduled: true, status: true },
+    })
+    const ownerLiderStatsMap: Record<string, { name: string; leads: number; qualifiedLeads: number; meetingsScheduled: number; meetingsAttended: number }> = {}
+    for (const l of ownerLiderLeadsFull) {
+      const uid = l.createdById
+      if (!ownerLiderStatsMap[uid]) ownerLiderStatsMap[uid] = { name: l.createdBy.name, leads: 0, qualifiedLeads: 0, meetingsScheduled: 0, meetingsAttended: 0 }
+      ownerLiderStatsMap[uid].leads++
+      if (l.isQualified) ownerLiderStatsMap[uid].qualifiedLeads++
+      if (l.isScheduled) ownerLiderStatsMap[uid].meetingsScheduled++
+      if (l.status === 'IN_WORK' || l.status === 'SOLD') ownerLiderStatsMap[uid].meetingsAttended++
     }
-    const liderRating = Object.entries(liderStats)
+    const liderRating = Object.entries(ownerLiderStatsMap)
       .map(([id, s]) => {
         const meetingsPlan = plans.find(p => p.userId === id && p.type === 'MEETINGS_ATTENDED')?.value || 0
         const completion = meetingsPlan > 0 ? Math.round((s.meetingsAttended / meetingsPlan) * 1000) / 10 : 0
@@ -258,10 +265,15 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
 
     // Clients/consultations from closer reports
     const clientsReceived = sumReportField(closerReports, 'clientsReceived')
-    const leadsReceived = sumLiderLeads(liderReports)
-    const qualifiedLeads = sumReportField(liderReports, 'qualifiedLeads')
-    const meetingsScheduled = sumReportField(liderReports, 'meetingsScheduled')
-    const meetingsAttended = sumReportField(liderReports, 'meetingsAttended')
+    // Lider funnel from Lead model
+    const ropLiderLeads = await prisma.lead.findMany({
+      where: { createdBy: { companyId: req.user!.companyId, departmentId: deptId || undefined }, date: { gte: fromStr, lte: toStr } },
+      select: { isQualified: true, isScheduled: true, status: true },
+    })
+    const leadsReceived = ropLiderLeads.length
+    const qualifiedLeads = ropLiderLeads.filter(l => l.isQualified).length
+    const meetingsScheduled = ropLiderLeads.filter(l => l.isScheduled).length
+    const meetingsAttended = ropLiderLeads.filter(l => l.status === 'IN_WORK' || l.status === 'SOLD').length
 
     // Dept plan first; fall back to company-wide (explicitly exclude personal plans with !p.userId)
     const salesPlan = plans.find(p => p.departmentId === deptId && !p.userId && p.type === 'SALES_AMOUNT')?.value ||
@@ -425,8 +437,14 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const refusals = sumReportField(reports, 'refusals')
       const inWork = Math.max(0, consultations - salesCount - refusals)
       const salesPlan = plans.find(p => p.type === 'SALES_AMOUNT')?.value || 0
-      // Conversion = deals / consultations conducted
       const conversion = consultations > 0 ? Math.round((salesCount / consultations) * 1000) / 10 : 0
+
+      // Lead-based stats for closer
+      const [pendingLeadsCount, inWorkLeadsCount, pendingTasksCount] = await Promise.all([
+        prisma.lead.count({ where: { assignedToId: userId, status: 'ASSIGNED' } }),
+        prisma.lead.count({ where: { assignedToId: userId, status: 'IN_WORK' } }),
+        prisma.leadTask.count({ where: { userId, completed: false } }),
+      ])
 
       res.json({
         type: 'CLOSER',
@@ -436,6 +454,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           conversion,
           avgCheck: salesCount > 0 ? Math.round(salesAmount / salesCount) : 0,
           consultations, refusals, inWork,
+          pendingLeadsCount, inWorkLeadsCount, pendingTasksCount,
         },
         periodSales: periodSales.map(s => ({
           id: s.id, date: s.date, amount: s.amount,
@@ -446,17 +465,27 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         recentReports: reports.slice(0, 7),
       })
     } else {
-      const leads = sumLiderLeads(reports)
-      const qualifiedLeads = sumReportField(reports, 'qualifiedLeads')
-      const meetingsScheduled = sumReportField(reports, 'meetingsScheduled')
-      const meetingsAttended = sumReportField(reports, 'meetingsAttended')
-      // Primary KPI for lider = meetings attended (people who actually came)
+      // LIDER — stats come from Lead model (live, per-lead)
+      const liderLeads = await prisma.lead.findMany({
+        where: { createdById: userId, date: { gte: fromStr, lte: toStr } },
+        select: { isQualified: true, isScheduled: true, status: true },
+      })
+
+      const leads = liderLeads.length
+      const qualifiedLeads = liderLeads.filter(l => l.isQualified).length
+      const meetingsScheduled = liderLeads.filter(l => l.isScheduled).length
+      // "Attended" = leads that went IN_WORK or SOLD (closer actually started working)
+      const meetingsAttended = liderLeads.filter(l => l.status === 'IN_WORK' || l.status === 'SOLD').length
+
       const meetingsAttendedPlan = plans.find(p => p.type === 'MEETINGS_ATTENDED')?.value || 0
       const leadsplan = plans.find(p => p.type === 'LEADS')?.value || 0
-      // Conversion: записано → проведено (how many scheduled actually came)
       const schedToAttRate = meetingsScheduled > 0 ? Math.round((meetingsAttended / meetingsScheduled) * 1000) / 10 : 0
-      // Conversion: лиды → записано
       const leadsToSchedRate = leads > 0 ? Math.round((meetingsScheduled / leads) * 1000) / 10 : 0
+
+      // Counts by status for sidebar badges
+      const newCount = liderLeads.filter(l => l.status === 'NEW').length
+      const assignedCount = liderLeads.filter(l => l.status === 'ASSIGNED').length
+      const unqualifiedCount = await prisma.lead.count({ where: { createdById: userId, status: 'UNQUALIFIED' } })
 
       res.json({
         type: 'LIDER',
@@ -468,9 +497,10 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           qualRate: leads > 0 ? Math.round((qualifiedLeads / leads) * 1000) / 10 : 0,
           schedToAttRate,
           leadsToSchedRate,
+          newCount, assignedCount, unqualifiedCount,
         },
-        todayReport,
-        recentReports: reports.slice(0, 7),
+        todayReport: null,
+        recentReports: [],
       })
     }
   } catch (e) {
@@ -536,27 +566,31 @@ router.get('/marketer', authenticate, async (req: AuthRequest, res: Response) =>
   }
 })
 
-// Lider ranking — used by personal lider dashboard to show competitive leaderboard
+// Lider ranking — uses Lead model as source of truth
 router.get('/lider-ranking', authenticate, async (req: AuthRequest, res: Response) => {
   const { period = 'month', from, to } = req.query
   const { start, end } = getPeriodDates(period as string, from as string, to as string)
   const periodKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
+  const fromStr = dateToStr(start)
+  const toStr = dateToStr(end)
 
   try {
-    const [liders, plans, liderReports] = await Promise.all([
+    const [liders, plans, liderLeads] = await Promise.all([
       prisma.user.findMany({ where: { companyId: req.user!.companyId, status: 'ACTIVE', role: 'MANAGER', managerType: 'LIDER' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey } }),
-      prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, managerType: 'LIDER' }, type: 'LIDER', date: { gte: start, lte: end } }, include: { user: { select: { id: true } } } }),
+      prisma.lead.findMany({
+        where: { createdBy: { companyId: req.user!.companyId, managerType: 'LIDER' }, date: { gte: fromStr, lte: toStr } },
+        select: { createdById: true, isQualified: true, isScheduled: true, status: true },
+      }),
     ])
 
     const statsMap: Record<string, { leads: number; qualifiedLeads: number; meetingsScheduled: number; meetingsAttended: number }> = {}
-    for (const r of liderReports) {
-      const uid = r.user.id; const d = r.data as any
-      if (!statsMap[uid]) statsMap[uid] = { leads: 0, qualifiedLeads: 0, meetingsScheduled: 0, meetingsAttended: 0 }
-      statsMap[uid].leads += Number(d.leadsReceived) || Number(d.leads) || 0
-      statsMap[uid].qualifiedLeads += Number(d.qualifiedLeads) || 0
-      statsMap[uid].meetingsScheduled += Number(d.meetingsScheduled) || 0
-      statsMap[uid].meetingsAttended += Number(d.meetingsAttended) || 0
+    for (const l of liderLeads) {
+      if (!statsMap[l.createdById]) statsMap[l.createdById] = { leads: 0, qualifiedLeads: 0, meetingsScheduled: 0, meetingsAttended: 0 }
+      statsMap[l.createdById].leads++
+      if (l.isQualified) statsMap[l.createdById].qualifiedLeads++
+      if (l.isScheduled) statsMap[l.createdById].meetingsScheduled++
+      if (l.status === 'IN_WORK' || l.status === 'SOLD') statsMap[l.createdById].meetingsAttended++
     }
 
     const ranking = liders.map(u => {
@@ -567,14 +601,16 @@ router.get('/lider-ranking', authenticate, async (req: AuthRequest, res: Respons
       return {
         id: u.id,
         name: u.name,
-        meetingsAttended: s.meetingsAttended,
+        leads: s.leads,
+        qualifiedLeads: s.qualifiedLeads,
         meetingsScheduled: s.meetingsScheduled,
+        meetingsAttended: s.meetingsAttended,
         plan,
         completion,
         pctAttended,
       }
     })
-    .filter(u => u.plan > 0 || u.meetingsAttended > 0)
+    .filter(u => u.plan > 0 || u.leads > 0)
     .sort((a, b) => b.completion - a.completion || b.meetingsAttended - a.meetingsAttended)
 
     res.json({ ranking, currentUserId: req.user!.id })

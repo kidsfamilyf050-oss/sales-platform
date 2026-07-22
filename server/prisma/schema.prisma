@@ -31,6 +31,8 @@ model Company {
   users         User[]
   plans         Plan[]
   notifications Notification[]
+  salesChannels SalesChannel[]
+  leads         Lead[]
 }
 
 model Department {
@@ -73,12 +75,15 @@ model User {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
-  reports       Report[]
-  sales         Sale[]
-  dealLinks     DealLink[]
-  notifications Notification[]
-  planChanges   PlanChange[]
-  sessions      UserSession[]
+  reports        Report[]
+  sales          Sale[]
+  dealLinks      DealLink[]
+  notifications  Notification[]
+  planChanges    PlanChange[]
+  sessions       UserSession[]
+  leadsCreated   Lead[]         @relation("LeadCreatedBy")
+  leadsAssigned  Lead[]         @relation("LeadAssignedTo")
+  leadTasks      LeadTask[]
 }
 
 model UserSession {
@@ -228,6 +233,87 @@ enum NotificationType {
   BUDGET_EXCEEDED
   LEADS_LOW
   LEAD_COST_HIGH
+}
+
+// ── Sales Channels ────────────────────────────────────────────────────────────
+model SalesChannel {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+
+  leads Lead[]
+
+  @@index([companyId])
+}
+
+// ── Lead management ───────────────────────────────────────────────────────────
+enum LeadStatus {
+  NEW          // qualified, not yet assigned to closer
+  ASSIGNED     // assigned to closer, waiting for accept
+  IN_WORK      // closer accepted
+  REFUSED      // closer refused
+  SOLD         // converted to sale
+  UNQUALIFIED  // not qualified
+}
+
+model Lead {
+  id             String        @id @default(cuid())
+  companyId      String
+  company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdById    String
+  createdBy      User          @relation("LeadCreatedBy", fields: [createdById], references: [id])
+  assignedToId   String?
+  assignedTo     User?         @relation("LeadAssignedTo", fields: [assignedToId], references: [id])
+
+  // Client info
+  clientName     String
+  phone          String
+  date           String        // YYYY-MM-DD
+
+  // Classification
+  salesChannelId String?
+  salesChannel   SalesChannel? @relation(fields: [salesChannelId], references: [id])
+  isQualified    Boolean       @default(true)
+  isScheduled    Boolean       @default(false)
+  comment        String?       // lider's comment
+
+  // Status
+  status         LeadStatus    @default(NEW)
+
+  // Closer fields (filled when processing)
+  amount         Float?
+  paymentType    String?       // 'new_sale' | 'additional'
+  paymentMethod  String?       // 'cash' | 'card' | 'credit' | 'installment'
+  bank           String?
+  months         Int?
+  crmLink        String?
+  closerComment  String?
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  tasks          LeadTask[]
+
+  @@index([companyId, status])
+  @@index([createdById, date])
+  @@index([assignedToId, status])
+}
+
+model LeadTask {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  dueDate   String   // YYYY-MM-DD
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, completed])
+  @@index([leadId])
 }
 
 model AuditLog {

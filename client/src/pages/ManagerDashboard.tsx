@@ -230,6 +230,27 @@ export default function ManagerDashboard() {
             <StatCard label={t('dash.inWork')} value={summary.inWork ?? 0} color="yellow" />
           </div>
 
+          {/* Lead-based stats for closer */}
+          {(summary.pendingLeadsCount > 0 || summary.inWorkLeadsCount > 0 || summary.pendingTasksCount > 0) && (
+            <div className="grid grid-cols-3 gap-3">
+              <div onClick={() => navigate('/closer/leads')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-blue-200 hover:bg-blue-50/40 border border-transparent">
+                <p className="text-xs font-medium text-gray-400 group-hover:text-blue-500 transition-colors uppercase tracking-wide mb-1">Входящих заявок</p>
+                <p className="text-2xl font-bold text-blue-600">{summary.pendingLeadsCount ?? 0}</p>
+                <p className="text-xs text-gray-300 group-hover:text-blue-400 mt-1 transition-colors">нажмите → открыть</p>
+              </div>
+              <div onClick={() => navigate('/closer/leads')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-amber-200 hover:bg-amber-50/40 border border-transparent">
+                <p className="text-xs font-medium text-gray-400 group-hover:text-amber-500 transition-colors uppercase tracking-wide mb-1">Заявок в работе</p>
+                <p className="text-2xl font-bold text-amber-500">{summary.inWorkLeadsCount ?? 0}</p>
+                <p className="text-xs text-gray-300 group-hover:text-amber-400 mt-1 transition-colors">нажмите → открыть</p>
+              </div>
+              <div onClick={() => navigate('/closer/tasks')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-purple-200 hover:bg-purple-50/40 border border-transparent">
+                <p className="text-xs font-medium text-gray-400 group-hover:text-purple-500 transition-colors uppercase tracking-wide mb-1">Задач ожидает</p>
+                <p className="text-2xl font-bold text-purple-600">{summary.pendingTasksCount ?? 0}</p>
+                <p className="text-xs text-gray-300 group-hover:text-purple-400 mt-1 transition-colors">нажмите → задачи</p>
+              </div>
+            </div>
+          )}
+
           <ProgressBar value={summary.planCompletion} label={t('dash.manager.planCompletionSales')} />
 
           {/* Closer leaderboard — competitive ranking */}
@@ -517,6 +538,21 @@ export default function ManagerDashboard() {
         </>
       ) : (
         <>
+          {/* Quick-access: active leads */}
+          <div onClick={() => navigate('/lider/leads')}
+            className="card cursor-pointer group transition-all hover:shadow-md hover:border-blue-200 hover:bg-blue-50/30 border border-transparent flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-700 group-hover:text-blue-700 transition-colors">Перейти к лидам</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {summary.newCount > 0 && <span className="text-blue-600 font-medium mr-2">{summary.newCount} активных</span>}
+                {summary.assignedCount > 0 && <span className="text-purple-600 font-medium mr-2">{summary.assignedCount} передано</span>}
+                {summary.unqualifiedCount > 0 && <span className="text-gray-500 font-medium">{summary.unqualifiedCount} неквал.</span>}
+                {!summary.newCount && !summary.assignedCount && !summary.unqualifiedCount && 'Нет активных лидов'}
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-blue-400 transition-colors shrink-0" />
+          </div>
+
           {/* Lider stats — primary KPI: consultations conducted */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
             <StatCard label={t('dash.manager.meetingsPlan')} value={summary.meetingsScheduledPlan} />
