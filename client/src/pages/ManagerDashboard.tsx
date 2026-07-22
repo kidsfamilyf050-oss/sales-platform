@@ -193,11 +193,8 @@ export default function ManagerDashboard() {
             <StatCard label={t('dash.manager.salesPeriod')} value={`₸ ${fmt(summary.salesAmount)}`} color="blue" />
             <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
             <StatCard label={t('dash.manager.deals')} value={summary.salesCount} />
-            <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} />
+            <StatCard label={t('dash.conversion')} value={`${summary.leadConversion ?? summary.conversion}%`} />
             <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck)}`} />
-            <StatCard label={t('dash.consultations')} value={summary.consultations ?? 0} />
-            <StatCard label={t('dash.refusals')} value={summary.refusals ?? 0} color="red" />
-            <StatCard label={t('dash.inWork')} value={summary.inWork ?? 0} color="yellow" />
           </div>
 
           {/* Lead-based stats for closer */}
@@ -292,7 +289,14 @@ export default function ManagerDashboard() {
                   <div key={s.id} className="flex items-start justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-gray-400 w-16 shrink-0">{new Date(s.date + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
+                        {s.leadId ? (
+                          <>
+                            <span className="text-xs text-gray-400 shrink-0">Заявка: {new Date(s.date + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
+                            <span className="text-xs text-gray-400 shrink-0">· Продажа: {new Date(s.createdAt).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
+                          </>
+                        ) : (
+                          <span className="text-xs text-gray-400 w-16 shrink-0">{new Date(s.date + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
+                        )}
                         <span className="font-bold text-gray-900">₸ {fmt(Number(s.amount))}</span>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                           {PAYMENT_TYPE_LABEL[s.paymentType]}
@@ -494,20 +498,6 @@ export default function ManagerDashboard() {
             )}
           </div>
 
-          {/* Stats from today's report (if submitted) */}
-          {todayData && (
-            <div className="card border-gray-100 bg-gray-50/50">
-              <h3 className="font-semibold text-gray-700 mb-3 text-sm">{t('dash.manager.today')} — статистика</h3>
-              <div className="grid grid-cols-3 gap-3 text-sm">
-                <div><p className="text-xs text-gray-400">{t('dash.manager.clients')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.clientsReceived || 0}</p></div>
-                <div><p className="text-xs text-gray-400">{t('dash.manager.consultations')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.consultations || 0}</p></div>
-                <div><p className="text-xs text-gray-400">{t('report.closer.refusals')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.refusals || 0}</p></div>
-              </div>
-              {todayData.comment && (
-                <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-100">💬 {todayData.comment}</p>
-              )}
-            </div>
-          )}
         </>
       ) : (
         <>
@@ -638,8 +628,8 @@ export default function ManagerDashboard() {
         </button>
       )}
 
-      {/* Recent reports (history) */}
-      {recentReports?.length > 0 && (
+      {/* Recent reports (history) — only for liders */}
+      {!isCloser && recentReports?.length > 0 && (
         <div className="card">
           <h3 className="font-semibold text-gray-900 mb-4">{t('dash.manager.history')}</h3>
           <div className="space-y-0">

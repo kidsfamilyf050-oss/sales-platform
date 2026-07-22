@@ -422,7 +422,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       prisma.report.findMany({ where: { userId, date: { gte: start, lte: end } }, orderBy: { date: 'desc' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey, userId } }),
       prisma.report.findFirst({ where: { userId, date: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } } }),
-      prisma.sale.findMany({ where: { userId, date: { gte: fromStr, lte: toStr } } }),
+      prisma.sale.findMany({ where: { userId, date: { gte: fromStr, lte: toStr } }, orderBy: [{ date: 'desc' }, { createdAt: 'desc' }] }),
     ])
 
     const isCloser = req.user!.managerType === 'CLOSER'
@@ -467,6 +467,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           id: s.id, date: s.date, amount: s.amount,
           paymentType: s.paymentType, paymentMethod: s.paymentMethod,
           bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment,
+          leadId: s.leadId, createdAt: s.createdAt,
         })),
         todayReport,
         recentReports: reports.slice(0, 7),
