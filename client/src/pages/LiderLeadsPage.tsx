@@ -313,7 +313,7 @@ export default function LiderLeadsPage() {
   })
   const closersQ = useQuery({
     queryKey: ['closers'],
-    queryFn: () => api.get('/users').then(r => (r.data as any[]).filter(u => u.managerType === 'CLOSER' && u.status === 'ACTIVE')),
+    queryFn: () => api.get('/users/closers').then(r => r.data),
   })
 
   const deleteMut = useMutation({

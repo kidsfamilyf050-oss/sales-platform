@@ -7,6 +7,20 @@ import { sendInviteEmail } from '../services/email.service'
 const router = Router()
 const prisma = new PrismaClient()
 
+// Get closers in company — accessible to all authenticated users (liders need this to assign leads)
+router.get('/closers', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const closers = await prisma.user.findMany({
+      where: { companyId: req.user!.companyId, role: 'MANAGER', managerType: 'CLOSER', status: 'ACTIVE' },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    })
+    res.json(closers)
+  } catch (e) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // Get all users in company
 router.get('/', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRequest, res: Response) => {
   try {
