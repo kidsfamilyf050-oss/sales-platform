@@ -885,4 +885,122 @@ router.get('/marketer', authenticate, async (req: AuthRequest, res: Response) =>
   }
 })
 
+// ── Lider leads export ─────────────────────────────────────────────────────
+
+router.get('/lider-leads', authenticate, async (req: AuthRequest, res: Response) => {
+  const { period = 'month', from, to, search, channelId, ktsStatus, subStatus, consultationStatus, date: dateFilter } = req.query
+  const { start, end } = getPeriodDates(period as string, from as string, to as string)
+  const fromStr = dateToStr(start)
+  const toStr = dateToStr(end)
+
+  try {
+    const where: any = {
+      createdById: req.user!.id,
+      date: { gte: fromStr, lte: toStr },
+    }
+    if (search) where.OR = [
+      { clientName: { contains: search as string, mode: 'insensitive' } },
+      { phone: { contains: search as string } },
+      { leadLink: { contains: search as string, mode: 'insensitive' } },
+    ]
+    if (channelId) where.salesChannelId = channelId as string
+    if (subStatus) where.subStatus = subStatus as string
+    if (consultationStatus) where.consultationStatus = consultationStatus as string
+    if (dateFilter) where.appointmentDate = dateFilter as string
+    if (ktsStatus === 'qualified') { where.isQualified = true; where.assignedToId = null }
+    else if (ktsStatus === 'unqualified') { where.isQualified = false }
+    else if (ktsStatus === 'in_work') { where.assignedToId = { not: null } }
+
+    const leads = await prisma.lead.findMany({
+      where,
+      include: {
+        salesChannel: { select: { name: true } },
+        assignedTo: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    const statusLabels: Record<string, string> = {
+      scheduled: 'Записан', refused: 'Отказ', thinking: 'Думает',
+      happened: 'Состоялась', not_happened: 'Не состоялась', postponed: 'Перенос',
+    }
+    const fmtD = (s?: string | null) => s ? s.split('-').reverse().join('.') : ''
+
+    const wb = new ExcelJS.Workbook()
+    wb.creator = 'SalesPlatform'
+    wb.created = new Date()
+
+    const ws = wb.addWorksheet('Лиды', { properties: { tabColor: { argb: C_BLUE_MID } } })
+    const COLS = 12
+
+    ws.columns = [
+      { key: 'date',        width: 20 },
+      { key: 'client',      width: 24 },
+      { key: 'phone',       width: 18 },
+      { key: 'link',        width: 36 },
+      { key: 'channel',     width: 18 },
+      { key: 'kts',         width: 14 },
+      { key: 'subStatus',   width: 16 },
+      { key: 'apptDate',    width: 14 },
+      { key: 'apptTime',    width: 10 },
+      { key: 'closer',      width: 22 },
+      { key: 'consultation',width: 18 },
+      { key: 'postponed',   width: 18 },
+    ]
+
+    // Title
+    ws.mergeCells('A1:L1')
+    const titleCell = ws.getCell('A1')
+    titleCell.value = `Отчёт лидоруба — ${periodLabel(period as string, from as string, to as string)}`
+    styleTitleRow(ws, 1, COLS)
+
+    // Header
+    const headers = ['Дата поступления', 'Клиент', 'Телефон', 'Ссылка', 'Рекламный канал',
+      'Квал / не квал', 'Записан / Отказ', 'Дата записи', 'Время', 'Клоузер',
+      'Статус встречи', 'Перенос на']
+    ws.addRow(headers)
+    styleHeaderRow(ws, 2, COLS)
+
+    leads.forEach((l, i) => {
+      const d = new Date(l.createdAt)
+      const pad = (n: number) => String(n).padStart(2, '0')
+      const dateStr = `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+      const row = ws.addRow([
+        dateStr,
+        l.clientName,
+        l.phone,
+        l.leadLink || '',
+        (l as any).salesChannel?.name || '',
+        !l.isQualified ? 'Не квал' : l.assignedToId ? 'В работе КЦ' : 'Квал',
+        l.subStatus ? (statusLabels[l.subStatus] || l.subStatus) : '',
+        fmtD(l.appointmentDate),
+        l.appointmentTime || '',
+        (l as any).assignedTo?.name || '',
+        l.consultationStatus ? (statusLabels[l.consultationStatus] || l.consultationStatus) : '',
+        l.postponedDate ? `${fmtD(l.postponedDate)}${l.postponedTime ? ' ' + l.postponedTime : ''}` : '',
+      ])
+      styleDataRow(ws, row.number, COLS, i % 2 === 1)
+    })
+
+    // Totals
+    const totRow = ws.addRow([`Итого: ${leads.length} лидов`, '', '', '', '', '', '', '', '', '', '', ''])
+    for (let c = 1; c <= COLS; c++) {
+      totRow.getCell(c).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_BLUE_DARK } }
+      totRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_HDR } }
+      totRow.getCell(c).border = { top: { style: 'medium', color: { argb: C_BLUE_MID } } }
+    }
+    totRow.height = 22
+
+    const safeName = (req.user?.name || 'lider').replace(/[^а-яёА-ЯЁa-zA-Z0-9]/g, '_')
+    const filename = `lider_leads_${safeName}_${fromStr}_${toStr}.xlsx`
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`)
+    await wb.xlsx.write(res)
+    res.end()
+  } catch (e) {
+    console.error('Export lider-leads error:', e)
+    res.status(500).json({ error: 'Export failed' })
+  }
+})
+
 export default router

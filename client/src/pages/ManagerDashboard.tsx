@@ -96,6 +96,21 @@ export default function ManagerDashboard() {
     refetchInterval: 60000,
   })
 
+  // Lider: today's scheduled consultations
+  const { data: todayAppointments = [] } = useQuery<any[]>({
+    queryKey: ['today-appointments-dash'],
+    queryFn: () => api.get('/leads/today-appointments').then(r => r.data),
+    refetchInterval: 60000,
+  })
+
+  // Lider: recent leads (last 5)
+  const { data: recentLeadsData } = useQuery<any>({
+    queryKey: ['lider-recent-leads'],
+    queryFn: () => api.get('/leads/lider-report?period=week').then(r => r.data),
+    refetchInterval: 60000,
+  })
+  const recentLeads: any[] = (recentLeadsData?.leads || []).slice(0, 6)
+
 
   // Sales for selected date
   const { data: todaySales = [] } = useQuery({
@@ -516,6 +531,79 @@ export default function ManagerDashboard() {
             <StatCard label={t('dash.manager.leads')} value={summary.leads} sub={summary.leadsplan > 0 ? `план ${summary.leadsplan}` : undefined} />
           </div>
 
+          {/* ── Today's consultations ── */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
+                🗓 Консультации сегодня
+              </h3>
+              <span className={`text-xs font-bold rounded-full px-2.5 py-1 ${todayAppointments.length > 0 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                {todayAppointments.length}
+              </span>
+            </div>
+            {todayAppointments.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-4">На сегодня записей нет</p>
+            ) : (
+              <div className="space-y-2">
+                {todayAppointments.map((lead: any) => {
+                  const usePostponed = lead.postponedDate === todayStr
+                  const time = usePostponed ? lead.postponedTime : lead.appointmentTime
+                  const statusColor = lead.consultationStatus === 'happened' ? 'text-green-600' : lead.consultationStatus === 'not_happened' ? 'text-red-500' : lead.consultationStatus === 'postponed' ? 'text-orange-500' : 'text-gray-400'
+                  const statusLabel = lead.consultationStatus === 'happened' ? '✓ Состоялась' : lead.consultationStatus === 'not_happened' ? '✗ Не состоялась' : lead.consultationStatus === 'postponed' ? '↗ Перенос' : '⏰ Ожидается'
+                  return (
+                    <div key={lead.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                      <div className="text-sm font-bold text-blue-700 w-12 shrink-0 text-center">
+                        {time || '—'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{lead.clientName}</p>
+                        <p className="text-xs text-gray-400 truncate">{lead.assignedTo?.name || 'Без клоузера'}</p>
+                      </div>
+                      <span className={`text-xs font-semibold shrink-0 ${statusColor}`}>{statusLabel}</span>
+                    </div>
+                  )
+                })}
+                <button onClick={() => navigate('/lider/leads')}
+                  className="w-full text-xs text-blue-500 hover:text-blue-700 font-medium pt-1 text-center hover:underline">
+                  Перейти к списку лидов →
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── Recent leads this week ── */}
+          {recentLeads.length > 0 && (
+            <div className="card">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-gray-900 text-sm">📋 Лиды за неделю</h3>
+                <button onClick={() => navigate('/lider/leads')} className="text-xs text-blue-500 hover:underline">Все →</button>
+              </div>
+              <div className="space-y-1.5">
+                {recentLeads.map((lead: any) => {
+                  const subColors: Record<string, string> = { scheduled: 'bg-blue-100 text-blue-700', refused: 'bg-red-100 text-red-600', thinking: 'bg-yellow-100 text-yellow-700' }
+                  const subLabels: Record<string, string> = { scheduled: 'Записан', refused: 'Отказ', thinking: 'Думает' }
+                  const sub = lead.subStatus as string
+                  return (
+                    <div key={lead.id} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{lead.clientName}</p>
+                        <p className="text-xs text-gray-400">{lead.salesChannel?.name || '—'}</p>
+                      </div>
+                      {sub && (
+                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${subColors[sub] || 'bg-gray-100 text-gray-500'}`}>
+                          {subLabels[sub] || sub}
+                        </span>
+                      )}
+                      {!lead.isQualified && (
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Не квал</span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Conversion: записано → проведено */}
           {summary.meetingsScheduled > 0 && (
             <div className="card bg-blue-50/40 border border-blue-100">
@@ -536,19 +624,6 @@ export default function ManagerDashboard() {
           )}
 
           <ProgressBar value={summary.planCompletion} label={t('dash.manager.planCompletionMeetings')} />
-
-          {todayData && (
-            <div className="card border-purple-100 bg-purple-50/30">
-              <h3 className="font-semibold text-gray-900 mb-3 text-sm">{t('dash.manager.today')}</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                <div><p className="text-xs text-gray-400">{t('dash.manager.leads')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.leads || todayData.leadsReceived || 0}</p></div>
-                <div><p className="text-xs text-gray-400">{t('dash.manager.qualified')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.qualifiedLeads || 0}</p></div>
-                <div><p className="text-xs text-gray-400">{t('dash.manager.meetings')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.meetingsScheduled || 0}</p></div>
-                <div><p className="text-xs text-gray-400">{t('dash.manager.attended')}</p><p className="font-bold text-gray-900 mt-0.5">{todayData.meetingsAttended || 0}</p></div>
-              </div>
-              {todayData.comment && <p className="text-xs text-gray-500 mt-2 pt-2 border-t border-purple-100">💬 {todayData.comment}</p>}
-            </div>
-          )}
 
           {/* Lider leaderboard — competitive ranking */}
           {rankingData?.ranking?.length > 0 && (

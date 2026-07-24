@@ -61,7 +61,7 @@ router.get('/team', authenticate, async (req: AuthRequest, res: Response) => {
 
 // POST /api/lead-tasks — create task (self or ROP assigns to team member)
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
-  const { leadId, title, dueDate, userId: targetUserId } = req.body
+  const { leadId, title, dueDate, comment, userId: targetUserId } = req.body
   if (!title?.trim() || !dueDate) return res.status(400).json({ error: 'title и dueDate обязательны' })
 
   try {
@@ -98,6 +98,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         title: title.trim(),
         dueDate,
         completed: false,
+        comment: comment?.trim() || null,
       },
       include: {
         ...TASK_INCLUDE,
@@ -121,13 +122,14 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       || req.user!.role === 'OWNER'
       || req.user!.role === 'ROP'
     if (!isAllowed) return res.status(403).json({ error: 'Forbidden' })
-    const { completed, title, dueDate } = req.body
+    const { completed, title, dueDate, comment } = req.body
     const updated = await prisma.leadTask.update({
       where: { id: req.params.id },
       data: {
         ...(completed !== undefined && { completed: completed === true || completed === 'true' }),
         ...(title !== undefined && { title: title.trim() }),
         ...(dueDate !== undefined && { dueDate }),
+        ...(comment !== undefined && { comment: comment?.trim() || null }),
       },
       include: TASK_INCLUDE,
     })
