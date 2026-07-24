@@ -19,6 +19,7 @@ import dealLinksRoutes from './routes/dealLinks'
 import salesChannelsRoutes from './routes/salesChannels'
 import leadsRoutes from './routes/leads'
 import leadTasksRoutes from './routes/leadTasks'
+import channelBudgetsRoutes from './routes/channelBudgets'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -44,6 +45,7 @@ app.use('/api/deal-links', dealLinksRoutes)
 app.use('/api/sales-channels', salesChannelsRoutes)
 app.use('/api/leads', leadsRoutes)
 app.use('/api/lead-tasks', leadTasksRoutes)
+app.use('/api/channel-budgets', channelBudgetsRoutes)
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })

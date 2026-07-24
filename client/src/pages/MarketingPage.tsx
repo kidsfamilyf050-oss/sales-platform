@@ -2,74 +2,41 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
-import { ChevronLeft, ChevronRight, Save, CheckCircle, Pencil, X, Download, Plus, Trash2, Radio } from 'lucide-react'
+import {
+  Download, Save, Pencil, X, CheckCircle, Plus, Trash2,
+  TrendingUp, Users, Target, DollarSign, ChevronRight, BarChart2,
+  Settings, RefreshCw,
+} from 'lucide-react'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
-import { useT } from '../i18n'
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function getPeriod(d: Date) { return d.toISOString().slice(0, 7) }
-function formatMonth(p: string, t: (k: any) => string) {
-  const [y, m] = p.split('-')
-  return `${t(`month.${+m}` as any)} ${y}`
-}
-function shiftMonth(p: string, d: number) {
-  const [y, m] = p.split('-').map(Number)
-  return getPeriod(new Date(y, m - 1 + d, 1))
-}
-function daysInMonth(p: string) {
-  const [y, m] = p.split('-').map(Number)
-  return new Date(y, m, 0).getDate()
-}
-function fmt(n: number) {
+// ─── helpers ─────────────────────────────────────────────────────────────────
+function fmt(n: number | undefined | null) {
+  if (!n) return '—'
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'М'
-  if (n >= 1_000) return Math.round(n / 1_000) + 'тыс'
+  if (n >= 1_000)     return Math.round(n / 1_000) + ' тыс'
   return n.toLocaleString('ru-RU')
+}
+function fmtMoney(n: number | undefined | null) {
+  if (!n) return '—'
+  return '₸ ' + (n >= 1_000_000
+    ? (n / 1_000_000).toFixed(2) + 'М'
+    : n.toLocaleString('ru-RU'))
 }
 function pct(a: number, b: number) {
   if (b === 0) return 0
-  const v = (a / b) * 100
-  return v > 0 && v < 1 ? Math.round(v * 10) / 10 : Math.round(v)
+  return Math.round((a / b) * 10) / 10
 }
-
-// ─── Funnel bar ───────────────────────────────────────────────────────────────
-
-function FunnelRow({ label, value, max, color, conv }: { label: string; value: number; max: number; color: string; conv?: number | null }) {
-  const w = max > 0 ? Math.max((value / max) * 100, value > 0 ? 2 : 0) : 0
-  return (
-    <div>
-      {conv !== undefined && conv !== null && (
-        <div className="flex items-center gap-1 ml-1 mb-0.5">
-          <div className="w-px h-3 bg-gray-200 ml-1" />
-          <span className={`text-[11px] font-medium ${conv >= 50 ? 'text-green-600' : conv >= 30 ? 'text-amber-500' : 'text-red-500'}`}>↓ {conv}%</span>
-        </div>
-      )}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-500 w-[160px] shrink-0">{label}</span>
-        <div className="flex-1 h-7 bg-gray-100 rounded overflow-hidden">
-          <div className={`h-7 rounded ${color}`} style={{ width: `${w}%`, transition: 'width 0.4s ease' }} />
-        </div>
-        <span className="text-sm font-bold text-gray-800 w-10 text-right">{value}</span>
-      </div>
-    </div>
-  )
+function colorPct(v: number, good = 70, ok = 40) {
+  if (v >= good) return 'text-green-600'
+  if (v >= ok)   return 'text-amber-500'
+  return 'text-red-500'
 }
-
-// ─── Stat card ────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, sub, pctVal, note }: { label: string; value: string | number; sub?: string; pctVal?: number | null; note?: string }) {
-  const color = pctVal == null ? '' : pctVal >= 75 ? 'text-green-600' : pctVal >= 50 ? 'text-amber-500' : 'text-red-500'
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4">
-      <p className="text-xs text-gray-500 mb-1">{label}</p>
-      <p className="text-xl font-bold text-gray-900">{value}</p>
-      {sub && <p className={`text-xs mt-0.5 font-medium ${color || 'text-gray-400'}`}>{sub}</p>}
-      {note && <p className="text-[10px] text-gray-300 mt-0.5">{note}</p>}
-    </div>
-  )
+function progressColor(v: number) {
+  if (v >= 80) return 'bg-green-500'
+  if (v >= 50) return 'bg-blue-500'
+  if (v >= 30) return 'bg-amber-400'
+  return 'bg-red-400'
 }
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function downloadExport(endpoint: string, params: string) {
   const token = useAuthStore.getState().token
@@ -89,358 +56,487 @@ async function downloadExport(endpoint: string, params: string) {
   URL.revokeObjectURL(a.href)
 }
 
-export default function MarketingPage() {
-  const { t } = useT()
-  const qc = useQueryClient()
-  const user = useAuthStore(s => s.user)
-  const todayStr = new Date().toISOString().slice(0, 10)
-  // Local month for plan nav (only active when global period = 'month')
-  const [monthPeriod, setMonthPeriod] = useState(getPeriod(new Date()))
-  const [editingPlan, setEditingPlan] = useState(false)
-  const [planLeads, setPlanLeads] = useState('')
-  const [planBudget, setPlanBudget] = useState('')
-  const [planSaved, setPlanSaved] = useState(false)
-
-  // Daily entry state
-  const [entryDate, setEntryDate] = useState(todayStr)
-  const [entryLeads, setEntryLeads] = useState('')
-  const [entryBudget, setEntryBudget] = useState('')
-  const [entrySaved, setEntrySaved] = useState(false)
-
-  // Global period store
-  const periodState = usePeriodStore()
-  const { period: globalPeriod } = periodState
-
-  // Compute date range for API
-  const totalDays = daysInMonth(monthPeriod)
-  const isMonthMode = globalPeriod === 'month'
-  const periodStart = isMonthMode ? `${monthPeriod}-01` : (globalPeriod === 'custom' ? periodState.customFrom : todayStr)
-  const periodEnd   = isMonthMode ? `${monthPeriod}-${String(totalDays).padStart(2, '0')}` : (globalPeriod === 'custom' ? periodState.customTo : todayStr)
-  const apiParams   = isMonthMode ? `from=${periodStart}&to=${periodEnd}` : buildPeriodParams(periodState)
-  // Month key for plans (always use the month view)
-  const planPeriod  = isMonthMode ? monthPeriod : (periodState.customFrom || todayStr).slice(0, 7)
-
-  // All company reports for the period
-  const { data: allReports = [] } = useQuery({
-    queryKey: ['reports-company', periodStart, periodEnd, globalPeriod],
-    queryFn: () => api.get(`/reports/company?${apiParams}`).then(r => r.data),
-  })
-
-  const mktReports  = useMemo(() => (allReports as any[]).filter((r: any) => r.type === 'MARKETER'), [allReports])
-  const liderReports = useMemo(() => (allReports as any[]).filter((r: any) => r.type === 'LIDER'), [allReports])
-  const closerReports = useMemo(() => (allReports as any[]).filter((r: any) => r.type === 'CLOSER'), [allReports])
-
-  // Plans
-  const { data: plans = [], refetch: refetchPlans } = useQuery({
-    queryKey: ['plans', monthPeriod],
-    queryFn: () => api.get(`/plans?period=${planPeriod}`).then(r => r.data),
-  })
-  const leadsplan  = (plans as any[]).find((p: any) => p.type === 'LEADS'  && !p.userId && !p.departmentId)?.value || 0
-  const budgetPlan = (plans as any[]).find((p: any) => p.type === 'BUDGET' && !p.userId && !p.departmentId)?.value || 0
-
-  // Totals
-  const totalLeads     = mktReports.reduce((s: number, r: any) => s + (Number(r.data?.leads) || 0), 0)
-  const totalBudget    = mktReports.reduce((s: number, r: any) => s + (Number(r.data?.budget) || 0), 0)
-  const totalQual      = liderReports.reduce((s: number, r: any) => s + (Number(r.data?.qualifiedLeads) || 0), 0)
-  const totalMeetings  = liderReports.reduce((s: number, r: any) => s + (Number(r.data?.meetingsAttended) || 0), 0)
-  const totalSales     = closerReports.reduce((s: number, r: any) => s + (Number(r.data?.salesCount) || 0), 0)
-  // Стоимость лида: если есть фактический бюджет — от него, иначе от плана (плановая ст-ть лида)
-  const effectiveBudget = totalBudget > 0 ? totalBudget : budgetPlan
-  const leadCost       = totalLeads > 0 && effectiveBudget > 0 ? Math.round(effectiveBudget / totalLeads) : 0
-  const isBudgetPlan   = totalBudget === 0 && budgetPlan > 0
-  const leadsPct       = leadsplan > 0 ? pct(totalLeads, leadsplan) : null
-  const budgetPct      = budgetPlan > 0 ? pct(totalBudget, budgetPlan) : null
-
-  // Date map for entry
-  const byDate = useMemo(() => {
-    const m: Record<string, any> = {}
-    mktReports.forEach((r: any) => { m[r.date.slice(0, 10)] = r })
-    return m
-  }, [mktReports])
-
-  const existingEntry = byDate[entryDate]
-  const funnelMax = Math.max(totalLeads, 1)
-
-  const today = new Date()
-  const todayPeriod = getPeriod(today)
-  const todayDay = monthPeriod === todayPeriod ? today.getDate() : null
-  const days = Array.from({ length: totalDays }, (_, i) => i + 1)
-
-  // Save daily leads
-  const saveEntry = useMutation({
-    mutationFn: () => api.post('/reports/for-user', {
-      userId: user!.id, date: entryDate, type: 'MARKETER',
-      data: { leads: entryLeads ? +entryLeads : 0, budget: entryBudget ? +entryBudget : 0 },
-      comment: '',
-    }),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ['reports-company'] })
-      setEntrySaved(true)
-      setTimeout(() => setEntrySaved(false), 2500)
-    },
-  })
-
-  // Save plans inline
-  const savePlan = useMutation({
-    mutationFn: () => api.post('/plans/bulk', {
-      period: planPeriod,
-      plans: [
-        ...(planLeads  ? [{ type: 'LEADS',  value: +planLeads  }] : []),
-        ...(planBudget ? [{ type: 'BUDGET', value: +planBudget }] : []),
-      ],
-    }),
-    onSuccess: async () => {
-      await refetchPlans()
-      setEditingPlan(false)
-      setPlanSaved(true)
-      setTimeout(() => setPlanSaved(false), 2000)
-    },
-  })
-
-  function openEdit() {
-    setPlanLeads(leadsplan ? String(leadsplan) : '')
-    setPlanBudget(budgetPlan ? String(budgetPlan) : '')
-    setEditingPlan(true)
-  }
-
-  function onDateChange(date: string) {
-    setEntryDate(date)
-    const r = byDate[date]
-    setEntryLeads(r ? String(r.data?.leads || '') : '')
-    setEntryBudget(r ? String(r.data?.budget || '') : '')
-  }
-
+// ─── KPI Card ─────────────────────────────────────────────────────────────────
+function KpiCard({
+  label, value, sub, pctVal, color = 'text-gray-900', planVal, factVal, border
+}: {
+  label: string; value: string | number; sub?: string
+  pctVal?: number | null; color?: string; planVal?: number; factVal?: number; border?: string
+}) {
+  const pctColor = pctVal != null ? colorPct(pctVal) : ''
+  const barPct = pctVal != null ? Math.min(pctVal, 100) : 0
   return (
-    <div className="space-y-6 w-full">
-
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('nav.marketing')}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{t('marketing.subtitle2')}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => downloadExport('marketer', apiParams)}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
-            title="Скачать отчёт Excel"
-          >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Экспорт в Excel</span>
-          </button>
-        {/* Month nav — only shown in month mode for browsing history */}
-        {isMonthMode && (
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-            <button onClick={() => setMonthPeriod(p => shiftMonth(p, -1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
-              <ChevronLeft className="w-4 h-4 text-gray-600" />
-            </button>
-            <span className="px-3 text-sm font-semibold text-gray-800 min-w-[140px] text-center">{formatMonth(monthPeriod, t)}</span>
-            <button onClick={() => setMonthPeriod(p => shiftMonth(p, 1))} disabled={monthPeriod >= todayPeriod}
-              className="p-1.5 hover:bg-white rounded-md transition-colors disabled:opacity-30">
-              <ChevronRight className="w-4 h-4 text-gray-600" />
-            </button>
+    <div className={`bg-white rounded-2xl border ${border || 'border-gray-100'} p-4 space-y-1.5`}>
+      <p className="text-xs text-gray-400 font-medium leading-tight">{label}</p>
+      <p className={`text-2xl font-bold leading-none ${color}`}>{value}</p>
+      {(planVal !== undefined && factVal !== undefined) && (
+        <>
+          <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className={`h-1.5 rounded-full transition-all ${progressColor(barPct)}`} style={{ width: `${barPct}%` }} />
           </div>
-        )}
-        </div>
-      </div>
-
-      {/* Plan row */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-gray-800 text-sm">{t('marketing.planFor', { month: formatMonth(monthPeriod, t) })}</h2>
-          {!editingPlan
-            ? <button onClick={openEdit} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 transition-colors">
-                <Pencil className="w-3 h-3" /> {t('common.edit')}
-              </button>
-            : <button onClick={() => setEditingPlan(false)} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600">
-                <X className="w-3 h-3" /> {t('common.cancel')}
-              </button>
-          }
-        </div>
-        {!editingPlan ? (
-          <div className="flex gap-8">
-            <div>
-              <p className="text-xs text-gray-400">{t('marketing.planLeads')}</p>
-              <p className="text-lg font-bold text-gray-900 mt-0.5">{leadsplan || <span className="text-gray-300 font-normal text-sm">{t('marketing.notSet')}</span>}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-400">{t('marketing.planBudget')}</p>
-              <p className="text-lg font-bold text-gray-900 mt-0.5">{budgetPlan ? `₸ ${fmt(budgetPlan)}` : <span className="text-gray-300 font-normal text-sm">{t('marketing.notSet')}</span>}</p>
-            </div>
-            {planSaved && <p className="text-xs text-green-600 self-end mb-1 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> {t('common.saved')}</p>}
-          </div>
-        ) : (
-          <div className="flex items-end gap-3 flex-wrap">
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">{t('marketing.planLeads')}</label>
-              <input type="number" min="0" value={planLeads} onChange={e => setPlanLeads(e.target.value)} placeholder="0"
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-32 focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">{t('marketing.planBudget')}</label>
-              <input type="number" min="0" value={planBudget} onChange={e => setPlanBudget(e.target.value)} placeholder="0"
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-48 focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-            <button onClick={() => savePlan.mutate()} disabled={savePlan.isPending || (!planLeads && !planBudget)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors flex items-center gap-1.5">
-              <Save className="w-3.5 h-3.5" /> {t('common.save')}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label={t('marketing.leadsReceived')} value={totalLeads}
-          sub={leadsPct !== null ? t('marketing.pctFromPlan', { pct: leadsPct, plan: leadsplan }) : leadsplan ? t('marketing.planShort', { plan: leadsplan }) : undefined}
-          pctVal={leadsPct} />
-        <StatCard label={t('marketing.qualified')} value={totalQual}
-          sub={totalLeads > 0 ? t('marketing.pctOfLeads', { pct: pct(totalQual, totalLeads) }) : undefined}
-          note={t('marketing.fromLiderReports')} />
-        <StatCard label={t('marketing.leadCost')} value={leadCost ? `₸ ${fmt(leadCost)}` : '—'}
-          sub={leadCost ? (isBudgetPlan ? t('marketing.planBudgetPerLead') : t('marketing.factBudgetPerLead')) : t('marketing.noBudgetData')} />
-        <StatCard label={t('marketing.conv')} value={totalLeads > 0 ? `${pct(totalSales, totalLeads)}%` : '—'}
-          sub={totalLeads > 0 ? t('marketing.salesOfLeads', { sales: totalSales, leads: totalLeads }) : t('marketing.noLeadData')} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Funnel */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <h2 className="font-semibold text-gray-900 mb-4">{t('marketing.funnelTitle')}</h2>
-          <div className="space-y-1">
-            <FunnelRow label={t('marketing.leadsReceived')} value={totalLeads} max={funnelMax} color="bg-blue-400" />
-            <FunnelRow label={t('marketing.qualified')} value={totalQual} max={funnelMax} color="bg-purple-400"
-              conv={totalLeads > 0 ? pct(totalQual, totalLeads) : null} />
-            <FunnelRow label={t('marketing.funnelMeetings')} value={totalMeetings} max={funnelMax} color="bg-amber-400"
-              conv={totalQual > 0 ? pct(totalMeetings, totalQual) : null} />
-            <FunnelRow label={t('marketing.funnelSales')} value={totalSales} max={funnelMax} color="bg-green-500"
-              conv={totalMeetings > 0 ? pct(totalSales, totalMeetings) : null} />
-          </div>
-          {totalLeads === 0 && (
-            <p className="text-xs text-gray-400 mt-4 text-center">{t('marketing.funnelHint')}</p>
-          )}
-        </div>
-
-        {/* Daily entry */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <h2 className="font-semibold text-gray-900 mb-1">{t('marketing.dailyTitle')}</h2>
-          <p className="text-xs text-gray-400 mb-4">{t('marketing.dailySubtitle')}</p>
-
-          <div className="flex items-end gap-3 flex-wrap mb-4">
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">{t('marketing.date')}</label>
-              <input type="date" value={entryDate} max={todayStr} onChange={e => onDateChange(e.target.value)}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">{t('marketing.leads')}</label>
-              <div className="relative">
-                <input type="number" min="0" value={entryLeads} onChange={e => setEntryLeads(e.target.value)}
-                  placeholder="0"
-                  className="border border-gray-200 rounded-lg px-3 py-2 pr-10 text-sm w-28 focus:ring-2 focus:ring-blue-500 outline-none" />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">шт</span>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">{t('marketing.adSpend')} <span className="text-gray-300">{t('marketing.adSpendHint')}</span></label>
-              <div className="relative">
-                <input type="number" min="0" value={entryBudget} onChange={e => setEntryBudget(e.target.value)}
-                  placeholder="0"
-                  className="border border-gray-200 rounded-lg px-3 py-2 pr-6 text-sm w-40 focus:ring-2 focus:ring-blue-500 outline-none" />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">₸</span>
-              </div>
-            </div>
-            <button onClick={() => saveEntry.mutate()} disabled={saveEntry.isPending || !entryLeads}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium disabled:opacity-40 hover:bg-blue-700 transition-colors flex items-center gap-1.5">
-              {entrySaved ? <><CheckCircle className="w-3.5 h-3.5" /> {t('marketing.savedEntry')}</> : <><Save className="w-3.5 h-3.5" /> {t('common.save')}</>}
-            </button>
-          </div>
-
-          {existingEntry && (
-            <div className="bg-green-50 border border-green-100 rounded-lg px-3 py-2 text-xs text-green-700 flex items-center gap-2">
-              <CheckCircle className="w-3.5 h-3.5 shrink-0" />
-              {t('marketing.existingEntry', { date: (() => { const d = new Date(entryDate + 'T12:00:00'); return `${d.getDate()} ${t(`month.${d.getMonth() + 1}` as any)}`; })(), leads: existingEntry.data?.leads })}
-            </div>
-          )}
-
-          {/* Mini calendar */}
-          {mktReports.length > 0 && (
-            <div className="mt-5">
-              <p className="text-xs text-gray-400 mb-2">{t('marketing.historyTitle')}</p>
-              <div className="overflow-x-auto">
-                <div className="flex gap-1" style={{ minWidth: 'max-content' }}>
-                  {days.map(d => {
-                    const dateStr = `${monthPeriod}-${String(d).padStart(2, '0')}`
-                    const isToday = d === todayDay
-                    const isFuture = todayDay ? d > todayDay : false
-                    const r = byDate[dateStr]
-                    const val = r ? Number(r.data?.leads) || 0 : null
-                    return (
-                      <button key={d} onClick={() => !isFuture && onDateChange(dateStr)}
-                        className={`flex flex-col items-center w-8 py-1 rounded text-[10px] transition-colors cursor-pointer
-                          ${dateStr === entryDate ? 'bg-blue-100 text-blue-700 font-bold' : isToday ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50 text-gray-500'}
-                          ${isFuture ? 'opacity-30 cursor-default' : ''}`}>
-                        <span>{d}</span>
-                        <span className={`font-semibold mt-0.5 ${val ? 'text-gray-800' : 'text-gray-200'}`}>
-                          {isFuture ? '·' : val ?? '—'}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Budget block */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h2 className="font-semibold text-gray-900 mb-4">{t('marketing.budgetTitle')}</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-sm">
-          <div>
-            <p className="text-xs text-gray-500 mb-1">{t('marketing.monthPlan')}</p>
-            <p className="font-bold text-gray-900 text-lg">{budgetPlan ? `₸ ${fmt(budgetPlan)}` : <span className="text-gray-300 font-normal">{t('marketing.notSet')}</span>}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 mb-1">{t('marketing.spent')}</p>
-            <p className="font-bold text-gray-900 text-lg">{totalBudget ? `₸ ${fmt(totalBudget)}` : <span className="text-gray-300 font-normal">—</span>}</p>
-            {budgetPct !== null && <p className="text-xs text-gray-400 mt-0.5">{budgetPct}% от плана</p>}
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 mb-1">{t('marketing.leadCost')}</p>
-            <p className="font-bold text-gray-900 text-lg">{leadCost ? `₸ ${fmt(leadCost)}` : '—'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 mb-1">{t('marketing.qualLeadCost')}</p>
-            <p className="font-bold text-gray-900 text-lg">{totalQual > 0 && totalBudget > 0 ? `₸ ${fmt(Math.round(totalBudget / totalQual))}` : '—'}</p>
-          </div>
-        </div>
-        {budgetPlan > 0 && (
-          <div className="mt-4">
-            <div className="flex justify-between text-xs text-gray-400 mb-1">
-              <span>{t('marketing.budgetProgress')}</span>
-              <span>{budgetPct ?? 0}%</span>
-            </div>
-            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div className={`h-2 rounded-full transition-all ${(budgetPct ?? 0) > 100 ? 'bg-red-400' : 'bg-blue-400'}`}
-                style={{ width: `${Math.min(budgetPct ?? 0, 100)}%` }} />
-            </div>
-          </div>
-        )}
-        <p className="text-xs text-gray-300 mt-3">
-          {t('marketing.budgetNote')}
-        </p>
-      </div>
-
-      {/* ── Sales Channels ─────────────────────────────────────── */}
-      <SalesChannelsSection />
-
+          <p className={`text-xs font-semibold ${pctColor}`}>
+            Факт: {factVal.toLocaleString('ru-RU')} <span className="text-gray-400 font-normal">· {pctVal ?? 0}%</span>
+          </p>
+        </>
+      )}
+      {sub && !planVal && <p className={`text-xs ${pctColor || 'text-gray-400'}`}>{sub}</p>}
     </div>
   )
 }
 
-// ── Sales Channels Management ─────────────────────────────────────────────────
+// ─── Mini metric ──────────────────────────────────────────────────────────────
+function MetricChip({ label, value, color = 'text-gray-800', sub }: { label: string; value: string; color?: string; sub?: string }) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 px-4 py-3">
+      <p className="text-[10px] text-gray-400 font-medium leading-tight mb-0.5">{label}</p>
+      <p className={`text-xl font-bold leading-none ${color}`}>{value}</p>
+      {sub && <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>}
+    </div>
+  )
+}
+
+// ─── Funnel bar row ───────────────────────────────────────────────────────────
+function FunnelRow({ label, value, max, color, conv }: { label: string; value: number; max: number; color: string; conv?: number | null }) {
+  const w = max > 0 ? Math.max((value / max) * 100, value > 0 ? 3 : 0) : 0
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-xs text-gray-500 w-44 shrink-0 leading-tight">{label}</span>
+      <div className="flex-1 h-6 bg-gray-100 rounded overflow-hidden">
+        <div className={`h-6 rounded ${color}`} style={{ width: `${w}%`, transition: 'width 0.4s ease' }} />
+      </div>
+      <span className="text-sm font-bold text-gray-800 w-10 text-right">{value}</span>
+      {conv !== undefined && conv !== null && (
+        <span className={`text-xs font-semibold w-14 text-right ${colorPct(conv)}`}>{conv}%</span>
+      )}
+    </div>
+  )
+}
+
+// ─── Donut chart (pure CSS) ───────────────────────────────────────────────────
+const DONUT_COLORS = ['#6366f1','#f59e0b','#10b981','#ef4444','#8b5cf6','#06b6d4','#f97316']
+function DonutChart({ segments, total }: { segments: { label: string; count: number; color: string }[]; total: number }) {
+  let offset = 0
+  const r = 70, cx = 80, cy = 80
+  const circ = 2 * Math.PI * r
+  return (
+    <svg viewBox="0 0 160 160" className="w-full h-full">
+      {segments.map((seg, i) => {
+        const frac = total > 0 ? seg.count / total : 0
+        const dash = frac * circ
+        const el = (
+          <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={seg.color}
+            strokeWidth="28" strokeDasharray={`${dash} ${circ - dash}`}
+            strokeDashoffset={-offset * circ} transform="rotate(-90)" style={{ transformOrigin: `${cx}px ${cy}px` }} />
+        )
+        offset += frac
+        return el
+      })}
+      <text x={cx} y={cy - 8} textAnchor="middle" className="text-2xl font-bold" fontSize="22" fontWeight="700" fill="#1f2937">{total}</text>
+      <text x={cx} y={cy + 12} textAnchor="middle" fontSize="9" fill="#9ca3af">потерянных</text>
+      <text x={cx} y={cy + 24} textAnchor="middle" fontSize="9" fill="#9ca3af">лидов</text>
+    </svg>
+  )
+}
+
+// ─── Channel budget inline editor ─────────────────────────────────────────────
+function ChannelBudgetRow({
+  channel, dateFrom, dateTo,
+}: {
+  channel: { id: string; name: string }
+  dateFrom: string; dateTo: string
+}) {
+  const qc = useQueryClient()
+  const { data: existing } = useQuery({
+    queryKey: ['channel-budget-row', channel.id, dateFrom, dateTo],
+    queryFn: () => api.get(`/channel-budgets?from=${dateFrom}&to=${dateTo}`).then(r =>
+      (r.data as any[]).filter((b: any) => b.channelId === channel.id).reduce((s: number, b: any) => s + b.spend, 0)
+    ),
+  })
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState('')
+
+  const saveMut = useMutation({
+    mutationFn: () => api.put('/channel-budgets', { channelId: channel.id, date: dateFrom, spend: Number(value) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['channel-budget-row'] })
+      qc.invalidateQueries({ queryKey: ['marketing-dashboard'] })
+      setEditing(false)
+    },
+  })
+
+  return (
+    <span className="flex items-center gap-1">
+      {editing ? (
+        <>
+          <input type="number" value={value} onChange={e => setValue(e.target.value)} autoFocus
+            className="w-24 text-xs border border-blue-300 rounded px-1.5 py-1 outline-none focus:ring-2 focus:ring-blue-400"
+            placeholder="0" onKeyDown={e => e.key === 'Enter' && saveMut.mutate()} />
+          <button onClick={() => saveMut.mutate()} className="text-blue-600 hover:text-blue-800 p-0.5"><CheckCircle className="w-3.5 h-3.5" /></button>
+          <button onClick={() => setEditing(false)} className="text-gray-400 hover:text-gray-600 p-0.5"><X className="w-3 h-3" /></button>
+        </>
+      ) : (
+        <button onClick={() => { setValue(existing ? String(existing) : ''); setEditing(true) }}
+          className="flex items-center gap-1 text-xs text-gray-700 hover:text-blue-700 group">
+          {existing ? `₸ ${existing.toLocaleString('ru-RU')}` : <span className="text-gray-300">— введите</span>}
+          <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-blue-500" />
+        </button>
+      )}
+    </span>
+  )
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+export default function MarketingPage() {
+  const qc = useQueryClient()
+  const periodState = usePeriodStore()
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'entry' | 'channels'>('dashboard')
+  const [editingPlans, setEditingPlans] = useState(false)
+  const [planLeadsVal, setPlanLeadsVal] = useState('')
+  const [planQualVal, setPlanQualVal] = useState('')
+  const [planBudgetVal, setPlanBudgetVal] = useState('')
+
+  const apiParams = buildPeriodParams(periodState)
+  const fromParam = useMemo(() => {
+    const p = new URLSearchParams(apiParams)
+    return p.get('from') || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
+  }, [apiParams])
+  const toParam = useMemo(() => {
+    const p = new URLSearchParams(apiParams)
+    return p.get('to') || new Date().toISOString().slice(0, 10)
+  }, [apiParams])
+
+  // ── Dashboard data ─────────────────────────────────────────────────────────
+  const { data: dash, isLoading, refetch } = useQuery({
+    queryKey: ['marketing-dashboard', fromParam, toParam],
+    queryFn: () => api.get(`/channel-budgets/dashboard?from=${fromParam}&to=${toParam}`).then(r => r.data),
+    refetchInterval: 60000,
+  })
+
+  // ── Sales channels ─────────────────────────────────────────────────────────
+  const { data: channels = [] } = useQuery<{ id: string; name: string; createdAt: string }[]>({
+    queryKey: ['sales-channels'],
+    queryFn: () => api.get('/sales-channels').then(r => r.data),
+  })
+
+  // ── Plans save ─────────────────────────────────────────────────────────────
+  const monthKey = fromParam.slice(0, 7)
+  const savePlansMut = useMutation({
+    mutationFn: () => api.post('/plans/bulk', {
+      period: monthKey,
+      plans: [
+        ...(planLeadsVal  ? [{ type: 'LEADS',           value: +planLeadsVal  }] : []),
+        ...(planQualVal   ? [{ type: 'QUALIFIED_LEADS',  value: +planQualVal   }] : []),
+        ...(planBudgetVal ? [{ type: 'BUDGET',           value: +planBudgetVal }] : []),
+      ],
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['marketing-dashboard'] }); setEditingPlans(false) },
+  })
+
+  const openPlanEdit = () => {
+    setPlanLeadsVal(dash?.plans?.planLeads ? String(dash.plans.planLeads) : '')
+    setPlanQualVal(dash?.plans?.planQual ? String(dash.plans.planQual) : '')
+    setPlanBudgetVal(dash?.plans?.planBudget ? String(dash.plans.planBudget) : '')
+    setEditingPlans(true)
+  }
+
+  const o = dash?.overview || {}
+  const kpi = dash?.kpi || {}
+  const plans = dash?.plans || {}
+
+  const leadsFactPct  = plans.planLeads  > 0 ? pct(o.totalLeads,  plans.planLeads)  : null
+  const qualFactPct   = plans.planQual   > 0 ? pct(o.qualLeads,   plans.planQual)   : null
+  const budgetFactPct = plans.planBudget > 0 ? pct(o.totalSpend,  plans.planBudget) : null
+
+  const funnelMax = Math.max(o.totalLeads || 0, 1)
+  const lossSegs = (dash?.lossReasons || []).map((r: any, i: number) => ({ label: r.label, count: r.count, color: DONUT_COLORS[i % DONUT_COLORS.length] }))
+
+  return (
+    <div className="min-h-full bg-gray-50">
+      <div className="max-w-[1400px] mx-auto p-4 md:p-6 space-y-5">
+
+        {/* ── Header ── */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Дашборд маркетолога</h1>
+            <p className="text-sm text-gray-400 mt-0.5">{fromParam} — {toParam}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => refetch()} className="p-2 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors" title="Обновить">
+              <RefreshCw className="w-4 h-4" />
+            </button>
+            <button onClick={() => downloadExport('marketer', apiParams)}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+              <Download className="w-4 h-4" /> Экспорт
+            </button>
+          </div>
+        </div>
+
+        {/* ── Tabs ── */}
+        <div className="flex gap-1 bg-white border border-gray-100 rounded-xl p-1 w-fit shadow-sm">
+          {([['dashboard', 'Дашборд', BarChart2], ['entry', 'Ввод расходов', DollarSign], ['channels', 'Каналы', Settings]] as const).map(([id, label, Icon]) => (
+            <button key={id} onClick={() => setActiveTab(id as any)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === id ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
+              <Icon className="w-4 h-4" /> {label}
+            </button>
+          ))}
+        </div>
+
+        {/* ═══════════ DASHBOARD TAB ═══════════ */}
+        {activeTab === 'dashboard' && (
+          <>
+            {isLoading ? (
+              <div className="text-center py-20 text-gray-400">Загрузка данных...</div>
+            ) : (
+              <>
+                {/* ── Plan KPI row ── */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                  <KpiCard label="План по лидам" value={plans.planLeads || '—'} color="text-gray-800"
+                    planVal={plans.planLeads} factVal={o.totalLeads} pctVal={leadsFactPct} />
+                  <KpiCard label="План по квал лидам" value={plans.planQual || '—'} color="text-gray-800"
+                    planVal={plans.planQual} factVal={o.qualLeads} pctVal={qualFactPct} />
+                  <KpiCard label="Бюджет (заложено)" value={plans.planBudget ? fmtMoney(plans.planBudget) : '—'} color="text-gray-800"
+                    planVal={plans.planBudget} factVal={o.totalSpend} pctVal={budgetFactPct} />
+                  <KpiCard label="Факт лидов" value={o.totalLeads ?? 0} color="text-blue-600"
+                    sub={leadsFactPct != null ? `${leadsFactPct}% от плана` : 'Лидов за период'} />
+                  <KpiCard label="Факт квал лидов" value={o.qualLeads ?? 0} color="text-green-600"
+                    sub={qualFactPct != null ? `${qualFactPct}% от плана` : `${kpi.convLidToQual ?? 0}% от всех лидов`} />
+                  <KpiCard label="Расходы на маркетинг" value={fmtMoney(o.totalSpend)} color="text-orange-600"
+                    sub={budgetFactPct != null ? `${budgetFactPct}% от плана` : 'потрачено за период'} />
+                </div>
+
+                {/* ── Edit plans link ── */}
+                <div className="flex items-center gap-3">
+                  {!editingPlans ? (
+                    <button onClick={openPlanEdit}
+                      className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 font-medium">
+                      <Pencil className="w-3.5 h-3.5" /> Изменить планы на период
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-3 flex-wrap bg-white rounded-xl border border-gray-200 p-4">
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-1">План лидов</label>
+                        <input type="number" value={planLeadsVal} onChange={e => setPlanLeadsVal(e.target.value)}
+                          placeholder="0" className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-28 focus:ring-2 focus:ring-blue-500 outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-1">План квал лидов</label>
+                        <input type="number" value={planQualVal} onChange={e => setPlanQualVal(e.target.value)}
+                          placeholder="0" className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-28 focus:ring-2 focus:ring-blue-500 outline-none" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-1">Бюджет маркетинга ₸</label>
+                        <input type="number" value={planBudgetVal} onChange={e => setPlanBudgetVal(e.target.value)}
+                          placeholder="0" className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-40 focus:ring-2 focus:ring-blue-500 outline-none" />
+                      </div>
+                      <div className="flex gap-2 mt-4">
+                        <button onClick={() => savePlansMut.mutate()} disabled={savePlansMut.isPending}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors flex items-center gap-1.5">
+                          <Save className="w-3.5 h-3.5" /> Сохранить
+                        </button>
+                        <button onClick={() => setEditingPlans(false)} className="px-3 py-2 text-gray-500 hover:text-gray-700 text-sm">Отмена</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── KPI metrics row (CPL, CPQL, CAC, ДРР, конверсии) ── */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  <MetricChip label="CPL — стоимость лида" value={kpi.cpl ? fmtMoney(kpi.cpl) : '—'} color="text-indigo-700"
+                    sub={o.totalLeads > 0 ? `${o.totalLeads} лидов` : undefined} />
+                  <MetricChip label="CPQL — стоимость квал лида" value={kpi.cpql ? fmtMoney(kpi.cpql) : '—'} color="text-purple-700"
+                    sub={o.qualLeads > 0 ? `${o.qualLeads} квал` : undefined} />
+                  <MetricChip label="CAC — стоимость клиента" value={kpi.cac ? fmtMoney(kpi.cac) : '—'} color="text-blue-700"
+                    sub={o.totalSalesCount > 0 ? `${o.totalSalesCount} продаж` : undefined} />
+                  <MetricChip label="ДРР — доля рекламных расх." value={kpi.drr != null ? `${kpi.drr}%` : '—'} color={kpi.drr > 30 ? 'text-red-600' : 'text-green-600'}
+                    sub={o.totalRevenue > 0 ? `Выручка ${fmtMoney(o.totalRevenue)}` : undefined} />
+                  <MetricChip label="Конверсия Лид→Продажа" value={kpi.convOverall != null ? `${kpi.convOverall}%` : '—'} color={colorPct(kpi.convOverall ?? 0, 15, 7)}
+                    sub={o.totalSalesCount > 0 ? `${o.totalSalesCount} из ${o.totalLeads}` : undefined} />
+                </div>
+
+                {/* ── Conversion chain ── */}
+                <div className="bg-white rounded-2xl border border-gray-100 p-4">
+                  <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wide">Воронка конверсий</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {[
+                      { label: 'Лид → Квал',          value: kpi.convLidToQual },
+                      { label: 'Квал → Запись',        value: kpi.convQualToScheduled },
+                      { label: 'Запись → Консультация',value: kpi.convScheduledToHappened },
+                      { label: 'Консультация → Продажа',value: kpi.convHappenedToSale },
+                    ].map((step, i, arr) => (
+                      <div key={step.label} className="flex items-center gap-2">
+                        <div className="text-center">
+                          <p className="text-xs text-gray-400 whitespace-nowrap">{step.label}</p>
+                          <p className={`text-xl font-bold ${colorPct(step.value ?? 0, 60, 30)}`}>
+                            {step.value != null ? `${step.value}%` : '—'}
+                          </p>
+                        </div>
+                        {i < arr.length - 1 && <ChevronRight className="w-4 h-4 text-gray-200 shrink-0" />}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ── Per-channel table ── */}
+                <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-gray-50">
+                    <h2 className="font-bold text-gray-900">Ежедневный отчёт по рекламным каналам</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">Расходы вводятся во вкладке «Ввод расходов»</p>
+                  </div>
+                  {channels.length === 0 ? (
+                    <div className="text-center py-12 text-gray-400">
+                      <TrendingUp className="w-10 h-10 mx-auto mb-3 text-gray-200" />
+                      <p className="font-medium">Нет рекламных каналов</p>
+                      <p className="text-sm mt-1">Создайте каналы во вкладке «Каналы»</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-gray-50 text-xs font-semibold text-gray-500">
+                            <th className="text-left px-5 py-3">Рекламный канал</th>
+                            <th className="text-right px-4 py-3">Потрачено</th>
+                            <th className="text-right px-4 py-3">Лидов</th>
+                            <th className="text-right px-4 py-3">Квал лидов</th>
+                            <th className="text-right px-4 py-3">Не квал</th>
+                            <th className="text-right px-4 py-3">CPL</th>
+                            <th className="text-right px-4 py-3">CPQL</th>
+                            <th className="text-right px-4 py-3">Конв Лид→Квал</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(dash?.channels || []).filter((ch: any) => ch.id !== '__none__' && (ch.leads > 0 || ch.spend > 0)).map((ch: any) => (
+                            <tr key={ch.id} className="border-t border-gray-50 hover:bg-blue-50/30 transition-colors">
+                              <td className="px-5 py-3 font-semibold text-gray-800">{ch.name}</td>
+                              <td className="px-4 py-3 text-right text-gray-700">{ch.spend > 0 ? fmtMoney(ch.spend) : <span className="text-gray-300">—</span>}</td>
+                              <td className="px-4 py-3 text-right font-semibold text-gray-900">{ch.leads || 0}</td>
+                              <td className="px-4 py-3 text-right text-green-700 font-semibold">{ch.qualLeads || 0}</td>
+                              <td className="px-4 py-3 text-right text-red-500">{ch.notQual || 0}</td>
+                              <td className="px-4 py-3 text-right text-gray-700">{ch.cpl ? fmtMoney(ch.cpl) : <span className="text-gray-300">—</span>}</td>
+                              <td className="px-4 py-3 text-right text-gray-700">{ch.cpql ? fmtMoney(ch.cpql) : <span className="text-gray-300">—</span>}</td>
+                              <td className={`px-4 py-3 text-right font-bold ${colorPct(ch.convLidToQual ?? 0, 50, 30)}`}>
+                                {ch.convLidToQual != null ? `${ch.convLidToQual}%` : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                          {/* Total row */}
+                          <tr className="border-t-2 border-gray-200 bg-gray-50 font-semibold">
+                            <td className="px-5 py-3 text-gray-900">Итого</td>
+                            <td className="px-4 py-3 text-right text-gray-900">{fmtMoney(o.totalSpend)}</td>
+                            <td className="px-4 py-3 text-right text-gray-900">{o.totalLeads ?? 0}</td>
+                            <td className="px-4 py-3 text-right text-green-700">{o.qualLeads ?? 0}</td>
+                            <td className="px-4 py-3 text-right text-red-500">{(o.totalLeads ?? 0) - (o.qualLeads ?? 0)}</td>
+                            <td className="px-4 py-3 text-right text-gray-900">{kpi.cpl ? fmtMoney(kpi.cpl) : '—'}</td>
+                            <td className="px-4 py-3 text-right text-gray-900">{kpi.cpql ? fmtMoney(kpi.cpql) : '—'}</td>
+                            <td className={`px-4 py-3 text-right font-bold ${colorPct(kpi.convLidToQual ?? 0, 50, 30)}`}>
+                              {kpi.convLidToQual != null ? `${kpi.convLidToQual}%` : '—'}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Funnel + Loss reasons ── */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                  {/* Funnel */}
+                  <div className="bg-white rounded-2xl border border-gray-100 p-5">
+                    <h2 className="font-bold text-gray-900 mb-4">Воронка продаж <span className="text-xs font-normal text-gray-400">(суммарно по всем лидорубам)</span></h2>
+                    <div className="space-y-2">
+                      <FunnelRow label="Лиды (всего)" value={o.totalLeads ?? 0} max={funnelMax} color="bg-blue-500" />
+                      <FunnelRow label="Квал лиды" value={o.qualLeads ?? 0} max={funnelMax} color="bg-indigo-500"
+                        conv={kpi.convLidToQual} />
+                      <FunnelRow label="Записаны на консультацию" value={o.scheduled ?? 0} max={funnelMax} color="bg-purple-400"
+                        conv={kpi.convQualToScheduled} />
+                      <FunnelRow label="Состоялись консультации" value={o.happened ?? 0} max={funnelMax} color="bg-amber-400"
+                        conv={kpi.convScheduledToHappened} />
+                      <FunnelRow label="Продажи" value={o.totalSalesCount ?? 0} max={funnelMax} color="bg-green-500"
+                        conv={kpi.convHappenedToSale} />
+                    </div>
+                  </div>
+
+                  {/* Loss reasons */}
+                  <div className="bg-white rounded-2xl border border-gray-100 p-5">
+                    <h2 className="font-bold text-gray-900 mb-4">Причины потери лидов</h2>
+                    {lossSegs.length === 0 ? (
+                      <div className="text-center py-8 text-gray-400">
+                        <p className="font-medium">Нет данных о потерях</p>
+                      </div>
+                    ) : (
+                      <div className="flex gap-6 items-start">
+                        <div className="w-36 h-36 shrink-0">
+                          <DonutChart segments={lossSegs} total={dash?.totalLost ?? 0} />
+                        </div>
+                        <div className="flex-1 space-y-2 min-w-0">
+                          {lossSegs.map((seg: any, i: number) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: seg.color }} />
+                              <span className="text-xs text-gray-600 flex-1 truncate">{seg.label}</span>
+                              <span className="text-xs font-bold text-gray-800">{seg.count}</span>
+                              <span className="text-xs text-gray-400">
+                                ({dash?.totalLost > 0 ? Math.round((seg.count / dash.totalLost) * 100) : 0}%)
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Bottom revenue + CAC ── */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                  <MetricChip label="Выручка за период" value={fmtMoney(o.totalRevenue)} color="text-emerald-700" />
+                  <MetricChip label="Расходы на маркетинг" value={fmtMoney(o.totalSpend)} color="text-orange-700" />
+                  <MetricChip label="ДРР (доля рекл расходов)" value={kpi.drr != null ? `${kpi.drr}%` : '—'} color={kpi.drr > 30 ? 'text-red-600' : 'text-green-600'} />
+                  <MetricChip label="Кол-во клиентов (продаж)" value={String(o.totalSalesCount ?? 0)} color="text-blue-700" />
+                  <MetricChip label="CAC (стоимость клиента)" value={kpi.cac ? fmtMoney(kpi.cac) : '—'} color="text-purple-700" />
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* ═══════════ ENTRY TAB ═══════════ */}
+        {activeTab === 'entry' && (
+          <div className="space-y-5">
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <h2 className="font-bold text-gray-900 mb-1">Ввод расходов по каналам</h2>
+              <p className="text-sm text-gray-400 mb-5">Вводите сумму потраченного бюджета для каждого канала за выбранный период.</p>
+
+              {channels.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <TrendingUp className="w-10 h-10 mx-auto mb-3 text-gray-200" />
+                  <p>Сначала создайте каналы во вкладке «Каналы»</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {channels.map(ch => (
+                    <div key={ch.id} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
+                      <span className="text-sm font-semibold text-gray-800 w-36">{ch.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">Потрачено ₸:</span>
+                        <ChannelBudgetRow channel={ch} dateFrom={fromParam} dateTo={toParam} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════ CHANNELS TAB ═══════════ */}
+        {activeTab === 'channels' && (
+          <SalesChannelsSection />
+        )}
+
+      </div>
+    </div>
+  )
+}
+
+// ─── Sales Channels Management ────────────────────────────────────────────────
 function SalesChannelsSection() {
   const qc = useQueryClient()
   const [newName, setNewName] = useState('')
@@ -468,69 +564,57 @@ function SalesChannelsSection() {
   const channels = channelsQ.data || []
 
   return (
-    <div className="card">
-      <div className="flex items-center gap-2 mb-4">
-        <Radio className="w-5 h-5 text-blue-500" />
-        <h2 className="font-semibold text-gray-900">Каналы продаж</h2>
-      </div>
-      <p className="text-sm text-gray-400 mb-4">Используются лидорубами при добавлении лидов. Добавьте актуальные каналы вашей компании.</p>
+    <div className="bg-white rounded-2xl border border-gray-100 p-5">
+      <h2 className="font-bold text-gray-900 mb-1">Управление рекламными каналами</h2>
+      <p className="text-sm text-gray-400 mb-5">
+        Каналы будут доступны во всех выпадающих списках при добавлении лидов.
+      </p>
 
-      <div className="space-y-2 mb-4">
-        {channels.map((ch: { id: string; name: string }) => (
-          <div key={ch.id} className="flex items-center gap-2 py-2 px-3 bg-gray-50 rounded-xl border border-gray-100">
+      {/* Add new */}
+      <div className="flex items-center gap-2 mb-5">
+        <input value={newName} onChange={e => setNewName(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && newName.trim() && createMut.mutate()}
+          placeholder="Название канала (Instagram, TikTok...)"
+          className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <button onClick={() => createMut.mutate()} disabled={!newName.trim() || createMut.isPending}
+          className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors">
+          <Plus className="w-4 h-4" /> Добавить
+        </button>
+      </div>
+
+      {channels.length === 0 && !channelsQ.isLoading && (
+        <div className="text-center py-10 text-gray-400">
+          <TrendingUp className="w-8 h-8 mx-auto mb-2 text-gray-200" />
+          <p className="text-sm">Нет каналов. Добавьте первый канал выше.</p>
+          <p className="text-xs mt-1 text-gray-300">Например: Instagram, TikTok, Facebook, Google Ads, Яндекс Директ</p>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {channels.map(ch => (
+          <div key={ch.id} className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
+            <div className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
             {editingId === ch.id ? (
               <>
-                <input
-                  className="input flex-1 py-1.5 text-sm"
-                  value={editName}
-                  onChange={e => setEditName(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && updateMut.mutate({ id: ch.id, name: editName })}
-                  autoFocus
-                />
+                <input value={editName} onChange={e => setEditName(e.target.value)} autoFocus
+                  onKeyDown={e => { if (e.key === 'Enter') updateMut.mutate({ id: ch.id, name: editName }); if (e.key === 'Escape') setEditingId(null) }}
+                  className="flex-1 border border-blue-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 <button onClick={() => updateMut.mutate({ id: ch.id, name: editName })}
-                  className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors">
-                  <CheckCircle className="w-4 h-4" />
-                </button>
-                <button onClick={() => setEditingId(null)}
-                  className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors">
-                  <X className="w-4 h-4" />
-                </button>
+                  disabled={!editName.trim() || updateMut.isPending}
+                  className="text-blue-600 hover:text-blue-800 p-1"><CheckCircle className="w-4 h-4" /></button>
+                <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-600 p-1"><X className="w-4 h-4" /></button>
               </>
             ) : (
               <>
                 <span className="flex-1 text-sm font-medium text-gray-800">{ch.name}</span>
                 <button onClick={() => { setEditingId(ch.id); setEditName(ch.name) }}
-                  className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors">
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={() => { if (confirm('Удалить канал?')) deleteMut.mutate(ch.id) }}
-                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
+                <button onClick={() => confirm(`Удалить канал "${ch.name}"?`) && deleteMut.mutate(ch.id)}
+                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
               </>
             )}
           </div>
         ))}
-        {channels.length === 0 && (
-          <p className="text-sm text-gray-400 text-center py-4">Нет каналов продаж. Добавьте первый.</p>
-        )}
-      </div>
-
-      <div className="flex gap-2">
-        <input
-          className="input flex-1"
-          value={newName}
-          onChange={e => setNewName(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && newName.trim() && createMut.mutate()}
-          placeholder="Новый канал (Instagram, OLX, 2GIS...)"
-        />
-        <button
-          onClick={() => newName.trim() && createMut.mutate()}
-          disabled={!newName.trim() || createMut.isPending}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40 font-medium transition-colors text-sm"
-        >
-          <Plus className="w-4 h-4" /> Добавить
-        </button>
       </div>
     </div>
   )

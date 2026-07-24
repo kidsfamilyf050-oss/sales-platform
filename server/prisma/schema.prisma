@@ -31,8 +31,9 @@ model Company {
   users         User[]
   plans         Plan[]
   notifications Notification[]
-  salesChannels SalesChannel[]
-  leads         Lead[]
+  salesChannels  SalesChannel[]
+  leads          Lead[]
+  channelBudgets ChannelBudget[]
 }
 
 model Department {
@@ -245,9 +246,26 @@ model SalesChannel {
   name      String
   createdAt DateTime @default(now())
 
-  leads Lead[]
+  leads          Lead[]
+  channelBudgets ChannelBudget[]
 
   @@index([companyId])
+}
+
+// ── Per-channel daily ad spend ────────────────────────────────────────────────
+model ChannelBudget {
+  id        String      @id @default(cuid())
+  date      String      // YYYY-MM-DD
+  channelId String
+  channel   SalesChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  spend     Float        @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([date, channelId, companyId])
+  @@index([companyId, date])
 }
 
 // ── Lead management ───────────────────────────────────────────────────────────
