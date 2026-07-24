@@ -285,7 +285,10 @@ model Lead {
   leadLink           String?   // ссылка на лид в рекламном кабинете
   subStatus          String?   // "scheduled" | "refused" | "thinking"
   appointmentDate    String?   // YYYY-MM-DD — дата записи на консультацию
+  appointmentTime    String?   // HH:MM — время консультации
   consultationStatus String?   // "happened" | "not_happened" | "postponed"
+  postponedDate      String?   // YYYY-MM-DD — новая дата при переносе
+  postponedTime      String?   // HH:MM — новое время при переносе
 
   // Status
   status         LeadStatus    @default(NEW)

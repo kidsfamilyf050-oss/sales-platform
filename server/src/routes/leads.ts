@@ -79,13 +79,95 @@ router.get('/today-appointments', authenticate, async (req: AuthRequest, res: Re
     const leads = await prisma.lead.findMany({
       where: {
         createdById: req.user!.id,
-        appointmentDate: today,
-        consultationStatus: null,
+        OR: [
+          { appointmentDate: today, consultationStatus: null },
+          { postponedDate: today },
+        ],
       },
       include: INCLUDE_FULL,
-      orderBy: { createdAt: 'asc' },
+      orderBy: { appointmentTime: 'asc' },
     })
     res.json(leads)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── GET /api/leads/lider-report — lider: full report with stats ──────────────
+router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response) => {
+  const { from, to, period = 'month', search, channelId, ktsStatus, subStatus, consultationStatus, date: dateFilter } = req.query
+  const { fromStr, toStr } = getPeriodStr(period as string, from as string, to as string)
+  try {
+    // Filtered query for table
+    const where: any = {
+      createdById: req.user!.id,
+      date: { gte: fromStr, lte: toStr },
+    }
+    if (search) {
+      where.OR = [
+        { clientName: { contains: search as string, mode: 'insensitive' } },
+        { phone: { contains: search as string } },
+        { leadLink: { contains: search as string, mode: 'insensitive' } },
+      ]
+    }
+    if (channelId) where.salesChannelId = channelId as string
+    if (subStatus) where.subStatus = subStatus as string
+    if (consultationStatus) where.consultationStatus = consultationStatus as string
+    if (dateFilter) where.appointmentDate = dateFilter as string
+    if (ktsStatus === 'qualified') { where.isQualified = true; where.assignedToId = null }
+    else if (ktsStatus === 'unqualified') { where.isQualified = false }
+    else if (ktsStatus === 'in_work') { where.assignedToId = { not: null } }
+
+    const leads = await prisma.lead.findMany({ where, include: INCLUDE_FULL, orderBy: { createdAt: 'desc' } })
+
+    // Stats from ALL leads in period (no filter)
+    const allLeads = await prisma.lead.findMany({
+      where: { createdById: req.user!.id, date: { gte: fromStr, lte: toStr } },
+      select: { isQualified: true, subStatus: true, consultationStatus: true, status: true, appointmentDate: true, postponedDate: true, date: true },
+    })
+
+    const today = new Date().toISOString().slice(0, 10)
+    const totalLeads = allLeads.length
+    const totalScheduledToday = allLeads.filter(l =>
+      (l.appointmentDate === today && !l.consultationStatus) || l.postponedDate === today
+    ).length
+    const totalHappened = allLeads.filter(l => l.consultationStatus === 'happened').length
+    const totalCancelled = allLeads.filter(l => l.consultationStatus === 'not_happened').length
+    const totalPostponed = allLeads.filter(l => l.consultationStatus === 'postponed').length
+    const totalScheduled = allLeads.filter(l => l.subStatus === 'scheduled').length
+    const conversionToScheduled = totalLeads > 0 ? Math.round(totalScheduled / totalLeads * 100) : 0
+
+    // Reminder counts
+    const reminders = {
+      needStatusUpdate: allLeads.filter(l => l.appointmentDate && l.appointmentDate < today && !l.consultationStatus).length,
+      thinkingTooLong: (() => {
+        const twoDaysAgo = new Date(); twoDaysAgo.setDate(twoDaysAgo.getDate() - 2)
+        const cutoff = twoDaysAgo.toISOString().slice(0, 10)
+        return allLeads.filter(l => l.subStatus === 'thinking' && l.date < cutoff).length
+      })(),
+      postponedNoDate: allLeads.filter(l => l.consultationStatus === 'postponed' && !l.postponedDate).length,
+    }
+
+    res.json({
+      leads,
+      stats: {
+        totalLeads,
+        totalScheduledToday,
+        totalHappened,
+        totalCancelled,
+        totalPostponed,
+        totalScheduled,
+        conversionToScheduled,
+        funnel: {
+          total: totalLeads,
+          qualified: allLeads.filter(l => l.isQualified).length,
+          scheduled: totalScheduled,
+          happened: totalHappened,
+          sold: allLeads.filter(l => l.status === 'SOLD').length,
+        },
+      },
+      reminders,
+    })
   } catch (e) {
     console.error(e); res.status(500).json({ error: 'Server error' })
   }
@@ -191,7 +273,7 @@ router.get('/all', authenticate, async (req: AuthRequest, res: Response) => {
 // ── POST /api/leads — create lead (lider) ────────────────────────────────────
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   const { clientName, phone, date, salesChannelId, isQualified, isScheduled, comment, assignedToId,
-          leadLink, subStatus, appointmentDate, consultationStatus } = req.body
+          leadLink, subStatus, appointmentDate, appointmentTime, consultationStatus, postponedDate, postponedTime } = req.body
   if (!clientName || !phone || !date) return res.status(400).json({ error: 'clientName, phone, date required' })
 
   const qualified = isQualified !== false && isQualified !== 'false'
@@ -214,7 +296,10 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         leadLink: leadLink?.trim() || null,
         subStatus: subStatus || null,
         appointmentDate: appointmentDate || null,
+        appointmentTime: appointmentTime || null,
         consultationStatus: consultationStatus || null,
+        postponedDate: postponedDate || null,
+        postponedTime: postponedTime || null,
         status,
       },
       include: INCLUDE_FULL,
@@ -239,7 +324,7 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
     const { clientName, phone, date, salesChannelId, isQualified, isScheduled, comment, assignedToId,
             amount, paymentType, paymentMethod, bank, months, crmLink, closerComment,
-            leadLink, subStatus, appointmentDate, consultationStatus } = req.body
+            leadLink, subStatus, appointmentDate, appointmentTime, consultationStatus, postponedDate, postponedTime } = req.body
 
     // Recalculate status if qualification or assignment changes
     let status = lead.status as string
@@ -278,7 +363,10 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
         ...(leadLink !== undefined && { leadLink: leadLink?.trim() || null }),
         ...(subStatus !== undefined && { subStatus: subStatus || null }),
         ...(appointmentDate !== undefined && { appointmentDate: appointmentDate || null }),
+        ...(appointmentTime !== undefined && { appointmentTime: appointmentTime || null }),
         ...(consultationStatus !== undefined && { consultationStatus: consultationStatus || null }),
+        ...(postponedDate !== undefined && { postponedDate: postponedDate || null }),
+        ...(postponedTime !== undefined && { postponedTime: postponedTime || null }),
         status: status as any,
       },
       include: INCLUDE_FULL,
