@@ -18,18 +18,24 @@ export default function Layout() {
         />
       )}
 
-      {/* Sidebar — icon strip on desktop, full drawer on mobile */}
+      {/* Mobile sidebar drawer: slides in from left, hidden on desktop */}
       <div className={`
-        fixed inset-y-0 left-0 z-50
+        fixed inset-y-0 left-0 z-50 md:hidden
         transform transition-transform duration-200 ease-in-out
-        md:static md:transform-none md:z-auto md:h-full md:shrink-0
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <Sidebar onClose={() => setSidebarOpen(false)} />
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      {/* Desktop: Sidebar's fixed <aside> (hidden md:flex fixed ...) lives outside
+          the flex flow by virtue of position:fixed. We render a zero-size wrapper
+          on desktop-only so the component mounts and the hover state works. */}
+      <div className="hidden md:block" aria-hidden>
+        <Sidebar />
+      </div>
+
+      {/* Main content: md:pl-16 reserves 64px for the collapsed icon-strip sidebar */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0 md:pl-16">
         <Header onMenuClick={() => setSidebarOpen(o => !o)} />
         <main className="flex-1 overflow-y-auto">
           <Outlet />

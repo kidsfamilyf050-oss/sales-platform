@@ -676,6 +676,10 @@ export default function LiderLeadsPage() {
   const [inlineDate, setInlineDate] = useState(new Date().toISOString().slice(0, 10))
   const [inlineChannelId, setInlineChannelId] = useState('')
   const [inlineLeadLink, setInlineLeadLink] = useState('')
+  const [inlineCloserId, setInlineCloserId] = useState('')
+  const [inlineSubStatus, setInlineSubStatus] = useState('')
+  const [inlineAppointmentDate, setInlineAppointmentDate] = useState('')
+  const [inlineAppointmentTime, setInlineAppointmentTime] = useState('')
 
   // Modals
   const [editLead, setEditLead] = useState<Lead | null>(null)
@@ -757,9 +761,7 @@ export default function LiderLeadsPage() {
     mutationFn: (data: any) => api.post('/leads', data).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['lider-report'] })
-      setShowInlineAdd(false)
-      setInlineName(''); setInlinePhone(''); setInlineChannelId('')
-      setInlineDate(new Date().toISOString().slice(0, 10)); setInlineLeadLink('')
+      resetInlineForm()
     },
   })
 
@@ -767,12 +769,25 @@ export default function LiderLeadsPage() {
     if (confirm(`Удалить лид "${lead.clientName}"?`)) deleteMutation.mutate(lead.id)
   }
 
+  const resetInlineForm = () => {
+    setInlineName(''); setInlinePhone(''); setInlineChannelId('')
+    setInlineDate(new Date().toISOString().slice(0, 10)); setInlineLeadLink('')
+    setInlineCloserId(''); setInlineSubStatus(''); setInlineAppointmentDate(''); setInlineAppointmentTime('')
+    setShowInlineAdd(false)
+  }
+
   const saveInlineLead = () => {
     if (!inlineName.trim() || !inlinePhone.trim()) return
     createMutation.mutate({
-      clientName: inlineName.trim(), phone: inlinePhone.trim(), date: inlineDate,
+      clientName: inlineName.trim(),
+      phone: inlinePhone.trim(),
+      date: inlineDate,
       salesChannelId: inlineChannelId || undefined,
       leadLink: inlineLeadLink || undefined,
+      assignedToId: inlineCloserId || undefined,
+      subStatus: inlineSubStatus || undefined,
+      appointmentDate: inlineAppointmentDate || undefined,
+      appointmentTime: inlineAppointmentTime || undefined,
       isQualified: true,
     })
   }
@@ -987,60 +1002,102 @@ export default function LiderLeadsPage() {
                             {col.label}{col.sort && col.field && <SortIcon field={col.field} />}
                           </th>
                         ))}
-                        {/* ✅ Fix #14: + button for inline add row */}
-                        <th className="px-2 py-3 w-10">
+                        {/* + Add lead button in header */}
+                        <th className="px-2 py-2 w-28">
                           <button
                             onClick={() => setShowInlineAdd(a => !a)}
-                            title="Добавить лид"
-                            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${showInlineAdd ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50 border border-gray-200'}`}>
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${showInlineAdd ? 'bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
                             <Plus className="w-3.5 h-3.5" />
+                            Добавить
                           </button>
                         </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {/* ✅ Fix #10/#14: inline add row */}
+                      {/* Inline add row — full set of fields */}
                       {showInlineAdd && (
-                        <tr className="border-b border-blue-100 bg-blue-50/60">
-                          <td className="px-2 py-2">
+                        <tr className="border-b-2 border-blue-200 bg-blue-50/70">
+                          {/* Date */}
+                          <td className="px-2 py-3">
                             <input type="date" value={inlineDate} onChange={e => setInlineDate(e.target.value)}
-                              className="w-32 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
+                              className="w-32 text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
                           </td>
-                          <td className="px-2 py-2" colSpan={1}>
-                            <div className="space-y-1">
+                          {/* Link + Name */}
+                          <td className="px-2 py-3 min-w-[140px]">
+                            <div className="space-y-1.5">
                               <input value={inlineLeadLink} onChange={e => setInlineLeadLink(e.target.value)}
                                 placeholder="Ссылка на лид..."
-                                className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
+                                className="w-full text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
                               <input value={inlineName} onChange={e => setInlineName(e.target.value)}
                                 placeholder="Имя клиента *"
                                 autoFocus
-                                className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
+                                className="w-full text-xs border border-blue-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white font-medium" />
                             </div>
                           </td>
-                          <td className="px-2 py-2">
+                          {/* Phone */}
+                          <td className="px-2 py-3">
                             <input value={inlinePhone} onChange={e => setInlinePhone(e.target.value)}
                               placeholder="Телефон *"
-                              onKeyDown={e => e.key === 'Enter' && saveInlineLead()}
-                              className="w-32 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
+                              className="w-32 text-xs border border-blue-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white font-medium" />
                           </td>
-                          <td className="px-2 py-2">
+                          {/* Channel */}
+                          <td className="px-2 py-3">
                             <select value={inlineChannelId} onChange={e => setInlineChannelId(e.target.value)}
-                              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white max-w-[130px]">
+                              className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white w-28">
                               <option value="">— канал —</option>
                               {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
                           </td>
-                          <td colSpan={6} />
-                          <td className="px-2 py-2">
-                            <div className="flex flex-col gap-1">
+                          {/* Qual — always квал on inline add */}
+                          <td className="px-2 py-3">
+                            <span className="text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">Квал</span>
+                          </td>
+                          {/* Sub-status (Записан/Отказ/Думает) */}
+                          <td className="px-2 py-3">
+                            <select value={inlineSubStatus} onChange={e => setInlineSubStatus(e.target.value)}
+                              className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white w-28">
+                              <option value="">— статус —</option>
+                              <option value="scheduled">Записан</option>
+                              <option value="refused">Отказ</option>
+                              <option value="thinking">Думает</option>
+                            </select>
+                          </td>
+                          {/* Appointment date + time */}
+                          <td className="px-2 py-3">
+                            <div className="space-y-1">
+                              <input type="date" value={inlineAppointmentDate} onChange={e => setInlineAppointmentDate(e.target.value)}
+                                className="w-32 text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
+                              <input type="time" value={inlineAppointmentTime} onChange={e => setInlineAppointmentTime(e.target.value)}
+                                className="w-24 text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
+                            </div>
+                          </td>
+                          {/* Closer */}
+                          <td className="px-2 py-3">
+                            <select value={inlineCloserId} onChange={e => setInlineCloserId(e.target.value)}
+                              className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white w-28">
+                              <option value="">— клоузер —</option>
+                              {closers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                          </td>
+                          {/* Consultation status — empty on add */}
+                          <td className="px-2 py-3">
+                            <span className="text-xs text-gray-300">—</span>
+                          </td>
+                          {/* Postpone — empty */}
+                          <td className="px-2 py-3">
+                            <span className="text-xs text-gray-300">—</span>
+                          </td>
+                          {/* Actions */}
+                          <td className="px-2 py-3">
+                            <div className="flex flex-col gap-1.5">
                               <button onClick={saveInlineLead}
                                 disabled={!inlineName.trim() || !inlinePhone.trim() || createMutation.isPending}
-                                className="w-7 h-7 bg-green-600 text-white rounded-lg flex items-center justify-center hover:bg-green-700 disabled:opacity-40 transition-colors">
-                                <Check className="w-3.5 h-3.5" />
+                                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-40 transition-colors whitespace-nowrap">
+                                <Check className="w-3 h-3" /> Сохранить
                               </button>
-                              <button onClick={() => setShowInlineAdd(false)}
-                                className="w-7 h-7 border border-gray-200 text-gray-500 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors">
-                                <X className="w-3.5 h-3.5" />
+                              <button onClick={resetInlineForm}
+                                className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-100 transition-colors whitespace-nowrap">
+                                <X className="w-3 h-3" /> Отмена
                               </button>
                             </div>
                           </td>
