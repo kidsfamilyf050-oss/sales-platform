@@ -1,10 +1,11 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import {
   Plus, Search, X, ExternalLink, ChevronUp, ChevronDown,
   ChevronLeft, ChevronRight, MoreVertical, Bell, Clock,
-  AlertCircle, Download, RefreshCw, Calendar,
+  AlertCircle, Download, RefreshCw, Calendar, Phone,
 } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -68,28 +69,30 @@ const fmtCreatedAt = (iso: string) => {
   return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+const pct = (a: number, b: number) => b > 0 ? Math.round((a / b) * 100) : 0
+
 function KtsBadge({ lead }: { lead: Lead }) {
   if (!lead.isQualified || lead.status === 'UNQUALIFIED')
-    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Не квал</span>
+    return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Не квал</span>
   if (lead.assignedToId)
-    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">В работе КЦ</span>
-  return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Квал</span>
+    return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">В работе КЦ</span>
+  return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Квал</span>
 }
 
 function SubStatusBadge({ value }: { value?: string | null }) {
-  if (!value) return <span className="text-gray-400 text-xs">—</span>
+  if (!value) return <span className="text-gray-300 text-xs">—</span>
   const map: Record<string, { label: string; cls: string }> = {
-    scheduled: { label: 'Записан',  cls: 'bg-green-100 text-green-700' },
-    refused:   { label: 'Отказ',    cls: 'bg-red-100 text-red-700' },
-    thinking:  { label: 'Думает',   cls: 'bg-orange-100 text-orange-700' },
+    scheduled: { label: 'Записан', cls: 'bg-green-100 text-green-700' },
+    refused:   { label: 'Отказ',  cls: 'bg-red-100 text-red-700' },
+    thinking:  { label: 'Думает', cls: 'bg-orange-100 text-orange-700' },
   }
   const s = map[value]
   if (!s) return <span className="text-gray-400 text-xs">{value}</span>
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${s.cls}`}>{s.label}</span>
+  return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${s.cls}`}>{s.label}</span>
 }
 
 function ConsultationBadge({ value }: { value?: string | null }) {
-  if (!value) return <span className="text-gray-400 text-xs">—</span>
+  if (!value) return <span className="text-gray-300 text-xs">—</span>
   const map: Record<string, { label: string; cls: string }> = {
     happened:     { label: 'Состоялась',    cls: 'bg-green-100 text-green-700' },
     not_happened: { label: 'Не состоялась', cls: 'bg-red-100 text-red-700' },
@@ -97,7 +100,79 @@ function ConsultationBadge({ value }: { value?: string | null }) {
   }
   const s = map[value]
   if (!s) return <span className="text-gray-400 text-xs">{value}</span>
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${s.cls}`}>{s.label}</span>
+  return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${s.cls}`}>{s.label}</span>
+}
+
+// ── Row Menu (portal — fixes overflow clipping) ───────────────────────────────
+function RowMenu({ lead, onEdit, onStatus, onDelete }: {
+  lead: Lead
+  onEdit: () => void
+  onStatus: () => void
+  onDelete: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0 })
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  const handleOpen = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, left: Math.max(8, r.right - 180) })
+    }
+    setOpen(p => !p)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    const onOutside = (e: MouseEvent) => {
+      if (
+        menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) setOpen(false)
+    }
+    const onScroll = () => setOpen(false)
+    document.addEventListener('mousedown', onOutside)
+    document.addEventListener('scroll', onScroll, true)
+    return () => {
+      document.removeEventListener('mousedown', onOutside)
+      document.removeEventListener('scroll', onScroll, true)
+    }
+  }, [open])
+
+  const canSetStatus = !!(lead.appointmentDate || lead.subStatus === 'scheduled')
+
+  return (
+    <>
+      <button ref={btnRef} onClick={handleOpen}
+        className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+        <MoreVertical className="w-4 h-4" />
+      </button>
+      {open && createPortal(
+        <div ref={menuRef}
+          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
+          className="bg-white rounded-xl shadow-2xl border border-gray-100 py-1.5 w-48">
+          <button onClick={() => { setOpen(false); onEdit() }}
+            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+            ✏️ Редактировать
+          </button>
+          {canSetStatus && (
+            <button onClick={() => { setOpen(false); onStatus() }}
+              className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+              📋 Статус встречи
+            </button>
+          )}
+          <div className="border-t border-gray-100 my-1" />
+          <button onClick={() => { setOpen(false); onDelete() }}
+            className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
+            🗑 Удалить
+          </button>
+        </div>,
+        document.body
+      )}
+    </>
+  )
 }
 
 // ── AddLeadModal ──────────────────────────────────────────────────────────────
@@ -136,8 +211,7 @@ function AddLeadModal({
       clientName: clientName.trim(), phone: phone.trim(), date,
       leadLink: leadLink || undefined,
       salesChannelId: salesChannelId || undefined,
-      isQualified,
-      assignedToId: chosenAssignee,
+      isQualified, assignedToId: chosenAssignee,
       subStatus: (ktsMode !== 'unqual' && subStatus) ? subStatus : undefined,
       appointmentDate: subStatus === 'scheduled' ? appointmentDate || undefined : undefined,
       appointmentTime: subStatus === 'scheduled' ? appointmentTime || undefined : undefined,
@@ -146,117 +220,127 @@ function AddLeadModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">Добавить лид</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          <h2 className="text-lg font-bold text-gray-900">Добавить лид</h2>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Имя клиента *</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Имя клиента *</label>
               <input value={clientName} onChange={e => setClientName(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Иван Иванов" required />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Телефон *</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Телефон *</label>
               <input value={phone} onChange={e => setPhone(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="+7 999 000 00 00" required />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Дата поступления</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Дата поступления</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Рекламный канал</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Рекламный канал</label>
               <select value={salesChannelId} onChange={e => setSalesChannelId(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">— не выбран —</option>
                 {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Ссылка на лид</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Ссылка на лид в рекламном кабинете</label>
             <input value={leadLink} onChange={e => setLeadLink(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="https://..." />
           </div>
+
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-2">Статус квалификации</label>
-            <div className="flex gap-2">
+            <label className="block text-xs font-semibold text-gray-600 mb-2">Квалификация</label>
+            <div className="grid grid-cols-3 gap-2">
               {(['qual', 'unqual', 'inwork'] as const).map(mode => {
-                const labels = { qual: 'Квал', unqual: 'Не квал', inwork: 'В работе КЦ' }
-                const active = { qual: 'bg-green-600 text-white', unqual: 'bg-red-500 text-white', inwork: 'bg-blue-600 text-white' }
+                const cfg = {
+                  qual:   { label: 'Квал',        on: 'bg-green-600 text-white shadow-sm' },
+                  unqual: { label: 'Не квал',      on: 'bg-red-500 text-white shadow-sm' },
+                  inwork: { label: 'В работе КЦ',  on: 'bg-blue-600 text-white shadow-sm' },
+                }[mode]
                 return (
                   <button key={mode} type="button" onClick={() => setKtsMode(mode)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${ktsMode === mode ? active[mode] : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                    {labels[mode]}
+                    className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${ktsMode === mode ? cfg.on : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    {cfg.label}
                   </button>
                 )
               })}
             </div>
           </div>
+
           {ktsMode !== 'unqual' && (
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-2">Записан / Отказ / Думает</label>
-              <div className="flex gap-2">
-                {[['scheduled', 'Записан', 'bg-green-600 text-white'], ['refused', 'Отказ', 'bg-red-500 text-white'], ['thinking', 'Думает', 'bg-orange-500 text-white']].map(([val, label, cls]) => (
+              <label className="block text-xs font-semibold text-gray-600 mb-2">Статус: Записан / Отказ / Думает</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  ['scheduled', 'Записан',  'bg-green-600 text-white'],
+                  ['refused',   'Отказ',    'bg-red-500 text-white'],
+                  ['thinking',  'Думает',   'bg-orange-500 text-white'],
+                ].map(([val, label, cls]) => (
                   <button key={val} type="button" onClick={() => setSubStatus(subStatus === val ? '' : val)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${subStatus === val ? cls : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${subStatus === val ? cls : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                     {label}
                   </button>
                 ))}
               </div>
             </div>
           )}
+
           {ktsMode !== 'unqual' && subStatus === 'scheduled' && (
-            <div className="grid grid-cols-2 gap-3 p-3 bg-green-50 rounded-lg">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Дата консультации</label>
+            <div className="p-3.5 bg-green-50 border border-green-100 rounded-xl space-y-3">
+              <p className="text-xs font-semibold text-green-700">Дата и время консультации</p>
+              <div className="grid grid-cols-2 gap-3">
                 <input type="date" value={appointmentDate} onChange={e => setAppointmentDate(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Время</label>
+                  className="w-full border border-green-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
                 <input type="time" value={appointmentTime} onChange={e => setAppointmentTime(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full border border-green-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
               </div>
             </div>
           )}
+
           {(ktsMode === 'inwork' || (ktsMode !== 'unqual' && subStatus === 'scheduled')) && (
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Клоузер</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Клоузер</label>
               <select value={assignedToId} onChange={e => setAssignedToId(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">— не назначен —</option>
                 {closers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
           )}
+
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Комментарий</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Комментарий</label>
             <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               placeholder="Необязательно" />
           </div>
+
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose}
-              className="flex-1 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+              className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
               Отмена
             </button>
             <button type="submit" disabled={mutation.isPending}
-              className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
-              {mutation.isPending ? 'Сохранение...' : 'Добавить'}
+              className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">
+              {mutation.isPending ? 'Сохранение...' : 'Добавить лид'}
             </button>
           </div>
-          {mutation.isError && <p className="text-xs text-red-600">Ошибка при сохранении</p>}
+          {mutation.isError && <p className="text-xs text-red-600 text-center">Ошибка при сохранении</p>}
         </form>
       </div>
     </div>
@@ -292,7 +376,11 @@ function EditLeadModal({
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.put(`/leads/${lead.id}`, data).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lider-report'] }); qc.invalidateQueries({ queryKey: ['today-appointments'] }); onClose() },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['lider-report'] })
+      qc.invalidateQueries({ queryKey: ['today-appointments'] })
+      onClose()
+    },
   })
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -302,10 +390,8 @@ function EditLeadModal({
       ? assignedToId || null : null
     mutation.mutate({
       clientName: clientName.trim(), phone: phone.trim(), date,
-      leadLink: leadLink || null,
-      salesChannelId: salesChannelId || null,
-      isQualified,
-      assignedToId: chosenAssignee,
+      leadLink: leadLink || null, salesChannelId: salesChannelId || null,
+      isQualified, assignedToId: chosenAssignee,
       subStatus: (ktsMode !== 'unqual' && subStatus) ? subStatus : null,
       appointmentDate: subStatus === 'scheduled' ? appointmentDate || null : null,
       appointmentTime: subStatus === 'scheduled' ? appointmentTime || null : null,
@@ -316,145 +402,160 @@ function EditLeadModal({
     })
   }
 
+  const hasAppointment = !!(subStatus === 'scheduled' || lead.subStatus === 'scheduled' || lead.appointmentDate)
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Редактировать лид</h2>
-            <p className="text-xs text-gray-500">{lead.clientName} · {lead.phone}</p>
+            <h2 className="text-lg font-bold text-gray-900">Редактировать лид</h2>
+            <p className="text-xs text-gray-400 mt-0.5">{lead.clientName} · {lead.phone}</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Имя клиента</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Имя клиента</label>
               <input value={clientName} onChange={e => setClientName(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Телефон</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Телефон</label>
               <input value={phone} onChange={e => setPhone(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Дата</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Дата поступления</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Рекламный канал</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Рекламный канал</label>
               <select value={salesChannelId} onChange={e => setSalesChannelId(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">— не выбран —</option>
                 {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Ссылка на лид</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Ссылка на лид</label>
             <input value={leadLink} onChange={e => setLeadLink(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="https://..." />
           </div>
+
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-2">Статус квалификации</label>
-            <div className="flex gap-2">
+            <label className="block text-xs font-semibold text-gray-600 mb-2">Квалификация</label>
+            <div className="grid grid-cols-3 gap-2">
               {(['qual', 'unqual', 'inwork'] as const).map(mode => {
-                const labels = { qual: 'Квал', unqual: 'Не квал', inwork: 'В работе КЦ' }
-                const active = { qual: 'bg-green-600 text-white', unqual: 'bg-red-500 text-white', inwork: 'bg-blue-600 text-white' }
+                const cfg = {
+                  qual:   { label: 'Квал',       on: 'bg-green-600 text-white' },
+                  unqual: { label: 'Не квал',     on: 'bg-red-500 text-white' },
+                  inwork: { label: 'В работе КЦ', on: 'bg-blue-600 text-white' },
+                }[mode]
                 return (
                   <button key={mode} type="button" onClick={() => setKtsMode(mode)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${ktsMode === mode ? active[mode] : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                    {labels[mode]}
+                    className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${ktsMode === mode ? cfg.on : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    {cfg.label}
                   </button>
                 )
               })}
             </div>
           </div>
+
           {ktsMode !== 'unqual' && (
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-2">Записан / Отказ / Думает</label>
-              <div className="flex gap-2">
-                {[['scheduled', 'Записан', 'bg-green-600 text-white'], ['refused', 'Отказ', 'bg-red-500 text-white'], ['thinking', 'Думает', 'bg-orange-500 text-white']].map(([val, label, cls]) => (
+              <label className="block text-xs font-semibold text-gray-600 mb-2">Статус: Записан / Отказ / Думает</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  ['scheduled', 'Записан', 'bg-green-600 text-white'],
+                  ['refused',   'Отказ',   'bg-red-500 text-white'],
+                  ['thinking',  'Думает',  'bg-orange-500 text-white'],
+                ].map(([val, label, cls]) => (
                   <button key={val} type="button" onClick={() => setSubStatus(subStatus === val ? '' : val)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${subStatus === val ? cls : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${subStatus === val ? cls : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                     {label}
                   </button>
                 ))}
               </div>
             </div>
           )}
+
           {ktsMode !== 'unqual' && subStatus === 'scheduled' && (
-            <div className="grid grid-cols-2 gap-3 p-3 bg-green-50 rounded-lg">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Дата консультации</label>
+            <div className="p-3.5 bg-green-50 border border-green-100 rounded-xl space-y-3">
+              <p className="text-xs font-semibold text-green-700">Дата и время консультации</p>
+              <div className="grid grid-cols-2 gap-3">
                 <input type="date" value={appointmentDate} onChange={e => setAppointmentDate(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Время</label>
+                  className="w-full border border-green-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
                 <input type="time" value={appointmentTime} onChange={e => setAppointmentTime(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full border border-green-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
               </div>
             </div>
           )}
+
           {(ktsMode === 'inwork' || (ktsMode !== 'unqual' && subStatus === 'scheduled')) && (
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Клоузер</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Клоузер</label>
               <select value={assignedToId} onChange={e => setAssignedToId(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">— не назначен —</option>
                 {closers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
           )}
-          {(lead.subStatus === 'scheduled' || subStatus === 'scheduled') && (
+
+          {hasAppointment && (
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-2">Статус встречи</label>
-              <div className="flex gap-2">
-                {[['happened', 'Состоялась', 'bg-green-600 text-white'], ['not_happened', 'Не состоялась', 'bg-red-500 text-white'], ['postponed', 'Перенос', 'bg-orange-500 text-white']].map(([val, label, cls]) => (
+              <label className="block text-xs font-semibold text-gray-600 mb-2">Статус встречи</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  ['happened',     'Состоялась',    'bg-green-600 text-white'],
+                  ['not_happened', 'Не состоялась', 'bg-red-500 text-white'],
+                  ['postponed',    'Перенос',       'bg-orange-500 text-white'],
+                ].map(([val, label, cls]) => (
                   <button key={val} type="button" onClick={() => setConsultationStatus(consultationStatus === val ? '' : val)}
-                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${consultationStatus === val ? cls : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${consultationStatus === val ? cls : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                     {label}
                   </button>
                 ))}
               </div>
             </div>
           )}
+
           {consultationStatus === 'postponed' && (
-            <div className="grid grid-cols-2 gap-3 p-3 bg-orange-50 rounded-lg">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Новая дата</label>
+            <div className="p-3.5 bg-orange-50 border border-orange-100 rounded-xl space-y-3">
+              <p className="text-xs font-semibold text-orange-700">Перенесено на</p>
+              <div className="grid grid-cols-2 gap-3">
                 <input type="date" value={postponedDate} onChange={e => setPostponedDate(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Новое время</label>
+                  className="w-full border border-orange-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
                 <input type="time" value={postponedTime} onChange={e => setPostponedTime(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full border border-orange-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
               </div>
             </div>
           )}
+
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Комментарий</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Комментарий</label>
             <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none" />
           </div>
+
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose}
-              className="flex-1 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+              className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
               Отмена
             </button>
             <button type="submit" disabled={mutation.isPending}
-              className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
-              {mutation.isPending ? 'Сохранение...' : 'Сохранить'}
+              className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">
+              {mutation.isPending ? 'Сохранение...' : 'Сохранить изменения'}
             </button>
           </div>
-          {mutation.isError && <p className="text-xs text-red-600">Ошибка при сохранении</p>}
+          {mutation.isError && <p className="text-xs text-red-600 text-center">Ошибка при сохранении</p>}
         </form>
       </div>
     </div>
@@ -464,9 +565,9 @@ function EditLeadModal({
 // ── QuickStatusModal ──────────────────────────────────────────────────────────
 function QuickStatusModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const qc = useQueryClient()
-  const [consultationStatus, setConsultationStatus] = useState('')
-  const [postponedDate, setPostponedDate] = useState('')
-  const [postponedTime, setPostponedTime] = useState('')
+  const [status, setStatus] = useState(lead.consultationStatus || '')
+  const [pDate, setPDate] = useState(lead.postponedDate || '')
+  const [pTime, setPTime] = useState(lead.postponedTime || '')
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.put(`/leads/${lead.id}`, data).then(r => r.data),
@@ -477,93 +578,61 @@ function QuickStatusModal({ lead, onClose }: { lead: Lead; onClose: () => void }
     },
   })
 
-  const handleSave = () => {
-    if (!consultationStatus) return
-    mutation.mutate({
-      consultationStatus,
-      postponedDate: consultationStatus === 'postponed' ? postponedDate || null : null,
-      postponedTime: consultationStatus === 'postponed' ? postponedTime || null : null,
-    })
-  }
-
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-5">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-gray-900">Статус встречи</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          <h3 className="text-base font-bold text-gray-900">Статус встречи</h3>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
         </div>
-        <p className="text-sm text-gray-500 mb-4">{lead.clientName} · {fmtDateTime(lead.appointmentDate, lead.appointmentTime)}</p>
+        <div className="mb-4 p-3 bg-gray-50 rounded-xl">
+          <p className="text-sm font-semibold text-gray-900">{lead.clientName}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{lead.phone}</p>
+          {(lead.appointmentDate || lead.postponedDate) && (
+            <p className="text-xs text-blue-600 mt-1">
+              📅 {fmtDateTime(lead.postponedDate || lead.appointmentDate, lead.postponedTime || lead.appointmentTime)}
+              {lead.assignedTo ? ` · ${lead.assignedTo.name}` : ''}
+            </p>
+          )}
+        </div>
         <div className="space-y-2 mb-4">
           {[
-            ['happened',     'Состоялась',    'border-green-500 bg-green-50 text-green-700'],
-            ['not_happened', 'Не состоялась', 'border-red-500 bg-red-50 text-red-700'],
-            ['postponed',    'Перенос',       'border-orange-500 bg-orange-50 text-orange-700'],
+            ['happened',     '✅ Состоялась',    'border-green-500 bg-green-50 text-green-800'],
+            ['not_happened', '❌ Не состоялась', 'border-red-500 bg-red-50 text-red-800'],
+            ['postponed',    '🔄 Перенос',       'border-orange-500 bg-orange-50 text-orange-800'],
           ].map(([val, label, cls]) => (
-            <button key={val} onClick={() => setConsultationStatus(val)}
-              className={`w-full py-2.5 rounded-lg text-sm font-medium border-2 transition-colors ${consultationStatus === val ? cls : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+            <button key={val} onClick={() => setStatus(val)}
+              className={`w-full py-3 rounded-xl text-sm font-semibold border-2 transition-all ${status === val ? cls : 'border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'}`}>
               {label}
             </button>
           ))}
         </div>
-        {consultationStatus === 'postponed' && (
-          <div className="grid grid-cols-2 gap-3 mb-4 p-3 bg-orange-50 rounded-lg">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Новая дата</label>
-              <input type="date" value={postponedDate} onChange={e => setPostponedDate(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Время</label>
-              <input type="time" value={postponedTime} onChange={e => setPostponedTime(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+        {status === 'postponed' && (
+          <div className="p-3.5 bg-orange-50 border border-orange-100 rounded-xl mb-4 space-y-2">
+            <p className="text-xs font-semibold text-orange-700">Перенесено на</p>
+            <div className="grid grid-cols-2 gap-2">
+              <input type="date" value={pDate} onChange={e => setPDate(e.target.value)}
+                className="w-full border border-orange-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              <input type="time" value={pTime} onChange={e => setPTime(e.target.value)}
+                className="w-full border border-orange-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
             </div>
           </div>
         )}
         <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Отмена</button>
-          <button onClick={handleSave} disabled={!consultationStatus || mutation.isPending}
-            className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50">
+          <button onClick={onClose}
+            className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50">
+            Отмена
+          </button>
+          <button onClick={() => mutation.mutate({
+            consultationStatus: status || null,
+            postponedDate: status === 'postponed' ? pDate || null : null,
+            postponedTime: status === 'postponed' ? pTime || null : null,
+          })} disabled={!status || mutation.isPending}
+            className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50">
             {mutation.isPending ? '...' : 'Сохранить'}
           </button>
         </div>
       </div>
-    </div>
-  )
-}
-
-// ── Row Action Menu ───────────────────────────────────────────────────────────
-function RowMenu({ lead, onEdit, onStatus, onDelete }: {
-  lead: Lead
-  onEdit: () => void
-  onStatus: () => void
-  onDelete: () => void
-}) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [])
-  return (
-    <div className="relative" ref={ref}>
-      <button onClick={() => setOpen(p => !p)}
-        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-        <MoreVertical className="w-4 h-4" />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-8 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-10 w-44">
-          <button onClick={() => { setOpen(false); onEdit() }}
-            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Редактировать</button>
-          {lead.subStatus === 'scheduled' && (
-            <button onClick={() => { setOpen(false); onStatus() }}
-              className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Статус встречи</button>
-          )}
-          <button onClick={() => { setOpen(false); onDelete() }}
-            className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50">Удалить</button>
-        </div>
-      )}
     </div>
   )
 }
@@ -573,7 +642,10 @@ export default function LiderLeadsPage() {
   const qc = useQueryClient()
 
   // Period
-  const [period, setPeriod] = useState<'today' | 'yesterday' | 'week' | 'month'>('month')
+  const [period, setPeriod] = useState<'today' | 'yesterday' | 'week' | 'month' | 'custom'>('month')
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+  const [showCustom, setShowCustom] = useState(false)
 
   // Filters
   const [search, setSearch] = useState('')
@@ -599,18 +671,28 @@ export default function LiderLeadsPage() {
 
   const resetPage = () => setPage(1)
 
-  // Build query params
-  const params = new URLSearchParams({ period })
-  if (search) params.set('search', search)
-  if (channelId) params.set('channelId', channelId)
-  if (ktsStatus) params.set('ktsStatus', ktsStatus)
-  if (subStatusFilter) params.set('subStatus', subStatusFilter)
-  if (consultationFilter) params.set('consultationStatus', consultationFilter)
-  if (dateFilter) params.set('date', dateFilter)
+  // Build params
+  const buildParams = () => {
+    const p = new URLSearchParams()
+    if (period === 'custom' && fromDate && toDate) {
+      p.set('from', fromDate); p.set('to', toDate)
+    } else {
+      p.set('period', period === 'custom' ? 'month' : period)
+    }
+    if (search) p.set('search', search)
+    if (channelId) p.set('channelId', channelId)
+    if (ktsStatus) p.set('ktsStatus', ktsStatus)
+    if (subStatusFilter) p.set('subStatus', subStatusFilter)
+    if (consultationFilter) p.set('consultationStatus', consultationFilter)
+    if (dateFilter) p.set('date', dateFilter)
+    return p.toString()
+  }
+
+  const qKey = ['lider-report', period, fromDate, toDate, search, channelId, ktsStatus, subStatusFilter, consultationFilter, dateFilter]
 
   const { data, isLoading, refetch } = useQuery<ReportData>({
-    queryKey: ['lider-report', period, search, channelId, ktsStatus, subStatusFilter, consultationFilter, dateFilter],
-    queryFn: () => api.get(`/leads/lider-report?${params}`).then(r => r.data),
+    queryKey: qKey,
+    queryFn: () => api.get(`/leads/lider-report?${buildParams()}`).then(r => r.data),
   })
 
   const { data: channels = [] } = useQuery<{ id: string; name: string }[]>({
@@ -618,11 +700,11 @@ export default function LiderLeadsPage() {
     queryFn: () => api.get('/sales-channels').then(r => r.data),
   })
 
-  const { data: allUsers = [] } = useQuery<{ id: string; name: string; managerType: string }[]>({
+  const { data: allUsers = [] } = useQuery<any[]>({
     queryKey: ['users-list'],
     queryFn: () => api.get('/users').then(r => r.data),
   })
-  const closers = (allUsers as any[]).filter((u: any) => u.managerType === 'CLOSER')
+  const closers = allUsers.filter((u: any) => u.managerType === 'CLOSER')
 
   const { data: todayLeads = [] } = useQuery<Lead[]>({
     queryKey: ['today-appointments'],
@@ -670,18 +752,18 @@ export default function LiderLeadsPage() {
   }
 
   const SortIcon = ({ field }: { field: string }) => (
-    <span className="inline-flex flex-col ml-1 align-middle">
-      <ChevronUp className={`w-3 h-3 -mb-1 ${sortField === field && sortDir === 'asc' ? 'text-blue-600' : 'text-gray-300'}`} />
+    <span className="inline-flex flex-col ml-1 align-middle translate-y-[-1px]">
+      <ChevronUp className={`w-3 h-3 -mb-0.5 ${sortField === field && sortDir === 'asc' ? 'text-blue-600' : 'text-gray-300'}`} />
       <ChevronDown className={`w-3 h-3 ${sortField === field && sortDir === 'desc' ? 'text-blue-600' : 'text-gray-300'}`} />
     </span>
   )
 
   const exportCSV = () => {
-    const headers = ['Дата поступления', 'Клиент', 'Телефон', 'Ссылка', 'Рекламный канал', 'Квал/статус', 'Записан/Отказ/Думает', 'Дата консультации', 'Время', 'Клоузер', 'Статус встречи', 'Перенос на']
+    const headers = ['Дата поступления', 'Клиент', 'Телефон', 'Ссылка', 'Рекламный канал',
+      'Квал/статус', 'Записан/Отказ/Думает', 'Дата консультации', 'Время', 'Клоузер',
+      'Статус встречи', 'Перенос на']
     const rows = sortedLeads.map(l => [
-      fmtCreatedAt(l.createdAt),
-      l.clientName, l.phone,
-      l.leadLink || '',
+      fmtCreatedAt(l.createdAt), l.clientName, l.phone, l.leadLink || '',
       l.salesChannel?.name || '',
       !l.isQualified ? 'Не квал' : l.assignedToId ? 'В работе КЦ' : 'Квал',
       l.subStatus || '',
@@ -706,57 +788,86 @@ export default function LiderLeadsPage() {
     resetPage()
   }
 
-  const visibleTodayLeads = showAllToday ? todayLeads : todayLeads.slice(0, 5)
+  const today = new Date().toISOString().slice(0, 10)
+  const visibleTodayLeads = showAllToday ? todayLeads : todayLeads.slice(0, 6)
+
+  const totalReminderCount = (reminders?.needStatusUpdate || 0) + (reminders?.thinkingTooLong || 0) + (reminders?.postponedNoDate || 0)
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
-      <div className="p-4 md:p-6 max-w-[1400px] mx-auto">
+    <div className="flex-1 overflow-y-auto bg-gray-50 min-h-0">
+      <div className="p-4 md:p-6 max-w-[1500px] mx-auto">
 
-        {/* Header */}
+        {/* ── Header ── */}
         <div className="flex flex-wrap items-center gap-3 mb-5">
-          <h1 className="text-xl font-bold text-gray-900">Отчёт лидоруба</h1>
-          <div className="flex bg-white border border-gray-200 rounded-lg p-0.5 gap-0.5">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold text-gray-900">Отчёт лидоруба</h1>
+            {totalReminderCount > 0 && (
+              <span className="flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-100 rounded-full px-2.5 py-1">
+                <Bell className="w-3 h-3" /> {totalReminderCount}
+              </span>
+            )}
+          </div>
+
+          {/* Period tabs */}
+          <div className="flex bg-white border border-gray-200 rounded-xl p-0.5 gap-0.5">
             {(['today', 'yesterday', 'week', 'month'] as const).map(p => {
               const labels = { today: 'Сегодня', yesterday: 'Вчера', week: 'Неделя', month: 'Месяц' }
               return (
-                <button key={p} onClick={() => { setPeriod(p); resetPage() }}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${period === p ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
+                <button key={p} onClick={() => { setPeriod(p); setShowCustom(false); resetPage() }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${period === p ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'}`}>
                   {labels[p]}
                 </button>
               )
             })}
+            <button onClick={() => { setShowCustom(p => !p); setPeriod('custom') }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 ${period === 'custom' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'}`}>
+              <Calendar className="w-3 h-3" /> Период
+            </button>
           </div>
+
+          {/* Custom date range */}
+          {showCustom && (
+            <div className="flex items-center gap-2 bg-white border border-blue-200 rounded-xl px-3 py-2 shadow-sm">
+              <span className="text-xs text-gray-500">С</span>
+              <input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); resetPage() }}
+                className="text-sm border-0 outline-none text-gray-700 w-32" />
+              <span className="text-xs text-gray-500">по</span>
+              <input type="date" value={toDate} onChange={e => { setToDate(e.target.value); resetPage() }}
+                className="text-sm border-0 outline-none text-gray-700 w-32" />
+            </div>
+          )}
+
           <div className="flex-1" />
           <button onClick={exportCSV}
-            className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors">
             <Download className="w-4 h-4" /> Экспорт CSV
           </button>
           <button onClick={() => refetch()}
-            className="p-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+            className="p-2 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors" title="Обновить">
             <RefreshCw className="w-4 h-4" />
           </button>
           <button onClick={() => setShowAdd(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
             <Plus className="w-4 h-4" /> Добавить лид
           </button>
         </div>
 
-        {/* Stats cards */}
+        {/* ── Stats cards ── */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
           {[
-            { label: 'Всего лидов', value: stats?.totalLeads, sub: 'За период', color: 'text-gray-900' },
-            { label: 'Записаны сегодня', value: stats?.totalScheduledToday, sub: null, color: 'text-blue-600' },
-            { label: 'Состоялись', value: stats?.totalHappened, sub: stats?.totalScheduled ? `${Math.round((stats.totalHappened / stats.totalScheduled) * 100)}% от записанных` : '', color: 'text-green-600' },
-            { label: 'Отменились', value: stats?.totalCancelled, sub: stats?.totalScheduled ? `${Math.round((stats.totalCancelled / stats.totalScheduled) * 100)}%` : '', color: 'text-red-500' },
-            { label: 'Перенесены', value: stats?.totalPostponed, sub: stats?.totalScheduled ? `${Math.round((stats.totalPostponed / stats.totalScheduled) * 100)}%` : '', color: 'text-orange-500' },
-            { label: 'Конверсия в запись', value: `${stats?.conversionToScheduled ?? '—'}%`, sub: stats ? `${stats.totalScheduled} из ${stats.totalLeads}` : '', color: 'text-purple-600' },
+            { label: 'Всего лидов',        value: stats?.totalLeads,           sub: 'За период',   color: 'text-gray-900', dot: '' },
+            { label: 'Записаны сегодня',   value: stats?.totalScheduledToday,  sub: null,          color: 'text-blue-600', dot: '' },
+            { label: 'Состоялись',         value: stats?.totalHappened,        sub: stats?.totalScheduled ? `${pct(stats.totalHappened, stats.totalScheduled)}% от записанных` : '', color: 'text-green-600', dot: '' },
+            { label: 'Отменились',         value: stats?.totalCancelled,       sub: stats?.totalScheduled ? `${pct(stats.totalCancelled, stats.totalScheduled)}% от записанных` : '', color: 'text-red-500', dot: '' },
+            { label: 'Перенесены',         value: stats?.totalPostponed,       sub: stats?.totalScheduled ? `${pct(stats.totalPostponed, stats.totalScheduled)}% от записанных` : '', color: 'text-orange-500', dot: '' },
+            { label: 'Конверсия в запись', value: `${stats?.conversionToScheduled ?? '—'}%`, sub: stats ? `${stats.totalScheduled} из ${stats.totalLeads} лидов` : '', color: 'text-purple-600', dot: '' },
           ].map((card, i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-100 p-4">
-              <p className="text-xs text-gray-500 mb-1 leading-tight">{card.label}</p>
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-sm transition-shadow">
+              <p className="text-xs text-gray-400 mb-1.5 leading-tight font-medium">{card.label}</p>
               <p className={`text-2xl font-bold ${card.color}`}>{card.value ?? '—'}</p>
               {i === 1 && (stats?.totalScheduledToday ?? 0) > 0 && (
-                <button onClick={() => setShowAllToday(true)} className="text-xs text-blue-500 hover:underline mt-1 block">
-                  Смотреть список
+                <button onClick={() => setShowAllToday(true)} className="text-xs text-blue-500 hover:underline mt-1 block font-medium">
+                  Смотреть список →
                 </button>
               )}
               {card.sub && <p className="text-xs text-gray-400 mt-1">{card.sub}</p>}
@@ -764,113 +875,119 @@ export default function LiderLeadsPage() {
           ))}
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-xl border border-gray-100 p-4 mb-4">
-          <div className="flex flex-wrap gap-3 items-center">
+        {/* ── Filters ── */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-4">
+          <div className="flex flex-wrap gap-2.5 items-center">
             <div className="relative min-w-52 flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input value={search} onChange={e => { setSearch(e.target.value); resetPage() }}
                 placeholder="Поиск по имени, телефону, ссылке..."
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
-            <select value={channelId} onChange={e => { setChannelId(e.target.value); resetPage() }}
-              className="py-2 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">Все каналы</option>
-              {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <select value={ktsStatus} onChange={e => { setKtsStatus(e.target.value); resetPage() }}
-              className="py-2 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">Квал/Не квал</option>
-              <option value="qualified">Квал</option>
-              <option value="unqualified">Не квал</option>
-              <option value="in_work">В работе КЦ</option>
-            </select>
-            <select value={subStatusFilter} onChange={e => { setSubStatusFilter(e.target.value); resetPage() }}
-              className="py-2 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">Статус записи</option>
-              <option value="scheduled">Записан</option>
-              <option value="refused">Отказ</option>
-              <option value="thinking">Думает</option>
-            </select>
-            <select value={consultationFilter} onChange={e => { setConsultationFilter(e.target.value); resetPage() }}
-              className="py-2 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">Статус встречи</option>
-              <option value="happened">Состоялась</option>
-              <option value="not_happened">Не состоялась</option>
-              <option value="postponed">Перенос</option>
-            </select>
-            <div className="flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
+            {[
+              { value: channelId, onChange: (v: string) => { setChannelId(v); resetPage() },
+                options: [['', 'Все каналы'], ...channels.map(c => [c.id, c.name])] },
+              { value: ktsStatus, onChange: (v: string) => { setKtsStatus(v); resetPage() },
+                options: [['', 'Квал/Не квал'], ['qualified', 'Квал'], ['unqualified', 'Не квал'], ['in_work', 'В работе КЦ']] },
+              { value: subStatusFilter, onChange: (v: string) => { setSubStatusFilter(v); resetPage() },
+                options: [['', 'Статус записи'], ['scheduled', 'Записан'], ['refused', 'Отказ'], ['thinking', 'Думает']] },
+              { value: consultationFilter, onChange: (v: string) => { setConsultationFilter(v); resetPage() },
+                options: [['', 'Статус встречи'], ['happened', 'Состоялась'], ['not_happened', 'Не состоялась'], ['postponed', 'Перенос']] },
+            ].map((sel, i) => (
+              <select key={i} value={sel.value} onChange={e => sel.onChange(e.target.value)}
+                className={`py-2 px-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${sel.value ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-600'}`}>
+                {(sel.options as [string, string][]).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            ))}
+            <div className="flex items-center gap-1.5 border border-gray-200 rounded-xl px-3 py-2">
+              <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
               <input type="date" value={dateFilter} onChange={e => { setDateFilter(e.target.value); resetPage() }}
-                className="py-2 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="text-sm outline-none text-gray-600 w-32"
+                placeholder="Дата записи" />
+              {dateFilter && (
+                <button onClick={() => { setDateFilter(''); resetPage() }} className="text-gray-400 hover:text-gray-600 ml-1">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
             {filtersActive && (
               <button onClick={resetFilters}
-                className="flex items-center gap-1 py-2 px-3 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
+                className="flex items-center gap-1 py-2 px-3 text-sm text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition-colors font-medium">
                 <X className="w-3.5 h-3.5" /> Сбросить
               </button>
             )}
           </div>
         </div>
 
-        {/* Main: table + sidebar */}
+        {/* ── Main: table + sidebar ── */}
         <div className="flex gap-4 items-start">
 
-          {/* Table */}
+          {/* Table area */}
           <div className="flex-1 min-w-0 space-y-3">
-            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
               {isLoading ? (
                 <div className="flex items-center justify-center h-48 text-gray-400">
                   <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Загрузка...
                 </div>
               ) : sortedLeads.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-48 text-gray-400">
-                  <p className="font-medium">Лидов не найдено</p>
-                  <p className="text-sm mt-1">{filtersActive ? 'Попробуйте сбросить фильтры' : 'Добавьте первый лид'}</p>
+                <div className="flex flex-col items-center justify-center h-48 gap-2">
+                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-2xl">📋</div>
+                  <p className="font-semibold text-gray-600">Лидов не найдено</p>
+                  <p className="text-sm text-gray-400">{filtersActive ? 'Попробуйте сбросить фильтры' : 'Нажмите «Добавить лид» чтобы начать'}</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm min-w-[900px]">
-                    <thead className="bg-gray-50 border-b border-gray-100">
+                  <table className="w-full text-sm min-w-[960px]">
+                    <thead className="bg-gray-50/80 border-b border-gray-100">
                       <tr>
                         {[
-                          { label: 'Дата поступления', field: 'createdAt', sortable: true },
-                          { label: 'Ссылка / Клиент', field: 'leadLink', sortable: false },
-                          { label: 'Канал', field: 'channel', sortable: true },
-                          { label: 'Квал/Не квал', field: null, sortable: false },
-                          { label: 'Записан/Отказ', field: 'subStatus', sortable: true },
-                          { label: 'Дата записи', field: null, sortable: false },
-                          { label: 'Клоузер', field: null, sortable: false },
-                          { label: 'Статус встречи', field: 'consultationStatus', sortable: true },
-                          { label: 'Перенос на', field: null, sortable: false },
+                          { label: 'Дата поступления', field: 'createdAt', sort: true },
+                          { label: 'Ссылка / Клиент', field: null, sort: false },
+                          { label: 'Телефон', field: null, sort: false },
+                          { label: 'Канал', field: 'channel', sort: true },
+                          { label: 'Квал / Не квал', field: null, sort: false },
+                          { label: 'Записан / Отказ', field: 'subStatus', sort: true },
+                          { label: 'Дата записи', field: null, sort: false },
+                          { label: 'Клоузер', field: null, sort: false },
+                          { label: 'Статус встречи', field: 'consultationStatus', sort: true },
+                          { label: 'Перенос на', field: null, sort: false },
                         ].map(col => (
                           <th key={col.label}
-                            onClick={col.sortable && col.field ? () => handleSort(col.field!) : undefined}
-                            className={`px-3 py-3 text-left text-xs font-semibold text-gray-600 whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:text-gray-900' : ''}`}>
-                            {col.label}{col.sortable && col.field && <SortIcon field={col.field} />}
+                            onClick={col.sort && col.field ? () => handleSort(col.field!) : undefined}
+                            className={`px-3 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap ${col.sort ? 'cursor-pointer hover:text-gray-800 select-none' : ''}`}>
+                            {col.label}{col.sort && col.field && <SortIcon field={col.field} />}
                           </th>
                         ))}
-                        <th className="px-3 py-3 w-8" />
+                        <th className="px-2 py-3 w-10" />
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {pageLeads.map(lead => (
-                        <tr key={lead.id} className="hover:bg-gray-50/70 transition-colors">
-                          <td className="px-3 py-3 text-xs text-gray-500 whitespace-nowrap">
+                    <tbody>
+                      {pageLeads.map((lead, idx) => (
+                        <tr key={lead.id}
+                          onClick={() => setEditLead(lead)}
+                          className={`border-b border-gray-50 hover:bg-blue-50/40 cursor-pointer transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
+                          <td className="px-3 py-3 text-xs text-gray-500 whitespace-nowrap font-medium">
                             {fmtCreatedAt(lead.createdAt)}
                           </td>
                           <td className="px-3 py-3 max-w-[160px]">
                             {lead.leadLink ? (
                               <a href={lead.leadLink} target="_blank" rel="noreferrer"
-                                className="flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                                onClick={e => e.stopPropagation()}
+                                className="flex items-center gap-1 text-xs text-blue-600 hover:underline mb-0.5">
                                 <ExternalLink className="w-3 h-3 shrink-0" />
-                                <span className="truncate block max-w-[120px]">{lead.leadLink.replace(/^https?:\/\//, '')}</span>
+                                <span className="truncate max-w-[120px] block">{lead.leadLink.replace(/^https?:\/\//, '')}</span>
                               </a>
                             ) : null}
-                            <span className="text-xs text-gray-700 font-medium">{lead.clientName}</span>
+                            <span className="text-xs font-semibold text-gray-800">{lead.clientName}</span>
+                          </td>
+                          <td className="px-3 py-3 whitespace-nowrap">
+                            <a href={`tel:${lead.phone}`} onClick={e => e.stopPropagation()}
+                              className="flex items-center gap-1 text-xs text-gray-600 hover:text-blue-600 transition-colors">
+                              <Phone className="w-3 h-3" />{lead.phone}
+                            </a>
                           </td>
                           <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">
-                            {lead.salesChannel?.name ?? <span className="text-gray-400">—</span>}
+                            {lead.salesChannel?.name ?? <span className="text-gray-300">—</span>}
                           </td>
                           <td className="px-3 py-3 whitespace-nowrap">
                             <KtsBadge lead={lead} />
@@ -881,18 +998,18 @@ export default function LiderLeadsPage() {
                           <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">
                             {fmtDateTime(lead.appointmentDate, lead.appointmentTime)}
                           </td>
-                          <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">
-                            {lead.assignedTo?.name ?? <span className="text-gray-400">—</span>}
+                          <td className="px-3 py-3 text-xs font-medium text-gray-700 whitespace-nowrap">
+                            {lead.assignedTo?.name ?? <span className="text-gray-300">—</span>}
                           </td>
                           <td className="px-3 py-3 whitespace-nowrap">
                             <ConsultationBadge value={lead.consultationStatus} />
                           </td>
                           <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">
                             {lead.consultationStatus === 'postponed'
-                              ? fmtDateTime(lead.postponedDate, lead.postponedTime)
-                              : <span className="text-gray-400">—</span>}
+                              ? <span className="font-medium text-orange-700">{fmtDateTime(lead.postponedDate, lead.postponedTime)}</span>
+                              : <span className="text-gray-300">—</span>}
                           </td>
-                          <td className="px-3 py-3">
+                          <td className="px-2 py-3" onClick={e => e.stopPropagation()}>
                             <RowMenu
                               lead={lead}
                               onEdit={() => setEditLead(lead)}
@@ -916,7 +1033,7 @@ export default function LiderLeadsPage() {
                 </p>
                 <div className="flex items-center gap-1">
                   <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                    className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40">
+                    className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
                     <ChevronLeft className="w-4 h-4" />
                   </button>
                   {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
@@ -927,13 +1044,13 @@ export default function LiderLeadsPage() {
                     else num = page - 3 + i
                     return (
                       <button key={num} onClick={() => setPage(num)}
-                        className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${page === num ? 'bg-blue-600 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                        className={`w-8 h-8 rounded-lg text-xs font-semibold transition-colors ${page === num ? 'bg-blue-600 text-white shadow-sm' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                         {num}
                       </button>
                     )
                   })}
                   <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                    className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40">
+                    className="p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -943,21 +1060,23 @@ export default function LiderLeadsPage() {
 
             {/* Funnel */}
             {funnel && funnel.total > 0 && (
-              <div className="bg-white rounded-xl border border-gray-100 p-5">
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Воронка лидов</h3>
-                <div className="flex items-center gap-1.5">
+              <div className="bg-white rounded-2xl border border-gray-100 p-5">
+                <h3 className="text-sm font-bold text-gray-700 mb-4">Воронка лидов</h3>
+                <div className="flex items-stretch gap-1.5">
                   {[
-                    { label: 'Всего', value: funnel.total, pct: null, bg: 'bg-slate-100 border-slate-200 text-slate-800' },
-                    { label: 'Квалиф.', value: funnel.qualified, pct: funnel.total > 0 ? Math.round(funnel.qualified / funnel.total * 100) : 0, bg: 'bg-green-100 border-green-200 text-green-800' },
-                    { label: 'Записаны', value: funnel.scheduled, pct: funnel.total > 0 ? Math.round(funnel.scheduled / funnel.total * 100) : 0, bg: 'bg-blue-100 border-blue-200 text-blue-800' },
-                    { label: 'Состоялись', value: funnel.happened, pct: funnel.scheduled > 0 ? Math.round(funnel.happened / funnel.scheduled * 100) : 0, bg: 'bg-purple-100 border-purple-200 text-purple-800' },
-                    { label: 'Оплаты', value: funnel.sold, pct: funnel.happened > 0 ? Math.round(funnel.sold / funnel.happened * 100) : 0, bg: 'bg-emerald-100 border-emerald-200 text-emerald-800' },
+                    { label: 'Всего',       value: funnel.total,     pct: null,                                                  bg: 'bg-slate-100 text-slate-800 border-slate-200' },
+                    { label: 'Квалиф.',     value: funnel.qualified, pct: pct(funnel.qualified, funnel.total),                   bg: 'bg-green-100 text-green-800 border-green-200' },
+                    { label: 'Записаны',    value: funnel.scheduled, pct: pct(funnel.scheduled, funnel.qualified || funnel.total), bg: 'bg-blue-100 text-blue-800 border-blue-200' },
+                    { label: 'Состоялись', value: funnel.happened,  pct: pct(funnel.happened, funnel.scheduled || 1),           bg: 'bg-purple-100 text-purple-800 border-purple-200' },
+                    { label: 'Оплаты',     value: funnel.sold,      pct: pct(funnel.sold, funnel.happened || 1),                bg: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
                   ].map((step, i, arr) => (
                     <div key={step.label} className="flex items-center gap-1.5 flex-1 min-w-0">
-                      <div className={`flex-1 border rounded-xl p-3 text-center ${step.bg}`}>
-                        <p className="text-xl font-bold leading-none">{step.value}</p>
-                        <p className="text-xs font-medium mt-1 leading-tight">{step.label}</p>
-                        {step.pct !== null && <p className="text-xs opacity-60 mt-0.5">{step.pct}%</p>}
+                      <div className={`flex-1 border-2 rounded-2xl p-3 text-center ${step.bg}`}>
+                        <p className="text-2xl font-bold leading-none">{step.value}</p>
+                        <p className="text-xs font-semibold mt-1 leading-tight opacity-80">{step.label}</p>
+                        {step.pct !== null && (
+                          <p className={`text-sm font-bold mt-1 ${step.pct === 0 ? 'opacity-40' : ''}`}>{step.pct}%</p>
+                        )}
                       </div>
                       {i < arr.length - 1 && <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />}
                     </div>
@@ -967,62 +1086,66 @@ export default function LiderLeadsPage() {
             )}
           </div>
 
-          {/* Right sidebar */}
+          {/* ── Right sidebar ── */}
           <div className="w-72 shrink-0 space-y-4">
 
             {/* Today appointments */}
-            <div className="bg-white rounded-xl border border-gray-100 p-4">
+            <div className="bg-white rounded-2xl border border-gray-100 p-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
                   <Clock className="w-4 h-4 text-blue-500" />
                   Записаны сегодня
-                  {todayLeads.length > 0 && (
-                    <span className="bg-blue-600 text-white text-xs rounded-full px-1.5 py-0.5 min-w-[20px] text-center leading-none">
-                      {todayLeads.length}
-                    </span>
-                  )}
                 </h3>
+                {todayLeads.length > 0 && (
+                  <span className="bg-blue-600 text-white text-xs font-bold rounded-full px-2 py-0.5">
+                    {todayLeads.length}
+                  </span>
+                )}
               </div>
               {todayLeads.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-4">На сегодня записей нет</p>
+                <p className="text-xs text-gray-400 text-center py-5">На сегодня записей нет</p>
               ) : (
                 <div className="space-y-2">
                   {visibleTodayLeads.map(lead => {
-                    const time = lead.postponedDate === new Date().toISOString().slice(0, 10)
-                      ? lead.postponedTime
-                      : lead.appointmentTime
+                    const usePostponed = lead.postponedDate === today
+                    const time = usePostponed ? lead.postponedTime : lead.appointmentTime
+                    const hasStatus = !!lead.consultationStatus
                     return (
                       <div key={lead.id}
-                        className={`flex items-center justify-between p-2.5 rounded-lg border ${lead.consultationStatus ? 'bg-gray-50 border-gray-100' : 'bg-blue-50 border-blue-100'}`}>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-gray-900">
-                            {time || '—'} · {lead.assignedTo?.name || 'Без клоузера'}
-                          </p>
-                          <p className="text-xs text-gray-500 truncate">{lead.clientName}</p>
-                        </div>
-                        <div className="ml-2 shrink-0">
-                          {lead.consultationStatus ? (
-                            <ConsultationBadge value={lead.consultationStatus} />
-                          ) : (
-                            <button onClick={() => setStatusLead(lead)}
-                              className="text-xs text-blue-600 hover:underline whitespace-nowrap">
-                              Отметить
-                            </button>
-                          )}
+                        className={`p-3 rounded-xl border transition-colors ${hasStatus ? 'bg-gray-50 border-gray-100 opacity-70' : 'bg-blue-50 border-blue-100 hover:border-blue-200'}`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-gray-900">
+                              {time ? <span className="text-blue-700 mr-1">{time}</span> : ''}
+                              {lead.assignedTo?.name || 'Без клоузера'}
+                            </p>
+                            <p className="text-xs text-gray-600 truncate mt-0.5">{lead.clientName}</p>
+                          </div>
+                          <div className="shrink-0">
+                            {hasStatus ? (
+                              <ConsultationBadge value={lead.consultationStatus} />
+                            ) : (
+                              <button
+                                onClick={() => setStatusLead(lead)}
+                                className="text-xs text-blue-600 hover:text-blue-800 font-semibold hover:underline whitespace-nowrap">
+                                Отметить
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )
                   })}
-                  {todayLeads.length > 5 && !showAllToday && (
+                  {todayLeads.length > 6 && !showAllToday && (
                     <button onClick={() => setShowAllToday(true)}
-                      className="w-full text-xs text-blue-600 hover:underline py-1">
-                      Показать все ({todayLeads.length})
+                      className="w-full py-2 text-xs text-blue-600 hover:text-blue-800 font-semibold">
+                      Показать все ({todayLeads.length}) →
                     </button>
                   )}
-                  {showAllToday && todayLeads.length > 5 && (
+                  {showAllToday && todayLeads.length > 6 && (
                     <button onClick={() => setShowAllToday(false)}
-                      className="w-full text-xs text-gray-500 hover:underline py-1">
-                      Свернуть
+                      className="w-full py-2 text-xs text-gray-500 hover:text-gray-700">
+                      Свернуть ↑
                     </button>
                   )}
                 </div>
@@ -1030,40 +1153,44 @@ export default function LiderLeadsPage() {
             </div>
 
             {/* Reminders */}
-            {reminders && (reminders.needStatusUpdate > 0 || reminders.thinkingTooLong > 0 || reminders.postponedNoDate > 0) && (
-              <div className="bg-white rounded-xl border border-orange-100 p-4">
-                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5 mb-3">
+            {reminders && totalReminderCount > 0 && (
+              <div className="bg-white rounded-2xl border border-orange-100 p-4">
+                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5 mb-3">
                   <Bell className="w-4 h-4 text-orange-500" />
                   Напоминания
                 </h3>
                 <div className="space-y-2">
                   {reminders.needStatusUpdate > 0 && (
-                    <div className="flex items-center justify-between p-2.5 bg-red-50 border border-red-100 rounded-lg">
-                      <div className="flex items-center gap-1.5">
+                    <button onClick={() => { setConsultationFilter(''); setSubStatusFilter('scheduled'); resetPage() }}
+                      className="w-full flex items-center justify-between p-3 bg-red-50 border border-red-100 rounded-xl hover:border-red-300 transition-colors text-left">
+                      <div className="flex items-center gap-2">
                         <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                        <span className="text-xs text-gray-700">Обновить статус встреч</span>
+                        <span className="text-xs font-medium text-gray-800">Обновить статус встреч</span>
                       </div>
                       <span className="text-xs font-bold text-red-600 bg-red-100 rounded-full px-2 py-0.5 min-w-[22px] text-center">{reminders.needStatusUpdate}</span>
-                    </div>
+                    </button>
                   )}
                   {reminders.thinkingTooLong > 0 && (
-                    <div className="flex items-center justify-between p-2.5 bg-orange-50 border border-orange-100 rounded-lg">
-                      <div className="flex items-center gap-1.5">
+                    <button onClick={() => { setSubStatusFilter('thinking'); resetPage() }}
+                      className="w-full flex items-center justify-between p-3 bg-orange-50 border border-orange-100 rounded-xl hover:border-orange-300 transition-colors text-left">
+                      <div className="flex items-center gap-2">
                         <Clock className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                        <span className="text-xs text-gray-700">«Думает» более 2 дней</span>
+                        <span className="text-xs font-medium text-gray-800">«Думает» более 2 дней</span>
                       </div>
                       <span className="text-xs font-bold text-orange-600 bg-orange-100 rounded-full px-2 py-0.5 min-w-[22px] text-center">{reminders.thinkingTooLong}</span>
-                    </div>
+                    </button>
                   )}
                   {reminders.postponedNoDate > 0 && (
-                    <div className="flex items-center justify-between p-2.5 bg-yellow-50 border border-yellow-100 rounded-lg">
-                      <div className="flex items-center gap-1.5">
+                    <button onClick={() => { setConsultationFilter('postponed'); resetPage() }}
+                      className="w-full flex items-center justify-between p-3 bg-yellow-50 border border-yellow-100 rounded-xl hover:border-yellow-300 transition-colors text-left">
+                      <div className="flex items-center gap-2">
                         <Calendar className="w-3.5 h-3.5 text-yellow-600 shrink-0" />
-                        <span className="text-xs text-gray-700">Перенос без новой даты</span>
+                        <span className="text-xs font-medium text-gray-800">Перенос без новой даты</span>
                       </div>
                       <span className="text-xs font-bold text-yellow-700 bg-yellow-100 rounded-full px-2 py-0.5 min-w-[22px] text-center">{reminders.postponedNoDate}</span>
-                    </div>
+                    </button>
                   )}
+                  <p className="text-[10px] text-gray-400 text-center pt-1">Нажмите на блок, чтобы отфильтровать</p>
                 </div>
               </div>
             )}
