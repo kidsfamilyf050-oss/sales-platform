@@ -72,6 +72,25 @@ router.get('/unqualified', authenticate, async (req: AuthRequest, res: Response)
   }
 })
 
+// ── GET /api/leads/today-appointments — lider: consultations scheduled today ──
+router.get('/today-appointments', authenticate, async (req: AuthRequest, res: Response) => {
+  const today = new Date().toISOString().slice(0, 10)
+  try {
+    const leads = await prisma.lead.findMany({
+      where: {
+        createdById: req.user!.id,
+        appointmentDate: today,
+        consultationStatus: null,
+      },
+      include: INCLUDE_FULL,
+      orderBy: { createdAt: 'asc' },
+    })
+    res.json(leads)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── GET /api/leads/incoming — closer: ASSIGNED leads (need to accept) ────────
 router.get('/incoming', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -171,7 +190,8 @@ router.get('/all', authenticate, async (req: AuthRequest, res: Response) => {
 
 // ── POST /api/leads — create lead (lider) ────────────────────────────────────
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
-  const { clientName, phone, date, salesChannelId, isQualified, isScheduled, comment, assignedToId } = req.body
+  const { clientName, phone, date, salesChannelId, isQualified, isScheduled, comment, assignedToId,
+          leadLink, subStatus, appointmentDate, consultationStatus } = req.body
   if (!clientName || !phone || !date) return res.status(400).json({ error: 'clientName, phone, date required' })
 
   const qualified = isQualified !== false && isQualified !== 'false'
@@ -191,6 +211,10 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         isQualified: qualified,
         isScheduled: isScheduled === true || isScheduled === 'true',
         comment: comment?.trim() || null,
+        leadLink: leadLink?.trim() || null,
+        subStatus: subStatus || null,
+        appointmentDate: appointmentDate || null,
+        consultationStatus: consultationStatus || null,
         status,
       },
       include: INCLUDE_FULL,
@@ -214,7 +238,8 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     if (!isCreator && !isAssigned && !isAdmin) return res.status(403).json({ error: 'Forbidden' })
 
     const { clientName, phone, date, salesChannelId, isQualified, isScheduled, comment, assignedToId,
-            amount, paymentType, paymentMethod, bank, months, crmLink, closerComment } = req.body
+            amount, paymentType, paymentMethod, bank, months, crmLink, closerComment,
+            leadLink, subStatus, appointmentDate, consultationStatus } = req.body
 
     // Recalculate status if qualification or assignment changes
     let status = lead.status as string
@@ -250,6 +275,10 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
         ...(months !== undefined && { months: months ? Number(months) : null }),
         ...(crmLink !== undefined && { crmLink: crmLink?.trim() || null }),
         ...(closerComment !== undefined && { closerComment: closerComment?.trim() || null }),
+        ...(leadLink !== undefined && { leadLink: leadLink?.trim() || null }),
+        ...(subStatus !== undefined && { subStatus: subStatus || null }),
+        ...(appointmentDate !== undefined && { appointmentDate: appointmentDate || null }),
+        ...(consultationStatus !== undefined && { consultationStatus: consultationStatus || null }),
         status: status as any,
       },
       include: INCLUDE_FULL,

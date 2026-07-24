@@ -281,6 +281,12 @@ model Lead {
   isScheduled    Boolean       @default(false)
   comment        String?       // lider's comment
 
+  // Lider tracking fields
+  leadLink           String?   // ссылка на лид в рекламном кабинете
+  subStatus          String?   // "scheduled" | "refused" | "thinking"
+  appointmentDate    String?   // YYYY-MM-DD — дата записи на консультацию
+  consultationStatus String?   // "happened" | "not_happened" | "postponed"
+
   // Status
   status         LeadStatus    @default(NEW)
 
