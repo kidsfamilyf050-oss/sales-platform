@@ -847,7 +847,7 @@ export default function LiderLeadsPage() {
   const filtersActive = !!(search || channelId || ktsStatus || subStatusFilter || consultationFilter || dateFilter)
 
   const today = new Date().toISOString().slice(0, 10)
-  const visibleTodayLeads = showAllToday ? todayLeads : todayLeads.slice(0, 6)
+  // todayLeads shown as collapsible strip above table (showAllToday toggles expand)
   const totalReminderCount = (reminders?.needStatusUpdate || 0) + (reminders?.thinkingTooLong || 0) + (reminders?.postponedNoDate || 0)
 
   return (
@@ -969,10 +969,81 @@ export default function LiderLeadsPage() {
           )}
         </div>
 
-        {/* ── Main: table + sidebar ── */}
-        <div className="flex gap-4 items-start">
+        {/* ── Reminders strip (full width, shown only when items exist) ── */}
+        {reminders && totalReminderCount > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {reminders.needStatusUpdate > 0 && (
+              <button onClick={() => applyQuickFilter({ subStatus: 'scheduled', consultationStatus: '' })}
+                className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-xl hover:border-red-400 transition-colors text-left">
+                <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                <span className="text-xs font-medium text-gray-800">Обновить статус встреч</span>
+                <span className="text-xs font-bold text-red-600 bg-red-100 rounded-full px-2 py-0.5">{reminders.needStatusUpdate}</span>
+              </button>
+            )}
+            {reminders.thinkingTooLong > 0 && (
+              <button onClick={() => applyQuickFilter({ subStatus: 'thinking', consultationStatus: '' })}
+                className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-200 rounded-xl hover:border-orange-400 transition-colors text-left">
+                <Clock className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                <span className="text-xs font-medium text-gray-800">«Думает» более 2 дней</span>
+                <span className="text-xs font-bold text-orange-600 bg-orange-100 rounded-full px-2 py-0.5">{reminders.thinkingTooLong}</span>
+              </button>
+            )}
+            {reminders.postponedNoDate > 0 && (
+              <button onClick={() => applyQuickFilter({ subStatus: '', consultationStatus: 'postponed' })}
+                className="flex items-center gap-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-xl hover:border-yellow-400 transition-colors text-left">
+                <Calendar className="w-3.5 h-3.5 text-yellow-600 shrink-0" />
+                <span className="text-xs font-medium text-gray-800">Перенос без новой даты</span>
+                <span className="text-xs font-bold text-yellow-700 bg-yellow-100 rounded-full px-2 py-0.5">{reminders.postponedNoDate}</span>
+              </button>
+            )}
+          </div>
+        )}
 
-          {/* Table area */}
+        {/* ── Today's appointments (collapsible strip, full width) ── */}
+        {todayLeads.length > 0 && (
+          <div className="bg-white rounded-2xl border border-blue-100 mb-4 overflow-hidden">
+            <button
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50/40 transition-colors"
+              onClick={() => setShowAllToday(v => !v)}>
+              <span className="flex items-center gap-2 text-sm font-bold text-gray-900">
+                <Clock className="w-4 h-4 text-blue-500" />
+                Записаны сегодня
+                <span className="bg-blue-600 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-1">{todayLeads.length}</span>
+              </span>
+              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showAllToday ? 'rotate-180' : ''}`} />
+            </button>
+            {showAllToday && (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 px-4 pb-4">
+                {todayLeads.map(lead => {
+                  const usePostponed = lead.postponedDate === today
+                  const time = usePostponed ? lead.postponedTime : lead.appointmentTime
+                  const hasStatus = !!lead.consultationStatus
+                  return (
+                    <div key={lead.id}
+                      className={`p-3 rounded-xl border ${hasStatus ? 'bg-gray-50 border-gray-100 opacity-70' : 'bg-blue-50 border-blue-100'}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-gray-900">
+                            {time ? <span className="text-blue-700 mr-1">{time}</span> : ''}
+                            {lead.assignedTo?.name || 'Без клоузера'}
+                          </p>
+                          <p className="text-xs text-gray-600 truncate mt-0.5">{lead.clientName}</p>
+                        </div>
+                        {hasStatus
+                          ? <ConsultationBadge value={lead.consultationStatus} />
+                          : <button onClick={() => setStatusLead(lead)} className="text-xs text-blue-600 hover:text-blue-800 font-semibold whitespace-nowrap">Отметить</button>
+                        }
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Full-width table area ── */}
+        <div className="space-y-3">
           <div className="flex-1 min-w-0 space-y-3">
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
               {isLoading ? (
@@ -1248,115 +1319,6 @@ export default function LiderLeadsPage() {
             )}
           </div>
 
-          {/* ── Right sidebar ── */}
-          <div className="w-72 shrink-0 space-y-4">
-
-            {/* Today appointments */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-blue-500" />
-                  Записаны сегодня
-                </h3>
-                {todayLeads.length > 0 && (
-                  <span className="bg-blue-600 text-white text-xs font-bold rounded-full px-2 py-0.5">
-                    {todayLeads.length}
-                  </span>
-                )}
-              </div>
-              {todayLeads.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-5">На сегодня записей нет</p>
-              ) : (
-                <div className="space-y-2">
-                  {visibleTodayLeads.map(lead => {
-                    const usePostponed = lead.postponedDate === today
-                    const time = usePostponed ? lead.postponedTime : lead.appointmentTime
-                    const hasStatus = !!lead.consultationStatus
-                    return (
-                      <div key={lead.id}
-                        className={`p-3 rounded-xl border transition-colors ${hasStatus ? 'bg-gray-50 border-gray-100 opacity-70' : 'bg-blue-50 border-blue-100 hover:border-blue-200'}`}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-gray-900">
-                              {time ? <span className="text-blue-700 mr-1">{time}</span> : ''}
-                              {lead.assignedTo?.name || 'Без клоузера'}
-                            </p>
-                            <p className="text-xs text-gray-600 truncate mt-0.5">{lead.clientName}</p>
-                          </div>
-                          <div className="shrink-0">
-                            {hasStatus ? (
-                              <ConsultationBadge value={lead.consultationStatus} />
-                            ) : (
-                              <button onClick={() => setStatusLead(lead)}
-                                className="text-xs text-blue-600 hover:text-blue-800 font-semibold hover:underline whitespace-nowrap">
-                                Отметить
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                  {todayLeads.length > 6 && !showAllToday && (
-                    <button onClick={() => setShowAllToday(true)}
-                      className="w-full py-2 text-xs text-blue-600 hover:text-blue-800 font-semibold">
-                      Показать все ({todayLeads.length}) →
-                    </button>
-                  )}
-                  {showAllToday && todayLeads.length > 6 && (
-                    <button onClick={() => setShowAllToday(false)}
-                      className="w-full py-2 text-xs text-gray-500 hover:text-gray-700">
-                      Свернуть ↑
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Reminders */}
-            {reminders && totalReminderCount > 0 && (
-              <div className="bg-white rounded-2xl border border-orange-100 p-4">
-                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5 mb-3">
-                  <Bell className="w-4 h-4 text-orange-500" />
-                  Напоминания
-                </h3>
-                <div className="space-y-2">
-                  {reminders.needStatusUpdate > 0 && (
-                    <button onClick={() => applyQuickFilter({ subStatus: 'scheduled', consultationStatus: '' })}
-                      className="w-full flex items-center justify-between p-3 bg-red-50 border border-red-100 rounded-xl hover:border-red-300 transition-colors text-left">
-                      <div className="flex items-center gap-2">
-                        <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                        <span className="text-xs font-medium text-gray-800">Обновить статус встреч</span>
-                      </div>
-                      <span className="text-xs font-bold text-red-600 bg-red-100 rounded-full px-2 py-0.5 min-w-[22px] text-center">{reminders.needStatusUpdate}</span>
-                    </button>
-                  )}
-                  {reminders.thinkingTooLong > 0 && (
-                    <button onClick={() => applyQuickFilter({ subStatus: 'thinking', consultationStatus: '' })}
-                      className="w-full flex items-center justify-between p-3 bg-orange-50 border border-orange-100 rounded-xl hover:border-orange-300 transition-colors text-left">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                        <span className="text-xs font-medium text-gray-800">«Думает» более 2 дней</span>
-                      </div>
-                      <span className="text-xs font-bold text-orange-600 bg-orange-100 rounded-full px-2 py-0.5 min-w-[22px] text-center">{reminders.thinkingTooLong}</span>
-                    </button>
-                  )}
-                  {reminders.postponedNoDate > 0 && (
-                    <button onClick={() => applyQuickFilter({ subStatus: '', consultationStatus: 'postponed' })}
-                      className="w-full flex items-center justify-between p-3 bg-yellow-50 border border-yellow-100 rounded-xl hover:border-yellow-300 transition-colors text-left">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-3.5 h-3.5 text-yellow-600 shrink-0" />
-                        <span className="text-xs font-medium text-gray-800">Перенос без новой даты</span>
-                      </div>
-                      <span className="text-xs font-bold text-yellow-700 bg-yellow-100 rounded-full px-2 py-0.5 min-w-[22px] text-center">{reminders.postponedNoDate}</span>
-                    </button>
-                  )}
-                  <p className="text-[10px] text-gray-400 text-center pt-1">Нажмите на блок, чтобы отфильтровать</p>
-                </div>
-              </div>
-            )}
-
-          </div>
         </div>
       </div>
 
