@@ -350,8 +350,8 @@ export default function LiderTasksPage() {
                           </p>
                           <button
                             onClick={() => setExpandedId(isOpen ? null : task.id)}
-                            className="flex items-center gap-0.5 text-xs text-gray-400 hover:text-blue-600 transition-colors">
-                            {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            className={`flex items-center gap-1 text-xs font-medium transition-colors px-2 py-0.5 rounded-lg ${isOpen ? 'bg-blue-100 text-blue-700' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}`}>
+                            {isOpen ? <><ChevronUp className="w-3.5 h-3.5" /> Свернуть</> : <><ChevronDown className="w-3.5 h-3.5" /> Редактировать</>}
                           </button>
                         </div>
                       </div>

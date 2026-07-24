@@ -680,6 +680,7 @@ export default function LiderLeadsPage() {
   const [inlineSubStatus, setInlineSubStatus] = useState('')
   const [inlineAppointmentDate, setInlineAppointmentDate] = useState('')
   const [inlineAppointmentTime, setInlineAppointmentTime] = useState('')
+  const [inlineConsultationStatus, setInlineConsultationStatus] = useState('')
 
   // Modals
   const [editLead, setEditLead] = useState<Lead | null>(null)
@@ -772,7 +773,7 @@ export default function LiderLeadsPage() {
   const resetInlineForm = () => {
     setInlineName(''); setInlinePhone(''); setInlineChannelId('')
     setInlineDate(new Date().toISOString().slice(0, 10)); setInlineLeadLink('')
-    setInlineCloserId(''); setInlineSubStatus(''); setInlineAppointmentDate(''); setInlineAppointmentTime('')
+    setInlineCloserId(''); setInlineSubStatus(''); setInlineAppointmentDate(''); setInlineAppointmentTime(''); setInlineConsultationStatus('')
     setShowInlineAdd(false)
   }
 
@@ -788,6 +789,7 @@ export default function LiderLeadsPage() {
       subStatus: inlineSubStatus || undefined,
       appointmentDate: inlineAppointmentDate || undefined,
       appointmentTime: inlineAppointmentTime || undefined,
+      consultationStatus: inlineConsultationStatus || undefined,
       isQualified: true,
     })
   }
@@ -1150,9 +1152,19 @@ export default function LiderLeadsPage() {
                               {closers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
                           </td>
-                          {/* Consultation status — empty on add */}
+                          {/* Consultation status — selectable when subStatus is scheduled */}
                           <td className="px-2 py-3">
-                            <span className="text-xs text-gray-300">—</span>
+                            {inlineSubStatus === 'scheduled' ? (
+                              <select value={inlineConsultationStatus} onChange={e => setInlineConsultationStatus(e.target.value)}
+                                className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white w-32">
+                                <option value="">— статус —</option>
+                                <option value="happened">Состоялась</option>
+                                <option value="not_happened">Не состоялась</option>
+                                <option value="postponed">Перенос</option>
+                              </select>
+                            ) : (
+                              <span className="text-xs text-gray-300">—</span>
+                            )}
                           </td>
                           {/* Postpone — empty */}
                           <td className="px-2 py-3">
