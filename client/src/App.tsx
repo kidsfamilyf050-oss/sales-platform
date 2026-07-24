@@ -46,7 +46,7 @@ function DashboardRedirect() {
   if (user.role === 'OWNER') return <Navigate to="/dashboard/owner" replace />
   if (user.role === 'ROP') return <Navigate to="/dashboard/rop" replace />
   if (user.role === 'MANAGER') return <Navigate to="/dashboard/manager" replace />
-  if (user.role === 'MARKETER') return <Navigate to="/dashboard/marketer" replace />
+  if (user.role === 'MARKETER') return <Navigate to="/marketing" replace />
   return <Navigate to="/login" replace />
 }
 

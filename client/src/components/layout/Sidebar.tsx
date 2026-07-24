@@ -64,8 +64,7 @@ export default function Sidebar({ onClose }: Props) {
       { to: '/closer/archive',    label: 'Архив',           icon: Archive },
     ],
     MARKETER: [
-      { to: '/dashboard/marketer', label: t('nav.myOffice'),   icon: TrendingUp },
-      { to: '/report',             label: t('nav.fillReport'), icon: FileText },
+      { to: '/marketing', label: t('nav.marketing'), icon: TrendingUp },
     ],
   }
 

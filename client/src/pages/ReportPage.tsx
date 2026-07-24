@@ -24,9 +24,9 @@ export default function ReportPage() {
   const [existingReport, setExistingReport] = useState<any>(null)
   const [loadingReport, setLoadingReport] = useState(false)
 
-  const isCloser = user?.managerType === 'CLOSER'
-  const isLider = user?.managerType === 'LIDER'
   const isMarketer = user?.role === 'MARKETER'
+  const isCloser = !isMarketer && user?.managerType === 'CLOSER'
+  const isLider = !isMarketer && user?.managerType === 'LIDER'
 
   const [closer, setCloser] = useState({ consultations: '', refusals: '', comment: '' })
   const [lider, setLider] = useState({ leadsReceived: '', processed: '', qualifiedLeads: '', meetingsScheduled: '', meetingsAttended: '', comment: '' })

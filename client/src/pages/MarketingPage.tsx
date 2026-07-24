@@ -188,6 +188,8 @@ function ChannelBudgetRow({
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function MarketingPage() {
   const qc = useQueryClient()
+  const { user } = useAuthStore()
+  const canManagePlans = user?.role === 'OWNER' || user?.role === 'ROP'
   const periodState = usePeriodStore()
   const [activeTab, setActiveTab] = useState<'dashboard' | 'entry' | 'channels'>('dashboard')
   const [editingPlans, setEditingPlans] = useState(false)
@@ -304,8 +306,8 @@ export default function MarketingPage() {
                     sub={budgetFactPct != null ? `${budgetFactPct}% от плана` : 'потрачено за период'} />
                 </div>
 
-                {/* ── Edit plans link ── */}
-                <div className="flex items-center gap-3">
+                {/* ── Edit plans link (OWNER/ROP only) ── */}
+                {canManagePlans && <div className="flex items-center gap-3">
                   {!editingPlans ? (
                     <button onClick={openPlanEdit}
                       className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 font-medium">
@@ -337,7 +339,7 @@ export default function MarketingPage() {
                       </div>
                     </div>
                   )}
-                </div>
+                </div>}
 
                 {/* ── KPI metrics row (CPL, CPQL, CAC, ДРР, конверсии) ── */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
