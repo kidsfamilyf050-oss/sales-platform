@@ -142,7 +142,7 @@ export default function CloserTasksPage() {
     : [{ label: 'Выполненные', tasks, color: 'text-gray-400', bgColor: 'border-gray-100', icon: CheckSquare }]
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 px-4 md:px-6 py-2 md:py-4">
       {showCreate && <CreateTaskModal onClose={() => setShowCreate(false)} />}
 
       <div className="flex items-start justify-between gap-2">

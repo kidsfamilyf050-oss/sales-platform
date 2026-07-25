@@ -125,7 +125,7 @@ export default function UsersPage() {
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 md:px-6 py-2 md:py-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t('users.title')}</h1>

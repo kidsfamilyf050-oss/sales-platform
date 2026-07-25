@@ -151,7 +151,7 @@ export default function OwnerDashboard() {
   const maxAmount = Math.max(...(dailyChart || []).map((d: any) => d.amount), 1)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 md:px-6 py-2 md:py-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>

@@ -304,15 +304,15 @@ export default function ROPDashboard() {
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium">{t('dash.table.manager')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.plan')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.fact')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.completion')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.deals')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.avgCheck')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.conversion')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.consultations')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.refusals')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.inWork')}</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.table.plan')}</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.table.fact')}</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.table.completion')}</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.table.deals')}</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.table.avgCheck')}</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.table.conversion')}</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.consultations')}</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.refusals')}</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.inWork')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -337,24 +337,24 @@ export default function ROPDashboard() {
                             </span>
                           )}
                         </td>
-                        <td className="py-2.5 text-right text-gray-500">₸ {fmt(m.plan)}</td>
-                        <td className="py-2.5 text-right font-medium">₸ {fmt(m.salesAmount)}</td>
-                        <td className="py-2.5 text-right">
+                        <td className="py-2.5 text-center text-gray-500">₸ {fmt(m.plan)}</td>
+                        <td className="py-2.5 text-center font-medium">₸ {fmt(m.salesAmount)}</td>
+                        <td className="py-2.5 text-center">
                           <span className={`font-bold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
                             {m.completion}%
                           </span>
                         </td>
-                        <td className="py-2.5 text-right">{m.salesCount}</td>
-                        <td className="py-2.5 text-right text-gray-500">{m.avgCheck > 0 ? `₸ ${fmt(m.avgCheck)}` : '—'}</td>
-                        <td className="py-2.5 text-right">{m.conversion}%</td>
-                        <td className="py-2.5 text-right">{m.consultations ?? 0}</td>
-                        <td className="py-2.5 text-right">
+                        <td className="py-2.5 text-center">{m.salesCount}</td>
+                        <td className="py-2.5 text-center text-gray-500">{m.avgCheck > 0 ? `₸ ${fmt(m.avgCheck)}` : '—'}</td>
+                        <td className="py-2.5 text-center">{m.conversion}%</td>
+                        <td className="py-2.5 text-center">{m.consultations ?? 0}</td>
+                        <td className="py-2.5 text-center">
                           <button onClick={(e) => { e.stopPropagation(); navigate('/rop/links') }}
                             className="text-red-500 hover:text-red-700 hover:underline font-semibold cursor-pointer transition-colors" title="Смотреть CRM ссылки отказников">
                             {m.refusals ?? 0}
                           </button>
                         </td>
-                        <td className="py-2.5 text-right">
+                        <td className="py-2.5 text-center">
                           <button onClick={(e) => { e.stopPropagation(); navigate('/rop/links') }}
                             className="text-amber-600 hover:text-amber-800 hover:underline font-semibold cursor-pointer transition-colors" title="Смотреть CRM ссылки в работе">
                             {m.inWork ?? 0}
@@ -383,13 +383,13 @@ export default function ROPDashboard() {
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium">{t('dash.table.lider')}</th>
-                  <th className="pb-2 font-medium text-right">% план</th>
-                  <th className="pb-2 font-medium text-right">Лидов</th>
-                  <th className="pb-2 font-medium text-right">% квал.</th>
-                  <th className="pb-2 font-medium text-right">Квалиф.</th>
-                  <th className="pb-2 font-medium text-right">% передано</th>
-                  <th className="pb-2 font-medium text-right">Передано</th>
-                  <th className="pb-2 font-medium text-right">% в работе</th>
+                  <th className="pb-2 font-medium text-center">% план</th>
+                  <th className="pb-2 font-medium text-center">Лидов</th>
+                  <th className="pb-2 font-medium text-center">% квал.</th>
+                  <th className="pb-2 font-medium text-center">Квалиф.</th>
+                  <th className="pb-2 font-medium text-center">% передано</th>
+                  <th className="pb-2 font-medium text-center">Передано</th>
+                  <th className="pb-2 font-medium text-center">% в работе</th>
                 </tr>
               </thead>
               <tbody>
@@ -408,23 +408,23 @@ export default function ROPDashboard() {
                         </td>
                         <td className="py-3 font-medium text-gray-900">{m.name}</td>
                         {/* 1. % выполнения плана */}
-                        <td className="py-2.5 text-right">
+                        <td className="py-2.5 text-center">
                           <span className={`font-semibold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
                             {m.meetingsPlan > 0 ? `${m.completion}%` : '—'}
                           </span>
                         </td>
                         {/* 2. Лидов */}
-                        <td className="py-2.5 text-right text-gray-700">{m.leads.toLocaleString('ru-RU')}</td>
+                        <td className="py-2.5 text-center text-gray-700">{m.leads.toLocaleString('ru-RU')}</td>
                         {/* 3. % квал. */}
-                        <td className="py-2.5 text-right text-gray-500 text-xs">{m.qualRate}%</td>
+                        <td className="py-2.5 text-center text-gray-500 text-xs">{m.qualRate}%</td>
                         {/* 4. Квалиф. кол-во */}
-                        <td className="py-2.5 text-right text-gray-500">{m.qualifiedLeads.toLocaleString('ru-RU')}</td>
+                        <td className="py-2.5 text-center text-gray-500">{m.qualifiedLeads.toLocaleString('ru-RU')}</td>
                         {/* 5. % записано */}
-                        <td className="py-2.5 text-right text-gray-500 text-xs">{m.pctScheduled ?? 0}%</td>
+                        <td className="py-2.5 text-center text-gray-500 text-xs">{m.pctScheduled ?? 0}%</td>
                         {/* 6. Записано кол-во */}
-                        <td className="py-2.5 text-right text-gray-500">{m.meetingsScheduled.toLocaleString('ru-RU')}</td>
+                        <td className="py-2.5 text-center text-gray-500">{m.meetingsScheduled.toLocaleString('ru-RU')}</td>
                         {/* 7. % проведено (записано→консультация) */}
-                        <td className="py-2.5 text-right font-bold text-blue-600">{m.pctAttended ?? 0}%</td>
+                        <td className="py-2.5 text-center font-bold text-blue-600">{m.pctAttended ?? 0}%</td>
                       </tr>
                       {isOpen && <LiderDetail key={`lider-detail-${m.id}`} m={m} />}
                     </>

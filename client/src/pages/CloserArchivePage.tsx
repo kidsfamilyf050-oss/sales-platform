@@ -249,7 +249,7 @@ export default function CloserArchivePage() {
   const currentQ = tab === 'refused' ? refusedQ : inworkQ
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 px-4 md:px-6 py-2 md:py-4">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Архив заявок</h1>
         <p className="text-sm text-gray-400 mt-0.5">Отказники и заявки в работе за период</p>

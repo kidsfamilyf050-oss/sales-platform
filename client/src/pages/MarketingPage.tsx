@@ -408,26 +408,26 @@ export default function MarketingPage() {
                         <thead>
                           <tr className="bg-gray-50 text-xs font-semibold text-gray-500">
                             <th className="text-left px-5 py-3">Рекламный канал</th>
-                            <th className="text-right px-4 py-3">Потрачено</th>
-                            <th className="text-right px-4 py-3">Лидов</th>
-                            <th className="text-right px-4 py-3">Квал лидов</th>
-                            <th className="text-right px-4 py-3">Не квал</th>
-                            <th className="text-right px-4 py-3">CPL</th>
-                            <th className="text-right px-4 py-3">CPQL</th>
-                            <th className="text-right px-4 py-3">Конв Лид→Квал</th>
+                            <th className="text-center px-4 py-3">Потрачено</th>
+                            <th className="text-center px-4 py-3">Лидов</th>
+                            <th className="text-center px-4 py-3">Квал лидов</th>
+                            <th className="text-center px-4 py-3">Не квал</th>
+                            <th className="text-center px-4 py-3">CPL</th>
+                            <th className="text-center px-4 py-3">CPQL</th>
+                            <th className="text-center px-4 py-3">Конв Лид→Квал</th>
                           </tr>
                         </thead>
                         <tbody>
                           {(dash?.channels || []).filter((ch: any) => ch.id !== '__none__' && (ch.leads > 0 || ch.spend > 0)).map((ch: any) => (
                             <tr key={ch.id} className="border-t border-gray-50 hover:bg-blue-50/30 transition-colors">
                               <td className="px-5 py-3 font-semibold text-gray-800">{ch.name}</td>
-                              <td className="px-4 py-3 text-right text-gray-700">{ch.spend > 0 ? fmtMoney(ch.spend) : <span className="text-gray-300">—</span>}</td>
-                              <td className="px-4 py-3 text-right font-semibold text-gray-900">{ch.leads || 0}</td>
-                              <td className="px-4 py-3 text-right text-green-700 font-semibold">{ch.qualLeads || 0}</td>
-                              <td className="px-4 py-3 text-right text-red-500">{ch.notQual || 0}</td>
-                              <td className="px-4 py-3 text-right text-gray-700">{ch.cpl ? fmtMoney(ch.cpl) : <span className="text-gray-300">—</span>}</td>
-                              <td className="px-4 py-3 text-right text-gray-700">{ch.cpql ? fmtMoney(ch.cpql) : <span className="text-gray-300">—</span>}</td>
-                              <td className={`px-4 py-3 text-right font-bold ${colorPct(ch.convLidToQual ?? 0, 50, 30)}`}>
+                              <td className="px-4 py-3 text-center text-gray-700">{ch.spend > 0 ? fmtMoney(ch.spend) : <span className="text-gray-300">—</span>}</td>
+                              <td className="px-4 py-3 text-center font-semibold text-gray-900">{ch.leads || 0}</td>
+                              <td className="px-4 py-3 text-center text-green-700 font-semibold">{ch.qualLeads || 0}</td>
+                              <td className="px-4 py-3 text-center text-red-500">{ch.notQual || 0}</td>
+                              <td className="px-4 py-3 text-center text-gray-700">{ch.cpl ? fmtMoney(ch.cpl) : <span className="text-gray-300">—</span>}</td>
+                              <td className="px-4 py-3 text-center text-gray-700">{ch.cpql ? fmtMoney(ch.cpql) : <span className="text-gray-300">—</span>}</td>
+                              <td className={`px-4 py-3 text-center font-bold ${colorPct(ch.convLidToQual ?? 0, 50, 30)}`}>
                                 {ch.convLidToQual != null ? `${ch.convLidToQual}%` : '—'}
                               </td>
                             </tr>
@@ -435,13 +435,13 @@ export default function MarketingPage() {
                           {/* Total row */}
                           <tr className="border-t-2 border-gray-200 bg-gray-50 font-semibold">
                             <td className="px-5 py-3 text-gray-900">Итого</td>
-                            <td className="px-4 py-3 text-right text-gray-900">{fmtMoney(o.totalSpend)}</td>
-                            <td className="px-4 py-3 text-right text-gray-900">{o.totalLeads ?? 0}</td>
-                            <td className="px-4 py-3 text-right text-green-700">{o.qualLeads ?? 0}</td>
-                            <td className="px-4 py-3 text-right text-red-500">{(o.totalLeads ?? 0) - (o.qualLeads ?? 0)}</td>
-                            <td className="px-4 py-3 text-right text-gray-900">{kpi.cpl ? fmtMoney(kpi.cpl) : '—'}</td>
-                            <td className="px-4 py-3 text-right text-gray-900">{kpi.cpql ? fmtMoney(kpi.cpql) : '—'}</td>
-                            <td className={`px-4 py-3 text-right font-bold ${colorPct(kpi.convLidToQual ?? 0, 50, 30)}`}>
+                            <td className="px-4 py-3 text-center text-gray-900">{fmtMoney(o.totalSpend)}</td>
+                            <td className="px-4 py-3 text-center text-gray-900">{o.totalLeads ?? 0}</td>
+                            <td className="px-4 py-3 text-center text-green-700">{o.qualLeads ?? 0}</td>
+                            <td className="px-4 py-3 text-center text-red-500">{(o.totalLeads ?? 0) - (o.qualLeads ?? 0)}</td>
+                            <td className="px-4 py-3 text-center text-gray-900">{kpi.cpl ? fmtMoney(kpi.cpl) : '—'}</td>
+                            <td className="px-4 py-3 text-center text-gray-900">{kpi.cpql ? fmtMoney(kpi.cpql) : '—'}</td>
+                            <td className={`px-4 py-3 text-center font-bold ${colorPct(kpi.convLidToQual ?? 0, 50, 30)}`}>
                               {kpi.convLidToQual != null ? `${kpi.convLidToQual}%` : '—'}
                             </td>
                           </tr>

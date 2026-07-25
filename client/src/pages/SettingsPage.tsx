@@ -102,7 +102,7 @@ export default function SettingsPage() {
   })
 
   return (
-    <div className="max-w-xl space-y-6">
+    <div className="max-w-xl space-y-6 px-4 md:px-6 py-2 md:py-4">
       <h1 className="text-2xl font-bold text-gray-900">{t('settings.title')}</h1>
 
       <div className="card space-y-4">
