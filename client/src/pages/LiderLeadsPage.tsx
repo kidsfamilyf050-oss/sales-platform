@@ -416,17 +416,10 @@ function EditLeadModal({
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Имя клиента</label>
-              <input value={clientName} onChange={e => setClientName(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Телефон</label>
-              <input value={phone} onChange={e => setPhone(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required />
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Имя клиента</label>
+            <input value={clientName} onChange={e => setClientName(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -673,6 +666,7 @@ export default function LiderLeadsPage() {
   const [showInlineAdd, setShowInlineAdd] = useState(false)
   const [inlineName, setInlineName] = useState('')
   const [inlinePhone, setInlinePhone] = useState('')
+  const [inlineIsQualified, setInlineIsQualified] = useState(true)
   const [inlineDate, setInlineDate] = useState(new Date().toISOString().slice(0, 10))
   const [inlineChannelId, setInlineChannelId] = useState('')
   const [inlineLeadLink, setInlineLeadLink] = useState('')
@@ -790,7 +784,7 @@ export default function LiderLeadsPage() {
       appointmentDate: inlineAppointmentDate || undefined,
       appointmentTime: inlineAppointmentTime || undefined,
       consultationStatus: inlineConsultationStatus || undefined,
-      isQualified: true,
+      isQualified: inlineIsQualified,
     })
   }
 
@@ -1121,9 +1115,19 @@ export default function LiderLeadsPage() {
                               {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
                           </td>
-                          {/* Qual — always квал on inline add */}
+                          {/* Qual toggle on inline add */}
                           <td className="px-2 py-3">
-                            <span className="text-xs bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full">Квал</span>
+                            <button
+                              type="button"
+                              onClick={() => setInlineIsQualified(q => !q)}
+                              className={`text-xs font-semibold px-2 py-1 rounded-full transition-colors ${
+                                inlineIsQualified
+                                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                  : 'bg-red-100 text-red-700 hover:bg-red-200'
+                              }`}
+                            >
+                              {inlineIsQualified ? 'Квал' : 'Не квал'}
+                            </button>
                           </td>
                           {/* Sub-status (Записан/Отказ/Думает) */}
                           <td className="px-2 py-3">

@@ -241,6 +241,11 @@ export default function TrackingPage() {
     queryKey: ['reports-company', periodStart, periodEnd, globalPeriod],
     queryFn: () => api.get(`/reports/company?from=${periodStart}&to=${periodEnd}`).then(r => r.data),
   })
+  // Lider daily stats from Lead model (source of truth for liders)
+  const { data: liderDailyStats = {} } = useQuery({
+    queryKey: ['lider-daily-stats', periodStart, periodEnd],
+    queryFn: () => api.get(`/leads/company-daily-stats?from=${periodStart}&to=${periodEnd}`).then(r => r.data),
+  })
 
   // Active managers only — for entry tab
   const allManagers = useMemo(() => {
@@ -426,8 +431,11 @@ export default function TrackingPage() {
 
       const totals = fields.map(f => {
         const total = managers.reduce((sum, u) => {
+          const isLider = u.managerType === 'LIDER'
           return sum + columnDates.reduce((s, date) => {
-            const val = reportsMap[u.id]?.[date]?.data?.[f.key]
+            const val = isLider
+              ? (liderDailyStats as any)[u.id]?.[date]?.[f.key]
+              : reportsMap[u.id]?.[date]?.data?.[f.key]
             return val != null ? s + +val : s
           }, 0)
         }, 0)
@@ -478,10 +486,14 @@ export default function TrackingPage() {
       const planType = getPlanType(u.managerType, u.role)
       const monthlyPlan = plansMap[`${u.id}_${planType}`] ?? 0
 
+      const isLider = u.managerType === 'LIDER'
       const fieldData = fields.map(f => {
         let total = 0
         const dayVals = columnDates.map(date => {
-          const val = reportsMap[u.id]?.[date]?.data?.[f.key]
+          // Liders: use Lead model data (liderDailyStats); others: use Report model
+          const val = isLider
+            ? (liderDailyStats as any)[u.id]?.[date]?.[f.key]
+            : reportsMap[u.id]?.[date]?.data?.[f.key]
           if (val != null && val !== '') { total += +val; return +val }
           return null
         })
@@ -626,6 +638,7 @@ export default function TrackingPage() {
           </div>
         )}
 
+        {/* Marketers table */}
         {marketers.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">{t('tracking.tabs.marketing')}</h2>

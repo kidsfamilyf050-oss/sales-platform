@@ -1,6 +1,6 @@
 import { Router, Response } from 'express'
 import { PrismaClient } from '@prisma/client'
-import { authenticate, AuthRequest } from '../middleware/auth'
+import { authenticate, requireRole, AuthRequest } from '../middleware/auth'
 
 const router = Router()
 const prisma = new PrismaClient()
@@ -265,6 +265,38 @@ router.get('/all', authenticate, async (req: AuthRequest, res: Response) => {
       orderBy: { createdAt: 'desc' },
     })
     res.json(leads)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── GET /api/leads/company-daily-stats — lider stats per day (for ROP/OWNER tracking table) ─────
+router.get('/company-daily-stats', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRequest, res: Response) => {
+  const { from, to } = req.query
+  if (!from || !to) return res.status(400).json({ error: 'from and to required' })
+  try {
+    const leads = await prisma.lead.findMany({
+      where: {
+        createdBy: { companyId: req.user!.companyId },
+        date: { gte: from as string, lte: to as string },
+      },
+      select: { createdById: true, date: true, isQualified: true, assignedToId: true, status: true },
+    })
+
+    // Aggregate by userId → date → stats
+    const stats: Record<string, Record<string, { leads: number; qualifiedLeads: number; meetingsScheduled: number; meetingsAttended: number }>> = {}
+    for (const l of leads) {
+      const uid = l.createdById
+      const d = l.date // YYYY-MM-DD string
+      if (!stats[uid]) stats[uid] = {}
+      if (!stats[uid][d]) stats[uid][d] = { leads: 0, qualifiedLeads: 0, meetingsScheduled: 0, meetingsAttended: 0 }
+      stats[uid][d].leads++
+      if (l.isQualified) stats[uid][d].qualifiedLeads++
+      if (l.assignedToId) stats[uid][d].meetingsScheduled++
+      if (['IN_WORK', 'REFUSED', 'SOLD'].includes(l.status)) stats[uid][d].meetingsAttended++
+    }
+
+    res.json(stats)
   } catch (e) {
     console.error(e); res.status(500).json({ error: 'Server error' })
   }
