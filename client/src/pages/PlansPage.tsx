@@ -1,27 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
-import { Save, Target, Users, TrendingUp, DollarSign, CheckCircle, ChevronLeft, ChevronRight, Info, Building2, UserCircle, Megaphone } from 'lucide-react'
+import { Save, Target, Users, TrendingUp, DollarSign, CheckCircle, Info, Building2, UserCircle, Megaphone } from 'lucide-react'
 import { useT } from '../i18n'
+import { usePeriodStore } from '../components/ui/PeriodSelector'
 
 // Plan configs are defined inside the component to use t()
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function getPeriod(date: Date) {
-  return date.toISOString().slice(0, 7)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
-function formatPeriod(period: string, t: (k: any) => string) {
-  const [year, month] = period.split('-')
-  return `${t(`month.${+month}` as any)} ${year}`
-}
-
-function shiftMonth(period: string, delta: number) {
-  const [year, month] = period.split('-').map(Number)
-  const d = new Date(year, month - 1 + delta, 1)
-  return getPeriod(d)
-}
 
 // ─── Input with hint ────────────────────────────────────────────────────────
 
@@ -107,7 +98,9 @@ function ManagerRow({ name, role, plans, values, onChange }: {
 export default function PlansPage() {
   const { t } = useT()
   const qc = useQueryClient()
-  const [period, setPeriod] = useState(getPeriod(new Date()))
+  const { monthOffset } = usePeriodStore()
+  const now = new Date()
+  const period = getPeriod(new Date(now.getFullYear(), now.getMonth() + monthOffset, 1))
   const [saved, setSaved] = useState(false)
 
   // Plan configs — inside component so they can use t()
@@ -217,7 +210,7 @@ export default function PlansPage() {
   const marketingDepts = departments.filter((d: any) => d.type === 'MARKETING')
 
   return (
-    <div className="space-y-6 max-w-4xl px-4 md:px-6 py-2 md:py-4">
+    <div className="space-y-6 px-4 md:px-8 py-4 md:py-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -225,16 +218,6 @@ export default function PlansPage() {
           <p className="text-gray-500 text-sm mt-0.5">{t('plans.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
-          {/* Period picker */}
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-            <button onClick={() => setPeriod(p => shiftMonth(p, -1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
-              <ChevronLeft className="w-4 h-4 text-gray-600" />
-            </button>
-            <span className="px-2 text-sm font-medium text-gray-800 min-w-[120px] text-center">{formatPeriod(period, t)}</span>
-            <button onClick={() => setPeriod(p => shiftMonth(p, 1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
-              <ChevronRight className="w-4 h-4 text-gray-600" />
-            </button>
-          </div>
           {/* Save */}
           <button
             onClick={() => saveMutation.mutate()}
