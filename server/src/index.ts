@@ -20,6 +20,8 @@ import salesChannelsRoutes from './routes/salesChannels'
 import leadsRoutes from './routes/leads'
 import leadTasksRoutes from './routes/leadTasks'
 import channelBudgetsRoutes from './routes/channelBudgets'
+import productsRoutes from './routes/products'
+import lossReasonsRoutes from './routes/lossReasons'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -46,6 +48,8 @@ app.use('/api/sales-channels', salesChannelsRoutes)
 app.use('/api/leads', leadsRoutes)
 app.use('/api/lead-tasks', leadTasksRoutes)
 app.use('/api/channel-budgets', channelBudgetsRoutes)
+app.use('/api/products', productsRoutes)
+app.use('/api/loss-reasons', lossReasonsRoutes)
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })

@@ -9,6 +9,8 @@ const INCLUDE_FULL = {
   createdBy: { select: { id: true, name: true } },
   assignedTo: { select: { id: true, name: true } },
   salesChannel: { select: { id: true, name: true } },
+  product: { select: { id: true, name: true, price: true } },
+  lossReason: { select: { id: true, name: true } },
   tasks: { orderBy: { dueDate: 'asc' as const } },
 }
 
@@ -450,7 +452,7 @@ router.put('/:id/accept', authenticate, async (req: AuthRequest, res: Response) 
 
 // ── PUT /api/leads/:id/refuse — closer refuses (requires CRM link) ───────────
 router.put('/:id/refuse', authenticate, async (req: AuthRequest, res: Response) => {
-  const { crmLink } = req.body
+  const { crmLink, lossReasonId } = req.body
   try {
     const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
     if (!lead) return res.status(404).json({ error: 'Not found' })
@@ -459,7 +461,11 @@ router.put('/:id/refuse', authenticate, async (req: AuthRequest, res: Response) 
     if (!finalCrmLink) return res.status(400).json({ error: 'Нужна CRM-ссылка для отказа' })
     const updated = await prisma.lead.update({
       where: { id: req.params.id },
-      data: { status: 'REFUSED', crmLink: finalCrmLink },
+      data: {
+        status: 'REFUSED',
+        crmLink: finalCrmLink,
+        lossReasonId: lossReasonId || null,
+      },
       include: INCLUDE_FULL,
     })
     res.json(updated)
@@ -470,7 +476,7 @@ router.put('/:id/refuse', authenticate, async (req: AuthRequest, res: Response) 
 
 // ── PUT /api/leads/:id/sell — closer marks as sold (fills sale details) ───────
 router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) => {
-  const { amount, paymentType, paymentMethod, bank, months, crmLink, closerComment } = req.body
+  const { amount, paymentType, paymentMethod, bank, months, crmLink, closerComment, productId } = req.body
   if (!amount || !paymentType || !paymentMethod) {
     return res.status(400).json({ error: 'amount, paymentType, paymentMethod required' })
   }
@@ -490,6 +496,7 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
           months: months ? Number(months) : null,
           crmLink: crmLink?.trim() || null,
           closerComment: closerComment?.trim() || null,
+          productId: productId || null,
         },
         include: INCLUDE_FULL,
       }),
@@ -507,6 +514,7 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
           crmLink: crmLink?.trim() || null,
           comment: closerComment?.trim() || null,
           leadId: req.params.id,
+          productId: productId || null,
         },
         update: {
           date: lead.date,
@@ -516,6 +524,7 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
           months: months ? Number(months) : null,
           crmLink: crmLink?.trim() || null,
           comment: closerComment?.trim() || null,
+          productId: productId || null,
         },
       }),
     ])

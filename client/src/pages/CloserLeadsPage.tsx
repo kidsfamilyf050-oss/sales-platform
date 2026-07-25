@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import PeriodSelector, { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
-import { Phone, Calendar, User, ChevronDown, ChevronUp, Check, X, CheckSquare, Plus, ExternalLink, Banknote, Pencil } from 'lucide-react'
+import { Phone, Calendar, User, ChevronDown, ChevronUp, Check, X, CheckSquare, Plus, ExternalLink, Banknote, Pencil, Package } from 'lucide-react'
 
 type Lead = {
   id: string
@@ -181,15 +181,41 @@ function InWorkSection({ lead }: { lead: Lead }) {
     crmLink: lead.crmLink || '',
     closerComment: lead.closerComment || '',
   })
+  const [productId, setProductId] = useState<string>('')
+  const [lossReasonId, setLossReasonId] = useState<string>('')
   const [error, setError] = useState('')
   const [showTaskForm, setShowTaskForm] = useState(false)
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+
+  // Fetch products for selector
+  const { data: products = [] } = useQuery<{ id: string; name: string; price: number }[]>({
+    queryKey: ['products'],
+    queryFn: () => api.get('/products').then(r => r.data),
+  })
+
+  // Fetch loss reasons for selector
+  const { data: lossReasons = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['loss-reasons'],
+    queryFn: () => api.get('/loss-reasons').then(r => r.data),
+  })
+
+  // When product is selected, auto-fill the price if amount is empty
+  const handleProductChange = (pid: string) => {
+    setProductId(pid)
+    if (pid) {
+      const prod = products.find(p => p.id === pid)
+      if (prod && !form.amount) {
+        setForm(f => ({ ...f, amount: String(prod.price) }))
+      }
+    }
+  }
 
   const sellMut = useMutation({
     mutationFn: () => api.put(`/leads/${lead.id}/sell`, {
       ...form,
       amount: Number(form.amount),
       months: form.months ? Number(form.months) : null,
+      productId: productId || null,
     }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['closer-leads'] }),
     onError: (e: any) => setError(e.response?.data?.error || 'Ошибка'),
@@ -206,7 +232,10 @@ function InWorkSection({ lead }: { lead: Lead }) {
   })
 
   const refuseMut = useMutation({
-    mutationFn: () => api.put(`/leads/${lead.id}/refuse`, { crmLink: form.crmLink }).then(r => r.data),
+    mutationFn: () => api.put(`/leads/${lead.id}/refuse`, {
+      crmLink: form.crmLink,
+      lossReasonId: lossReasonId || null,
+    }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['closer-leads'] }),
     onError: (e: any) => setError(e.response?.data?.error || 'Ошибка'),
   })
@@ -215,6 +244,26 @@ function InWorkSection({ lead }: { lead: Lead }) {
     <div className="space-y-3 pt-3 border-t border-gray-100">
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Данные сделки</p>
       <div className="grid grid-cols-2 gap-3">
+        {/* Product selector */}
+        {products.length > 0 && (
+          <div className="col-span-2">
+            <label className="text-xs font-medium text-gray-500 block mb-1 flex items-center gap-1">
+              <Package className="w-3.5 h-3.5" /> Продукт
+            </label>
+            <select
+              className="input"
+              value={productId}
+              onChange={e => handleProductChange(e.target.value)}
+            >
+              <option value="">— выберите продукт —</option>
+              {products.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.name} (₸ {p.price.toLocaleString('ru')})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label className="text-xs font-medium text-gray-500 block mb-1">Сумма</label>
           <input type="number" className="input" value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="0" />
@@ -276,24 +325,42 @@ function InWorkSection({ lead }: { lead: Lead }) {
       </div>
 
       {/* Secondary actions */}
-      <div className="flex gap-2 border-t border-gray-100 pt-3">
-        <button
-          onClick={() => setShowTaskForm(true)}
-          className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors flex-1 justify-center"
-        >
-          <Plus className="w-4 h-4" /> Оставить в работе
-        </button>
-        <button
-          onClick={() => {
-            setError('')
-            if (!form.crmLink) return setError('Заполните CRM-ссылку для отказа')
-            refuseMut.mutate()
-          }}
-          disabled={refuseMut.isPending}
-          className="flex items-center gap-1.5 text-sm text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-2 rounded-lg font-medium transition-colors disabled:opacity-40"
-        >
-          <X className="w-4 h-4" /> Отказ
-        </button>
+      <div className="space-y-2 border-t border-gray-100 pt-3">
+        {/* Loss reason selector (shown before refuse button) */}
+        {lossReasons.length > 0 && (
+          <div>
+            <label className="text-xs font-medium text-gray-500 block mb-1">Причина отказа</label>
+            <select
+              className="input text-sm"
+              value={lossReasonId}
+              onChange={e => setLossReasonId(e.target.value)}
+            >
+              <option value="">— не выбрана —</option>
+              {lossReasons.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowTaskForm(true)}
+            className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors flex-1 justify-center"
+          >
+            <Plus className="w-4 h-4" /> Оставить в работе
+          </button>
+          <button
+            onClick={() => {
+              setError('')
+              if (!form.crmLink) return setError('Заполните CRM-ссылку для отказа')
+              refuseMut.mutate()
+            }}
+            disabled={refuseMut.isPending}
+            className="flex items-center gap-1.5 text-sm text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-2 rounded-lg font-medium transition-colors disabled:opacity-40"
+          >
+            <X className="w-4 h-4" /> Отказ
+          </button>
+        </div>
       </div>
 
       {showTaskForm && <AddTaskModal leadId={lead.id} onClose={() => setShowTaskForm(false)} />}

@@ -77,7 +77,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'LIDER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true, departmentId: true, managerType: true } } } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'MARKETER', date: { gte: start, lte: end } } }),
       // Sales from Sale model — truth source
-      prisma.sale.findMany({ where: { companyId: req.user!.companyId, date: { gte: fromStr, lte: toStr } }, include: { user: { select: { id: true, name: true } } } }),
+      prisma.sale.findMany({ where: { companyId: req.user!.companyId, date: { gte: fromStr, lte: toStr } }, include: { user: { select: { id: true, name: true } }, product: { select: { id: true, name: true } } } }),
     ])
 
     // ── Sales (Sale model) ─────────────────────────────────────────────────
@@ -202,6 +202,19 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       })
       .sort((a, b) => b.completion - a.completion || b.meetingsAttended - a.meetingsAttended)
 
+    // ── Product stats (from Sale model) ───────────────────────────────────────
+    const productStatsMap: Record<string, { productId: string; productName: string; count: number; totalAmount: number }> = {}
+    for (const s of periodSales) {
+      if (s.productId && s.product) {
+        if (!productStatsMap[s.productId]) {
+          productStatsMap[s.productId] = { productId: s.productId, productName: s.product.name, count: 0, totalAmount: 0 }
+        }
+        productStatsMap[s.productId].count++
+        productStatsMap[s.productId].totalAmount += s.amount
+      }
+    }
+    const productStats = Object.values(productStatsMap).sort((a, b) => b.totalAmount - a.totalAmount)
+
     res.json({
       summary: {
         salesPlan, totalSalesAmount, totalSalesCount, avgCheck: Math.round(avgCheck),
@@ -221,6 +234,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       dailyChart: Object.entries(dailySalesMap).map(([date, v]) => ({ date, ...v })).sort((a, b) => a.date.localeCompare(b.date)),
       managerRating,
       liderRating,
+      productStats,
     })
   } catch (e) {
     console.error(e)
@@ -246,7 +260,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'MARKETER', date: { gte: start, lte: end } } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, departmentId: deptId || undefined }, date: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } }, include: { user: { select: { id: true, name: true } } } }),
       // Period sales from Sale model — newest first
-      prisma.sale.findMany({ where: { companyId: req.user!.companyId, date: { gte: fromStr, lte: toStr } }, include: { user: { select: { id: true, name: true, managerType: true } } }, orderBy: [{ date: 'desc' }, { createdAt: 'desc' }] }),
+      prisma.sale.findMany({ where: { companyId: req.user!.companyId, date: { gte: fromStr, lte: toStr } }, include: { user: { select: { id: true, name: true, managerType: true } }, product: { select: { id: true, name: true } } }, orderBy: [{ date: 'desc' }, { createdAt: 'desc' }] }),
       // Today's sales per manager
       prisma.sale.findMany({ where: { companyId: req.user!.companyId, date: todayStr }, orderBy: { createdAt: 'asc' } }),
       // Lider leads from Lead model (source of truth for lider stats)
@@ -389,6 +403,19 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const totalBudget = marketerReports.reduce((s, r) => s + (Number((r.data as any).budget) || Number((r.data as any).adBudget) || 0), 0)
     const leadsplan = plans.find(p => !p.userId && !p.departmentId && p.type === 'LEADS')?.value || 0
 
+    // ── Product stats (from Sale model) ────────────────────────────────────────
+    const ropProductStatsMap: Record<string, { productId: string; productName: string; count: number; totalAmount: number }> = {}
+    for (const s of periodSales) {
+      if (s.productId && s.product) {
+        if (!ropProductStatsMap[s.productId]) {
+          ropProductStatsMap[s.productId] = { productId: s.productId, productName: s.product.name, count: 0, totalAmount: 0 }
+        }
+        ropProductStatsMap[s.productId].count++
+        ropProductStatsMap[s.productId].totalAmount += s.amount
+      }
+    }
+    const productStats = Object.values(ropProductStatsMap).sort((a, b) => b.totalAmount - a.totalAmount)
+
     res.json({
       summary: {
         salesPlan, salesAmount: totalSalesAmount, salesCount: totalSalesCount,
@@ -401,6 +428,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       marketing: { leadsplan, totalLeads, totalBudget, leadCost: totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0, qualifiedLeads },
       managerRating,
       liderRating,
+      productStats,
     })
   } catch (e) {
     console.error(e)

@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   BarChart2, Users, FileText, Settings, TrendingUp, Target,
-  LogOut, Activity, X, Inbox, CheckSquare, UserPlus, Archive, ClipboardList,
+  LogOut, Activity, X, Inbox, CheckSquare, UserPlus, Archive, ClipboardList, Package,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useT } from '../../i18n'
@@ -37,18 +37,20 @@ export default function Sidebar({ onClose }: Props) {
 
   const navByRole: Record<string, { to: string; label: string; icon: any }[]> = {
     OWNER: [
-      { to: '/dashboard/owner', label: t('nav.dashboard'), icon: BarChart2 },
-      { to: '/tracking',        label: t('nav.control'),   icon: Activity },
-      { to: '/marketing',       label: t('nav.marketing'), icon: TrendingUp },
-      { to: '/users',           label: t('nav.users'),     icon: Users },
-      { to: '/plans',           label: t('nav.plans'),     icon: Target },
-      { to: '/settings',        label: t('nav.settings'),  icon: Settings },
+      { to: '/dashboard/owner', label: t('nav.dashboard'),   icon: BarChart2 },
+      { to: '/tracking',        label: t('nav.control'),     icon: Activity },
+      { to: '/marketing',       label: t('nav.marketing'),   icon: TrendingUp },
+      { to: '/products',        label: 'Продукты',           icon: Package },
+      { to: '/users',           label: t('nav.users'),       icon: Users },
+      { to: '/plans',           label: t('nav.plans'),       icon: Target },
+      { to: '/settings',        label: t('nav.settings'),    icon: Settings },
     ],
     ROP: [
       { to: '/dashboard/rop', label: t('nav.dashboard'), icon: BarChart2 },
       { to: '/tracking',      label: t('nav.control'),   icon: Activity },
       { to: '/rop/tasks',     label: 'Задачи',           icon: ClipboardList },
       { to: '/marketing',     label: t('nav.marketing'), icon: TrendingUp },
+      { to: '/products',      label: 'Продукты',         icon: Package },
       { to: '/users',         label: t('nav.users'),     icon: Users },
       { to: '/plans',         label: t('nav.plans'),     icon: Target },
       { to: '/settings',      label: t('nav.settings'),  icon: Settings },

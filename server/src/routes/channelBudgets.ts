@@ -75,6 +75,7 @@ router.get('/dashboard', authenticate, async (req: AuthRequest, res: Response) =
       select: {
         id: true, salesChannelId: true, isQualified: true, subStatus: true,
         consultationStatus: true, status: true,
+        lossReasonId: true, lossReason: { select: { id: true, name: true } },
       },
     })
 
@@ -158,14 +159,28 @@ router.get('/dashboard', authenticate, async (req: AuthRequest, res: Response) =
     }
 
     // ── Loss reasons ─────────────────────────────────────────────────────────
-    const lostLeads = leads.filter(l => !l.isQualified || l.subStatus === 'refused' || l.consultationStatus === 'not_happened')
-    const lossReasons = [
+    // 1. Custom reasons from REFUSED leads with lossReasonId
+    const customReasonMap: Record<string, { label: string; count: number }> = {}
+    for (const l of leads) {
+      if (l.status === 'REFUSED' && l.lossReasonId && l.lossReason) {
+        const key = l.lossReasonId
+        if (!customReasonMap[key]) customReasonMap[key] = { label: l.lossReason.name, count: 0 }
+        customReasonMap[key].count++
+      }
+    }
+    const customReasons = Object.values(customReasonMap).filter(r => r.count > 0)
+
+    // 2. Funnel drop-off reasons (always shown)
+    const funnelReasons = [
       { label: 'Не квал / нецелевой', count: leads.filter(l => !l.isQualified).length },
       { label: 'Отказ от записи', count: leads.filter(l => l.isQualified && l.subStatus === 'refused').length },
       { label: 'Не состоялась', count: leads.filter(l => l.consultationStatus === 'not_happened').length },
       { label: 'Думает', count: leads.filter(l => l.isQualified && l.subStatus === 'thinking').length },
       { label: 'Перенос без даты', count: leads.filter(l => l.consultationStatus === 'postponed').length },
     ].filter(r => r.count > 0)
+
+    // Combine: custom reasons first (if any), then funnel reasons
+    const lossReasons = customReasons.length > 0 ? [...customReasons, ...funnelReasons] : funnelReasons
     const totalLost = lossReasons.reduce((s, r) => s + r.count, 0)
 
     // ── Plan values ───────────────────────────────────────────────────────────

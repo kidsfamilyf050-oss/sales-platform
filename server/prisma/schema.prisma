@@ -34,6 +34,8 @@ model Company {
   salesChannels  SalesChannel[]
   leads          Lead[]
   channelBudgets ChannelBudget[]
+  products       Product[]
+  lossReasons    LossReason[]
 }
 
 model Department {
@@ -194,6 +196,8 @@ model Sale {
   crmLink       String?
   comment       String?
   leadId        String?  @unique  // if created from a Lead (prevents duplicates)
+  productId     String?
+  product       Product? @relation(fields: [productId], references: [id])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -320,6 +324,14 @@ model Lead {
   crmLink        String?
   closerComment  String?
 
+  // Product selected by closer on sale
+  productId      String?
+  product        Product?      @relation(fields: [productId], references: [id])
+
+  // Loss reason selected by closer on refusal
+  lossReasonId   String?
+  lossReason     LossReason?   @relation(fields: [lossReasonId], references: [id])
+
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -348,6 +360,36 @@ model LeadTask {
   @@index([userId, completed])
   @@index([leadId])
   @@index([createdById])
+}
+
+// ── Product line ──────────────────────────────────────────────────────────────
+model Product {
+  id        String   @id @default(cuid())
+  name      String
+  price     Float
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sales Sale[]
+  leads Lead[]
+
+  @@index([companyId])
+}
+
+// ── Loss reasons (created by ROP/OWNER, selected by closer on refusal) ────────
+model LossReason {
+  id        String   @id @default(cuid())
+  name      String
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  leads Lead[]
+
+  @@index([companyId])
 }
 
 model AuditLog {

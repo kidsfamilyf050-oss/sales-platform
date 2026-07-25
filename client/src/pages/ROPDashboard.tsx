@@ -197,7 +197,7 @@ export default function ROPDashboard() {
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
   if (!data) return null
 
-  const { summary, funnel, marketing, managerRating, liderRating } = data
+  const { summary, funnel, marketing, managerRating, liderRating, productStats = [] } = data
 
   const funnelSteps = [
     { label: 'Лидов получено',      value: funnel.leadsReceived,    color: 'bg-purple-400' },
@@ -428,6 +428,53 @@ export default function ROPDashboard() {
                       </tr>
                       {isOpen && <LiderDetail key={`lider-detail-${m.id}`} m={m} />}
                     </>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── PRODUCT ANALYTICS ── */}
+      {productStats.length > 0 && (
+        <div className="card">
+          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            📦 Продуктовая линейка — что продаётся лучше
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left py-2 text-xs text-gray-400 font-medium">Продукт</th>
+                  <th className="text-center py-2 text-xs text-gray-400 font-medium">Продаж</th>
+                  <th className="text-right py-2 text-xs text-gray-400 font-medium">Сумма</th>
+                  <th className="text-right py-2 text-xs text-gray-400 font-medium">Доля</th>
+                </tr>
+              </thead>
+              <tbody>
+                {productStats.map((p: any, i: number) => {
+                  const totalAmt = productStats.reduce((s: number, x: any) => s + x.totalAmount, 0)
+                  const share = totalAmt > 0 ? Math.round((p.totalAmount / totalAmt) * 100) : 0
+                  return (
+                    <tr key={p.productId} className="border-b border-gray-50 hover:bg-gray-50/50">
+                      <td className="py-2.5 font-medium text-gray-900 flex items-center gap-2">
+                        <span className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shrink-0 ${i === 0 ? 'bg-yellow-100 text-yellow-700' : i === 1 ? 'bg-gray-100 text-gray-600' : 'bg-orange-50 text-orange-600'}`}>
+                          {i + 1}
+                        </span>
+                        {p.productName}
+                      </td>
+                      <td className="py-2.5 text-center font-semibold text-gray-700">{p.count}</td>
+                      <td className="py-2.5 text-right font-semibold text-gray-900">₸ {fmt(p.totalAmount)}</td>
+                      <td className="py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-1.5 bg-blue-500 rounded-full" style={{ width: `${share}%` }} />
+                          </div>
+                          <span className="text-xs text-gray-500 w-8 text-right">{share}%</span>
+                        </div>
+                      </td>
+                    </tr>
                   )
                 })}
               </tbody>
