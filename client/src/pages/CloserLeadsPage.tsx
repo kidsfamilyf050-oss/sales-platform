@@ -468,7 +468,7 @@ export default function CloserLeadsPage() {
   const currentQ = tab === 'incoming' ? incomingQ : tab === 'inwork' ? inworkQ : tab === 'refused' ? refusedQ : soldQ
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 max-w-[1200px] mx-auto px-4 md:px-8 py-4 md:py-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Заявки</h1>
         <p className="text-sm text-gray-400 mt-0.5">Лиды от лидорубов</p>

@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/auth'
 import {
   Download, Save, Pencil, X, CheckCircle, Plus, Trash2,
   TrendingUp, Users, Target, DollarSign, ChevronRight, BarChart2,
-  Settings, RefreshCw,
+  Settings, RefreshCw, Send, Calendar,
 } from 'lucide-react'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 
@@ -204,6 +204,8 @@ export default function MarketingPage() {
   const [planLeadsVal, setPlanLeadsVal] = useState('')
   const [planQualVal, setPlanQualVal] = useState('')
   const [planBudgetVal, setPlanBudgetVal] = useState('')
+  const [entryDate, setEntryDate] = useState(localDateStr(new Date()))
+  const [reportSent, setReportSent] = useState(false)
 
   const apiParams = buildPeriodParams(periodState)
   const fromParam = useMemo(() => {
@@ -513,8 +515,22 @@ export default function MarketingPage() {
         {activeTab === 'entry' && (
           <div className="space-y-5">
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
-              <h2 className="font-bold text-gray-900 mb-1">Ввод расходов по каналам</h2>
-              <p className="text-sm text-gray-400 mb-5">Вводите сумму потраченного бюджета для каждого канала за выбранный период.</p>
+              <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
+                <div>
+                  <h2 className="font-bold text-gray-900">Ввод расходов по каналам</h2>
+                  <p className="text-sm text-gray-400 mt-0.5">Выберите день и введите бюджет по каждому каналу.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-gray-400" />
+                  <input
+                    type="date"
+                    value={entryDate}
+                    max={localDateStr(new Date())}
+                    onChange={e => { setEntryDate(e.target.value); setReportSent(false) }}
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
 
               {channels.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
@@ -522,17 +538,36 @@ export default function MarketingPage() {
                   <p>Сначала создайте каналы во вкладке «Каналы»</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {channels.map(ch => (
-                    <div key={ch.id} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
-                      <span className="text-sm font-semibold text-gray-800 w-36">{ch.name}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-400">Потрачено ₸:</span>
-                        <ChannelBudgetRow channel={ch} dateFrom={fromParam} dateTo={toParam} />
+                <>
+                  <div className="space-y-1">
+                    {channels.map(ch => (
+                      <div key={ch.id} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
+                        <span className="text-sm font-semibold text-gray-800 w-40">{ch.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-400">Потрачено ₸:</span>
+                          <ChannelBudgetRow channel={ch} dateFrom={entryDate} dateTo={entryDate} />
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-5 pt-4 border-t border-gray-100 flex items-center gap-3">
+                    {reportSent ? (
+                      <div className="flex items-center gap-2 text-green-600 font-medium text-sm">
+                        <CheckCircle className="w-4 h-4" />
+                        Отчёт за {entryDate} сохранён
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { qc.invalidateQueries({ queryKey: ['marketing-dashboard'] }); setReportSent(true) }}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors"
+                      >
+                        <Send className="w-4 h-4" />
+                        Отправить отчёт за {entryDate}
+                      </button>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           </div>

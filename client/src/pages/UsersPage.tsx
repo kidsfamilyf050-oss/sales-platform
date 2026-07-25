@@ -225,7 +225,7 @@ export default function UsersPage() {
                   </td>
                   <td className="px-4 py-3">
                     {roleLabels[u.role]}
-                    {u.managerType && <span className="ml-1 text-xs text-gray-400">({managerTypeLabels[u.managerType]})</span>}
+                    {u.role === 'MANAGER' && u.managerType && <span className="ml-1 text-xs text-gray-400">({managerTypeLabels[u.managerType]})</span>}
                   </td>
                   <td className="px-4 py-3 text-gray-500">{u.department?.name || '—'}</td>
                   <td className="px-4 py-3">

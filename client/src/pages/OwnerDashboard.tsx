@@ -6,7 +6,7 @@ import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
 import AIInsights from '../components/ui/AIInsights'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts'
-import { ChevronLeft, ChevronRight, ChevronDown, ArrowRight, TrendingUp, Users, ExternalLink } from 'lucide-react'
+import { ChevronDown, ArrowRight, TrendingUp, Users, ExternalLink } from 'lucide-react'
 import { useT } from '../i18n'
 
 function fmt(n: number) { return n.toLocaleString('ru-RU') }
@@ -121,13 +121,11 @@ function ManagerSalesDetail({ m }: { m: any }) {
 export default function OwnerDashboard() {
   const { t } = useT()
   const periodState = usePeriodStore()
-  const [monthOffset, setMonthOffset] = useState(0)
+  const { monthOffset } = periodState
   const [expandedManager, setExpandedManager] = useState<string | null>(null)
 
-  // Build query params — always using actual dates/period strings
-  const queryParams = periodState.period === 'month'
-    ? (() => { const r = getMonthRange(monthOffset); return `from=${r.from}&to=${r.to}` })()
-    : buildPeriodParams(periodState)
+  // Build query params — uses global period + monthOffset from store
+  const queryParams = buildPeriodParams(periodState)
 
   // Use queryParams string as key so React Query refetches whenever params change
   const { data, isLoading } = useQuery({
@@ -139,7 +137,6 @@ export default function OwnerDashboard() {
   if (!data) return null
 
   const { summary, dailyChart, managerRating, liderRating } = data
-  const monthRange = getMonthRange(monthOffset)
 
   // Funnel conversions — using LIDER data as source of truth
   const leadsToQual     = pct(summary.totalQualifiedLeads, summary.totalLiderLeads)
@@ -162,21 +159,9 @@ export default function OwnerDashboard() {
           <p className="text-gray-500 text-sm mt-0.5">{t('dash.owner.subtitle')}</p>
         </div>
         {periodState.period === 'month' && (
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 self-center">
-            <button onClick={() => setMonthOffset(o => o - 1)} className="p-1.5 hover:bg-white rounded-md transition-colors">
-              <ChevronLeft className="w-4 h-4 text-gray-600" />
-            </button>
-            <span className="px-3 text-sm font-semibold text-gray-800 min-w-[150px] text-center">
-              {t(`month.${monthRange.monthNum}` as any)} {monthRange.year}
-            </span>
-            <button
-              onClick={() => setMonthOffset(o => Math.min(0, o + 1))}
-              disabled={monthOffset >= 0}
-              className="p-1.5 hover:bg-white rounded-md transition-colors disabled:opacity-30"
-            >
-              <ChevronRight className="w-4 h-4 text-gray-600" />
-            </button>
-          </div>
+          <p className="text-sm text-gray-400 self-center">
+            {t(`month.${getMonthRange(monthOffset).monthNum}` as any)} {getMonthRange(monthOffset).year}
+          </p>
         )}
       </div>
 

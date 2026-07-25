@@ -67,9 +67,10 @@ async function downloadExport(endpoint: string, params: string) {
 export default function ManagerDashboard() {
   const { t } = useT()
   const periodStore = usePeriodStore()
-  const { period } = periodStore
   const navigate = useNavigate()
   const qc = useQueryClient()
+
+  const params = buildPeriodParams(periodStore)
 
   // Sales date selector
   const [salesDate, setSalesDate] = useState(todayStr)
@@ -77,22 +78,22 @@ export default function ManagerDashboard() {
 
   // Main dashboard data
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard-manager', period],
-    queryFn: () => api.get(`/dashboard/manager?period=${period}`).then(r => r.data),
+    queryKey: ['dashboard-manager', params],
+    queryFn: () => api.get(`/dashboard/manager?${params}`).then(r => r.data),
     refetchInterval: 60000,
   })
 
   // Lider ranking (only used for lider view — shows competitive leaderboard)
   const { data: rankingData } = useQuery({
-    queryKey: ['lider-ranking', period],
-    queryFn: () => api.get(`/dashboard/lider-ranking?period=${period}`).then(r => r.data),
+    queryKey: ['lider-ranking', params],
+    queryFn: () => api.get(`/dashboard/lider-ranking?${params}`).then(r => r.data),
     refetchInterval: 60000,
   })
 
   // Closer ranking (only used for closer view — shows competitive leaderboard)
   const { data: closerRankingData } = useQuery({
-    queryKey: ['closer-ranking', period],
-    queryFn: () => api.get(`/dashboard/closer-ranking?period=${period}`).then(r => r.data),
+    queryKey: ['closer-ranking', params],
+    queryFn: () => api.get(`/dashboard/closer-ranking?${params}`).then(r => r.data),
     refetchInterval: 60000,
   })
 
@@ -170,7 +171,7 @@ export default function ManagerDashboard() {
   const todayData = todayReport?.data as any
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto p-4 md:p-6">
+    <div className="space-y-6 max-w-[1200px] mx-auto px-4 md:px-8 py-4 md:py-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div>

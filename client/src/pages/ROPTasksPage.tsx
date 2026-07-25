@@ -161,7 +161,7 @@ export default function ROPTasksPage() {
   const done = allTasks.filter(t => t.completed).length
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 px-4 md:px-6 py-2 md:py-4">
       {showCreate && <CreateTaskModal users={users} onClose={() => setShowCreate(false)} />}
 
       <div className="flex items-start justify-between gap-2">

@@ -208,7 +208,7 @@ export default function ROPDashboard() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 md:px-6 py-2 md:py-4">
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t('dash.rop.title')}</h1>
