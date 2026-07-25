@@ -4,7 +4,7 @@ import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import { Navigate } from 'react-router-dom'
 import {
-  ChevronLeft, ChevronRight, Save, CalendarDays, TableProperties,
+  Save, CalendarDays, TableProperties,
   UserCircle, CheckCircle, TrendingUp, AlertCircle, Minus
 } from 'lucide-react'
 import { usePeriodStore } from '../components/ui/PeriodSelector'
@@ -15,16 +15,6 @@ import { useT } from '../i18n'
 // Use local date methods (NOT toISOString) to avoid UTC timezone shift bugs
 function getPeriod(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
-function formatMonth(p: string, t: (k: any) => string) {
-  const [y, m] = p.split('-')
-  return `${t(`month.${+m}` as any)} ${y}`
-}
-function shiftMonth(p: string, d: number) {
-  const [y, m] = p.split('-').map(Number)
-  const dt = new Date(y, m - 1 + d, 1)
-  // Use local year/month (NOT toISOString) to avoid UTC timezone offset bugs
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`
 }
 function daysInMonth(p: string) {
   const [y, m] = p.split('-').map(Number)
@@ -207,8 +197,6 @@ export default function TrackingPage() {
   }
 
   const qc = useQueryClient()
-  // Local month state for calendar navigation (used only in month mode)
-  const [period, setPeriod] = useState(getPeriod(new Date()))
   const [tab, setTab] = useState<'entry' | 'table'>('entry')
   const todayStr = todayIso()
   const [selectedDate, setSelectedDate] = useState(todayStr)
@@ -217,8 +205,11 @@ export default function TrackingPage() {
 
   // Global period store (drives filter for both tabs)
   const periodState = usePeriodStore()
-  const { period: globalPeriod } = periodState
+  const { period: globalPeriod, monthOffset } = periodState
   const isMonthMode = globalPeriod === 'month'
+  // Derive period from global monthOffset (synced with header switcher)
+  const _now = new Date()
+  const period = getPeriod(new Date(_now.getFullYear(), _now.getMonth() + monthOffset, 1))
 
   const totalDays = daysInMonth(period)
   const today = new Date()
@@ -649,25 +640,11 @@ export default function TrackingPage() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-5 w-full">
+    <div className="space-y-5 px-4 md:px-8 py-4 md:py-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('tracking.title')}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{t('tracking.subtitle')}</p>
-        </div>
-        {/* Month nav — only in month mode */}
-        {isMonthMode && (
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-            <button onClick={() => setPeriod(p => shiftMonth(p, -1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
-              <ChevronLeft className="w-4 h-4 text-gray-600" />
-            </button>
-            <span className="px-3 text-sm font-semibold text-gray-800 min-w-[130px] text-center">{formatMonth(period, t)}</span>
-            <button onClick={() => setPeriod(p => shiftMonth(p, 1))} className="p-1.5 hover:bg-white rounded-md transition-colors">
-              <ChevronRight className="w-4 h-4 text-gray-600" />
-            </button>
-          </div>
-        )}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">{t('tracking.title')}</h1>
+        <p className="text-sm text-gray-500 mt-0.5">{t('tracking.subtitle')}</p>
       </div>
 
       {/* Tabs */}
