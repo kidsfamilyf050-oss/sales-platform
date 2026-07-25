@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import {
@@ -10,6 +10,14 @@ import {
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
+function localDateStr(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function localFirstOfMonth() {
+  const d = new Date(); d.setDate(1)
+  return localDateStr(d)
+}
+
 function fmt(n: number | undefined | null) {
   if (!n) return '—'
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'М'
@@ -200,18 +208,19 @@ export default function MarketingPage() {
   const apiParams = buildPeriodParams(periodState)
   const fromParam = useMemo(() => {
     const p = new URLSearchParams(apiParams)
-    return p.get('from') || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
+    return p.get('from') || localFirstOfMonth()
   }, [apiParams])
   const toParam = useMemo(() => {
     const p = new URLSearchParams(apiParams)
-    return p.get('to') || new Date().toISOString().slice(0, 10)
+    return p.get('to') || localDateStr(new Date())
   }, [apiParams])
 
   // ── Dashboard data ─────────────────────────────────────────────────────────
-  const { data: dash, isLoading, refetch } = useQuery({
+  const { data: dash, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['marketing-dashboard', fromParam, toParam],
     queryFn: () => api.get(`/channel-budgets/dashboard?from=${fromParam}&to=${toParam}`).then(r => r.data),
     refetchInterval: 60000,
+    placeholderData: keepPreviousData,
   })
 
   // ── Sales channels ─────────────────────────────────────────────────────────
@@ -263,7 +272,7 @@ export default function MarketingPage() {
             <p className="text-sm text-gray-400 mt-0.5">{fromParam} — {toParam}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => refetch()} className="p-2 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors" title="Обновить">
+            <button onClick={() => refetch()} className={`p-2 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors ${isFetching ? 'animate-spin text-blue-500' : ''}`} title="Обновить">
               <RefreshCw className="w-4 h-4" />
             </button>
             <button onClick={() => downloadExport('marketer', apiParams)}
@@ -286,7 +295,7 @@ export default function MarketingPage() {
         {/* ═══════════ DASHBOARD TAB ═══════════ */}
         {activeTab === 'dashboard' && (
           <>
-            {isLoading ? (
+            {!dash && isLoading ? (
               <div className="text-center py-20 text-gray-400">Загрузка данных...</div>
             ) : (
               <>
@@ -306,12 +315,13 @@ export default function MarketingPage() {
                     sub={budgetFactPct != null ? `${budgetFactPct}% от плана` : 'потрачено за период'} />
                 </div>
 
-                {/* ── Edit plans link (OWNER/ROP only) ── */}
+                {/* ── Edit plans (OWNER/ROP only) ── */}
                 {canManagePlans && <div className="flex items-center gap-3">
                   {!editingPlans ? (
                     <button onClick={openPlanEdit}
-                      className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 font-medium">
-                      <Pencil className="w-3.5 h-3.5" /> Изменить планы на период
+                      className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors">
+                      <Pencil className="w-3.5 h-3.5" />
+                      {plans.planLeads || plans.planQual || plans.planBudget ? 'Изменить планы' : '+ Установить планы на период'}
                     </button>
                   ) : (
                     <div className="flex items-center gap-3 flex-wrap bg-white rounded-xl border border-gray-200 p-4">

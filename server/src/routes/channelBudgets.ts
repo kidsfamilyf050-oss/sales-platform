@@ -58,9 +58,13 @@ router.get('/dashboard', authenticate, async (req: AuthRequest, res: Response) =
   const companyId = req.user!.companyId
 
   try {
-    // Date range
-    const fromStr = (from as string) || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
-    const toStr   = (to as string) || new Date().toISOString().slice(0, 10)
+    // Date range — use local date helper to avoid UTC offset issues
+    function localDateStr(d: Date) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    }
+    const now = new Date()
+    const fromStr = (from as string) || localDateStr(new Date(now.getFullYear(), now.getMonth(), 1))
+    const toStr   = (to as string) || localDateStr(now)
 
     // 1. All leads in period
     const leads = await prisma.lead.findMany({
@@ -80,11 +84,11 @@ router.get('/dashboard', authenticate, async (req: AuthRequest, res: Response) =
       include: { channel: { select: { id: true, name: true } } },
     })
 
-    // 3. Sales in period
+    // 3. Sales in period — Sale.date is a String (YYYY-MM-DD), use string comparison
     const sales = await prisma.sale.findMany({
       where: {
-        user: { companyId },
-        date: { gte: new Date(fromStr + 'T00:00:00'), lte: new Date(toStr + 'T23:59:59') },
+        companyId,
+        date: { gte: fromStr, lte: toStr },
       },
       select: { id: true, amount: true },
     })
@@ -95,8 +99,8 @@ router.get('/dashboard', authenticate, async (req: AuthRequest, res: Response) =
       orderBy: { name: 'asc' },
     })
 
-    // 5. Plans
-    const monthKey = fromStr.slice(0, 7)
+    // 5. Plans — use toStr month so if period spans two months (e.g. Jun 30 – Jul 24), we get the current month's plans
+    const monthKey = toStr.slice(0, 7)
     const plans = await prisma.plan.findMany({
       where: { companyId, period: monthKey, userId: null, departmentId: null },
     })
