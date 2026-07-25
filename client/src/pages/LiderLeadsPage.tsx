@@ -6,7 +6,7 @@ import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelect
 import {
   Plus, Search, X, ExternalLink, ChevronUp, ChevronDown,
   ChevronLeft, ChevronRight, MoreVertical, Bell, Clock,
-  AlertCircle, Download, RefreshCw, Calendar, Phone, Check,
+  AlertCircle, Download, RefreshCw, Calendar, Phone, Check, Pencil,
 } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -685,7 +685,7 @@ export default function LiderLeadsPage() {
   // Modals
   const [editLead, setEditLead] = useState<Lead | null>(null)
   const [statusLead, setStatusLead] = useState<Lead | null>(null)
-  const [showAllToday, setShowAllToday] = useState(false)
+  const [showAllToday, setShowAllToday] = useState(true)
 
   const resetPage = () => setPage(1)
 
@@ -778,10 +778,10 @@ export default function LiderLeadsPage() {
   }
 
   const saveInlineLead = () => {
-    if (!inlineName.trim() || !inlinePhone.trim()) return
+    if (!inlineName.trim()) return
     createMutation.mutate({
       clientName: inlineName.trim(),
-      phone: inlinePhone.trim(),
+      phone: '',
       date: inlineDate,
       salesChannelId: inlineChannelId || undefined,
       leadLink: inlineLeadLink || undefined,
@@ -1001,20 +1001,27 @@ export default function LiderLeadsPage() {
           </div>
         )}
 
-        {/* ── Today's appointments (collapsible strip, full width) ── */}
-        {todayLeads.length > 0 && (
-          <div className="bg-white rounded-2xl border border-blue-100 mb-4 overflow-hidden">
-            <button
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50/40 transition-colors"
-              onClick={() => setShowAllToday(v => !v)}>
-              <span className="flex items-center gap-2 text-sm font-bold text-gray-900">
-                <Clock className="w-4 h-4 text-blue-500" />
-                Записаны сегодня
+        {/* ── Today's appointments (always visible, collapsible) ── */}
+        <div className="bg-white rounded-2xl border border-blue-100 mb-4 overflow-hidden">
+          <button
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50/40 transition-colors"
+            onClick={() => setShowAllToday(v => !v)}>
+            <span className="flex items-center gap-2 text-sm font-bold text-gray-900">
+              <Clock className="w-4 h-4 text-blue-500" />
+              Записаны на сегодня
+              {todayLeads.length > 0 && (
                 <span className="bg-blue-600 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-1">{todayLeads.length}</span>
-              </span>
-              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showAllToday ? 'rotate-180' : ''}`} />
-            </button>
-            {showAllToday && (
+              )}
+            </span>
+            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showAllToday ? 'rotate-180' : ''}`} />
+          </button>
+          {showAllToday && (
+            todayLeads.length === 0 ? (
+              <div className="px-4 pb-4 text-center py-6 text-gray-400">
+                <Calendar className="w-8 h-8 mx-auto mb-2 text-gray-200" />
+                <p className="text-sm">Нет записей на сегодня</p>
+              </div>
+            ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 px-4 pb-4">
                 {todayLeads.map(lead => {
                   const usePostponed = lead.postponedDate === today
@@ -1040,9 +1047,9 @@ export default function LiderLeadsPage() {
                   )
                 })}
               </div>
-            )}
-          </div>
-        )}
+            )
+          )}
+        </div>
 
         {/* ── Full-width table area ── */}
         <div className="space-y-3">
@@ -1054,13 +1061,12 @@ export default function LiderLeadsPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm min-w-[960px]">
+                  <table className="w-full text-sm min-w-[860px]">
                     <thead className="bg-gray-50/80 border-b border-gray-100">
                       <tr>
                         {[
                           { label: 'Дата поступления', field: 'createdAt', sort: true },
                           { label: 'Ссылка / Клиент', field: null, sort: false },
-                          { label: 'Телефон', field: null, sort: false },
                           { label: 'Канал', field: 'channel', sort: true },
                           { label: 'Квал / Не квал', field: null, sort: false },
                           { label: 'Записан / Отказ', field: 'subStatus', sort: true },
@@ -1106,12 +1112,6 @@ export default function LiderLeadsPage() {
                                 autoFocus
                                 className="w-full text-xs border border-blue-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white font-medium" />
                             </div>
-                          </td>
-                          {/* Phone */}
-                          <td className="px-2 py-3">
-                            <input value={inlinePhone} onChange={e => setInlinePhone(e.target.value)}
-                              placeholder="Телефон *"
-                              className="w-32 text-xs border border-blue-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white font-medium" />
                           </td>
                           {/* Channel */}
                           <td className="px-2 py-3">
@@ -1174,7 +1174,7 @@ export default function LiderLeadsPage() {
                           <td className="px-2 py-3">
                             <div className="flex flex-col gap-1.5">
                               <button onClick={saveInlineLead}
-                                disabled={!inlineName.trim() || !inlinePhone.trim() || createMutation.isPending}
+                                disabled={!inlineName.trim() || createMutation.isPending}
                                 className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-40 transition-colors whitespace-nowrap">
                                 <Check className="w-3 h-3" /> Сохранить
                               </button>
@@ -1189,7 +1189,7 @@ export default function LiderLeadsPage() {
 
                       {sortedLeads.length === 0 && !showInlineAdd && (
                         <tr>
-                          <td colSpan={11} className="py-14 text-center">
+                          <td colSpan={10} className="py-14 text-center">
                             <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-2xl mx-auto mb-2">📋</div>
                             <p className="font-semibold text-gray-600">Лидов не найдено</p>
                             <p className="text-sm text-gray-400 mt-1">
@@ -1206,22 +1206,24 @@ export default function LiderLeadsPage() {
                           <td className="px-3 py-3 text-xs text-gray-500 whitespace-nowrap font-medium">
                             {fmtCreatedAt(lead.createdAt)}
                           </td>
-                          <td className="px-3 py-3 max-w-[160px]">
+                          <td className="px-3 py-3 max-w-[180px]">
                             {lead.leadLink ? (
                               <a href={lead.leadLink} target="_blank" rel="noreferrer"
                                 onClick={e => e.stopPropagation()}
                                 className="flex items-center gap-1 text-xs text-blue-600 hover:underline mb-0.5">
                                 <ExternalLink className="w-3 h-3 shrink-0" />
-                                <span className="truncate max-w-[120px] block">{lead.leadLink.replace(/^https?:\/\//, '')}</span>
+                                <span className="truncate max-w-[140px] block">{lead.leadLink.replace(/^https?:\/\//, '')}</span>
                               </a>
                             ) : null}
-                            <span className="text-xs font-semibold text-gray-800">{lead.clientName}</span>
-                          </td>
-                          <td className="px-3 py-3 whitespace-nowrap">
-                            <a href={`tel:${lead.phone}`} onClick={e => e.stopPropagation()}
-                              className="flex items-center gap-1 text-xs text-gray-600 hover:text-blue-600 transition-colors">
-                              <Phone className="w-3 h-3" />{lead.phone}
-                            </a>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-semibold text-gray-800">{lead.clientName}</span>
+                              {lead.phone && (
+                                <a href={`tel:${lead.phone}`} onClick={e => e.stopPropagation()}
+                                  className="text-gray-400 hover:text-blue-600 transition-colors" title={lead.phone}>
+                                  <Phone className="w-3 h-3" />
+                                </a>
+                              )}
+                            </div>
                           </td>
                           <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">
                             {lead.salesChannel?.name ?? <span className="text-gray-300">—</span>}
@@ -1247,12 +1249,18 @@ export default function LiderLeadsPage() {
                               : <span className="text-gray-300">—</span>}
                           </td>
                           <td className="px-2 py-3" onClick={e => e.stopPropagation()}>
-                            <RowMenu
-                              lead={lead}
-                              onEdit={() => setEditLead(lead)}
-                              onStatus={() => setStatusLead(lead)}
-                              onDelete={() => handleDelete(lead)}
-                            />
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => setEditLead(lead)}
+                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Редактировать">
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <RowMenu
+                                lead={lead}
+                                onEdit={() => setEditLead(lead)}
+                                onStatus={() => setStatusLead(lead)}
+                                onDelete={() => handleDelete(lead)}
+                              />
+                            </div>
                           </td>
                         </tr>
                       ))}

@@ -274,7 +274,7 @@ router.get('/all', authenticate, async (req: AuthRequest, res: Response) => {
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   const { clientName, phone, date, salesChannelId, isQualified, isScheduled, comment, assignedToId,
           leadLink, subStatus, appointmentDate, appointmentTime, consultationStatus, postponedDate, postponedTime } = req.body
-  if (!clientName || !phone || !date) return res.status(400).json({ error: 'clientName, phone, date required' })
+  if (!clientName || !date) return res.status(400).json({ error: 'clientName, date required' })
 
   const qualified = isQualified !== false && isQualified !== 'false'
   let status: any = qualified ? 'NEW' : 'UNQUALIFIED'
@@ -287,7 +287,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         createdById: req.user!.id,
         assignedToId: (qualified && assignedToId) ? assignedToId : null,
         clientName: clientName.trim(),
-        phone: phone.trim(),
+        phone: (phone || '').trim(),
         date,
         salesChannelId: salesChannelId || null,
         isQualified: qualified,
