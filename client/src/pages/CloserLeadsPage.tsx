@@ -13,6 +13,12 @@ type Lead = {
   isScheduled: boolean
   comment: string | null
   status: string
+  subStatus: string | null
+  appointmentDate: string | null
+  appointmentTime: string | null
+  consultationStatus: string | null
+  postponedDate: string | null
+  postponedTime: string | null
   salesChannel: { id: string; name: string } | null
   createdBy: { id: string; name: string }
   assignedTo: { id: string; name: string } | null
@@ -467,6 +473,74 @@ function InWorkSection({ lead }: { lead: Lead }) {
 }
 
 // ── Lead Card ─────────────────────────────────────────────────────────────────
+// ── Consultation Status Section ───────────────────────────────────────────────
+function ConsultationStatusSection({ lead }: { lead: Lead }) {
+  const qc = useQueryClient()
+  const today = new Date().toISOString().slice(0, 10)
+
+  const statusMut = useMutation({
+    mutationFn: (consultationStatus: string) =>
+      api.put(`/leads/${lead.id}`, { consultationStatus }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['closer-leads'] }),
+  })
+
+  if (!lead.appointmentDate) return null
+
+  const isOverdueAppt = lead.appointmentDate < today
+  const isTodayAppt = lead.appointmentDate === today
+  const hasStatus = !!lead.consultationStatus
+
+  const statusLabels: Record<string, { label: string; cls: string }> = {
+    happened: { label: '✅ Состоялась', cls: 'bg-green-100 text-green-700 border-green-200' },
+    not_happened: { label: '❌ Не состоялась', cls: 'bg-red-100 text-red-700 border-red-200' },
+    postponed: { label: '🔄 Перенос', cls: 'bg-orange-100 text-orange-700 border-orange-200' },
+  }
+
+  return (
+    <div className={`rounded-xl border p-3 space-y-2 ${isOverdueAppt && !hasStatus ? 'bg-red-50 border-red-200' : isTodayAppt && !hasStatus ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'}`}>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-gray-600">
+          📅 Встреча: {lead.appointmentDate.split('-').reverse().join('.')}
+          {lead.appointmentTime && ` в ${lead.appointmentTime}`}
+        </p>
+        {hasStatus && (
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${statusLabels[lead.consultationStatus!]?.cls ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+            {statusLabels[lead.consultationStatus!]?.label ?? lead.consultationStatus}
+          </span>
+        )}
+      </div>
+      {!hasStatus && (
+        <div>
+          <p className="text-xs text-gray-500 mb-2">
+            {isOverdueAppt ? '⚠️ Встреча просрочена — отметьте результат' : 'Отметьте результат встречи:'}
+          </p>
+          <div className="flex gap-2 flex-wrap">
+            {(['happened', 'not_happened', 'postponed'] as const).map(s => (
+              <button
+                key={s}
+                onClick={() => statusMut.mutate(s)}
+                disabled={statusMut.isPending}
+                className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:opacity-80 disabled:opacity-40 ${statusLabels[s].cls}`}
+              >
+                {statusLabels[s].label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {hasStatus && (
+        <button
+          onClick={() => statusMut.mutate('')}
+          disabled={statusMut.isPending}
+          className="text-xs text-gray-400 hover:text-gray-600 underline"
+        >
+          Сбросить статус
+        </button>
+      )}
+    </div>
+  )
+}
+
 function LeadCard({ lead, showAccept = false, showWork = false, readonly = false }: {
   lead: Lead
   showAccept?: boolean
@@ -516,6 +590,11 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
           <div className="flex items-center gap-3 mt-1 text-xs text-gray-400 flex-wrap">
             <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{lead.phone}</span>
             <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{lead.date}</span>
+            {lead.appointmentDate && (
+              <span className={`flex items-center gap-1 font-medium ${lead.consultationStatus === 'happened' ? 'text-green-600' : lead.consultationStatus === 'not_happened' ? 'text-red-500' : lead.appointmentDate < new Date().toISOString().slice(0,10) && !lead.consultationStatus ? 'text-red-600' : 'text-blue-600'}`}>
+                📅 {lead.appointmentDate.split('-').reverse().join('.')}{lead.appointmentTime ? ` ${lead.appointmentTime}` : ''}
+              </span>
+            )}
             {lead.salesChannel && <span>{lead.salesChannel.name}</span>}
             <span className="flex items-center gap-1"><User className="w-3 h-3" />{lead.createdBy.name}</span>
             {displayAmount != null && displayAmount > 0 && (
@@ -608,6 +687,9 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
               </div>
             </div>
           )}
+
+          {/* Consultation status marking */}
+          <ConsultationStatusSection lead={lead} />
 
           {/* IN_WORK: sell/refuse/task section */}
           {showWork && <InWorkSection lead={lead} />}

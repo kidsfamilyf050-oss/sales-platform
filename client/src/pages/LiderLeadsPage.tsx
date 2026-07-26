@@ -411,6 +411,7 @@ function EditLeadModal({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['lider-report'] })
       qc.invalidateQueries({ queryKey: ['today-appointments'] })
+      qc.invalidateQueries({ queryKey: ['overdue-appointments'] })
       onClose()
     },
   })
@@ -607,6 +608,7 @@ function QuickStatusModal({ lead, onClose }: { lead: Lead; onClose: () => void }
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['lider-report'] })
       qc.invalidateQueries({ queryKey: ['today-appointments'] })
+      qc.invalidateQueries({ queryKey: ['overdue-appointments'] })
       onClose()
     },
   })
@@ -791,6 +793,13 @@ export default function LiderLeadsPage() {
     refetchInterval: 60000,
   })
 
+  const { data: overdueLeads = [] } = useQuery<Lead[]>({
+    queryKey: ['overdue-appointments'],
+    queryFn: () => api.get('/leads/overdue-appointments').then(r => r.data),
+    refetchInterval: 60000,
+  })
+  const [showOverdue, setShowOverdue] = useState(true)
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/leads/${id}`).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['lider-report'] }),
@@ -838,7 +847,7 @@ export default function LiderLeadsPage() {
     const arr = [...(data?.leads || [])]
     arr.sort((a, b) => {
       let va: any, vb: any
-      if (sortField === 'createdAt') { va = a.createdAt; vb = b.createdAt }
+      if (sortField === 'createdAt') { va = a.date; vb = b.date }
       else if (sortField === 'channel') { va = a.salesChannel?.name || ''; vb = b.salesChannel?.name || '' }
       else if (sortField === 'subStatus') { va = a.subStatus || ''; vb = b.subStatus || '' }
       else if (sortField === 'consultationStatus') { va = a.consultationStatus || ''; vb = b.consultationStatus || '' }
@@ -1091,6 +1100,45 @@ export default function LiderLeadsPage() {
           )}
         </div>
 
+        {/* ── Overdue meetings ── */}
+        {overdueLeads.length > 0 && (
+          <div className="mx-4 mb-2 bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden">
+            <button
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-red-50/50 transition-colors"
+              onClick={() => setShowOverdue(v => !v)}>
+              <span className="flex items-center gap-2 text-sm font-bold text-red-700">
+                <AlertCircle className="w-4 h-4 text-red-500" />
+                Просроченные встречи
+                <span className="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-1">{overdueLeads.length}</span>
+              </span>
+              <ChevronDown className={`w-4 h-4 text-red-400 transition-transform ${showOverdue ? 'rotate-180' : ''}`} />
+            </button>
+            {showOverdue && (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 px-4 pb-4">
+                {overdueLeads.map(lead => (
+                  <div key={lead.id} className="p-3 rounded-xl border border-red-100 bg-red-50">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-red-800">
+                          📅 {fmtDate(lead.appointmentDate!)}
+                        </p>
+                        <p className="text-xs text-gray-700 font-semibold truncate mt-0.5">{lead.clientName}</p>
+                        <p className="text-xs text-gray-500 truncate">{lead.assignedTo?.name || 'Без клоузера'}</p>
+                      </div>
+                      <button
+                        onClick={() => setStatusLead(lead)}
+                        className="text-xs text-red-600 hover:text-red-800 font-semibold whitespace-nowrap shrink-0"
+                      >
+                        Отметить
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Full-width table area ── */}
         <div className="space-y-3">
           <div className="flex-1 min-w-0 space-y-3">
@@ -1259,7 +1307,7 @@ export default function LiderLeadsPage() {
                           onClick={() => setEditLead(lead)}
                           className={`border-b border-gray-50 hover:bg-blue-50/40 cursor-pointer transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}>
                           <td className="px-3 py-3 text-xs text-gray-500 whitespace-nowrap font-medium">
-                            {fmtCreatedAt(lead.createdAt)}
+                            {fmtDate(lead.date)}
                           </td>
                           <td className="px-3 py-3 max-w-[180px]">
                             {lead.leadLink ? (

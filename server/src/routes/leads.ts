@@ -123,6 +123,25 @@ router.get('/today-appointments', authenticate, async (req: AuthRequest, res: Re
   }
 })
 
+// ── GET /api/leads/overdue-appointments — lider: past meetings with no status ──
+router.get('/overdue-appointments', authenticate, async (req: AuthRequest, res: Response) => {
+  const today = getKzToday()
+  try {
+    const leads = await prisma.lead.findMany({
+      where: {
+        createdById: req.user!.id,
+        appointmentDate: { lt: today },
+        consultationStatus: null,
+      },
+      include: INCLUDE_FULL,
+      orderBy: { appointmentDate: 'desc' },
+    })
+    res.json(leads)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── GET /api/leads/lider-report — lider: full report with stats ──────────────
 router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response) => {
   const { from, to, period = 'month', search, channelId, ktsStatus, subStatus, consultationStatus, date: dateFilter } = req.query
