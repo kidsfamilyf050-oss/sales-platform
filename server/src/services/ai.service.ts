@@ -36,15 +36,16 @@ function buildPrompt(data: DashboardData): string {
       ? Math.round(((Number(s.salesPlan) - Number(s.totalSalesAmount || 0)) / Math.max(1, daysInMonth - today)) )
       : 0
 
+    const statusLabel = (s: string) => s === 'red' ? 'нет продаж' : s === 'yellow' ? 'отстаёт (<75% плана)' : 'в норме (≥75%)'
     const managerBlock = data.managerRating?.length
       ? `\nРейтинг клоузеров:\n${data.managerRating.slice(0, 8).map(m =>
-          `  • ${m.name}: продаж ${m.salesCount}, сумма ₸${fmtNum(m.salesAmount)}, конверсия ${fmtPct(m.conversion)}, выполнение ${fmtPct(m.completion)}, статус: ${m.status}`
+          `  • ${m.name}: продаж ${m.salesCount}, сумма ₸${fmtNum(m.salesAmount)}, конверсия ${fmtPct(m.conversion)}, выполнение ${fmtPct(m.completion)}, оценка: ${statusLabel(m.status)}`
         ).join('\n')}`
       : ''
 
     const liderBlock = data.liderRating?.length
       ? `\nРейтинг лидорубов:\n${data.liderRating.slice(0, 5).map(m =>
-          `  • ${m.name}: лидов ${m.leads}, квал ${m.qualifiedLeads}, передано ${m.transmitted ?? m.meetingsScheduled ?? 0}, конверсия в запись ${fmtPct(m.pctScheduled)}`
+          `  • ${m.name}: лидов ${m.leads}, квал ${m.qualifiedLeads}, передано ${m.transmitted ?? m.meetingsScheduled ?? 0}, конверсия в запись ${fmtPct(m.pctScheduled)}, оценка: ${statusLabel(m.status)}`
         ).join('\n')}`
       : ''
 
@@ -104,20 +105,21 @@ ${productBlock}
 2. [действие]
 3. [действие]
 
-Используй КОНКРЕТНЫЕ ЧИСЛА из данных. Называй менеджеров по именам. Не давай общих советов — только то, что требует немедленного действия.`
+Используй КОНКРЕТНЫЕ ЧИСЛА из данных. Называй менеджеров по именам. Не давай общих советов — только то, что требует немедленного действия. ВАЖНО: в системе нет ежедневных отчётов — оценка менеджеров строится по продажам и активности лидов, не по отчётам.`
   }
 
   // ── ROP prompt ──
   if (data.role === 'ROP') {
+    const statusLabel = (st: string) => st === 'red' ? 'нет продаж' : st === 'yellow' ? 'отстаёт (<75% плана)' : 'в норме (≥75%)'
     const managerBlock = data.managerRating?.length
       ? `\nРейтинг клоузеров:\n${data.managerRating.slice(0, 8).map(m =>
-          `  • ${m.name}: продаж ${m.salesCount}, сумма ₸${fmtNum(m.salesAmount)}, конверсия ${fmtPct(m.conversion)}, консультаций ${m.consultations}, отказов ${m.refusals}, в работе ${m.inWork}, план выполнен на ${fmtPct(m.completion)}, статус: ${m.status}`
+          `  • ${m.name}: продаж ${m.salesCount}, сумма ₸${fmtNum(m.salesAmount)}, конверсия ${fmtPct(m.conversion)}, консультаций ${m.consultations}, отказов ${m.refusals}, в работе ${m.inWork}, план выполнен на ${fmtPct(m.completion)}, оценка: ${statusLabel(m.status)}`
         ).join('\n')}`
       : ''
 
     const liderBlock = data.liderRating?.length
       ? `\nРейтинг лидорубов:\n${data.liderRating.slice(0, 5).map(m =>
-          `  • ${m.name}: лидов ${m.leads}, квал ${m.qualifiedLeads}, передано ${m.transmitted ?? m.meetingsScheduled ?? 0}, конверсия в передачу ${fmtPct(m.pctScheduled)}`
+          `  • ${m.name}: лидов ${m.leads}, квал ${m.qualifiedLeads}, передано ${m.transmitted ?? m.meetingsScheduled ?? 0}, конверсия в передачу ${fmtPct(m.pctScheduled)}, оценка: ${statusLabel(m.status)}`
         ).join('\n')}`
       : ''
 
@@ -164,7 +166,7 @@ ${liderBlock}
 💡 ИНСАЙТ НЕДЕЛИ:
 • [одно самое важное наблюдение]
 
-Называй менеджеров по именам. Используй только конкретные числа из данных.`
+Называй менеджеров по именам. Используй только конкретные числа из данных. ВАЖНО: в системе нет ежедневных отчётов — оценка строится по продажам, конверсии и статусам лидов. Не упоминай "нет отчёта" или "не сдал отчёт".`
   }
 
   // ── MANAGER (CLOSER) prompt ──
@@ -386,7 +388,7 @@ function generateFallbackInsights(data: DashboardData): string {
       lines.push(`⚠️ Нуждается в поддержке: ${bottom.name} — только ${fmtPct(bottom.completion)} плана, конверсия ${fmtPct(bottom.conversion)}. Запланируйте разбор сделок.`)
     }
     if (redManagers.length > 0) {
-      lines.push(`🔴 Без отчёта сегодня: ${redManagers.map((m: any) => m.name).join(', ')} (${redManagers.length} чел.). Свяжитесь до конца дня.`)
+      lines.push(`🔴 Нет продаж: ${redManagers.map((m: any) => m.name).join(', ')} (${redManagers.length} чел.). Проведите разбор и помогите с первыми сделками.`)
     }
   }
 
