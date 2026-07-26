@@ -101,8 +101,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const totalSalesCount    = periodSales.length
     // NOTE: totalConsultations/Refusals/InWork computed below from Lead model (after allLiderLeads query)
 
-    // ── Marketing metrics (MARKETER reports) ──────────────────────────────
-    const marketingLeads = marketerReports.reduce((s, r) => s + (Number((r.data as any).leadsCount) || Number((r.data as any).leads) || 0), 0)
+    // ── Marketing metrics — budget from MARKETER reports; leads from Lead model ──
     const totalBudget    = marketerReports.reduce((s, r) => s + (Number((r.data as any).adBudget) || Number((r.data as any).budget) || 0), 0)
 
     // ── Lider funnel (Lead model — live per-lead data) ────────────────────
@@ -134,7 +133,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const conversion = totalConsultations > 0 ? Math.round((totalSalesCount / totalConsultations) * 1000) / 10 : 0
     const conversionLabel = 'встречи → продажи'
     const effectiveBudget = totalBudget > 0 ? totalBudget : budgetPlan
-    const leadCost = marketingLeads > 0 ? effectiveBudget / marketingLeads : 0
+    const leadCost = totalLiderLeads > 0 ? effectiveBudget / totalLiderLeads : 0
 
     // ── Daily chart from Sale model ────────────────────────────────────────
     const dailySalesMap: Record<string, { sales: number; amount: number }> = {}
@@ -238,8 +237,8 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         conversionLabel,
         planCompletion: salesPlan > 0 ? Math.round((totalSalesAmount / salesPlan) * 1000) / 10 : 0,
         totalConsultations, totalRefusals, totalInWork,
-        // Marketing block (from MARKETER reports)
-        marketingLeads, leadsplan, totalBudget, budgetPlan, leadCost: Math.round(leadCost),
+        // Marketing block — leads from Lead model, budget from MARKETER reports
+        marketingLeads: totalLiderLeads, leadsplan, totalBudget, budgetPlan, leadCost: Math.round(leadCost),
         // Lider funnel (from LIDER reports)
         totalLiderLeads, totalQualifiedLeads, totalMeetingsScheduled, totalMeetingsAttended,
         totalManagers: allUsers.length,
@@ -428,8 +427,8 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       }
     }).sort((a, b) => b.completion - a.completion)
 
-    // Marketing block
-    const totalLeads = marketerReports.reduce((s, r) => s + (Number((r.data as any).leads) || Number((r.data as any).leadsCount) || 0), 0)
+    // Marketing block — leads from Lead model (source of truth), budget from MARKETER reports
+    const totalLeads = leadsReceived // from ropLiderLeadsFull (Lead model)
     const totalBudget = marketerReports.reduce((s, r) => s + (Number((r.data as any).budget) || Number((r.data as any).adBudget) || 0), 0)
     const leadsplan = plans.find(p => !p.userId && !p.departmentId && p.type === 'LEADS')?.value || 0
 
