@@ -487,7 +487,7 @@ export default function ROPDashboard() {
       {/* ── GATEWAY ANALYTICS ── */}
       <div className="card">
         <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          💳 Аналитика платёжных методов
+          Аналитика платёжных методов
         </h3>
         <GatewayAnalytics data={gatewayAnalytics} />
       </div>
