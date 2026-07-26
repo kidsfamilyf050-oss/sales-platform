@@ -246,6 +246,11 @@ export default function TrackingPage() {
     queryKey: ['lider-daily-stats', periodStart, periodEnd],
     queryFn: () => api.get(`/leads/company-daily-stats?from=${periodStart}&to=${periodEnd}`).then(r => r.data),
   })
+  // Closer daily stats from Sale + Lead models (source of truth for closers)
+  const { data: closerDailyStats = {} } = useQuery({
+    queryKey: ['closer-daily-stats', periodStart, periodEnd],
+    queryFn: () => api.get(`/sales/company-daily-stats?from=${periodStart}&to=${periodEnd}`).then(r => r.data),
+  })
 
   // Active managers only — for entry tab
   const allManagers = useMemo(() => {
@@ -432,10 +437,12 @@ export default function TrackingPage() {
       const totals = fields.map(f => {
         const total = managers.reduce((sum, u) => {
           const isLider = u.managerType === 'LIDER'
+          const isCloser = !isLider && u.role !== 'MARKETER'
           return sum + columnDates.reduce((s, date) => {
-            const val = isLider
-              ? (liderDailyStats as any)[u.id]?.[date]?.[f.key]
-              : reportsMap[u.id]?.[date]?.data?.[f.key]
+            let val: any
+            if (isLider) val = (liderDailyStats as any)[u.id]?.[date]?.[f.key]
+            else if (isCloser) val = (closerDailyStats as any)[u.id]?.[date]?.[f.key]
+            else val = reportsMap[u.id]?.[date]?.data?.[f.key]
             return val != null ? s + +val : s
           }, 0)
         }, 0)
@@ -487,13 +494,15 @@ export default function TrackingPage() {
       const monthlyPlan = plansMap[`${u.id}_${planType}`] ?? 0
 
       const isLider = u.managerType === 'LIDER'
+      const isCloser = !isLider && u.role !== 'MARKETER'
       const fieldData = fields.map(f => {
         let total = 0
         const dayVals = columnDates.map(date => {
-          // Liders: use Lead model data (liderDailyStats); others: use Report model
-          const val = isLider
-            ? (liderDailyStats as any)[u.id]?.[date]?.[f.key]
-            : reportsMap[u.id]?.[date]?.data?.[f.key]
+          // Liders: Lead model (liderDailyStats); Closers: Sale+Lead model (closerDailyStats); Marketers: Report model
+          let val: any
+          if (isLider) val = (liderDailyStats as any)[u.id]?.[date]?.[f.key]
+          else if (isCloser) val = (closerDailyStats as any)[u.id]?.[date]?.[f.key]
+          else val = reportsMap[u.id]?.[date]?.data?.[f.key]
           if (val != null && val !== '') { total += +val; return +val }
           return null
         })
@@ -505,8 +514,12 @@ export default function TrackingPage() {
       const daysPassed = todayDay ? Math.min(todayDay, totalDays) : totalDays
       const dailyNeed = monthlyPlan ? Math.ceil((monthlyPlan - primaryTotal) / Math.max(1, totalDays - daysPassed)) : 0
 
-      const hasReportToday = reportsMap[u.id]?.[todayDateStr] !== undefined
-        || !columnDates.includes(todayDateStr)
+      // For closers: check Sale model activity; for liders: check Lead model; for marketers: manual report
+      const hasReportToday = isCloser
+        ? ((closerDailyStats as any)[u.id]?.[todayDateStr] !== undefined || !columnDates.includes(todayDateStr))
+        : isLider
+          ? ((liderDailyStats as any)[u.id]?.[todayDateStr] !== undefined || !columnDates.includes(todayDateStr))
+          : (reportsMap[u.id]?.[todayDateStr] !== undefined || !columnDates.includes(todayDateStr))
       const statusDot = !hasReportToday ? 'bg-red-500' : (p !== null && p < 50) ? 'bg-yellow-400' : 'bg-green-400'
       const statusLabel = !hasReportToday ? t('tracking.status.noReport') : (p !== null && p < 50) ? t('tracking.status.behind') : t('tracking.status.ok')
 

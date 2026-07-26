@@ -61,7 +61,7 @@ export default function Sidebar({ onClose }: Props) {
       { to: '/lider/tasks',       label: 'Задачи',          icon: CheckSquare },
     ] : [
       { to: '/dashboard/manager', label: t('nav.myOffice'), icon: BarChart2 },
-      { to: '/closer/leads',      label: 'Заявки',          icon: Inbox },
+      { to: '/closer/leads',      label: 'Встречи',         icon: Inbox },
       { to: '/closer/tasks',      label: 'Задачи',          icon: CheckSquare },
       { to: '/closer/archive',    label: 'Архив',           icon: Archive },
     ],

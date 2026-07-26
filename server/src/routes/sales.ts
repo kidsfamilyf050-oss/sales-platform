@@ -1,6 +1,6 @@
 import { Router, Response } from 'express'
 import { PrismaClient } from '@prisma/client'
-import { authenticate, AuthRequest } from '../middleware/auth'
+import { authenticate, requireRole, AuthRequest } from '../middleware/auth'
 
 const router = Router()
 const prisma = new PrismaClient()
@@ -28,6 +28,49 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     res.json(sales)
   } catch (e) {
     res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/sales/company-daily-stats?from=&to= — ROP/OWNER: daily sales stats per closer
+// Returns: { userId: { date: { salesAmount, salesCount, clients, consultations } } }
+router.get('/company-daily-stats', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRequest, res: Response) => {
+  const { from, to } = req.query as { from: string; to: string }
+  if (!from || !to) return res.status(400).json({ error: 'from and to required' })
+  try {
+    const companyId = req.user!.companyId
+
+    // Sales from Sale model
+    const sales = await prisma.sale.findMany({
+      where: { companyId, date: { gte: from, lte: to } },
+      select: { userId: true, date: true, netAmount: true, amount: true },
+    })
+    // Leads assigned to closers (for clients count)
+    const assignedLeads = await prisma.lead.findMany({
+      where: { assignedTo: { companyId }, date: { gte: from, lte: to } },
+      select: { assignedToId: true, date: true, status: true, consultationStatus: true },
+    })
+
+    const stats: Record<string, Record<string, { salesAmount: number; salesCount: number; clients: number; consultations: number }>> = {}
+
+    for (const s of sales) {
+      if (!stats[s.userId]) stats[s.userId] = {}
+      if (!stats[s.userId][s.date]) stats[s.userId][s.date] = { salesAmount: 0, salesCount: 0, clients: 0, consultations: 0 }
+      stats[s.userId][s.date].salesAmount += s.netAmount ?? s.amount
+      stats[s.userId][s.date].salesCount += 1
+    }
+    for (const l of assignedLeads) {
+      if (!l.assignedToId) continue
+      if (!stats[l.assignedToId]) stats[l.assignedToId] = {}
+      if (!stats[l.assignedToId][l.date]) stats[l.assignedToId][l.date] = { salesAmount: 0, salesCount: 0, clients: 0, consultations: 0 }
+      stats[l.assignedToId][l.date].clients += 1
+      if (l.consultationStatus === 'happened' || l.status === 'SOLD') {
+        stats[l.assignedToId][l.date].consultations += 1
+      }
+    }
+
+    res.json(stats)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
   }
 })
 
