@@ -82,6 +82,11 @@ function ManagerDetail({ m }: { m: any }) {
                     <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                       {PAYMENT_TYPE_LABEL[s.paymentType] || s.paymentType}
                     </span>
+                    {s.productName && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[11px] font-medium bg-purple-100 text-purple-700 shrink-0">
+                        📦 {s.productName}
+                      </span>
+                    )}
                     {s.paymentMethod && <span className="text-gray-500 shrink-0">{PAYMENT_METHOD_LABEL[s.paymentMethod] || s.paymentMethod}</span>}
                     {s.bank && <span className="text-gray-400 shrink-0">{s.bank}</span>}
                     {s.months && <span className="text-gray-400 shrink-0">{s.months} мес.</span>}

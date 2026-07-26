@@ -173,7 +173,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         const plan = plans.find(p => p.userId === u.id && p.type === 'SALES_AMOUNT')?.value || 0
         const completion = plan > 0 ? Math.round((stats.salesAmount / plan) * 1000) / 10 : 0
         const userSales = periodSales.filter(s => s.userId === u.id)
-          .map(s => ({ id: s.id, amount: s.amount, netAmount: s.netAmount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date }))
+          .map(s => ({ id: s.id, amount: s.amount, netAmount: s.netAmount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date, productName: s.product?.name || null }))
         return {
           id: u.id, name: u.name, type: 'CLOSER', plan,
           salesCount: stats.salesCount, salesAmount: stats.salesAmount, completion,
@@ -331,7 +331,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const periodSalesByManager: Record<string, any[]> = {}
     for (const s of periodSales) {
       if (!periodSalesByManager[s.userId]) periodSalesByManager[s.userId] = []
-      periodSalesByManager[s.userId].push({ id: s.id, amount: s.amount, netAmount: s.netAmount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date })
+      periodSalesByManager[s.userId].push({ id: s.id, amount: s.amount, netAmount: s.netAmount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date, productName: s.product?.name || null })
     }
 
     // Closer clients/consultations/refusals per manager (from reports)

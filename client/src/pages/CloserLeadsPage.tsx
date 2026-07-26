@@ -421,7 +421,9 @@ function InWorkSection({ lead }: { lead: Lead }) {
         </button>
         <button onClick={() => {
           setError('')
-          if (!form.amount || !form.paymentMethod || !form.crmLink) return setError('Заполните сумму, шлюз и CRM-ссылку')
+          if (!form.amount || !form.paymentMethod) return setError('Заполните сумму и шлюз')
+          if (!form.crmLink) return setError('Заполните CRM-ссылку')
+          if (products.length > 0 && !productId) return setError('Выберите продукт')
           sellMut.mutate()
         }} disabled={sellMut.isPending}
           className="flex-1 text-sm py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-40">
@@ -457,6 +459,7 @@ function InWorkSection({ lead }: { lead: Lead }) {
             onClick={() => {
               setError('')
               if (!form.crmLink) return setError('Заполните CRM-ссылку для отказа')
+              if (lossReasons.length > 0 && !lossReasonId) return setError('Выберите причину отказа')
               refuseMut.mutate()
             }}
             disabled={refuseMut.isPending}
