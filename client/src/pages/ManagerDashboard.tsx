@@ -17,26 +17,40 @@ interface Sale {
   id?: string
   amount: string
   paymentType: 'new_sale' | 'additional'
-  paymentMethod: 'cash' | 'card' | 'credit' | 'installment'
+  paymentMethod: string
   bank: string
   months: string
   crmLink: string
   comment: string
 }
 
-const BANKS = [
-  'Kaspi Bank', 'Halyk Bank', 'Forte Bank', 'Bank CenterCredit',
-  'Jusan Bank', 'Freedom Bank', 'ATF Bank', 'Нурбанк', 'RBK Bank',
-  'Bereke Bank', 'Евразийский банк', 'Другой',
+const PAYMENT_GATEWAYS = [
+  { value: 'GetPay',            label: 'GetPay',                                       fee: 0.13   },
+  { value: 'TipTopPay_KZ',      label: 'Tip Top Pay (карта КЗ)',                       fee: 0.065  },
+  { value: 'TipTopPay_Foreign', label: 'Tip Top Pay (карта зарубежного банка)',         fee: 0.079  },
+  { value: 'Kaspi_Gold',        label: 'Каспи Пэй (GOLD)',                             fee: 0.0395 },
+  { value: 'Kaspi_Account',     label: 'Каспи Пэй (Счет в Kaspi Pay)',                 fee: 0.041  },
+  { value: 'Kaspi_Credit',      label: 'Каспи Пэй (CREDIT)',                           fee: 0.165  },
+  { value: 'Kaspi_Red',         label: 'Каспи Пэй (RED)',                              fee: 0.143  },
+  { value: 'Kaspi_Terminal',    label: 'Apple Pay / Google Pay Терминал Каспи',        fee: 0.043  },
+  { value: 'Cash',              label: 'Наличные',                                     fee: 0.03   },
+  { value: 'Transfer_AE',       label: 'Перевод на карту АЕ',                          fee: 0.03   },
+  { value: 'Card_Sberbank',     label: 'Карта / СберБанк',                             fee: 0.03   },
+  { value: 'Kaspi_Bookkeeper',  label: 'Каспи счет (через бухгалтера)',                fee: 0.03   },
 ]
+const GATEWAY_FEE_MAP = Object.fromEntries(PAYMENT_GATEWAYS.map(g => [g.value, g.fee]))
+const gatewayLabel = (v: string) => PAYMENT_GATEWAYS.find(g => g.value === v)?.label ?? v
+const calcNetAmount = (amount: number, method: string) => {
+  const fee = GATEWAY_FEE_MAP[method] ?? 0.03
+  return Math.round(amount * (1 - fee) * 100) / 100
+}
 
 const emptySale = (): Sale => ({
-  amount: '', paymentType: 'new_sale', paymentMethod: 'card',
-  bank: 'Kaspi Bank', months: '12', crmLink: '', comment: '',
+  amount: '', paymentType: 'new_sale', paymentMethod: 'Cash',
+  bank: '', months: '12', crmLink: '', comment: '',
 })
 
-const showBank = (m: string) => ['card', 'credit', 'installment'].includes(m)
-const showMonths = (m: string) => ['credit', 'installment'].includes(m)
+const showMonths = (m: string) => ['Kaspi_Credit', 'Kaspi_Red'].includes(m)
 
 function localDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -44,7 +58,6 @@ function localDateStr(d: Date) {
 const todayStr = localDateStr(new Date())
 
 const PAYMENT_TYPE_LABEL: Record<string, string> = { new_sale: 'Новая', additional: 'Доплата' }
-const PAYMENT_METHOD_LABEL: Record<string, string> = { cash: 'Нал', card: 'Безнал', credit: 'Кредит', installment: 'Рассрочка' }
 
 async function downloadExport(endpoint: string, params: string) {
   const token = useAuthStore.getState().token
@@ -141,18 +154,20 @@ export default function ManagerDashboard() {
 
   const openAdd = () => { setSaleForm(emptySale()); setEditingId(null) }
   const openEdit = (s: any) => {
-    setSaleForm({ amount: String(s.amount), paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank || 'Kaspi Bank', months: String(s.months || '12'), crmLink: s.crmLink || '', comment: s.comment || '' })
+    setSaleForm({ amount: String(s.amount), paymentType: s.paymentType, paymentMethod: s.paymentMethod || 'Cash', bank: '', months: String(s.months || '12'), crmLink: s.crmLink || '', comment: s.comment || '' })
     setEditingId(s.id)
   }
 
   const saveSale = () => {
     if (!saleForm || !saleForm.amount || !saleForm.crmLink) return
+    const numAmount = Number(saleForm.amount)
+    const netAmount = calcNetAmount(numAmount, saleForm.paymentMethod)
     const payload = {
       date: salesDate,
-      amount: Number(saleForm.amount),
+      amount: numAmount,
+      netAmount,
       paymentType: saleForm.paymentType,
       paymentMethod: saleForm.paymentMethod,
-      bank: showBank(saleForm.paymentMethod) ? saleForm.bank : null,
       months: showMonths(saleForm.paymentMethod) ? Number(saleForm.months) : null,
       crmLink: saleForm.crmLink || null,
       comment: saleForm.comment || null,
@@ -307,8 +322,8 @@ export default function ManagerDashboard() {
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                           {PAYMENT_TYPE_LABEL[s.paymentType]}
                         </span>
-                        <span className="text-xs text-gray-500">{PAYMENT_METHOD_LABEL[s.paymentMethod]}</span>
-                        {s.bank && showBank(s.paymentMethod) && <span className="text-xs text-gray-400">{s.bank}</span>}
+                        <span className="text-xs text-gray-500">{gatewayLabel(s.paymentMethod)}</span>
+                        {s.netAmount && <span className="text-xs text-green-600 font-medium">Бюджет: {s.netAmount.toLocaleString('ru')} ₸</span>}
                         {s.months && showMonths(s.paymentMethod) && <span className="text-xs text-gray-400">{s.months} мес.</span>}
                       </div>
                       {s.crmLink && (
@@ -376,8 +391,8 @@ export default function ManagerDashboard() {
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                           {PAYMENT_TYPE_LABEL[s.paymentType]}
                         </span>
-                        <span className="text-xs text-gray-500">{PAYMENT_METHOD_LABEL[s.paymentMethod]}</span>
-                        {s.bank && showBank(s.paymentMethod) && <span className="text-xs text-gray-400">{s.bank}</span>}
+                        <span className="text-xs text-gray-500">{gatewayLabel(s.paymentMethod)}</span>
+                        {s.netAmount && <span className="text-xs text-green-600 font-medium">Бюджет: {s.netAmount.toLocaleString('ru')} ₸</span>}
                         {s.months && showMonths(s.paymentMethod) && <span className="text-xs text-gray-400">{s.months} мес.</span>}
                       </div>
                       {s.crmLink && (
@@ -435,28 +450,35 @@ export default function ManagerDashboard() {
                       <option value="additional">{t('report.closer.additional')}</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="label">{t('report.closer.paymentMethod')}</label>
+                  <div className="col-span-2">
+                    <label className="label">Способ оплаты (шлюз)</label>
                     <select className="input" value={saleForm.paymentMethod}
                       onChange={e => {
-                        const m = e.target.value as Sale['paymentMethod']
+                        const m = e.target.value
                         setSaleForm(f => f ? { ...f, paymentMethod: m, months: showMonths(m) ? (f.months || '12') : '' } : f)
                       }}>
-                      <option value="cash">{t('report.closer.cash')}</option>
-                      <option value="card">{t('report.closer.card')}</option>
-                      <option value="credit">{t('report.closer.credit')}</option>
-                      <option value="installment">{t('report.closer.installment')}</option>
+                      {PAYMENT_GATEWAYS.map(g => (
+                        <option key={g.value} value={g.value}>{g.label}</option>
+                      ))}
                     </select>
+                    {(() => {
+                      const fee = GATEWAY_FEE_MAP[saleForm.paymentMethod] ?? 0.03
+                      const numAmt = Number(saleForm.amount)
+                      const net = numAmt > 0 ? calcNetAmount(numAmt, saleForm.paymentMethod) : null
+                      return (
+                        <div className="flex gap-2 mt-2">
+                          <span className="text-xs px-2 py-1 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 font-medium">
+                            Комиссия: {(fee * 100).toFixed(1)}%
+                          </span>
+                          {net !== null && (
+                            <span className="text-xs px-2 py-1 bg-green-50 border border-green-200 rounded-lg text-green-700 font-medium">
+                              Бюджет сделки: {net.toLocaleString('ru')} ₸
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </div>
-                  {showBank(saleForm.paymentMethod) && (
-                    <div>
-                      <label className="label">{t('report.closer.bank')}</label>
-                      <select className="input" value={saleForm.bank}
-                        onChange={e => setSaleForm(f => f ? { ...f, bank: e.target.value } : f)}>
-                        {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
-                    </div>
-                  )}
                 </div>
 
                 {showMonths(saleForm.paymentMethod) && (
