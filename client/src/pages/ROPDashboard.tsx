@@ -6,6 +6,7 @@ import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelect
 import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
 import AIInsights from '../components/ui/AIInsights'
+import GatewayAnalytics from '../components/ui/GatewayAnalytics'
 import { useT } from '../i18n'
 import { ChevronDown, ChevronRight, ExternalLink, Download } from 'lucide-react'
 import { useAuthStore } from '../store/auth'
@@ -197,7 +198,7 @@ export default function ROPDashboard() {
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
   if (!data) return null
 
-  const { summary, funnel, marketing, managerRating, liderRating, productStats = [] } = data
+  const { summary, funnel, marketing, managerRating, liderRating, productStats = [], gatewayAnalytics = [] } = data as any
 
   const funnelSteps = [
     { label: 'Лидов получено',      value: funnel.leadsReceived,    color: 'bg-purple-400' },
@@ -482,6 +483,14 @@ export default function ROPDashboard() {
           </div>
         </div>
       )}
+
+      {/* ── GATEWAY ANALYTICS ── */}
+      <div className="card">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          💳 Аналитика платёжных методов
+        </h3>
+        <GatewayAnalytics data={gatewayAnalytics} />
+      </div>
 
       <AIInsights data={summary} managerRating={managerRating} funnel={funnel} period={period} />
     </div>

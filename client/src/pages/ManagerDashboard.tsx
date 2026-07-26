@@ -10,6 +10,7 @@ import { ru } from 'date-fns/locale'
 import { useT } from '../i18n'
 import { useAuthStore } from '../store/auth'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
+import GatewayAnalytics from '../components/ui/GatewayAnalytics'
 
 function fmt(n: number) { return n.toLocaleString('ru') }
 
@@ -182,7 +183,7 @@ export default function ManagerDashboard() {
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
   if (!data) return null
 
-  const { summary, todayReport, recentReports, periodSales: periodSalesData = [], type } = data
+  const { summary, todayReport, recentReports, periodSales: periodSalesData = [], gatewayAnalytics = [], type } = data as any
   const isCloser = type === 'CLOSER'
   const todayData = todayReport?.data as any
 
@@ -698,6 +699,16 @@ export default function ManagerDashboard() {
             </div>
           )}
         </>
+      )}
+
+      {/* ── GATEWAY ANALYTICS (for closer) ── */}
+      {isCloser && gatewayAnalytics.length > 0 && (
+        <div className="card">
+          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            💳 Аналитика платёжных методов
+          </h3>
+          <GatewayAnalytics data={gatewayAnalytics} />
+        </div>
       )}
 
       {/* ── Archive link (for closer) ── */}

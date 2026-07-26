@@ -5,6 +5,7 @@ import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelect
 import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
 import AIInsights from '../components/ui/AIInsights'
+import GatewayAnalytics from '../components/ui/GatewayAnalytics'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts'
 import { ChevronDown, ArrowRight, TrendingUp, Users, ExternalLink } from 'lucide-react'
 import { useT } from '../i18n'
@@ -136,7 +137,7 @@ export default function OwnerDashboard() {
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
   if (!data) return null
 
-  const { summary, dailyChart, managerRating, liderRating, productStats = [] } = data
+  const { summary, dailyChart, managerRating, liderRating, productStats = [], gatewayAnalytics = [] } = data as any
 
   // Funnel conversions — using LIDER data as source of truth
   const leadsToQual     = pct(summary.totalQualifiedLeads, summary.totalLiderLeads)
@@ -454,6 +455,14 @@ export default function OwnerDashboard() {
           </div>
         </div>
       )}
+
+      {/* ── GATEWAY ANALYTICS ── */}
+      <div className="card">
+        <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          💳 Аналитика платёжных методов
+        </h3>
+        <GatewayAnalytics data={gatewayAnalytics} />
+      </div>
 
       <AIInsights data={summary} managerRating={managerRating} period={periodState.period} />
     </div>

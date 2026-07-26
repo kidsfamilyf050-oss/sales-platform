@@ -41,6 +41,22 @@ function sumLiderLeads(reports: any[]) {
   }, 0)
 }
 
+// Build gateway analytics from a list of Sale records
+function buildGatewayAnalytics(sales: any[]) {
+  const map: Record<string, { method: string; count: number; grossAmount: number; netAmount: number }> = {}
+  for (const s of sales) {
+    const m = s.paymentMethod || 'unknown'
+    if (!map[m]) map[m] = { method: m, count: 0, grossAmount: 0, netAmount: 0 }
+    map[m].count++
+    map[m].grossAmount += Number(s.amount) || 0
+    map[m].netAmount += Number(s.netAmount ?? s.amount) || 0
+  }
+  const total = sales.length || 1
+  return Object.values(map)
+    .sort((a, b) => b.count - a.count)
+    .map(g => ({ ...g, pct: Math.round((g.count / total) * 1000) / 10 }))
+}
+
 // Closer reports: sum salesAmount from individual sales[] array if present, else fallback to salesAmount field
 function sumCloserSalesAmount(reports: any[]) {
   return reports.reduce((acc, r) => {
@@ -235,6 +251,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       managerRating,
       liderRating,
       productStats,
+      gatewayAnalytics: buildGatewayAnalytics(periodSales),
     })
   } catch (e) {
     console.error(e)
@@ -429,6 +446,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       managerRating,
       liderRating,
       productStats,
+      gatewayAnalytics: buildGatewayAnalytics(periodSales),
     })
   } catch (e) {
     console.error(e)
@@ -504,6 +522,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         })),
         todayReport,
         recentReports: reports.slice(0, 7),
+        gatewayAnalytics: buildGatewayAnalytics(periodSales),
       })
     } else {
       // LIDER — stats come from Lead model (live, per-lead)
