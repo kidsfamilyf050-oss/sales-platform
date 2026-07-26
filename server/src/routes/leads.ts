@@ -180,7 +180,8 @@ router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response
     const totalScheduledToday = allLeads.filter(l =>
       (l.appointmentDate === today && !l.consultationStatus) || l.postponedDate === today
     ).length
-    const totalHappened = allLeads.filter(l => l.consultationStatus === 'happened').length
+    // SOLD leads always count as "happened" even if closer didn't explicitly mark consultationStatus
+    const totalHappened = allLeads.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length
     const totalCancelled = allLeads.filter(l => l.consultationStatus === 'not_happened').length
     const totalPostponed = allLeads.filter(l => l.consultationStatus === 'postponed').length
     const totalScheduled = allLeads.filter(l => l.subStatus === 'scheduled').length
@@ -214,7 +215,7 @@ router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response
           total: totalLeads,
           qualified: allLeads.filter(l => l.isQualified).length,
           scheduled: totalScheduled,
-          happened: totalHappened,
+          happened: allLeads.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length,
           sold: allLeads.filter(l => l.status === 'SOLD').length,
         },
       },
@@ -345,7 +346,7 @@ router.get('/company-daily-stats', authenticate, requireRole('OWNER', 'ROP'), as
       stats[uid][d].leads++
       if (l.isQualified) stats[uid][d].qualifiedLeads++
       if (l.assignedToId) stats[uid][d].meetingsScheduled++
-      if (l.consultationStatus === 'happened') stats[uid][d].meetingsAttended++ // fix: was checking status, now checks consultationStatus
+      if (l.consultationStatus === 'happened' || l.status === 'SOLD') stats[uid][d].meetingsAttended++
     }
 
     res.json(stats)
@@ -542,6 +543,8 @@ router.put('/:id/refuse', authenticate, async (req: AuthRequest, res: Response) 
         status: 'REFUSED',
         crmLink: finalCrmLink,
         lossReasonId: lossReasonId || null,
+        // Auto-mark consultation as not_happened if appointment existed but status wasn't set
+        ...(lead.appointmentDate && !lead.consultationStatus && { consultationStatus: 'not_happened' }),
       },
       include: INCLUDE_FULL,
     })
@@ -578,6 +581,8 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
           crmLink: crmLink?.trim() || null,
           closerComment: closerComment?.trim() || null,
           productId: productId || null,
+          // Auto-mark consultation as happened when lead is sold (if not already set)
+          ...(!lead.consultationStatus && { consultationStatus: 'happened' }),
         },
         include: INCLUDE_FULL,
       }),
