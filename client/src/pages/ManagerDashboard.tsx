@@ -176,7 +176,8 @@ export default function ManagerDashboard() {
     else createSale.mutate(payload)
   }
 
-  const totalToday = (todaySales as any[]).reduce((s: number, x: any) => s + (Number(x.amount) || 0), 0)
+  const net = (x: any) => Number(x.netAmount ?? x.amount) || 0
+  const totalToday = (todaySales as any[]).reduce((s: number, x: any) => s + net(x), 0)
 
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
   if (!data) return null
@@ -297,7 +298,7 @@ export default function ManagerDashboard() {
                 <h3 className="font-semibold text-gray-900">{t('dash.periodSales')}</h3>
                 {(periodSalesData as any[]).length > 0 && (
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {(periodSalesData as any[]).length} сд. · ₸ {fmt((periodSalesData as any[]).reduce((s: number, x: any) => s + Number(x.amount), 0))}
+                    {(periodSalesData as any[]).length} сд. · ₸ {fmt((periodSalesData as any[]).reduce((s: number, x: any) => s + net(x), 0))}
                   </p>
                 )}
               </div>
@@ -318,7 +319,8 @@ export default function ManagerDashboard() {
                         ) : (
                           <span className="text-xs text-gray-400 w-16 shrink-0">{new Date(s.date + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
                         )}
-                        <span className="font-bold text-gray-900">₸ {fmt(Number(s.amount))}</span>
+                        <span className="font-bold text-gray-900">₸ {fmt(net(s))}</span>
+                        {s.netAmount && s.netAmount !== s.amount && <span className="text-xs text-gray-400 line-through">₸ {fmt(Number(s.amount))}</span>}
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                           {PAYMENT_TYPE_LABEL[s.paymentType]}
                         </span>
@@ -387,7 +389,8 @@ export default function ManagerDashboard() {
                   <div key={s.id} className="flex items-start justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-gray-900">₸ {fmt(Number(s.amount))}</span>
+                        <span className="font-bold text-gray-900">₸ {fmt(net(s))}</span>
+                        {s.netAmount && s.netAmount !== s.amount && <span className="text-xs text-gray-400 line-through">₸ {fmt(Number(s.amount))}</span>}
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                           {PAYMENT_TYPE_LABEL[s.paymentType]}
                         </span>

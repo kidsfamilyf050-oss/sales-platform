@@ -157,7 +157,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         const plan = plans.find(p => p.userId === u.id && p.type === 'SALES_AMOUNT')?.value || 0
         const completion = plan > 0 ? Math.round((stats.salesAmount / plan) * 1000) / 10 : 0
         const userSales = periodSales.filter(s => s.userId === u.id)
-          .map(s => ({ id: s.id, amount: s.amount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date }))
+          .map(s => ({ id: s.id, amount: s.amount, netAmount: s.netAmount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date }))
         return {
           id: u.id, name: u.name, type: 'CLOSER', plan,
           salesCount: stats.salesCount, salesAmount: stats.salesAmount, completion,
@@ -314,7 +314,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const periodSalesByManager: Record<string, any[]> = {}
     for (const s of periodSales) {
       if (!periodSalesByManager[s.userId]) periodSalesByManager[s.userId] = []
-      periodSalesByManager[s.userId].push({ id: s.id, amount: s.amount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date })
+      periodSalesByManager[s.userId].push({ id: s.id, amount: s.amount, netAmount: s.netAmount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date })
     }
 
     // Closer clients/consultations/refusals per manager (from reports)
@@ -357,7 +357,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         // Today's detail for status tracking
         todayReport: todayReportByManager[m.id] || null,
         todaySales: todaySalesByManager[m.id] || [],
-        todaySalesTotal: (todaySalesByManager[m.id] || []).reduce((s: number, x: any) => s + x.amount, 0),
+        todaySalesTotal: (todaySalesByManager[m.id] || []).reduce((s: number, x: any) => s + (x.netAmount ?? x.amount), 0),
       }
     }).sort((a, b) => b.completion - a.completion)
 
@@ -462,7 +462,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
 
     if (isCloser) {
       // Sales come from Sale model (live, per-entry)
-      const salesAmount = periodSales.reduce((s, x) => s + x.amount, 0)
+      const salesAmount = periodSales.reduce((s, x) => s + (x.netAmount ?? x.amount), 0)
       const salesCount = periodSales.length
       // Clients received from daily reports
       const clientsReceived = sumReportField(reports, 'clientsReceived')
@@ -497,7 +497,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           leadRefusedCount, leadSoldCount, leadTotal, leadConversion,
         },
         periodSales: periodSales.map(s => ({
-          id: s.id, date: s.date, amount: s.amount,
+          id: s.id, date: s.date, amount: s.amount, netAmount: s.netAmount,
           paymentType: s.paymentType, paymentMethod: s.paymentMethod,
           bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment,
           leadId: s.leadId, createdAt: s.createdAt,
@@ -681,7 +681,7 @@ router.get('/closer-ranking', authenticate, async (req: AuthRequest, res: Respon
     for (const s of sales) {
       const uid = s.user.id
       if (!salesMap[uid]) salesMap[uid] = { salesAmount: 0, salesCount: 0 }
-      salesMap[uid].salesAmount += Number(s.amount) || 0
+      salesMap[uid].salesAmount += Number(s.netAmount ?? s.amount) || 0
       salesMap[uid].salesCount += 1
     }
 
