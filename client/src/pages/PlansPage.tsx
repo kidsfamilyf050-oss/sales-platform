@@ -122,6 +122,7 @@ export default function PlansPage() {
     { type: 'AVG_CHECK', label: t('plans.field.avgCheck'), unit: '₸', hint: t('plans.hint.personalAvgCheck') },
   ]
   const MANAGER_LIDER_PLANS = [
+    { type: 'LEADS', label: t('plans.field.liderLeads'), unit: 'шт', hint: t('plans.hint.liderLeads') },
     { type: 'MEETINGS_ATTENDED', label: t('plans.field.liderMeetingsAtt'), unit: 'шт', hint: t('plans.hint.liderMeetingsAtt') },
   ]
   const MARKETING_PLANS = [

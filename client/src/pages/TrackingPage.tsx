@@ -47,9 +47,12 @@ function fmt(n: number) {
   if (n >= 1_000) return (n / 1_000).toFixed(2).replace(/\.?0+$/, '') + 'тыс'
   return n.toLocaleString('ru-RU')
 }
-function pct(fact: number, plan: number) {
+function pct(fact: number, plan: number): number | null {
   if (!plan) return null
-  return Math.round((fact / plan) * 100)
+  const val = (fact / plan) * 100
+  // Use 1 decimal for small values so "0.1%" shows instead of "0%"
+  if (val > 0 && val < 1) return Math.round(val * 10) / 10
+  return Math.round(val)
 }
 
 // ─── Manager type config ─────────────────────────────────────────────────────
