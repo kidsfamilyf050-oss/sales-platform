@@ -245,8 +245,8 @@ function AddLeadModal({
     e.preventDefault()
     if (!clientName.trim() || !phone.trim()) return
     const isQualified = ktsMode !== 'unqual'
-    // Fix: only set assignedToId when ktsMode === 'inwork' (not for qual+scheduled)
-    const chosenAssignee = ktsMode === 'inwork' ? assignedToId || undefined : undefined
+    // Send assignedToId for all qualified modes (not just inwork)
+    const chosenAssignee = ktsMode === 'unqual' ? undefined : assignedToId || undefined
     mutation.mutate({
       clientName: clientName.trim(), phone: phone.trim(), date,
       leadLink: leadLink || undefined,
@@ -847,7 +847,7 @@ export default function LiderLeadsPage() {
       date: inlineDate,
       salesChannelId: inlineChannelId || undefined,
       leadLink: inlineLeadLink || undefined,
-      assignedToId: inlineKtsMode === 'inwork' ? inlineCloserId || undefined : undefined,
+      assignedToId: inlineKtsMode === 'unqual' ? undefined : inlineCloserId || undefined,
       subStatus: inlineKtsMode === 'unqual' ? undefined : inlineSubStatus || undefined,
       appointmentDate: inlineKtsMode === 'unqual' ? undefined : inlineAppointmentDate || undefined,
       appointmentTime: inlineKtsMode === 'unqual' ? undefined : inlineAppointmentTime || undefined,
