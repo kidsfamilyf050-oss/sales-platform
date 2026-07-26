@@ -859,6 +859,10 @@ export default function LiderLeadsPage() {
 
   const saveInlineLead = () => {
     if (!inlineName.trim()) return
+    // When inwork mode but subStatus not explicitly set, default to in_work_kc
+    const resolvedSubStatus = inlineKtsMode === 'unqual'
+      ? undefined
+      : (inlineSubStatus || (inlineKtsMode === 'inwork' ? 'in_work_kc' : undefined))
     createMutation.mutate({
       clientName: inlineName.trim(),
       phone: '',
@@ -866,7 +870,7 @@ export default function LiderLeadsPage() {
       salesChannelId: inlineChannelId || undefined,
       leadLink: inlineLeadLink || undefined,
       assignedToId: inlineKtsMode === 'unqual' ? undefined : inlineCloserId || undefined,
-      subStatus: inlineKtsMode === 'unqual' ? undefined : inlineSubStatus || undefined,
+      subStatus: resolvedSubStatus,
       appointmentDate: inlineKtsMode === 'unqual' ? undefined : inlineAppointmentDate || undefined,
       appointmentTime: inlineKtsMode === 'unqual' ? undefined : inlineAppointmentTime || undefined,
       consultationStatus: inlineConsultationStatus || undefined,
@@ -1247,12 +1251,16 @@ export default function LiderLeadsPage() {
                             <div className="flex flex-col gap-1">
                               {(['qual', 'unqual', 'inwork'] as const).map(mode => (
                                 <button key={mode} type="button"
-                                  onClick={() => setInlineKtsMode(mode)}
+                                  onClick={() => {
+                                    setInlineKtsMode(mode)
+                                    if (mode === 'inwork') setInlineSubStatus('in_work_kc')
+                                    else if (mode === 'unqual') setInlineSubStatus('')
+                                  }}
                                   className={`text-xs font-semibold px-2 py-0.5 rounded-full transition-colors ${
                                     inlineKtsMode === mode
                                       ? mode === 'qual' ? 'bg-green-600 text-white'
                                         : mode === 'unqual' ? 'bg-red-600 text-white'
-                                        : 'bg-blue-600 text-white'
+                                        : 'bg-purple-600 text-white'
                                       : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                                   }`}>
                                   {mode === 'qual' ? 'Квал' : mode === 'unqual' ? 'Не квал' : 'В работе КЦ'}
