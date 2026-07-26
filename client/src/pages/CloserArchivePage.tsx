@@ -1,8 +1,15 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
-import PeriodSelector, { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
-import { Phone, Calendar, User, ExternalLink, Banknote, ChevronDown, ChevronUp, Pencil, Check, X, CheckSquare } from 'lucide-react'
+import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
+import { Phone, Calendar, User, ExternalLink, Banknote, ChevronDown, ChevronUp, Pencil, Check, X, CheckSquare, ChevronLeft, ChevronRight } from 'lucide-react'
+
+const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
+function getMonthLabel(offset: number) {
+  const d = new Date()
+  const t = new Date(d.getFullYear(), d.getMonth() + offset, 1)
+  return `${MONTHS_RU[t.getMonth()]} ${t.getFullYear()}`
+}
 
 type Lead = {
   id: string
@@ -230,7 +237,9 @@ function LeadCard({ lead }: { lead: Lead }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function CloserArchivePage() {
   const periodState = usePeriodStore()
-  const params = buildPeriodParams(periodState)
+  const { monthOffset, setMonthOffset, setPeriod } = periodState
+  // Always force month mode on this page
+  const params = buildPeriodParams({ ...periodState, period: 'month' })
   const [tab, setTab] = useState<'refused' | 'inwork'>('refused')
 
   const refusedQ = useQuery({
@@ -251,8 +260,8 @@ export default function CloserArchivePage() {
   return (
     <div className="space-y-5 px-4 md:px-6 py-2 md:py-4">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Архив заявок</h1>
-        <p className="text-sm text-gray-400 mt-0.5">Отказники и заявки в работе за период</p>
+        <h1 className="text-2xl font-bold text-gray-900">Архив встреч</h1>
+        <p className="text-sm text-gray-400 mt-0.5">Отказники и встречи в работе за период</p>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
@@ -274,7 +283,24 @@ export default function CloserArchivePage() {
             {inwork.length > 0 && <span className="text-xs px-1.5 py-0.5 rounded-full font-bold bg-gray-200 text-gray-600">{inwork.length}</span>}
           </button>
         </div>
-        <PeriodSelector />
+        <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setMonthOffset(monthOffset - 1)}
+            className="p-1 rounded-md text-gray-500 hover:text-gray-800 hover:bg-white transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-sm font-semibold text-gray-800 px-2 whitespace-nowrap min-w-[130px] text-center">
+            {getMonthLabel(monthOffset)}
+          </span>
+          <button
+            onClick={() => setMonthOffset(Math.min(0, monthOffset + 1))}
+            disabled={monthOffset >= 0}
+            className="p-1 rounded-md text-gray-500 hover:text-gray-800 hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {currentQ.isLoading && <div className="card text-center text-gray-400 py-12">Загрузка...</div>}
