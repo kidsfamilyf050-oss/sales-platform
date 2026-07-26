@@ -99,10 +99,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     // ── Sales (Sale model) — use netAmount (бюджет сделки) where available ──
     const totalSalesAmount   = periodSales.reduce((s, x) => s + (x.netAmount ?? x.amount), 0)
     const totalSalesCount    = periodSales.length
-    const totalClients       = sumReportField(closerReports, 'clientsReceived')
-    const totalConsultations = sumReportField(closerReports, 'consultations')
-    const totalRefusals      = sumReportField(closerReports, 'refusals')
-    const totalInWork        = Math.max(0, totalConsultations - totalSalesCount - totalRefusals)
+    // NOTE: totalConsultations/Refusals/InWork computed below from Lead model (after allLiderLeads query)
 
     // ── Marketing metrics (MARKETER reports) ──────────────────────────────
     const marketingLeads = marketerReports.reduce((s, r) => s + (Number((r.data as any).leadsCount) || Number((r.data as any).leads) || 0), 0)
@@ -116,7 +113,11 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const totalLiderLeads        = allLiderLeads.length
     const totalQualifiedLeads    = allLiderLeads.filter(l => l.isQualified).length
     const totalMeetingsScheduled = allLiderLeads.filter(l => l.assignedToId != null).length // "Передано клоузеру"
-    const totalMeetingsAttended  = allLiderLeads.filter(l => l.consultationStatus === 'happened').length // "Консультация состоялась"
+    const totalMeetingsAttended  = allLiderLeads.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length // "Консультация состоялась"
+    // Lead model is source of truth for consultations/refusals/inWork
+    const totalConsultations = allLiderLeads.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length
+    const totalRefusals      = allLiderLeads.filter(l => l.status === 'REFUSED').length
+    const totalInWork        = allLiderLeads.filter(l => l.status === 'IN_WORK').length
 
     // ── Plans ─────────────────────────────────────────────────────────────
     // Sum department-level SALES_AMOUNT plans; fall back to company-wide plan only if no dept plans exist.
@@ -129,10 +130,9 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const budgetPlan = plans.find(p => !p.userId && !p.departmentId && p.type === 'BUDGET')?.value || 0
 
     const avgCheck = totalSalesCount > 0 ? totalSalesAmount / totalSalesCount : 0
-    // Конверсия: встречи → продажи (основная); если нет встреч — клиенты → продажи
-    const conversionBase  = totalMeetingsAttended > 0 ? totalMeetingsAttended : totalClients
-    const conversionLabel = totalMeetingsAttended > 0 ? 'встречи → продажи' : 'клиенты → продажи'
-    const conversion = conversionBase > 0 ? (totalSalesCount / conversionBase) * 100 : 0
+    // Конверсия: встречи → продажи (из Lead model)
+    const conversion = totalConsultations > 0 ? Math.round((totalSalesCount / totalConsultations) * 1000) / 10 : 0
+    const conversionLabel = 'встречи → продажи'
     const effectiveBudget = totalBudget > 0 ? totalBudget : budgetPlan
     const leadCost = marketingLeads > 0 ? effectiveBudget / marketingLeads : 0
 
@@ -270,7 +270,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
   const todayStr = dateToStr(new Date())
 
   try {
-    const [managers, plans, closerReports, marketerReports, todayReports, periodSales, todaySales, ropLiderLeadsFull] = await Promise.all([
+    const [managers, plans, closerReports, marketerReports, todayReports, periodSales, todaySales, ropLiderLeadsFull, allCompanyLeads] = await Promise.all([
       prisma.user.findMany({ where: { companyId: req.user!.companyId, departmentId: deptId || undefined, status: 'ACTIVE', role: 'MANAGER' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, departmentId: deptId || undefined }, type: 'CLOSER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true, managerType: true } } } }),
@@ -284,6 +284,11 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       prisma.lead.findMany({
         where: { createdBy: { companyId: req.user!.companyId, departmentId: deptId || undefined, managerType: 'LIDER' }, date: { gte: fromStr, lte: toStr } },
         select: { createdById: true, isQualified: true, isScheduled: true, status: true, assignedToId: true, consultationStatus: true },
+      }),
+      // All company leads for consultation/refusal/inWork stats (Lead model = source of truth)
+      prisma.lead.findMany({
+        where: { createdBy: { companyId: req.user!.companyId }, date: { gte: fromStr, lte: toStr } },
+        select: { status: true, consultationStatus: true },
       }),
     ])
 
@@ -345,9 +350,10 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       refusalsByManager[uid] = (refusalsByManager[uid] || 0) + (Number((r.data as any).refusals) || 0)
     }
 
-    const totalConsultations = sumReportField(closerReports, 'consultations')
-    const totalRefusals = sumReportField(closerReports, 'refusals')
-    const totalInWork = Math.max(0, totalConsultations - totalSalesCount - totalRefusals)
+    // Use Lead model as source of truth (not manual reports)
+    const totalConsultations = allCompanyLeads.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length
+    const totalRefusals = allCompanyLeads.filter(l => l.status === 'REFUSED').length
+    const totalInWork = allCompanyLeads.filter(l => l.status === 'IN_WORK').length
 
     const closers = managers.filter(m => m.managerType !== 'LIDER')
     const managerRating = closers.map(m => {
@@ -436,7 +442,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     res.json({
       summary: {
         salesPlan, salesAmount: totalSalesAmount, salesCount: totalSalesCount,
-        conversion: clientsReceived > 0 ? Math.round((totalSalesCount / clientsReceived) * 1000) / 10 : 0,
+        conversion: totalConsultations > 0 ? Math.round((totalSalesCount / totalConsultations) * 1000) / 10 : 0,
         avgCheck: totalSalesCount > 0 ? Math.round(totalSalesAmount / totalSalesCount) : 0,
         planCompletion: salesPlan > 0 ? Math.round((totalSalesAmount / salesPlan) * 1000) / 10 : 0,
         totalConsultations, totalRefusals, totalInWork,
