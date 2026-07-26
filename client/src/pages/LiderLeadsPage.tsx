@@ -102,9 +102,10 @@ function KtsBadge({ lead }: { lead: Lead }) {
 function SubStatusBadge({ value }: { value?: string | null }) {
   if (!value) return <span className="text-gray-300 text-xs">—</span>
   const map: Record<string, { label: string; cls: string }> = {
-    scheduled: { label: 'Записан', cls: 'bg-green-100 text-green-700' },
-    refused:   { label: 'Отказ',  cls: 'bg-red-100 text-red-700' },
-    thinking:  { label: 'Думает', cls: 'bg-orange-100 text-orange-700' },
+    scheduled:   { label: 'Записан',      cls: 'bg-green-100 text-green-700' },
+    refused:     { label: 'Отказ',        cls: 'bg-red-100 text-red-700' },
+    thinking:    { label: 'Думает',       cls: 'bg-orange-100 text-orange-700' },
+    in_work_kc:  { label: 'В работе КЦ', cls: 'bg-purple-100 text-purple-700' },
   }
   const s = map[value]
   if (!s) return <span className="text-gray-400 text-xs">{value}</span>
@@ -324,12 +325,13 @@ function AddLeadModal({
 
           {ktsMode !== 'unqual' && (
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-2">Статус: Записан / Отказ / Думает</label>
-              <div className="grid grid-cols-3 gap-2">
+              <label className="block text-xs font-semibold text-gray-600 mb-2">Статус: Записан / Отказ / Думает / В работе КЦ</label>
+              <div className="grid grid-cols-2 gap-2">
                 {[
-                  ['scheduled', 'Записан',  'bg-green-600 text-white'],
-                  ['refused',   'Отказ',    'bg-red-500 text-white'],
-                  ['thinking',  'Думает',   'bg-orange-500 text-white'],
+                  ['scheduled',  'Записан',      'bg-green-600 text-white'],
+                  ['refused',    'Отказ',         'bg-red-500 text-white'],
+                  ['thinking',   'Думает',        'bg-orange-500 text-white'],
+                  ['in_work_kc', 'В работе КЦ',  'bg-purple-600 text-white'],
                 ].map(([val, label, cls]) => (
                   <button key={val} type="button" onClick={() => handleSubStatusChange(subStatus === val ? '' : val)}
                     className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${subStatus === val ? cls : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
@@ -508,12 +510,13 @@ function EditLeadModal({
 
           {ktsMode !== 'unqual' && (
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-2">Статус: Записан / Отказ / Думает</label>
-              <div className="grid grid-cols-3 gap-2">
+              <label className="block text-xs font-semibold text-gray-600 mb-2">Статус: Записан / Отказ / Думает / В работе КЦ</label>
+              <div className="grid grid-cols-2 gap-2">
                 {[
-                  ['scheduled', 'Записан', 'bg-green-600 text-white'],
-                  ['refused',   'Отказ',   'bg-red-500 text-white'],
-                  ['thinking',  'Думает',  'bg-orange-500 text-white'],
+                  ['scheduled',  'Записан',      'bg-green-600 text-white'],
+                  ['refused',    'Отказ',         'bg-red-500 text-white'],
+                  ['thinking',   'Думает',        'bg-orange-500 text-white'],
+                  ['in_work_kc', 'В работе КЦ',  'bg-purple-600 text-white'],
                 ].map(([val, label, cls]) => (
                   <button key={val} type="button" onClick={() => setSubStatus(subStatus === val ? '' : val)}
                     className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${subStatus === val ? cls : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
@@ -992,6 +995,7 @@ export default function LiderLeadsPage() {
               <option value="scheduled">Записан</option>
               <option value="refused">Отказ</option>
               <option value="thinking">Думает</option>
+              <option value="in_work_kc">В работе КЦ</option>
             </select>
             <select value={pendingConsultation} onChange={e => setPendingConsultation(e.target.value)}
               className={`py-2 px-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${pendingConsultation ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-600'}`}>
@@ -1249,6 +1253,7 @@ export default function LiderLeadsPage() {
                               <option value="scheduled">Записан</option>
                               <option value="refused">Отказ</option>
                               <option value="thinking">Думает</option>
+                              <option value="in_work_kc">В работе КЦ</option>
                             </select>
                           </td>
                           {/* Appointment date + time */}

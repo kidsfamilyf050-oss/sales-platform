@@ -921,7 +921,7 @@ router.get('/lider-leads', authenticate, async (req: AuthRequest, res: Response)
     })
 
     const statusLabels: Record<string, string> = {
-      scheduled: 'Записан', refused: 'Отказ', thinking: 'Думает',
+      scheduled: 'Записан', refused: 'Отказ', thinking: 'Думает', in_work_kc: 'В работе КЦ',
       happened: 'Состоялась', not_happened: 'Не состоялась', postponed: 'Перенос',
     }
     const fmtD = (s?: string | null) => s ? s.split('-').reverse().join('.') : ''

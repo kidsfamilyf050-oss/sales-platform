@@ -609,7 +609,7 @@ export default function ManagerDashboard() {
               <div className="space-y-1.5">
                 {recentLeads.map((lead: any) => {
                   const subColors: Record<string, string> = { scheduled: 'bg-blue-100 text-blue-700', refused: 'bg-red-100 text-red-600', thinking: 'bg-yellow-100 text-yellow-700' }
-                  const subLabels: Record<string, string> = { scheduled: 'Записан', refused: 'Отказ', thinking: 'Думает' }
+                  const subLabels: Record<string, string> = { scheduled: 'Записан', refused: 'Отказ', thinking: 'Думает', in_work_kc: 'В работе КЦ' }
                   const sub = lead.subStatus as string
                   return (
                     <div key={lead.id} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0">
