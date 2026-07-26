@@ -85,8 +85,17 @@ const tomorrowDateStr = () => {
 function KtsBadge({ lead }: { lead: Lead }) {
   if (!lead.isQualified || lead.status === 'UNQUALIFIED')
     return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Не квал</span>
-  if (lead.assignedToId)
+  // "В работе КЦ" only when closer has actually accepted (IN_WORK)
+  // ASSIGNED = closer received but hasn't accepted yet → still show "Квал"
+  if (lead.status === 'IN_WORK')
     return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">В работе КЦ</span>
+  // ASSIGNED with closer → show "Квал" + small indicator that it's awaiting closer
+  if (lead.assignedToId && lead.status === 'ASSIGNED')
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+        Квал <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Ожидает принятия клоузером" />
+      </span>
+    )
   return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Квал</span>
 }
 
