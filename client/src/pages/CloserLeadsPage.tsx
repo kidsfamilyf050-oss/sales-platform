@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import PeriodSelector, { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
-import { Phone, Calendar, User, ChevronDown, ChevronUp, Check, X, CheckSquare, Plus, ExternalLink, Banknote, Pencil, Package } from 'lucide-react'
+import { Phone, Calendar, User, ChevronDown, ChevronUp, Check, X, CheckSquare, Plus, ExternalLink, Banknote, Pencil, Package, ArrowRightLeft } from 'lucide-react'
 
 type Lead = {
   id: string
@@ -18,6 +18,7 @@ type Lead = {
   assignedTo: { id: string; name: string } | null
   tasks: { id: string; title: string; dueDate: string; completed: boolean }[]
   amount: number | null
+  netAmount: number | null
   paymentType: string | null
   paymentMethod: string | null
   bank: string | null
@@ -30,13 +31,35 @@ const PAYMENT_TYPE = [
   { value: 'new_sale', label: 'Новая продажа' },
   { value: 'additional', label: 'Доплата' },
 ]
-const PAYMENT_METHOD = [
-  { value: 'cash', label: 'Нал' },
-  { value: 'card', label: 'Безнал' },
-  { value: 'credit', label: 'Кредит' },
-  { value: 'installment', label: 'Рассрочка' },
+
+// Payment gateways with fee percentages
+const PAYMENT_GATEWAYS = [
+  { value: 'GetPay',            label: 'GetPay',                                    fee: 0.13 },
+  { value: 'TipTopPay_KZ',      label: 'Tip Top Pay (карта КЗ)',                    fee: 0.065 },
+  { value: 'TipTopPay_Foreign', label: 'Tip Top Pay (карта зарубежного банка)',      fee: 0.079 },
+  { value: 'Kaspi_Gold',        label: 'Каспи Пэй (GOLD)',                          fee: 0.0395 },
+  { value: 'Kaspi_Account',     label: 'Каспи Пэй (Счет в Kaspi Pay)',              fee: 0.041 },
+  { value: 'Kaspi_Credit',      label: 'Каспи Пэй (CREDIT)',                        fee: 0.165 },
+  { value: 'Kaspi_Red',         label: 'Каспи Пэй (RED)',                           fee: 0.143 },
+  { value: 'Kaspi_Terminal',    label: 'Apple Pay / Google Pay Терминал Каспи',     fee: 0.043 },
+  { value: 'Cash',              label: 'Наличные',                                  fee: 0.03 },
+  { value: 'Transfer_AE',       label: 'Перевод на карту АЕ',                       fee: 0.03 },
+  { value: 'Card_Sberbank',     label: 'Карта / СберБанк',                          fee: 0.03 },
+  { value: 'Kaspi_Bookkeeper',  label: 'Каспи счет (через бухгалтера)',              fee: 0.03 },
 ]
-const BANKS = ['Kaspi Bank', 'Halyk', 'BCC', 'Forte', 'Jusan', 'RBK', 'Другой']
+
+const GATEWAY_FEE_MAP = Object.fromEntries(PAYMENT_GATEWAYS.map(g => [g.value, g.fee]))
+
+function calcNetAmount(amount: number, gateway: string) {
+  const fee = GATEWAY_FEE_MAP[gateway] ?? 0.03
+  return Math.round(amount * (1 - fee) * 100) / 100
+}
+
+// Gateway label lookup (handles legacy values like 'cash', 'card', etc.)
+function gatewayLabel(value: string | null) {
+  if (!value) return '—'
+  return PAYMENT_GATEWAYS.find(g => g.value === value)?.label ?? value
+}
 
 function fmtDate(s: string) {
   if (!s) return ''
@@ -45,6 +68,53 @@ function fmtDate(s: string) {
 
 function isOverdue(dueDate: string) {
   return dueDate < new Date().toISOString().slice(0, 10)
+}
+
+// ── Transfer Modal ─────────────────────────────────────────────────────────────
+function TransferModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [newCloserId, setNewCloserId] = useState('')
+  const [error, setError] = useState('')
+
+  const { data: closers = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['closers-list'],
+    queryFn: () => api.get('/users/closers').then(r => r.data),
+  })
+
+  const transferMut = useMutation({
+    mutationFn: () => api.put(`/leads/${lead.id}/transfer`, { newCloserId }).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['closer-leads'] }); onClose() },
+    onError: (e: any) => setError(e.response?.data?.error || 'Ошибка'),
+  })
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+        <h3 className="font-bold text-gray-900 mb-1">Передать встречу</h3>
+        <p className="text-sm text-gray-500 mb-4">{lead.clientName}</p>
+        <div>
+          <label className="text-xs font-semibold text-gray-600 block mb-1">Выберите клоузера</label>
+          <select className="input" value={newCloserId} onChange={e => setNewCloserId(e.target.value)} autoFocus>
+            <option value="">— выберите клоузера —</option>
+            {closers.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+        {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg mt-3">{error}</p>}
+        <div className="flex gap-3 mt-5">
+          <button onClick={onClose} className="flex-1 btn-outline">Отмена</button>
+          <button
+            onClick={() => { if (!newCloserId) return setError('Выберите клоузера'); transferMut.mutate() }}
+            disabled={transferMut.isPending}
+            className="flex-1 btn-primary"
+          >
+            Передать
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ── Add Task Modal ────────────────────────────────────────────────────────────
@@ -95,7 +165,7 @@ function EditLeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const [form, setForm] = useState({
     amount: lead.amount ? String(lead.amount) : '',
     paymentType: lead.paymentType || 'new_sale',
-    paymentMethod: lead.paymentMethod || 'card',
+    paymentMethod: lead.paymentMethod || '',
     bank: lead.bank || '',
     months: lead.months ? String(lead.months) : '',
     crmLink: lead.crmLink || '',
@@ -103,6 +173,11 @@ function EditLeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   })
   const [error, setError] = useState('')
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+
+  const selectedGateway = PAYMENT_GATEWAYS.find(g => g.value === form.paymentMethod)
+  const numAmount = Number(form.amount) || 0
+  const feePercent = selectedGateway ? Math.round(selectedGateway.fee * 1000) / 10 : null
+  const netAmount = selectedGateway && numAmount > 0 ? calcNetAmount(numAmount, form.paymentMethod) : null
 
   const saveMut = useMutation({
     mutationFn: () => api.put(`/leads/${lead.id}`, {
@@ -117,12 +192,8 @@ function EditLeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <h3 className="font-bold text-gray-900 mb-4">Редактировать заявку — {lead.clientName}</h3>
+        <h3 className="font-bold text-gray-900 mb-4">Редактировать встречу — {lead.clientName}</h3>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-medium text-gray-500 block mb-1">Сумма</label>
-            <input type="number" className="input" value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="0" />
-          </div>
           <div>
             <label className="text-xs font-medium text-gray-500 block mb-1">Тип оплаты</label>
             <select className="input" value={form.paymentType} onChange={e => set('paymentType', e.target.value)}>
@@ -130,22 +201,28 @@ function EditLeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-500 block mb-1">Способ оплаты</label>
+            <label className="text-xs font-medium text-gray-500 block mb-1">Сумма</label>
+            <input type="number" className="input" value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="0" />
+          </div>
+          <div className="col-span-2">
+            <label className="text-xs font-medium text-gray-500 block mb-1">Платёжный шлюз</label>
             <select className="input" value={form.paymentMethod} onChange={e => set('paymentMethod', e.target.value)}>
-              {PAYMENT_METHOD.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+              <option value="">— выберите шлюз —</option>
+              {PAYMENT_GATEWAYS.map(g => (
+                <option key={g.value} value={g.value}>{g.label} ({Math.round(g.fee * 1000) / 10}%)</option>
+              ))}
             </select>
           </div>
-          <div>
-            <label className="text-xs font-medium text-gray-500 block mb-1">Банк</label>
-            <select className="input" value={form.bank} onChange={e => set('bank', e.target.value)}>
-              <option value="">— не выбран —</option>
-              {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
-            </select>
-          </div>
-          {(form.paymentMethod === 'credit' || form.paymentMethod === 'installment') && (
-            <div>
-              <label className="text-xs font-medium text-gray-500 block mb-1">Месяцев</label>
-              <input type="number" className="input" value={form.months} onChange={e => set('months', e.target.value)} placeholder="12" />
+          {selectedGateway && numAmount > 0 && (
+            <div className="col-span-2 grid grid-cols-2 gap-3">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-center">
+                <p className="text-[11px] text-amber-600 font-semibold">% комиссии</p>
+                <p className="text-lg font-bold text-amber-700">{feePercent}%</p>
+              </div>
+              <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-center">
+                <p className="text-[11px] text-green-600 font-semibold">Бюджет сделки</p>
+                <p className="text-lg font-bold text-green-700">₸ {netAmount?.toLocaleString('ru')}</p>
+              </div>
             </div>
           )}
           <div className="col-span-2">
@@ -175,7 +252,7 @@ function InWorkSection({ lead }: { lead: Lead }) {
   const [form, setForm] = useState({
     amount: lead.amount ? String(lead.amount) : '',
     paymentType: lead.paymentType || 'new_sale',
-    paymentMethod: lead.paymentMethod || 'card',
+    paymentMethod: lead.paymentMethod || '',
     bank: lead.bank || '',
     months: lead.months ? String(lead.months) : '',
     crmLink: lead.crmLink || '',
@@ -186,6 +263,12 @@ function InWorkSection({ lead }: { lead: Lead }) {
   const [error, setError] = useState('')
   const [showTaskForm, setShowTaskForm] = useState(false)
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+
+  // Derived fee/netAmount display
+  const selectedGateway = PAYMENT_GATEWAYS.find(g => g.value === form.paymentMethod)
+  const numAmount = Number(form.amount) || 0
+  const feePercent = selectedGateway ? Math.round(selectedGateway.fee * 1000) / 10 : null
+  const netAmount = selectedGateway && numAmount > 0 ? calcNetAmount(numAmount, form.paymentMethod) : null
 
   // Fetch products for selector
   const { data: products = [] } = useQuery<{ id: string; name: string; price: number }[]>({
@@ -264,35 +347,49 @@ function InWorkSection({ lead }: { lead: Lead }) {
             </select>
           </div>
         )}
-        <div>
-          <label className="text-xs font-medium text-gray-500 block mb-1">Сумма</label>
-          <input type="number" className="input" value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="0" />
-        </div>
+
+        {/* Payment type */}
         <div>
           <label className="text-xs font-medium text-gray-500 block mb-1">Тип оплаты</label>
           <select className="input" value={form.paymentType} onChange={e => set('paymentType', e.target.value)}>
             {PAYMENT_TYPE.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
         </div>
+
+        {/* Amount */}
         <div>
-          <label className="text-xs font-medium text-gray-500 block mb-1">Способ оплаты</label>
+          <label className="text-xs font-medium text-gray-500 block mb-1">Сумма</label>
+          <input type="number" className="input" value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="0" />
+        </div>
+
+        {/* Gateway selector */}
+        <div className="col-span-2">
+          <label className="text-xs font-medium text-gray-500 block mb-1">Платёжный шлюз</label>
           <select className="input" value={form.paymentMethod} onChange={e => set('paymentMethod', e.target.value)}>
-            {PAYMENT_METHOD.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            <option value="">— выберите шлюз —</option>
+            {PAYMENT_GATEWAYS.map(g => (
+              <option key={g.value} value={g.value}>
+                {g.label} — {Math.round(g.fee * 1000) / 10}%
+              </option>
+            ))}
           </select>
         </div>
-        <div>
-          <label className="text-xs font-medium text-gray-500 block mb-1">Банк</label>
-          <select className="input" value={form.bank} onChange={e => set('bank', e.target.value)}>
-            <option value="">— не выбран —</option>
-            {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
-          </select>
-        </div>
-        {(form.paymentMethod === 'credit' || form.paymentMethod === 'installment') && (
-          <div>
-            <label className="text-xs font-medium text-gray-500 block mb-1">Месяцев</label>
-            <input type="number" className="input" value={form.months} onChange={e => set('months', e.target.value)} placeholder="12" />
+
+        {/* Fee & Budget display */}
+        {selectedGateway && numAmount > 0 && (
+          <div className="col-span-2 grid grid-cols-2 gap-3">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 text-center">
+              <p className="text-[11px] text-amber-600 font-semibold uppercase tracking-wide">% комиссии</p>
+              <p className="text-xl font-bold text-amber-700">{feePercent}%</p>
+            </div>
+            <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2.5 text-center">
+              <p className="text-[11px] text-green-600 font-semibold uppercase tracking-wide">Бюджет сделки</p>
+              <p className="text-xl font-bold text-green-700">₸ {netAmount?.toLocaleString('ru')}</p>
+            </div>
           </div>
         )}
+
+        {/* CRM link */}
         <div className="col-span-2">
           <label className="text-xs font-medium text-gray-500 block mb-1">
             Ссылка на сделку в CRM <span className="text-red-500">*</span>
@@ -300,6 +397,8 @@ function InWorkSection({ lead }: { lead: Lead }) {
           </label>
           <input type="url" className="input" value={form.crmLink} onChange={e => set('crmLink', e.target.value)} placeholder="https://..." />
         </div>
+
+        {/* Comment */}
         <div className="col-span-2">
           <label className="text-xs font-medium text-gray-500 block mb-1">Комментарий</label>
           <textarea className="input resize-none h-16" value={form.closerComment} onChange={e => set('closerComment', e.target.value)} placeholder="Заметки по сделке..." />
@@ -316,7 +415,7 @@ function InWorkSection({ lead }: { lead: Lead }) {
         </button>
         <button onClick={() => {
           setError('')
-          if (!form.amount || !form.crmLink) return setError('Заполните сумму и CRM-ссылку')
+          if (!form.amount || !form.paymentMethod || !form.crmLink) return setError('Заполните сумму, шлюз и CRM-ссылку')
           sellMut.mutate()
         }} disabled={sellMut.isPending}
           className="flex-1 text-sm py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-40">
@@ -326,7 +425,6 @@ function InWorkSection({ lead }: { lead: Lead }) {
 
       {/* Secondary actions */}
       <div className="space-y-2 border-t border-gray-100 pt-3">
-        {/* Loss reason selector (shown before refuse button) */}
         {lossReasons.length > 0 && (
           <div>
             <label className="text-xs font-medium text-gray-500 block mb-1">Причина отказа</label>
@@ -378,6 +476,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showTransferModal, setShowTransferModal] = useState(false)
 
   const acceptMut = useMutation({
     mutationFn: () => api.put(`/leads/${lead.id}/accept`).then(r => r.data),
@@ -394,6 +493,9 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
     : 'text-amber-600 bg-amber-50'
 
   const statusLabel = lead.status === 'SOLD' ? 'Продажа' : lead.status === 'REFUSED' ? 'Отказ' : 'В работе'
+
+  // Display amount — prefer netAmount (бюджет сделки) when available
+  const displayAmount = lead.netAmount ?? lead.amount
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -416,7 +518,15 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
             <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{lead.date}</span>
             {lead.salesChannel && <span>{lead.salesChannel.name}</span>}
             <span className="flex items-center gap-1"><User className="w-3 h-3" />{lead.createdBy.name}</span>
-            {lead.amount && <span className="flex items-center gap-1 text-green-600 font-medium"><Banknote className="w-3 h-3" />₸ {Number(lead.amount).toLocaleString('ru')}</span>}
+            {displayAmount != null && displayAmount > 0 && (
+              <span className="flex items-center gap-1 text-green-600 font-medium">
+                <Banknote className="w-3 h-3" />₸ {Number(displayAmount).toLocaleString('ru')}
+                {lead.netAmount != null && <span className="text-[10px] text-green-400 ml-0.5">нетто</span>}
+              </span>
+            )}
+            {lead.paymentMethod && (
+              <span className="text-gray-400">{gatewayLabel(lead.paymentMethod)}</span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -427,6 +537,15 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
               className="flex items-center gap-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 rounded-lg font-medium transition-colors"
             >
               <Check className="w-4 h-4" /> Принять
+            </button>
+          )}
+          {showWork && (
+            <button
+              onClick={e => { e.stopPropagation(); setShowTransferModal(true) }}
+              className="flex items-center gap-1.5 text-sm text-purple-600 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-lg font-medium transition-colors"
+              title="Передать другому клоузеру"
+            >
+              <ArrowRightLeft className="w-4 h-4" /> Передать
             </button>
           )}
           {readonly && (
@@ -453,6 +572,19 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
               <span className="text-xs font-semibold text-blue-600 block mb-0.5">Комментарий лидоруба</span>
               {lead.comment}
             </p>
+          )}
+
+          {/* Sold details when readonly */}
+          {readonly && lead.status === 'SOLD' && lead.paymentMethod && (
+            <div className="bg-green-50 border border-green-100 rounded-lg px-3 py-2 text-sm">
+              <p className="text-xs font-semibold text-green-700 mb-1">Детали продажи</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-green-800">
+                <span>Шлюз: <b>{gatewayLabel(lead.paymentMethod)}</b></span>
+                {lead.amount && <span>Сумма: <b>₸ {lead.amount.toLocaleString('ru')}</b></span>}
+                {lead.netAmount && <span>Бюджет: <b>₸ {lead.netAmount.toLocaleString('ru')}</b></span>}
+                {lead.paymentType && <span>Тип: <b>{lead.paymentType === 'new_sale' ? 'Новая' : 'Доплата'}</b></span>}
+              </div>
+            </div>
           )}
 
           {/* Existing tasks */}
@@ -487,10 +619,19 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
               <ExternalLink className="w-4 h-4" /> Открыть в CRM
             </a>
           )}
+
+          {/* Closer comment */}
+          {readonly && lead.closerComment && (
+            <p className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
+              <span className="text-xs font-semibold text-gray-500 block mb-0.5">Комментарий</span>
+              {lead.closerComment}
+            </p>
+          )}
         </div>
       )}
 
       {showEditModal && <EditLeadModal lead={lead} onClose={() => setShowEditModal(false)} />}
+      {showTransferModal && <TransferModal lead={lead} onClose={() => setShowTransferModal(false)} />}
     </div>
   )
 }
@@ -525,7 +666,7 @@ export default function CloserLeadsPage() {
   const sold: Lead[] = soldQ.data || []
 
   const tabs = [
-    { key: 'incoming', label: 'Входящие', count: incoming.length, dot: 'bg-blue-500', urgent: incoming.length > 0 },
+    { key: 'incoming', label: 'Новые', count: incoming.length, dot: 'bg-blue-500', urgent: incoming.length > 0 },
     { key: 'inwork', label: 'В работе', count: inwork.length, dot: 'bg-amber-400' },
     { key: 'refused', label: 'Отказы', count: refused.length, dot: 'bg-red-400' },
     { key: 'sold', label: 'Продажи', count: sold.length, dot: 'bg-green-400' },
@@ -534,10 +675,13 @@ export default function CloserLeadsPage() {
   const currentLeads = tab === 'incoming' ? incoming : tab === 'inwork' ? inwork : tab === 'refused' ? refused : sold
   const currentQ = tab === 'incoming' ? incomingQ : tab === 'inwork' ? inworkQ : tab === 'refused' ? refusedQ : soldQ
 
+  // Net revenue for sold tab
+  const soldNetTotal = sold.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+
   return (
     <div className="space-y-5 max-w-[1200px] mx-auto px-4 md:px-8 py-4 md:py-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Заявки</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Встречи</h1>
         <p className="text-sm text-gray-400 mt-0.5">Лиды от лидорубов</p>
       </div>
 
@@ -561,6 +705,13 @@ export default function CloserLeadsPage() {
           ))}
         </div>
         {tab !== 'incoming' && <PeriodSelector />}
+        {/* Net total for sold tab */}
+        {tab === 'sold' && sold.length > 0 && (
+          <div className="ml-auto bg-green-50 border border-green-200 rounded-xl px-4 py-1.5 text-sm">
+            <span className="text-green-600 font-medium">Бюджет: </span>
+            <span className="text-green-700 font-bold">₸ {soldNetTotal.toLocaleString('ru')}</span>
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -574,11 +725,11 @@ export default function CloserLeadsPage() {
             <User className="w-6 h-6 text-gray-300" />
           </div>
           <p className="text-gray-400 font-medium">
-            {tab === 'incoming' ? 'Нет новых входящих заявок' :
-             tab === 'inwork' ? 'Нет заявок в работе' :
+            {tab === 'incoming' ? 'Нет новых встреч' :
+             tab === 'inwork' ? 'Нет встреч в работе' :
              tab === 'refused' ? 'Нет отказов за период' : 'Нет продаж за период'}
           </p>
-          {tab === 'incoming' && <p className="text-xs text-gray-300 mt-1">Лидорубы пришлют заявки сюда</p>}
+          {tab === 'incoming' && <p className="text-xs text-gray-300 mt-1">Лидорубы пришлют встречи сюда</p>}
         </div>
       )}
 

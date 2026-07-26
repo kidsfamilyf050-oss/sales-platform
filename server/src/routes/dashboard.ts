@@ -80,8 +80,8 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       prisma.sale.findMany({ where: { companyId: req.user!.companyId, date: { gte: fromStr, lte: toStr } }, include: { user: { select: { id: true, name: true } }, product: { select: { id: true, name: true } } } }),
     ])
 
-    // ── Sales (Sale model) ─────────────────────────────────────────────────
-    const totalSalesAmount   = periodSales.reduce((s, x) => s + x.amount, 0)
+    // ── Sales (Sale model) — use netAmount (бюджет сделки) where available ──
+    const totalSalesAmount   = periodSales.reduce((s, x) => s + (x.netAmount ?? x.amount), 0)
     const totalSalesCount    = periodSales.length
     const totalClients       = sumReportField(closerReports, 'clientsReceived')
     const totalConsultations = sumReportField(closerReports, 'consultations')
@@ -95,12 +95,12 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     // ── Lider funnel (Lead model — live per-lead data) ────────────────────
     const allLiderLeads = await prisma.lead.findMany({
       where: { createdBy: { companyId: req.user!.companyId }, date: { gte: fromStr, lte: toStr } },
-      select: { isQualified: true, assignedToId: true, status: true },
+      select: { isQualified: true, assignedToId: true, status: true, consultationStatus: true },
     })
     const totalLiderLeads        = allLiderLeads.length
     const totalQualifiedLeads    = allLiderLeads.filter(l => l.isQualified).length
     const totalMeetingsScheduled = allLiderLeads.filter(l => l.assignedToId != null).length // "Передано клоузеру"
-    const totalMeetingsAttended  = allLiderLeads.filter(l => ['IN_WORK', 'REFUSED', 'SOLD'].includes(l.status)).length
+    const totalMeetingsAttended  = allLiderLeads.filter(l => l.consultationStatus === 'happened').length // "Консультация состоялась"
 
     // ── Plans ─────────────────────────────────────────────────────────────
     // Sum department-level SALES_AMOUNT plans; fall back to company-wide plan only if no dept plans exist.
@@ -128,12 +128,12 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       dailySalesMap[s.date].amount += s.amount
     }
 
-    // ── Sales per user (Sale model) ────────────────────────────────────────
+    // ── Sales per user (Sale model) — use netAmount where available ─────────
     const salesByUser: Record<string, { salesCount: number; salesAmount: number }> = {}
     for (const s of periodSales) {
       if (!salesByUser[s.userId]) salesByUser[s.userId] = { salesCount: 0, salesAmount: 0 }
       salesByUser[s.userId].salesCount++
-      salesByUser[s.userId].salesAmount += s.amount
+      salesByUser[s.userId].salesAmount += s.netAmount ?? s.amount
     }
     const clientsByUser: Record<string, number> = {}
     const consultationsByUser: Record<string, number> = {}
@@ -172,7 +172,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     // ── Lider rating (from Lead model) ────────────────────────────────────
     const ownerLiderLeadsFull = await prisma.lead.findMany({
       where: { createdBy: { companyId: req.user!.companyId, managerType: 'LIDER' }, date: { gte: fromStr, lte: toStr } },
-      select: { createdById: true, createdBy: { select: { name: true } }, isQualified: true, assignedToId: true, status: true },
+      select: { createdById: true, createdBy: { select: { name: true } }, isQualified: true, assignedToId: true, status: true, consultationStatus: true },
     })
     const ownerLiderStatsMap: Record<string, { name: string; leads: number; qualifiedLeads: number; meetingsScheduled: number; meetingsAttended: number }> = {}
     for (const l of ownerLiderLeadsFull) {
@@ -181,7 +181,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       ownerLiderStatsMap[uid].leads++
       if (l.isQualified) ownerLiderStatsMap[uid].qualifiedLeads++
       if (l.assignedToId) ownerLiderStatsMap[uid].meetingsScheduled++  // "Передано"
-      if (['IN_WORK', 'REFUSED', 'SOLD'].includes(l.status)) ownerLiderStatsMap[uid].meetingsAttended++
+      if (l.consultationStatus === 'happened') ownerLiderStatsMap[uid].meetingsAttended++ // "Консультация состоялась"
     }
     // Include ALL lider users, even those with zero leads in period
     const allLiderUsers = allUsers.filter(u => u.managerType === 'LIDER')
@@ -266,7 +266,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       // Lider leads from Lead model (source of truth for lider stats)
       prisma.lead.findMany({
         where: { createdBy: { companyId: req.user!.companyId, departmentId: deptId || undefined, managerType: 'LIDER' }, date: { gte: fromStr, lte: toStr } },
-        select: { createdById: true, isQualified: true, isScheduled: true, status: true, assignedToId: true },
+        select: { createdById: true, isQualified: true, isScheduled: true, status: true, assignedToId: true, consultationStatus: true },
       }),
     ])
 
@@ -277,10 +277,10 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     for (const s of periodSales) {
       if (!salesByUser[s.userId]) salesByUser[s.userId] = { salesCount: 0, salesAmount: 0 }
       salesByUser[s.userId].salesCount++
-      salesByUser[s.userId].salesAmount += s.amount
+      salesByUser[s.userId].salesAmount += s.netAmount ?? s.amount
     }
 
-    const totalSalesAmount = periodSales.reduce((s, x) => s + x.amount, 0)
+    const totalSalesAmount = periodSales.reduce((s, x) => s + (x.netAmount ?? x.amount), 0)
     const totalSalesCount = periodSales.length
 
     // Clients/consultations from closer reports
@@ -290,8 +290,8 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const qualifiedLeads = ropLiderLeadsFull.filter(l => l.isQualified).length
     // "Передано клоузеру" = leads assigned to a closer (any status past NEW/UNQUALIFIED)
     const meetingsScheduled = ropLiderLeadsFull.filter(l => l.assignedToId != null).length
-    // "В работе у клоузера" = closer actively working (IN_WORK, REFUSED, SOLD)
-    const meetingsAttended = ropLiderLeadsFull.filter(l => ['IN_WORK', 'REFUSED', 'SOLD'].includes(l.status)).length
+    // "Консультация состоялась" = consultationStatus = happened
+    const meetingsAttended = ropLiderLeadsFull.filter(l => l.consultationStatus === 'happened').length
 
     // Dept plan first; fall back to company-wide (explicitly exclude personal plans with !p.userId)
     const salesPlan = plans.find(p => p.departmentId === deptId && !p.userId && p.type === 'SALES_AMOUNT')?.value ||
@@ -369,7 +369,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       liderLeadStatsMap[uid].leads++
       if (l.isQualified) liderLeadStatsMap[uid].qualified++
       if (l.assignedToId) liderLeadStatsMap[uid].transmitted++  // passed to a closer
-      if (['IN_WORK', 'REFUSED', 'SOLD'].includes(l.status)) liderLeadStatsMap[uid].inWork++
+      if (l.consultationStatus === 'happened') liderLeadStatsMap[uid].inWork++ // "Консультация состоялась"
     }
 
     const liderUsers = managers.filter(m => m.managerType === 'LIDER')
@@ -509,14 +509,14 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       // LIDER — stats come from Lead model (live, per-lead)
       const liderLeads = await prisma.lead.findMany({
         where: { createdById: userId, date: { gte: fromStr, lte: toStr } },
-        select: { isQualified: true, assignedToId: true, status: true },
+        select: { isQualified: true, assignedToId: true, status: true, consultationStatus: true },
       })
 
       const leads = liderLeads.length
       const qualifiedLeads = liderLeads.filter(l => l.isQualified).length
       const meetingsScheduled = liderLeads.filter(l => l.assignedToId != null).length  // "Передано клоузеру"
-      // "В работе" = closer actively working (IN_WORK, REFUSED, SOLD)
-      const meetingsAttended = liderLeads.filter(l => ['IN_WORK', 'REFUSED', 'SOLD'].includes(l.status)).length
+      // "Консультация состоялась" = consultationStatus === 'happened'
+      const meetingsAttended = liderLeads.filter(l => l.consultationStatus === 'happened').length
 
       const meetingsAttendedPlan = plans.find(p => p.type === 'MEETINGS_ATTENDED')?.value || 0
       const leadsplan = plans.find(p => p.type === 'LEADS')?.value || 0
@@ -621,7 +621,7 @@ router.get('/lider-ranking', authenticate, async (req: AuthRequest, res: Respons
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey } }),
       prisma.lead.findMany({
         where: { createdBy: { companyId: req.user!.companyId, managerType: 'LIDER' }, date: { gte: fromStr, lte: toStr } },
-        select: { createdById: true, isQualified: true, assignedToId: true, status: true },
+        select: { createdById: true, isQualified: true, assignedToId: true, status: true, consultationStatus: true },
       }),
     ])
 
@@ -631,7 +631,7 @@ router.get('/lider-ranking', authenticate, async (req: AuthRequest, res: Respons
       statsMap[l.createdById].leads++
       if (l.isQualified) statsMap[l.createdById].qualifiedLeads++
       if (l.assignedToId) statsMap[l.createdById].meetingsScheduled++  // transmitted to closer
-      if (['IN_WORK', 'REFUSED', 'SOLD'].includes(l.status)) statsMap[l.createdById].meetingsAttended++
+      if (l.consultationStatus === 'happened') statsMap[l.createdById].meetingsAttended++ // "Консультация состоялась"
     }
 
     const ranking = liders.map(u => {

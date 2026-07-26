@@ -14,6 +14,33 @@ const INCLUDE_FULL = {
   tasks: { orderBy: { dueDate: 'asc' as const } },
 }
 
+// Payment gateway fee map (used to calculate netAmount = бюджет сделки)
+const GATEWAY_FEE: Record<string, number> = {
+  'GetPay': 0.13,
+  'TipTopPay_KZ': 0.065,
+  'TipTopPay_Foreign': 0.079,
+  'Kaspi_Gold': 0.0395,
+  'Kaspi_Account': 0.041,
+  'Kaspi_Credit': 0.165,
+  'Kaspi_Red': 0.143,
+  'Kaspi_Terminal': 0.043,
+  'Cash': 0.03,
+  'Transfer_AE': 0.03,
+  'Card_Sberbank': 0.03,
+  'Kaspi_Bookkeeper': 0.03,
+}
+
+// Helper: today's date in Kazakhstan (UTC+5)
+function getKzToday(): string {
+  const nowKz = new Date(Date.now() + 5 * 60 * 60 * 1000)
+  return nowKz.toISOString().slice(0, 10)
+}
+
+function calcNetAmount(amount: number, paymentMethod: string): number {
+  const fee = GATEWAY_FEE[paymentMethod] ?? 0.03
+  return Math.round(amount * (1 - fee) * 100) / 100
+}
+
 // ── GET /api/leads — lider: their active (NEW) leads ─────────────────────────
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   const { from, to, period = 'month' } = req.query
@@ -75,14 +102,15 @@ router.get('/unqualified', authenticate, async (req: AuthRequest, res: Response)
 })
 
 // ── GET /api/leads/today-appointments — lider: consultations scheduled today ──
+// Shows ALL leads scheduled for today regardless of consultationStatus (client shows grayed if already set)
 router.get('/today-appointments', authenticate, async (req: AuthRequest, res: Response) => {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = getKzToday() // use KZ UTC+5 date, not UTC
   try {
     const leads = await prisma.lead.findMany({
       where: {
         createdById: req.user!.id,
         OR: [
-          { appointmentDate: today, consultationStatus: null },
+          { appointmentDate: today },
           { postponedDate: today },
         ],
       },
@@ -128,7 +156,7 @@ router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response
       select: { isQualified: true, subStatus: true, consultationStatus: true, status: true, appointmentDate: true, postponedDate: true, date: true },
     })
 
-    const today = new Date().toISOString().slice(0, 10)
+    const today = getKzToday() // KZ-correct date
     const totalLeads = allLeads.length
     const totalScheduledToday = allLeads.filter(l =>
       (l.appointmentDate === today && !l.consultationStatus) || l.postponedDate === today
@@ -139,9 +167,12 @@ router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response
     const totalScheduled = allLeads.filter(l => l.subStatus === 'scheduled').length
     const conversionToScheduled = totalLeads > 0 ? Math.round(totalScheduled / totalLeads * 100) : 0
 
-    // Reminder counts
+    // Reminder counts — also count not_happened (needs follow-up action)
     const reminders = {
-      needStatusUpdate: allLeads.filter(l => l.appointmentDate && l.appointmentDate < today && !l.consultationStatus).length,
+      needStatusUpdate: allLeads.filter(l =>
+        l.appointmentDate && l.appointmentDate < today &&
+        (!l.consultationStatus || l.consultationStatus === 'not_happened')
+      ).length,
       thinkingTooLong: (() => {
         const twoDaysAgo = new Date(); twoDaysAgo.setDate(twoDaysAgo.getDate() - 2)
         const cutoff = twoDaysAgo.toISOString().slice(0, 10)
@@ -282,7 +313,7 @@ router.get('/company-daily-stats', authenticate, requireRole('OWNER', 'ROP'), as
         createdBy: { companyId: req.user!.companyId },
         date: { gte: from as string, lte: to as string },
       },
-      select: { createdById: true, date: true, isQualified: true, assignedToId: true, status: true },
+      select: { createdById: true, date: true, isQualified: true, assignedToId: true, status: true, consultationStatus: true },
     })
 
     // Aggregate by userId → date → stats
@@ -295,7 +326,7 @@ router.get('/company-daily-stats', authenticate, requireRole('OWNER', 'ROP'), as
       stats[uid][d].leads++
       if (l.isQualified) stats[uid][d].qualifiedLeads++
       if (l.assignedToId) stats[uid][d].meetingsScheduled++
-      if (['IN_WORK', 'REFUSED', 'SOLD'].includes(l.status)) stats[uid][d].meetingsAttended++
+      if (l.consultationStatus === 'happened') stats[uid][d].meetingsAttended++ // fix: was checking status, now checks consultationStatus
     }
 
     res.json(stats)
@@ -312,6 +343,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
   const qualified = isQualified !== false && isQualified !== 'false'
   let status: any = qualified ? 'NEW' : 'UNQUALIFIED'
+  // Only set ASSIGNED if explicitly passing assignedToId (ktsMode = 'inwork')
   if (qualified && assignedToId) status = 'ASSIGNED'
 
   try {
@@ -432,6 +464,29 @@ router.put('/:id/assign', authenticate, async (req: AuthRequest, res: Response) 
   }
 })
 
+// ── PUT /api/leads/:id/transfer — closer transfers lead to another closer ─────
+router.put('/:id/transfer', authenticate, async (req: AuthRequest, res: Response) => {
+  const { newCloserId } = req.body
+  if (!newCloserId) return res.status(400).json({ error: 'newCloserId required' })
+  try {
+    const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
+    if (!lead) return res.status(404).json({ error: 'Not found' })
+    // Current assignee OR admin can transfer
+    const role = req.user!.role
+    if (lead.assignedToId !== req.user!.id && role !== 'OWNER' && role !== 'ROP') {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    const updated = await prisma.lead.update({
+      where: { id: req.params.id },
+      data: { assignedToId: newCloserId, status: 'ASSIGNED' },
+      include: INCLUDE_FULL,
+    })
+    res.json(updated)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── PUT /api/leads/:id/accept — closer accepts (ASSIGNED → IN_WORK) ───────────
 router.put('/:id/accept', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -485,12 +540,16 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
     if (!lead) return res.status(404).json({ error: 'Not found' })
     if (lead.assignedToId !== req.user!.id) return res.status(403).json({ error: 'Forbidden' })
 
+    const numAmount = Number(amount)
+    const netAmount = calcNetAmount(numAmount, paymentMethod)
+
     const [updated] = await Promise.all([
       prisma.lead.update({
         where: { id: req.params.id },
         data: {
           status: 'SOLD',
-          amount: Number(amount),
+          amount: numAmount,
+          netAmount,
           paymentType, paymentMethod,
           bank: bank?.trim() || null,
           months: months ? Number(months) : null,
@@ -507,7 +566,8 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
           userId: req.user!.id,
           companyId: req.user!.companyId,
           date: lead.date,
-          amount: Number(amount),
+          amount: numAmount,
+          netAmount,
           paymentType, paymentMethod,
           bank: bank?.trim() || null,
           months: months ? Number(months) : null,
@@ -518,7 +578,8 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
         },
         update: {
           date: lead.date,
-          amount: Number(amount),
+          amount: numAmount,
+          netAmount,
           paymentType, paymentMethod,
           bank: bank?.trim() || null,
           months: months ? Number(months) : null,

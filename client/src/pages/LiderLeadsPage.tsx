@@ -72,6 +72,16 @@ const fmtCreatedAt = (iso: string) => {
 
 const pct = (a: number, b: number) => b > 0 ? Math.round((a / b) * 100) : 0
 
+// Local date string (device timezone — correct for KZ users)
+const localDateStr = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+const tomorrowDateStr = () => {
+  const d = new Date(); d.setDate(d.getDate() + 1)
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
 function KtsBadge({ lead }: { lead: Lead }) {
   if (!lead.isQualified || lead.status === 'UNQUALIFIED')
     return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Не квал</span>
@@ -98,6 +108,7 @@ function ConsultationBadge({ value }: { value?: string | null }) {
     happened:     { label: 'Состоялась',    cls: 'bg-green-100 text-green-700' },
     not_happened: { label: 'Не состоялась', cls: 'bg-red-100 text-red-700' },
     postponed:    { label: 'Перенос',       cls: 'bg-orange-100 text-orange-700' },
+    planned:      { label: 'Запланировано', cls: 'bg-cyan-100 text-cyan-700' },
   }
   const s = map[value]
   if (!s) return <span className="text-gray-400 text-xs">{value}</span>
@@ -187,7 +198,7 @@ function AddLeadModal({
   const qc = useQueryClient()
   const [clientName, setClientName] = useState('')
   const [phone, setPhone] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(localDateStr()) // fix: use local timezone date
   const [leadLink, setLeadLink] = useState('')
   const [salesChannelId, setSalesChannelId] = useState('')
   const [ktsMode, setKtsMode] = useState<'qual' | 'unqual' | 'inwork'>('qual')
@@ -196,6 +207,25 @@ function AddLeadModal({
   const [appointmentTime, setAppointmentTime] = useState('')
   const [assignedToId, setAssignedToId] = useState('')
   const [comment, setComment] = useState('')
+
+  // Fix: when switching to unqual, clear subStatus and appointment fields
+  const handleKtsModeChange = (mode: 'qual' | 'unqual' | 'inwork') => {
+    setKtsMode(mode)
+    if (mode === 'unqual') {
+      setSubStatus('')
+      setAppointmentDate('')
+      setAppointmentTime('')
+    }
+  }
+
+  // Fix: when switching subStatus to 'refused', clear appointment fields
+  const handleSubStatusChange = (val: string) => {
+    setSubStatus(val)
+    if (val === 'refused' || val === 'thinking') {
+      setAppointmentDate('')
+      setAppointmentTime('')
+    }
+  }
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/leads', data).then(r => r.data),
@@ -206,8 +236,8 @@ function AddLeadModal({
     e.preventDefault()
     if (!clientName.trim() || !phone.trim()) return
     const isQualified = ktsMode !== 'unqual'
-    const chosenAssignee = (ktsMode === 'inwork' || (ktsMode !== 'unqual' && subStatus === 'scheduled'))
-      ? assignedToId || undefined : undefined
+    // Fix: only set assignedToId when ktsMode === 'inwork' (not for qual+scheduled)
+    const chosenAssignee = ktsMode === 'inwork' ? assignedToId || undefined : undefined
     mutation.mutate({
       clientName: clientName.trim(), phone: phone.trim(), date,
       leadLink: leadLink || undefined,
@@ -274,7 +304,7 @@ function AddLeadModal({
                   inwork: { label: 'В работе КЦ',  on: 'bg-blue-600 text-white shadow-sm' },
                 }[mode]
                 return (
-                  <button key={mode} type="button" onClick={() => setKtsMode(mode)}
+                  <button key={mode} type="button" onClick={() => handleKtsModeChange(mode)}
                     className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${ktsMode === mode ? cfg.on : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                     {cfg.label}
                   </button>
@@ -292,7 +322,7 @@ function AddLeadModal({
                   ['refused',   'Отказ',    'bg-red-500 text-white'],
                   ['thinking',  'Думает',   'bg-orange-500 text-white'],
                 ].map(([val, label, cls]) => (
-                  <button key={val} type="button" onClick={() => setSubStatus(subStatus === val ? '' : val)}
+                  <button key={val} type="button" onClick={() => handleSubStatusChange(subStatus === val ? '' : val)}
                     className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${subStatus === val ? cls : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                     {label}
                   </button>
@@ -313,7 +343,8 @@ function AddLeadModal({
             </div>
           )}
 
-          {(ktsMode === 'inwork' || (ktsMode !== 'unqual' && subStatus === 'scheduled')) && (
+          {/* Fix: only show closer dropdown when ktsMode === 'inwork' */}
+          {ktsMode === 'inwork' && (
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">Клоузер</label>
               <select value={assignedToId} onChange={e => setAssignedToId(e.target.value)}
@@ -387,8 +418,8 @@ function EditLeadModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const isQualified = ktsMode !== 'unqual'
-    const chosenAssignee = (ktsMode === 'inwork' || (ktsMode !== 'unqual' && subStatus === 'scheduled'))
-      ? assignedToId || null : null
+    // Fix: only set assignedToId when ktsMode === 'inwork'
+    const chosenAssignee = ktsMode === 'inwork' ? assignedToId || null : null
     mutation.mutate({
       clientName: clientName.trim(), phone: phone.trim(), date,
       leadLink: leadLink || null, salesChannelId: salesChannelId || null,
@@ -492,7 +523,8 @@ function EditLeadModal({
             </div>
           )}
 
-          {(ktsMode === 'inwork' || (ktsMode !== 'unqual' && subStatus === 'scheduled')) && (
+          {/* Fix: only show closer dropdown when ktsMode === 'inwork' */}
+          {ktsMode === 'inwork' && (
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">Клоузер</label>
               <select value={assignedToId} onChange={e => setAssignedToId(e.target.value)}
@@ -506,13 +538,20 @@ function EditLeadModal({
           {hasAppointment && (
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-2">Статус встречи</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {[
+                  ['planned',      'Запланировано', 'bg-cyan-600 text-white'],
                   ['happened',     'Состоялась',    'bg-green-600 text-white'],
                   ['not_happened', 'Не состоялась', 'bg-red-500 text-white'],
                   ['postponed',    'Перенос',       'bg-orange-500 text-white'],
                 ].map(([val, label, cls]) => (
-                  <button key={val} type="button" onClick={() => setConsultationStatus(consultationStatus === val ? '' : val)}
+                  <button key={val} type="button"
+                    onClick={() => {
+                      const newVal = consultationStatus === val ? '' : val
+                      setConsultationStatus(newVal)
+                      // Auto-fill postponedDate with tomorrow when selecting postponed
+                      if (newVal === 'postponed' && !postponedDate) setPostponedDate(tomorrowDateStr())
+                    }}
                     className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${consultationStatus === val ? cls : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                     {label}
                   </button>
@@ -591,11 +630,16 @@ function QuickStatusModal({ lead, onClose }: { lead: Lead; onClose: () => void }
         </div>
         <div className="space-y-2 mb-4">
           {[
+            ['planned',      '📅 Запланировано', 'border-cyan-500 bg-cyan-50 text-cyan-800'],
             ['happened',     '✅ Состоялась',    'border-green-500 bg-green-50 text-green-800'],
             ['not_happened', '❌ Не состоялась', 'border-red-500 bg-red-50 text-red-800'],
             ['postponed',    '🔄 Перенос',       'border-orange-500 bg-orange-50 text-orange-800'],
           ].map(([val, label, cls]) => (
-            <button key={val} onClick={() => setStatus(val)}
+            <button key={val} onClick={() => {
+              setStatus(val)
+              // Auto-fill postponedDate with tomorrow when selecting 'postponed'
+              if (val === 'postponed' && !pDate) setPDate(tomorrowDateStr())
+            }}
               className={`w-full py-3 rounded-xl text-sm font-semibold border-2 transition-all ${status === val ? cls : 'border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'}`}>
               {label}
             </button>
@@ -666,8 +710,8 @@ export default function LiderLeadsPage() {
   const [showInlineAdd, setShowInlineAdd] = useState(false)
   const [inlineName, setInlineName] = useState('')
   const [inlinePhone, setInlinePhone] = useState('')
-  const [inlineIsQualified, setInlineIsQualified] = useState(true)
-  const [inlineDate, setInlineDate] = useState(new Date().toISOString().slice(0, 10))
+  const [inlineKtsMode, setInlineKtsMode] = useState<'qual' | 'unqual' | 'inwork'>('qual')
+  const [inlineDate, setInlineDate] = useState(localDateStr())
   const [inlineChannelId, setInlineChannelId] = useState('')
   const [inlineLeadLink, setInlineLeadLink] = useState('')
   const [inlineCloserId, setInlineCloserId] = useState('')
@@ -766,7 +810,8 @@ export default function LiderLeadsPage() {
 
   const resetInlineForm = () => {
     setInlineName(''); setInlinePhone(''); setInlineChannelId('')
-    setInlineDate(new Date().toISOString().slice(0, 10)); setInlineLeadLink('')
+    setInlineDate(localDateStr()); setInlineLeadLink('')
+    setInlineKtsMode('qual')
     setInlineCloserId(''); setInlineSubStatus(''); setInlineAppointmentDate(''); setInlineAppointmentTime(''); setInlineConsultationStatus('')
     setShowInlineAdd(false)
   }
@@ -779,12 +824,12 @@ export default function LiderLeadsPage() {
       date: inlineDate,
       salesChannelId: inlineChannelId || undefined,
       leadLink: inlineLeadLink || undefined,
-      assignedToId: inlineCloserId || undefined,
-      subStatus: inlineSubStatus || undefined,
-      appointmentDate: inlineAppointmentDate || undefined,
-      appointmentTime: inlineAppointmentTime || undefined,
+      assignedToId: inlineKtsMode === 'inwork' ? inlineCloserId || undefined : undefined,
+      subStatus: inlineKtsMode === 'unqual' ? undefined : inlineSubStatus || undefined,
+      appointmentDate: inlineKtsMode === 'unqual' ? undefined : inlineAppointmentDate || undefined,
+      appointmentTime: inlineKtsMode === 'unqual' ? undefined : inlineAppointmentTime || undefined,
       consultationStatus: inlineConsultationStatus || undefined,
-      isQualified: inlineIsQualified,
+      isQualified: inlineKtsMode !== 'unqual',
     })
   }
 
@@ -842,7 +887,7 @@ export default function LiderLeadsPage() {
 
   const filtersActive = !!(search || channelId || ktsStatus || subStatusFilter || consultationFilter || dateFilter)
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDateStr()
   // todayLeads shown as collapsible strip above table (showAllToday toggles expand)
   const totalReminderCount = (reminders?.needStatusUpdate || 0) + (reminders?.thinkingTooLong || 0) + (reminders?.postponedNoDate || 0)
 
@@ -928,6 +973,7 @@ export default function LiderLeadsPage() {
             <select value={pendingConsultation} onChange={e => setPendingConsultation(e.target.value)}
               className={`py-2 px-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${pendingConsultation ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-600'}`}>
               <option value="">Статус встречи</option>
+              <option value="planned">Запланировано</option>
               <option value="happened">Состоялась</option>
               <option value="not_happened">Не состоялась</option>
               <option value="postponed">Перенос</option>
@@ -1115,19 +1161,23 @@ export default function LiderLeadsPage() {
                               {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
                           </td>
-                          {/* Qual toggle on inline add */}
+                          {/* KTS mode 3-way toggle on inline add */}
                           <td className="px-2 py-3">
-                            <button
-                              type="button"
-                              onClick={() => setInlineIsQualified(q => !q)}
-                              className={`text-xs font-semibold px-2 py-1 rounded-full transition-colors ${
-                                inlineIsQualified
-                                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                  : 'bg-red-100 text-red-700 hover:bg-red-200'
-                              }`}
-                            >
-                              {inlineIsQualified ? 'Квал' : 'Не квал'}
-                            </button>
+                            <div className="flex flex-col gap-1">
+                              {(['qual', 'unqual', 'inwork'] as const).map(mode => (
+                                <button key={mode} type="button"
+                                  onClick={() => setInlineKtsMode(mode)}
+                                  className={`text-xs font-semibold px-2 py-0.5 rounded-full transition-colors ${
+                                    inlineKtsMode === mode
+                                      ? mode === 'qual' ? 'bg-green-600 text-white'
+                                        : mode === 'unqual' ? 'bg-red-600 text-white'
+                                        : 'bg-blue-600 text-white'
+                                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                  }`}>
+                                  {mode === 'qual' ? 'Квал' : mode === 'unqual' ? 'Не квал' : 'В работе КЦ'}
+                                </button>
+                              ))}
+                            </div>
                           </td>
                           {/* Sub-status (Записан/Отказ/Думает) */}
                           <td className="px-2 py-3">
@@ -1162,6 +1212,7 @@ export default function LiderLeadsPage() {
                               <select value={inlineConsultationStatus} onChange={e => setInlineConsultationStatus(e.target.value)}
                                 className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white w-32">
                                 <option value="">— статус —</option>
+                                <option value="planned">Запланировано</option>
                                 <option value="happened">Состоялась</option>
                                 <option value="not_happened">Не состоялась</option>
                                 <option value="postponed">Перенос</option>

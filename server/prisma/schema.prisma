@@ -190,7 +190,8 @@ model Sale {
   date          String   // YYYY-MM-DD local date
   amount        Float
   paymentType   String   // 'new_sale' | 'additional'
-  paymentMethod String   // 'cash' | 'card' | 'credit' | 'installment'
+  paymentMethod String   // gateway name e.g. 'GetPay', 'Kaspi_Gold', 'Cash', etc.
+  netAmount     Float?   // amount after gateway fee deduction (бюджет сделки)
   bank          String?
   months        Int?
   crmLink       String?
@@ -317,8 +318,9 @@ model Lead {
 
   // Closer fields (filled when processing)
   amount         Float?
+  netAmount      Float?        // amount after gateway fee (бюджет сделки)
   paymentType    String?       // 'new_sale' | 'additional'
-  paymentMethod  String?       // 'cash' | 'card' | 'credit' | 'installment'
+  paymentMethod  String?       // gateway name e.g. 'GetPay', 'Kaspi_Gold', 'Cash', etc.
   bank           String?
   months         Int?
   crmLink        String?
