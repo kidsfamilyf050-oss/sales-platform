@@ -85,8 +85,10 @@ const tomorrowDateStr = () => {
 function KtsBadge({ lead }: { lead: Lead }) {
   if (!lead.isQualified || lead.status === 'UNQUALIFIED')
     return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Не квал</span>
+  // "В работе КЦ" — manual subStatus set by lider
+  if (lead.subStatus === 'in_work_kc')
+    return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">В работе КЦ</span>
   // "В работе КЦ" only when closer has actually accepted (IN_WORK)
-  // ASSIGNED = closer received but hasn't accepted yet → still show "Квал"
   if (lead.status === 'IN_WORK')
     return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">В работе КЦ</span>
   // ASSIGNED with closer → show "Квал" + small indicator that it's awaiting closer
@@ -219,12 +221,15 @@ function AddLeadModal({
   const [comment, setComment] = useState('')
 
   // Fix: when switching to unqual, clear subStatus and appointment fields
+  // When switching to inwork, auto-select in_work_kc subStatus
   const handleKtsModeChange = (mode: 'qual' | 'unqual' | 'inwork') => {
     setKtsMode(mode)
     if (mode === 'unqual') {
       setSubStatus('')
       setAppointmentDate('')
       setAppointmentTime('')
+    } else if (mode === 'inwork') {
+      setSubStatus('in_work_kc')
     }
   }
 
@@ -407,9 +412,8 @@ function EditLeadModal({
   const [date, setDate] = useState(lead.date)
   const [leadLink, setLeadLink] = useState(lead.leadLink || '')
   const [salesChannelId, setSalesChannelId] = useState(lead.salesChannelId || '')
-  // Never auto-switch to 'inwork' — user controls this explicitly
   const [ktsMode, setKtsMode] = useState<'qual' | 'unqual' | 'inwork'>(
-    !lead.isQualified ? 'unqual' : 'qual'
+    !lead.isQualified ? 'unqual' : lead.subStatus === 'in_work_kc' ? 'inwork' : 'qual'
   )
   const [subStatus, setSubStatus] = useState(lead.subStatus || '')
   const [appointmentDate, setAppointmentDate] = useState(lead.appointmentDate || '')
@@ -419,6 +423,17 @@ function EditLeadModal({
   const [postponedDate, setPostponedDate] = useState(lead.postponedDate || '')
   const [postponedTime, setPostponedTime] = useState(lead.postponedTime || '')
   const [comment, setComment] = useState(lead.comment || '')
+
+  const handleEditKtsModeChange = (mode: 'qual' | 'unqual' | 'inwork') => {
+    setKtsMode(mode)
+    if (mode === 'unqual') {
+      setSubStatus('')
+      setAppointmentDate('')
+      setAppointmentTime('')
+    } else if (mode === 'inwork') {
+      setSubStatus('in_work_kc')
+    }
+  }
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.put(`/leads/${lead.id}`, data).then(r => r.data),
@@ -499,7 +514,7 @@ function EditLeadModal({
                   inwork: { label: 'В работе КЦ', on: 'bg-blue-600 text-white' },
                 }[mode]
                 return (
-                  <button key={mode} type="button" onClick={() => setKtsMode(mode)}
+                  <button key={mode} type="button" onClick={() => handleEditKtsModeChange(mode)}
                     className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${ktsMode === mode ? cfg.on : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                     {cfg.label}
                   </button>
