@@ -530,7 +530,7 @@ export default function ROPDashboard() {
         <GatewayAnalytics data={gatewayAnalytics} />
       </div>
 
-      <AIInsights data={summary} managerRating={managerRating} funnel={funnel} period={period} />
+      <AIInsights data={summary} managerRating={managerRating} liderRating={liderRating} funnel={funnel} productStats={productStats} period={period} />
     </div>
   )
 }

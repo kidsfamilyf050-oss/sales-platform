@@ -11,6 +11,7 @@ import { useT } from '../i18n'
 import { useAuthStore } from '../store/auth'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 import GatewayAnalytics from '../components/ui/GatewayAnalytics'
+import AIInsights from '../components/ui/AIInsights'
 
 function fmt(n: number) { return n.toLocaleString('ru') }
 
@@ -729,6 +730,9 @@ export default function ManagerDashboard() {
           <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-400 shrink-0" />
         </button>
       )}
+
+      {/* AI Insights */}
+      <AIInsights data={summary} period={params} />
 
       {/* Recent reports (history) — only for liders */}
       {!isCloser && recentReports?.length > 0 && (

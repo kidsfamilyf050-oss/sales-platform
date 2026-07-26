@@ -497,7 +497,20 @@ export default function OwnerDashboard() {
         <GatewayAnalytics data={gatewayAnalytics} />
       </div>
 
-      <AIInsights data={summary} managerRating={managerRating} period={periodState.period} />
+      <AIInsights
+        data={summary}
+        managerRating={managerRating}
+        liderRating={liderRating}
+        funnel={{
+          leadsReceived: summary.totalLiderLeads,
+          qualifiedLeads: summary.totalQualifiedLeads,
+          meetingsScheduled: summary.totalMeetingsScheduled,
+          meetingsAttended: summary.totalMeetingsAttended,
+          salesCount: summary.totalSalesCount,
+        }}
+        productStats={productStats}
+        period={periodState.period}
+      />
     </div>
   )
 }
