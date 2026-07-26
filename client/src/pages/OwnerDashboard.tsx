@@ -172,6 +172,12 @@ export default function OwnerDashboard() {
 
   const { summary, dailyChart, managerRating, liderRating, productStats = [], gatewayAnalytics = [] } = data as any
 
+  const STATUS = {
+    green:  { dot: 'bg-green-400',  bg: '',             label: 'В норме' },
+    yellow: { dot: 'bg-yellow-400', bg: 'bg-yellow-50', label: 'Отстаёт' },
+    red:    { dot: 'bg-red-500',    bg: 'bg-red-50',    label: 'Нет продаж' },
+  }
+
   // Funnel conversions — using LIDER data as source of truth
   const leadsToQual     = pct(summary.totalQualifiedLeads, summary.totalLiderLeads)
   const qualToScheduled = pct(summary.totalMeetingsScheduled, summary.totalQualifiedLeads)
@@ -333,11 +339,23 @@ export default function OwnerDashboard() {
       {/* ── Block 4: Closer rating with expandable rows ── */}
       {managerRating?.length > 0 && (
         <div className="card">
-          <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-green-600" />
-            {t('dash.closerRating.title')}
-          </h3>
-          <p className="text-xs text-gray-400 mb-4">{t('dash.closerRating.subtitle')}</p>
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-0.5 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-green-600" />
+                {t('dash.closerRating.title')}
+              </h3>
+              <p className="text-xs text-gray-400">{t('dash.closerRating.subtitle')}</p>
+            </div>
+            <div className="flex items-center gap-4 shrink-0">
+              {Object.entries(STATUS).map(([key, cfg]) => (
+                <div key={key} className="flex items-center gap-1.5 text-xs text-gray-500 whitespace-nowrap">
+                  <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${cfg.dot}`} />
+                  {cfg.label}
+                </div>
+              ))}
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -363,11 +381,11 @@ export default function OwnerDashboard() {
                     <>
                       <tr
                         key={m.id}
-                        className={`border-b border-gray-50 cursor-pointer hover:bg-blue-50 transition-colors ${isExpanded ? 'bg-blue-50' : ''}`}
+                        className={`border-b border-gray-50 cursor-pointer hover:opacity-90 transition-colors ${isExpanded ? 'bg-blue-50' : STATUS[m.status as keyof typeof STATUS]?.bg || ''}`}
                         onClick={() => setExpandedManager(isExpanded ? null : m.id)}
                       >
-                        <td className="py-2.5 text-gray-400">
-                          <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? '' : '-rotate-90'}`} />
+                        <td className="py-2.5 pl-3">
+                          <div className={`w-2.5 h-2.5 rounded-full ${STATUS[m.status as keyof typeof STATUS]?.dot || 'bg-gray-300'}`} />
                         </td>
                         <td className="py-2.5 text-gray-400 font-medium">{i + 1}</td>
                         <td className="py-2.5 font-medium text-gray-900">{m.name}</td>
@@ -398,38 +416,54 @@ export default function OwnerDashboard() {
       {/* ── Block 5: Lider rating ── */}
       {liderRating && (
         <div className="card">
-          <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-            <Users className="w-4 h-4 text-purple-600" />
-            {t('dash.liderRating.title')}
-          </h3>
-          <p className="text-xs text-gray-400 mb-4">{t('dash.liderRating.subtitle')}</p>
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-0.5 flex items-center gap-2">
+                <Users className="w-4 h-4 text-purple-600" />
+                {t('dash.liderRating.title')}
+              </h3>
+              <p className="text-xs text-gray-400">{t('dash.liderRating.subtitle')}</p>
+            </div>
+            <div className="flex items-center gap-4 shrink-0">
+              {Object.entries(STATUS).map(([key, cfg]) => (
+                <div key={key} className="flex items-center gap-1.5 text-xs text-gray-500 whitespace-nowrap">
+                  <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${cfg.dot}`} />
+                  {cfg.label}
+                </div>
+              ))}
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b border-gray-100">
+                  <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium w-6">#</th>
                   <th className="pb-2 font-medium">{t('dash.table.lider')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.attended')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.completion')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.scheduledCol')}</th>
+                  <th className="pb-2 font-medium text-right">План (лидов)</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.leadsCol')}</th>
+                  <th className="pb-2 font-medium text-right">% выполн.</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.table.scheduledCol')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.qualified')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.pctQual')}</th>
                 </tr>
               </thead>
               <tbody>
                 {liderRating.map((m: any, i: number) => (
-                  <tr key={m.id} className="border-b border-gray-50 hover:bg-gray-50">
+                  <tr key={m.id} className={`border-b border-gray-50 hover:opacity-90 transition-colors ${STATUS[m.status as keyof typeof STATUS]?.bg || ''}`}>
+                    <td className="py-2.5 pl-3">
+                      <div className={`w-2.5 h-2.5 rounded-full ${STATUS[m.status as keyof typeof STATUS]?.dot || 'bg-gray-300'}`} />
+                    </td>
                     <td className="py-2.5 text-gray-400 font-medium">{i + 1}</td>
                     <td className="py-2.5 font-medium text-gray-900">{m.name}</td>
-                    <td className="py-2.5 text-right font-bold text-blue-600">{fmt(m.meetingsAttended)}</td>
+                    <td className="py-2.5 text-right text-gray-500">{m.leadsplan > 0 ? fmt(m.leadsplan) : '—'}</td>
+                    <td className="py-2.5 text-right font-medium text-gray-700">{fmt(m.leads)}</td>
                     <td className="py-2.5 text-right">
-                      <span className={`font-semibold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                      <span className={`font-semibold ${m.completion >= 75 ? 'text-green-600' : m.completion > 0 ? 'text-amber-500' : 'text-red-500'}`}>
                         {m.meetingsPlan > 0 ? `${m.completion}%` : '—'}
                       </span>
                     </td>
                     <td className="py-2.5 text-right text-gray-500">{fmt(m.meetingsScheduled)}</td>
-                    <td className="py-2.5 text-right text-gray-600">{fmt(m.leads)}</td>
                     <td className="py-2.5 text-right font-medium">{fmt(m.qualifiedLeads)}</td>
                     <td className="py-2.5 text-right text-gray-500">{m.qualRate}%</td>
                   </tr>

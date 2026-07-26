@@ -422,8 +422,9 @@ export default function ROPDashboard() {
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium">{t('dash.table.lider')}</th>
-                  <th className="pb-2 font-medium text-center">% план</th>
+                  <th className="pb-2 font-medium text-center">План (лидов)</th>
                   <th className="pb-2 font-medium text-center">Лидов</th>
+                  <th className="pb-2 font-medium text-center">% выполн.</th>
                   <th className="pb-2 font-medium text-center">% квал.</th>
                   <th className="pb-2 font-medium text-center">Квалиф.</th>
                   <th className="pb-2 font-medium text-center">% передано</th>
@@ -446,15 +447,17 @@ export default function ROPDashboard() {
                           {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                         </td>
                         <td className="py-3 font-medium text-gray-900">{m.name}</td>
-                        {/* 1. % выполнения плана */}
+                        {/* 1. План (кол-во лидов) */}
+                        <td className="py-2.5 text-center text-gray-500">{m.leadsplan > 0 ? m.leadsplan.toLocaleString('ru-RU') : '—'}</td>
+                        {/* 2. Лидов */}
+                        <td className="py-2.5 text-center text-gray-700 font-medium">{m.leads.toLocaleString('ru-RU')}</td>
+                        {/* 3. % выполнения плана */}
                         <td className="py-2.5 text-center">
-                          <span className={`font-semibold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                          <span className={`font-semibold ${m.completion >= 75 ? 'text-green-600' : m.completion > 0 ? 'text-amber-500' : 'text-red-500'}`}>
                             {m.meetingsPlan > 0 ? `${m.completion}%` : '—'}
                           </span>
                         </td>
-                        {/* 2. Лидов */}
-                        <td className="py-2.5 text-center text-gray-700">{m.leads.toLocaleString('ru-RU')}</td>
-                        {/* 3. % квал. */}
+                        {/* 4. % квал. */}
                         <td className="py-2.5 text-center text-gray-500 text-xs">{m.qualRate}%</td>
                         {/* 4. Квалиф. кол-во */}
                         <td className="py-2.5 text-center text-gray-500">{m.qualifiedLeads.toLocaleString('ru-RU')}</td>

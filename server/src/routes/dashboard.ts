@@ -171,6 +171,9 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         const inWork = Math.max(0, consultations - stats.salesCount - refusals)
         const plan = plans.find(p => p.userId === u.id && p.type === 'SALES_AMOUNT')?.value || 0
         const completion = plan > 0 ? Math.round((stats.salesAmount / plan) * 1000) / 10 : 0
+        let status: 'red' | 'yellow' | 'green' = 'green'
+        if (completion === 0) status = 'red'
+        else if (completion < 75) status = 'yellow'
         const userSales = periodSales.filter(s => s.userId === u.id)
           .map(s => ({ id: s.id, amount: s.amount, netAmount: s.netAmount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date, productName: s.product?.name || null }))
         return {
@@ -179,7 +182,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
           consultations, refusals, inWork,
           conversion: consultations > 0 ? Math.round((stats.salesCount / consultations) * 1000) / 10 : 0,
           avgCheck: stats.salesCount > 0 ? Math.round(stats.salesAmount / stats.salesCount) : 0,
-          sales: userSales,
+          sales: userSales, status,
         }
       })
       .sort((a, b) => b.completion - a.completion || b.salesAmount - a.salesAmount)
@@ -204,15 +207,20 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       .map(u => {
         const s = ownerLiderStatsMap[u.id] || { leads: 0, qualifiedLeads: 0, meetingsScheduled: 0, meetingsAttended: 0 }
         const meetingsPlan = plans.find(p => p.userId === u.id && p.type === 'MEETINGS_ATTENDED')?.value || 0
+        const leadsplan = plans.find(p => p.userId === u.id && p.type === 'LEADS')?.value || 0
         const completion = meetingsPlan > 0 ? Math.round((s.meetingsAttended / meetingsPlan) * 1000) / 10 : 0
+        let status: 'red' | 'yellow' | 'green' = 'green'
+        if (s.leads === 0) status = 'red'
+        else if (completion < 75) status = 'yellow'
         return {
-          id: u.id, name: u.name, type: 'LIDER', meetingsPlan,
+          id: u.id, name: u.name, type: 'LIDER', meetingsPlan, leadsplan,
           leads: s.leads, qualifiedLeads: s.qualifiedLeads,
           meetingsScheduled: s.meetingsScheduled, meetingsAttended: s.meetingsAttended,
           completion,
           qualRate: s.leads > 0 ? Math.round((s.qualifiedLeads / s.leads) * 1000) / 10 : 0,
           pctScheduled: s.leads > 0 ? Math.round((s.meetingsScheduled / s.leads) * 1000) / 10 : 0,
           pctAttended: s.meetingsScheduled > 0 ? Math.round((s.meetingsAttended / s.meetingsScheduled) * 1000) / 10 : 0,
+          status,
         }
       })
       .sort((a, b) => b.completion - a.completion || b.meetingsAttended - a.meetingsAttended)
@@ -372,8 +380,8 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       const completion = managerPlan > 0 ? Math.round((stats.salesAmount / managerPlan) * 1000) / 10 : 0
       const reportedToday = todayReportedIds.has(m.id)
       let status: 'red' | 'yellow' | 'green' = 'green'
-      if (!reportedToday) status = 'red'
-      else if (completion < 50) status = 'yellow'
+      if (completion === 0) status = 'red'
+      else if (completion < 75) status = 'yellow'
       return {
         id: m.id, name: m.name, managerType: m.managerType,
         plan: managerPlan, salesAmount: stats.salesAmount, salesCount: stats.salesCount,
@@ -408,10 +416,10 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       const leadsplan = plans.find(p => p.userId === m.id && p.type === 'LEADS')?.value || 0
       // Completion = transmitted vs plan (передано клоузеру)
       const completion = meetingsPlan > 0 ? Math.round((s.transmitted / meetingsPlan) * 1000) / 10 : 0
-      const reportedToday = todayReportedIds.has(m.id)  // kept for status dot (green if active today)
+      const reportedToday = todayReportedIds.has(m.id)  // kept for expanded view
       let status: 'red' | 'yellow' | 'green' = 'green'
-      if (s.leads === 0 && !reportedToday) status = 'red'
-      else if (completion < 50) status = 'yellow'
+      if (s.leads === 0) status = 'red'
+      else if (completion < 75) status = 'yellow'
       return {
         id: m.id, name: m.name,
         meetingsPlan, leadsplan,
