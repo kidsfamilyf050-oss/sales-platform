@@ -346,19 +346,10 @@ function AddLeadModal({
           {/* Closer dropdown — visible for qual and inwork; selecting a closer auto-switches to inwork */}
           {ktsMode !== 'unqual' && (
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                Клоузер
-                {ktsMode === 'qual' && assignedToId && (
-                  <span className="ml-2 text-xs font-normal text-blue-500">(переключит в «В работе КЦ»)</span>
-                )}
-              </label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Клоузер</label>
               <select
                 value={assignedToId}
-                onChange={e => {
-                  setAssignedToId(e.target.value)
-                  if (e.target.value) setKtsMode('inwork')
-                  else if (ktsMode === 'inwork') setKtsMode('qual')
-                }}
+                onChange={e => setAssignedToId(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">— не назначен —</option>
                 {closers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -405,8 +396,9 @@ function EditLeadModal({
   const [date, setDate] = useState(lead.date)
   const [leadLink, setLeadLink] = useState(lead.leadLink || '')
   const [salesChannelId, setSalesChannelId] = useState(lead.salesChannelId || '')
+  // Never auto-switch to 'inwork' — user controls this explicitly
   const [ktsMode, setKtsMode] = useState<'qual' | 'unqual' | 'inwork'>(
-    !lead.isQualified ? 'unqual' : lead.assignedToId ? 'inwork' : 'qual'
+    !lead.isQualified ? 'unqual' : 'qual'
   )
   const [subStatus, setSubStatus] = useState(lead.subStatus || '')
   const [appointmentDate, setAppointmentDate] = useState(lead.appointmentDate || '')
@@ -430,8 +422,8 @@ function EditLeadModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const isQualified = ktsMode !== 'unqual'
-    // Fix: only set assignedToId when ktsMode === 'inwork'
-    const chosenAssignee = ktsMode === 'inwork' ? assignedToId || null : null
+    // Send assignedToId for all qualified modes (not just inwork)
+    const chosenAssignee = ktsMode === 'unqual' ? null : assignedToId || null
     mutation.mutate({
       clientName: clientName.trim(), phone: phone.trim(), date,
       leadLink: leadLink || null, salesChannelId: salesChannelId || null,
@@ -538,19 +530,10 @@ function EditLeadModal({
           {/* Closer dropdown — visible for qual and inwork; selecting a closer auto-switches to inwork */}
           {ktsMode !== 'unqual' && (
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                Клоузер
-                {ktsMode === 'qual' && assignedToId && (
-                  <span className="ml-2 text-xs font-normal text-blue-500">(переключит в «В работе КЦ»)</span>
-                )}
-              </label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Клоузер</label>
               <select
                 value={assignedToId}
-                onChange={e => {
-                  setAssignedToId(e.target.value)
-                  if (e.target.value) setKtsMode('inwork')
-                  else if (ktsMode === 'inwork') setKtsMode('qual')
-                }}
+                onChange={e => setAssignedToId(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">— не назначен —</option>
                 {closers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
