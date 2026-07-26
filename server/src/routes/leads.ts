@@ -420,9 +420,19 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       if (!newQualified) {
         status = 'UNQUALIFIED'
       } else if (status === 'UNQUALIFIED') {
+        // was unqualified, now qualified
         status = newAssigned ? 'ASSIGNED' : 'NEW'
       } else if (status === 'NEW' && newAssigned) {
+        // qualified lead gets a closer for the first time
         status = 'ASSIGNED'
+      } else if (
+        assignedToId !== undefined &&
+        newAssigned !== lead.assignedToId &&
+        (status === 'IN_WORK' || status === 'ASSIGNED')
+      ) {
+        // closer was changed or removed on an active lead
+        // new closer must accept from scratch
+        status = newAssigned ? 'ASSIGNED' : 'NEW'
       }
     }
 
