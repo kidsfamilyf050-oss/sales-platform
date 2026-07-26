@@ -5,6 +5,17 @@ import { authenticate, AuthRequest } from '../middleware/auth'
 const router = Router()
 const prisma = new PrismaClient()
 
+const GATEWAY_FEE: Record<string, number> = {
+  'GetPay': 0.13, 'TipTopPay_KZ': 0.065, 'TipTopPay_Foreign': 0.079,
+  'Kaspi_Gold': 0.0395, 'Kaspi_Account': 0.041, 'Kaspi_Credit': 0.165,
+  'Kaspi_Red': 0.143, 'Kaspi_Terminal': 0.043, 'Cash': 0.03,
+  'Transfer_AE': 0.03, 'Card_Sberbank': 0.03, 'Kaspi_Bookkeeper': 0.03,
+}
+function calcNet(amount: number, method: string): number {
+  const fee = GATEWAY_FEE[method] ?? 0.03
+  return Math.round(amount * (1 - fee) * 100) / 100
+}
+
 // GET /api/sales?date=YYYY-MM-DD — sales for current user on that date
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   const date = req.query.date as string
@@ -47,12 +58,15 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ error: 'Missing required fields' })
   }
   try {
+    const numAmount = Number(amount)
+    const netAmount = calcNet(numAmount, paymentMethod)
     const sale = await prisma.sale.create({
       data: {
         userId: req.user!.id,
         companyId: req.user!.companyId,
         date,
-        amount: Number(amount),
+        amount: numAmount,
+        netAmount,
         paymentType,
         paymentMethod,
         bank: bank || null,
@@ -77,10 +91,14 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     })
     if (!sale) return res.status(404).json({ error: 'Not found' })
 
+    const numAmount = amount !== undefined ? Number(amount) : sale.amount
+    const method = paymentMethod || sale.paymentMethod
+    const netAmount = calcNet(numAmount, method)
     const updated = await prisma.sale.update({
       where: { id: req.params.id },
       data: {
-        ...(amount !== undefined && { amount: Number(amount) }),
+        ...(amount !== undefined && { amount: numAmount }),
+        netAmount,
         ...(paymentType && { paymentType }),
         ...(paymentMethod && { paymentMethod }),
         bank: bank || null,
