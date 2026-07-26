@@ -75,7 +75,15 @@ function ChartTooltip({ active, payload, label }: any) {
 // Expandable sales detail for a manager
 function ManagerSalesDetail({ m }: { m: any }) {
   const { t } = useT()
+  const [expandedSales, setExpandedSales] = useState<Set<string>>(new Set())
   const sales: any[] = m.sales || []
+  const net = (s: any) => Number(s.netAmount ?? s.amount) || 0
+  const periodTotal = sales.reduce((acc: number, s: any) => acc + net(s), 0)
+
+  const toggleSale = (id: string) => setExpandedSales(prev => {
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next
+  })
+
   return (
     <tr>
       <td colSpan={12} className="pb-3 px-0">
@@ -83,39 +91,59 @@ function ManagerSalesDetail({ m }: { m: any }) {
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
             {t('dash.periodSales')}
             {sales.length > 0 && (
-              <span className="text-blue-600 font-bold ml-2">· {sales.length} · ₸ {fmt(m.salesAmount)}</span>
+              <span className="text-blue-600 font-bold ml-2">· {sales.length} · ₸ {fmt(periodTotal)}</span>
             )}
           </p>
           {sales.length === 0 ? (
             <p className="text-xs text-gray-400">{t('dash.noSalesPeriod')}</p>
           ) : (
-            <div className="space-y-1.5">
-              {sales.map((s: any) => (
-                <div key={s.id} className="flex items-center gap-3 text-xs bg-white rounded-lg px-3 py-2 border border-gray-100">
-                  <span className="font-bold text-gray-900 whitespace-nowrap min-w-[90px]">₸ {fmt(Number(s.amount))}</span>
-                  <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                    {PAYMENT_TYPE_LABEL[s.paymentType] || s.paymentType}
-                  </span>
-                  {s.productName && (
-                    <span className="px-1.5 py-0.5 rounded-full text-[11px] font-medium bg-purple-100 text-purple-700 shrink-0">
-                      📦 {s.productName}
-                    </span>
-                  )}
-                  {s.paymentMethod && (
-                    <span className="text-gray-500 shrink-0">{PAYMENT_METHOD_LABEL[s.paymentMethod] || s.paymentMethod}</span>
-                  )}
-                  {s.bank && <span className="text-gray-400 shrink-0">{s.bank}</span>}
-                  {s.months && <span className="text-gray-400 shrink-0">{s.months} мес.</span>}
-                  {s.date && <span className="text-gray-400 shrink-0">{s.date}</span>}
-                  {s.crmLink && (
-                    <a href={s.crmLink} target="_blank" rel="noreferrer"
-                      className="flex items-center gap-1 text-blue-500 hover:underline shrink-0">
-                      <ExternalLink className="w-3 h-3" /> CRM
-                    </a>
-                  )}
-                  {s.comment && <span className="text-gray-400 italic truncate">💬 {s.comment}</span>}
-                </div>
-              ))}
+            <div className="space-y-1">
+              {sales.map((s: any) => {
+                const netAmt = net(s)
+                const grossAmt = Number(s.amount) || 0
+                const hasDiscount = s.netAmount && s.netAmount !== s.amount
+                const isOpen = expandedSales.has(s.id)
+                return (
+                  <div key={s.id} className="bg-white rounded-lg border border-gray-100 overflow-hidden">
+                    <div
+                      className="flex items-center gap-3 text-xs px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={() => toggleSale(s.id)}
+                    >
+                      <ChevronDown className={`w-3 h-3 text-gray-400 shrink-0 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                      <span className="font-bold text-gray-900 whitespace-nowrap min-w-[80px]">₸ {fmt(netAmt)}</span>
+                      {hasDiscount && <span className="text-gray-400 line-through text-[11px]">₸ {fmt(grossAmt)}</span>}
+                      <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {PAYMENT_TYPE_LABEL[s.paymentType] || s.paymentType}
+                      </span>
+                      {s.productName && (
+                        <span className="px-1.5 py-0.5 rounded-full text-[11px] font-medium bg-purple-100 text-purple-700 shrink-0">
+                          📦 {s.productName}
+                        </span>
+                      )}
+                      {s.paymentMethod && <span className="text-gray-500 shrink-0">{PAYMENT_METHOD_LABEL[s.paymentMethod] || s.paymentMethod}</span>}
+                      {s.date && <span className="text-gray-400 shrink-0">{s.date}</span>}
+                      {s.crmLink && (
+                        <a href={s.crmLink} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
+                          className="flex items-center gap-1 text-blue-500 hover:underline shrink-0">
+                          <ExternalLink className="w-3 h-3" /> CRM
+                        </a>
+                      )}
+                    </div>
+                    {isOpen && (
+                      <div className="border-t border-gray-100 px-4 py-3 bg-gray-50/50 grid grid-cols-2 gap-x-8 gap-y-1.5 text-xs">
+                        <div className="flex justify-between"><span className="text-gray-500">Сумма продажи</span><span className="font-medium">₸ {fmt(grossAmt)}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-500">Бюджет сделки</span><span className="font-bold text-green-700">₸ {fmt(netAmt)}</span></div>
+                        {hasDiscount && <div className="flex justify-between"><span className="text-gray-500">Комиссия</span><span className="font-medium text-orange-600">{Math.round((1 - netAmt / grossAmt) * 100)}%</span></div>}
+                        {s.productName && <div className="flex justify-between"><span className="text-gray-500">Продукт</span><span className="font-medium text-purple-700">📦 {s.productName}</span></div>}
+                        {s.paymentMethod && <div className="flex justify-between"><span className="text-gray-500">Шлюз</span><span className="font-medium">{PAYMENT_METHOD_LABEL[s.paymentMethod] || s.paymentMethod}</span></div>}
+                        {s.bank && <div className="flex justify-between"><span className="text-gray-500">Банк</span><span className="font-medium">{s.bank}</span></div>}
+                        {s.months && <div className="flex justify-between"><span className="text-gray-500">Срок</span><span className="font-medium">{s.months} мес.</span></div>}
+                        {s.comment && <div className="col-span-2 flex gap-2"><span className="text-gray-500">Комментарий</span><span className="text-gray-700 italic">{s.comment}</span></div>}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
