@@ -13,6 +13,11 @@ interface AIInsightsProps {
   autoLoad?: boolean
 }
 
+// Strip emoji characters from a string
+function stripEmoji(str: string): string {
+  return str.replace(/[\u{1F300}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FEFF}]/gu, '').trim()
+}
+
 // Parse AI text into structured blocks for better display
 function parseInsights(text: string): { emoji: string; title: string; content: string }[] {
   const blocks: { emoji: string; title: string; content: string }[] = []
@@ -24,12 +29,12 @@ function parseInsights(text: string): { emoji: string; title: string; content: s
     const headerMatch = line.match(/^([🔥⚡📈📉🎯💪💰🚀🏆⚠️🔴✅📊📋👥💡🔍📞📅]+)\s+(.+)/)
     if (headerMatch && (line.includes(':') || /[А-ЯA-Z]{3,}/.test(line))) {
       if (current) blocks.push({ emoji: current.emoji, title: current.title, content: current.lines.join('\n') })
-      current = { emoji: headerMatch[1], title: headerMatch[2].replace(/:$/, ''), lines: [] }
+      current = { emoji: headerMatch[1], title: stripEmoji(headerMatch[2]).replace(/:$/, '').trim(), lines: [] }
     } else if (current) {
-      current.lines.push(line)
+      current.lines.push(stripEmoji(line))
     } else {
       // First paragraph before any header
-      blocks.push({ emoji: '📊', title: '', content: line })
+      blocks.push({ emoji: '📊', title: '', content: stripEmoji(line) })
     }
   }
   if (current) blocks.push({ emoji: current.emoji, title: current.title, content: current.lines.join('\n') })
@@ -110,7 +115,7 @@ export default function AIInsights({ data, managerRating, liderRating, funnel, p
           {[80, 60, 90, 70].map((w, i) => (
             <div key={i} className="h-3 bg-blue-100 rounded-full" style={{ width: `${w}%` }} />
           ))}
-          <p className="text-xs text-blue-400 mt-3">🤖 Анализирую ваши показатели...</p>
+          <p className="text-xs text-blue-400 mt-3">Анализирую ваши показатели...</p>
         </div>
       )}
 
@@ -127,16 +132,16 @@ export default function AIInsights({ data, managerRating, liderRating, funnel, p
             <div key={i} className={`border-l-2 pl-3 py-1.5 rounded-r-lg ${severityColor(block.emoji)}`}>
               {block.title && (
                 <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">
-                  {block.emoji} {block.title}
+                  {block.title}
                 </p>
               )}
               <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                {block.title ? block.content : `${block.emoji} ${block.content}`}
+                {block.content}
               </div>
             </div>
           ))}
           {loading && (
-            <p className="text-xs text-blue-400 animate-pulse">🔄 Обновляю анализ...</p>
+            <p className="text-xs text-blue-400 animate-pulse">Обновляю анализ...</p>
           )}
         </div>
       )}
