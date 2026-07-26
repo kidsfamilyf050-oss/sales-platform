@@ -273,7 +273,7 @@ export default function ROPDashboard() {
         <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck)}`} />
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         <div
-          onClick={() => navigate('/rop/links')}
+          onClick={() => navigate('/rop/links?tab=REFUSAL')}
           className="cursor-pointer group"
           title="Открыть CRM-ссылки отказников"
         >
@@ -284,7 +284,7 @@ export default function ROPDashboard() {
           </div>
         </div>
         <div
-          onClick={() => navigate('/rop/links')}
+          onClick={() => navigate('/rop/links?tab=IN_WORK')}
           className="cursor-pointer group"
           title="Открыть CRM-ссылки сделок в работе"
         >
@@ -388,13 +388,13 @@ export default function ROPDashboard() {
                         <td className="py-2.5 text-center">{m.conversion}%</td>
                         <td className="py-2.5 text-center">{m.consultations ?? 0}</td>
                         <td className="py-2.5 text-center">
-                          <button onClick={(e) => { e.stopPropagation(); navigate('/rop/links') }}
+                          <button onClick={(e) => { e.stopPropagation(); navigate('/rop/links?tab=REFUSAL') }}
                             className="text-red-500 hover:text-red-700 hover:underline font-semibold cursor-pointer transition-colors" title="Смотреть CRM ссылки отказников">
                             {m.refusals ?? 0}
                           </button>
                         </td>
                         <td className="py-2.5 text-center">
-                          <button onClick={(e) => { e.stopPropagation(); navigate('/rop/links') }}
+                          <button onClick={(e) => { e.stopPropagation(); navigate('/rop/links?tab=IN_WORK') }}
                             className="text-amber-600 hover:text-amber-800 hover:underline font-semibold cursor-pointer transition-colors" title="Смотреть CRM ссылки в работе">
                             {m.inWork ?? 0}
                           </button>

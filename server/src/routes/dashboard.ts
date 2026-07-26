@@ -270,7 +270,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
   const todayStr = dateToStr(new Date())
 
   try {
-    const [managers, plans, closerReports, marketerReports, todayReports, periodSales, todaySales, ropLiderLeadsFull, allCompanyLeads] = await Promise.all([
+    const [managers, plans, closerReports, marketerReports, todayReports, periodSales, todaySales, ropLiderLeadsFull, allCompanyLeads, closerLeads] = await Promise.all([
       prisma.user.findMany({ where: { companyId: req.user!.companyId, departmentId: deptId || undefined, status: 'ACTIVE', role: 'MANAGER' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, departmentId: deptId || undefined }, type: 'CLOSER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true, managerType: true } } } }),
@@ -289,6 +289,11 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       prisma.lead.findMany({
         where: { createdBy: { companyId: req.user!.companyId }, date: { gte: fromStr, lte: toStr } },
         select: { status: true, consultationStatus: true },
+      }),
+      // Closer-assigned leads for per-manager metrics (Lead model = source of truth)
+      prisma.lead.findMany({
+        where: { assignedTo: { companyId: req.user!.companyId }, date: { gte: fromStr, lte: toStr } },
+        select: { assignedToId: true, status: true, consultationStatus: true },
       }),
     ])
 
@@ -339,18 +344,21 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       periodSalesByManager[s.userId].push({ id: s.id, amount: s.amount, netAmount: s.netAmount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date, productName: s.product?.name || null })
     }
 
-    // Closer clients/consultations/refusals per manager (from reports)
-    const clientsByManager: Record<string, number> = {}
+    // Per-manager metrics from Lead model (source of truth — no manual reports needed)
     const consultationsByManager: Record<string, number> = {}
     const refusalsByManager: Record<string, number> = {}
-    for (const r of closerReports) {
-      const uid = r.user.id
-      clientsByManager[uid] = (clientsByManager[uid] || 0) + (Number((r.data as any).clientsReceived) || 0)
-      consultationsByManager[uid] = (consultationsByManager[uid] || 0) + (Number((r.data as any).consultations) || 0)
-      refusalsByManager[uid] = (refusalsByManager[uid] || 0) + (Number((r.data as any).refusals) || 0)
+    const inWorkByManager: Record<string, number> = {}
+    for (const l of closerLeads) {
+      if (!l.assignedToId) continue
+      if (l.consultationStatus === 'happened' || l.status === 'SOLD')
+        consultationsByManager[l.assignedToId] = (consultationsByManager[l.assignedToId] || 0) + 1
+      if (l.status === 'REFUSED')
+        refusalsByManager[l.assignedToId] = (refusalsByManager[l.assignedToId] || 0) + 1
+      if (l.status === 'IN_WORK')
+        inWorkByManager[l.assignedToId] = (inWorkByManager[l.assignedToId] || 0) + 1
     }
 
-    // Use Lead model as source of truth (not manual reports)
+    // Company-level totals from Lead model
     const totalConsultations = allCompanyLeads.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length
     const totalRefusals = allCompanyLeads.filter(l => l.status === 'REFUSED').length
     const totalInWork = allCompanyLeads.filter(l => l.status === 'IN_WORK').length
@@ -358,10 +366,9 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const closers = managers.filter(m => m.managerType !== 'LIDER')
     const managerRating = closers.map(m => {
       const stats = salesByUser[m.id] || { salesCount: 0, salesAmount: 0 }
-      const clients = clientsByManager[m.id] || 0
       const consultations = consultationsByManager[m.id] || 0
       const refusals = refusalsByManager[m.id] || 0
-      const inWork = Math.max(0, consultations - stats.salesCount - refusals)
+      const inWork = inWorkByManager[m.id] || 0
       const managerPlan = plans.find(p => p.userId === m.id && p.type === 'SALES_AMOUNT')?.value || 0
       const completion = managerPlan > 0 ? Math.round((stats.salesAmount / managerPlan) * 1000) / 10 : 0
       const reportedToday = todayReportedIds.has(m.id)
