@@ -343,11 +343,22 @@ function AddLeadModal({
             </div>
           )}
 
-          {/* Fix: only show closer dropdown when ktsMode === 'inwork' */}
-          {ktsMode === 'inwork' && (
+          {/* Closer dropdown — visible for qual and inwork; selecting a closer auto-switches to inwork */}
+          {ktsMode !== 'unqual' && (
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Клоузер</label>
-              <select value={assignedToId} onChange={e => setAssignedToId(e.target.value)}
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                Клоузер
+                {ktsMode === 'qual' && assignedToId && (
+                  <span className="ml-2 text-xs font-normal text-blue-500">(переключит в «В работе КЦ»)</span>
+                )}
+              </label>
+              <select
+                value={assignedToId}
+                onChange={e => {
+                  setAssignedToId(e.target.value)
+                  if (e.target.value) setKtsMode('inwork')
+                  else if (ktsMode === 'inwork') setKtsMode('qual')
+                }}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">— не назначен —</option>
                 {closers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -524,11 +535,22 @@ function EditLeadModal({
             </div>
           )}
 
-          {/* Fix: only show closer dropdown when ktsMode === 'inwork' */}
-          {ktsMode === 'inwork' && (
+          {/* Closer dropdown — visible for qual and inwork; selecting a closer auto-switches to inwork */}
+          {ktsMode !== 'unqual' && (
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Клоузер</label>
-              <select value={assignedToId} onChange={e => setAssignedToId(e.target.value)}
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                Клоузер
+                {ktsMode === 'qual' && assignedToId && (
+                  <span className="ml-2 text-xs font-normal text-blue-500">(переключит в «В работе КЦ»)</span>
+                )}
+              </label>
+              <select
+                value={assignedToId}
+                onChange={e => {
+                  setAssignedToId(e.target.value)
+                  if (e.target.value) setKtsMode('inwork')
+                  else if (ktsMode === 'inwork') setKtsMode('qual')
+                }}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">— не назначен —</option>
                 {closers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
