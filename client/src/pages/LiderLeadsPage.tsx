@@ -219,6 +219,7 @@ function AddLeadModal({
   const [subStatus, setSubStatus] = useState('')
   const [appointmentDate, setAppointmentDate] = useState('')
   const [appointmentTime, setAppointmentTime] = useState('')
+  const [consultationStatus, setConsultationStatus] = useState('')
   const [assignedToId, setAssignedToId] = useState('')
   const [comment, setComment] = useState('')
 
@@ -272,6 +273,7 @@ function AddLeadModal({
       subStatus: (ktsMode !== 'unqual' && subStatus) ? subStatus : undefined,
       appointmentDate: subStatus === 'scheduled' ? appointmentDate || undefined : undefined,
       appointmentTime: subStatus === 'scheduled' ? appointmentTime || undefined : undefined,
+      consultationStatus: subStatus === 'scheduled' ? consultationStatus || undefined : undefined,
       comment: comment || undefined,
     })
   }
@@ -1071,6 +1073,33 @@ export default function LiderLeadsPage() {
           </div>
         )}
 
+        {/* Воронка лидов — under dept stats */}
+        {funnel && funnel.total > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-5">
+            <h3 className="text-sm font-bold text-gray-700 mb-4">{t('lider.funnel.title')}</h3>
+            <div className="flex items-stretch gap-1.5">
+              {[
+                { label: t('lider.funnel.total'),     value: funnel.total,     pct: null,                                                    bg: 'bg-slate-100 text-slate-800 border-slate-200' },
+                { label: t('lider.funnel.qualified'), value: funnel.qualified, pct: pct(funnel.qualified, funnel.total),                     bg: 'bg-green-100 text-green-800 border-green-200' },
+                { label: t('lider.funnel.scheduled'), value: funnel.scheduled, pct: pct(funnel.scheduled, funnel.qualified || funnel.total), bg: 'bg-blue-100 text-blue-800 border-blue-200' },
+                { label: t('lider.funnel.happened'),  value: funnel.happened,  pct: pct(funnel.happened, funnel.scheduled || 1),             bg: 'bg-purple-100 text-purple-800 border-purple-200' },
+                { label: t('lider.funnel.sold'),      value: funnel.sold,      pct: pct(funnel.sold, funnel.happened || 1),                  bg: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+              ].map((step, i, arr) => (
+                <div key={step.label} className="flex items-center gap-1.5 flex-1 min-w-0">
+                  <div className={`flex-1 border-2 rounded-2xl p-3 text-center ${step.bg}`}>
+                    <p className="text-2xl font-bold leading-none">{step.value}</p>
+                    <p className="text-xs font-semibold mt-1 leading-tight opacity-80">{step.label}</p>
+                    {step.pct !== null && (
+                      <p className={`text-sm font-bold mt-1 ${step.pct === 0 ? 'opacity-40' : ''}`}>{step.pct}%</p>
+                    )}
+                  </div>
+                  {i < arr.length - 1 && <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ── Filters with deferred Apply button ── */}
         <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-4">
           <div className="flex flex-wrap gap-2.5 items-end">
@@ -1565,32 +1594,6 @@ export default function LiderLeadsPage() {
               </div>
             </div>
 
-            {/* Funnel */}
-            {funnel && funnel.total > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-5">
-                <h3 className="text-sm font-bold text-gray-700 mb-4">Воронка лидов</h3>
-                <div className="flex items-stretch gap-1.5">
-                  {[
-                    { label: t('lider.funnel.total'),     value: funnel.total,     pct: null,                                                    bg: 'bg-slate-100 text-slate-800 border-slate-200' },
-                    { label: t('lider.funnel.qualified'), value: funnel.qualified, pct: pct(funnel.qualified, funnel.total),                     bg: 'bg-green-100 text-green-800 border-green-200' },
-                    { label: t('lider.funnel.scheduled'), value: funnel.scheduled, pct: pct(funnel.scheduled, funnel.qualified || funnel.total), bg: 'bg-blue-100 text-blue-800 border-blue-200' },
-                    { label: t('lider.funnel.happened'),  value: funnel.happened,  pct: pct(funnel.happened, funnel.scheduled || 1),             bg: 'bg-purple-100 text-purple-800 border-purple-200' },
-                    { label: t('lider.funnel.sold'),      value: funnel.sold,      pct: pct(funnel.sold, funnel.happened || 1),                  bg: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
-                  ].map((step, i, arr) => (
-                    <div key={step.label} className="flex items-center gap-1.5 flex-1 min-w-0">
-                      <div className={`flex-1 border-2 rounded-2xl p-3 text-center ${step.bg}`}>
-                        <p className="text-2xl font-bold leading-none">{step.value}</p>
-                        <p className="text-xs font-semibold mt-1 leading-tight opacity-80">{step.label}</p>
-                        {step.pct !== null && (
-                          <p className={`text-sm font-bold mt-1 ${step.pct === 0 ? 'opacity-40' : ''}`}>{step.pct}%</p>
-                        )}
-                      </div>
-                      {i < arr.length - 1 && <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
         </div>

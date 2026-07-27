@@ -550,7 +550,6 @@ export default function ManagerDashboard() {
           </div>
 
           {/* Lider stats — primary KPI: consultations conducted */}
-          {/* п.16: moved conversion to stats, removed plan completion row */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
             <StatCard label={t('dash.manager.leads')} value={summary.leads} sub={summary.leadsplan > 0 ? `план ${summary.leadsplan}` : undefined} />
             <StatCard label={t('dash.manager.qualified')} value={summary.qualifiedLeads} sub={`${summary.qualRate}% квал.`} />
@@ -558,6 +557,12 @@ export default function ManagerDashboard() {
             <StatCard label={t('dash.manager.attended')} value={summary.meetingsAttended} color="blue" />
             <StatCard label="Конверсия запись→конс." value={summary.meetingsScheduled > 0 ? `${Math.round(summary.meetingsAttended / summary.meetingsScheduled * 100)}%` : '—'} color="yellow" />
             <StatCard label={t('dash.manager.meetingsPlan')} value={summary.meetingsScheduledPlan} sub={summary.planCompletion > 0 ? `${summary.planCompletion}% выполн.` : undefined} />
+            <StatCard
+              label="Выполнение плана"
+              value={`${summary.planCompletion ?? 0}%`}
+              color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 40 ? 'yellow' : 'red'}
+              sub={summary.meetingsScheduledPlan > 0 ? `${summary.meetingsAttended} из ${summary.meetingsScheduledPlan}` : undefined}
+            />
           </div>
 
           {/* ── Today's consultations ── */}
@@ -699,8 +704,8 @@ export default function ManagerDashboard() {
         </button>
       )}
 
-      {/* AI Insights */}
-      <AIInsights data={summary} period={params} />
+      {/* AI Insights — manual only, no auto-load */}
+      <AIInsights data={summary} period={params} autoLoad={false} />
 
       {/* Recent reports (history) — only for liders */}
       {!isCloser && recentReports?.length > 0 && (
