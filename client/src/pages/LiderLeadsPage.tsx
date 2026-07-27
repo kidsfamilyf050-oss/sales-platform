@@ -1284,8 +1284,12 @@ export default function LiderLeadsPage() {
                           {/* Channel */}
                           <td className="px-2 py-3">
                             <select value={inlineChannelId} onChange={e => setInlineChannelId(e.target.value)}
-                              className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white w-28">
-                              <option value="">— канал —</option>
+                              className={`text-xs border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 bg-white w-28 ${
+                                !inlineChannelId
+                                  ? 'border-orange-400 ring-1 ring-orange-300 text-orange-600 focus:ring-orange-400'
+                                  : 'border-gray-300 focus:ring-blue-400'
+                              }`}>
+                              <option value="">— канал * —</option>
                               {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
                           </td>
