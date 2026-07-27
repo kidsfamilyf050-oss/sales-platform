@@ -1203,14 +1203,14 @@ export default function LiderLeadsPage() {
           </div>
         )}
 
-        {/* ── Today's appointments (always visible, collapsible) ── */}
+        {/* ── Leads recorded today (by createdAt server timestamp) ── */}
         <div className="bg-white rounded-2xl border border-blue-100 mb-4 overflow-hidden">
           <button
             className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50/40 transition-colors"
             onClick={() => setShowAllToday(v => !v)}>
             <span className="flex items-center gap-2 text-sm font-bold text-gray-900">
               <Clock className="w-4 h-4 text-blue-500" />
-              Записаны на сегодня
+              Записаны сегодня
               {todayLeads.length > 0 && (
                 <span className="bg-blue-600 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-1">{todayLeads.length}</span>
               )}
@@ -1221,30 +1221,24 @@ export default function LiderLeadsPage() {
             todayLeads.length === 0 ? (
               <div className="px-4 pb-4 text-center py-6 text-gray-400">
                 <Calendar className="w-8 h-8 mx-auto mb-2 text-gray-200" />
-                <p className="text-sm">Нет записей на сегодня</p>
+                <p className="text-sm">Сегодня лиды не записывались</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 px-4 pb-4">
                 {todayLeads.map(lead => {
-                  const usePostponed = lead.postponedDate === today
-                  const time = usePostponed ? lead.postponedTime : lead.appointmentTime
-                  const hasStatus = !!lead.consultationStatus
+                  const apptDate = lead.postponedDate || lead.appointmentDate
+                  const apptTime = lead.postponedDate ? lead.postponedTime : lead.appointmentTime
                   return (
-                    <div key={lead.id}
-                      className={`p-3 rounded-xl border ${hasStatus ? 'bg-gray-50 border-gray-100 opacity-70' : 'bg-blue-50 border-blue-100'}`}>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-gray-900">
-                            {time ? <span className="text-blue-700 mr-1">{time}</span> : ''}
-                            {lead.assignedTo?.name || 'Без клоузера'}
-                          </p>
-                          <p className="text-xs text-gray-600 truncate mt-0.5">{lead.clientName}</p>
-                        </div>
-                        {hasStatus
-                          ? <ConsultationBadge value={lead.consultationStatus} />
-                          : <button onClick={() => setStatusLead(lead)} className="text-xs text-blue-600 hover:text-blue-800 font-semibold whitespace-nowrap">Отметить</button>
-                        }
-                      </div>
+                    <div key={lead.id} className="p-3 rounded-xl border bg-blue-50 border-blue-100">
+                      <p className="text-xs font-bold text-gray-900 truncate">{lead.clientName}</p>
+                      <p className="text-xs text-gray-500 truncate mt-0.5">{lead.assignedTo?.name || 'Без клоузера'}</p>
+                      {apptDate && (
+                        <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                          <Calendar className="w-3 h-3 shrink-0" />
+                          {fmtDate(apptDate)}{apptTime ? ` ${apptTime}` : ''}
+                        </p>
+                      )}
+                      <div className="mt-1"><SubStatusBadge value={lead.subStatus} /></div>
                     </div>
                   )
                 })}
@@ -1268,25 +1262,30 @@ export default function LiderLeadsPage() {
             </button>
             {showOverdue && (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 px-4 pb-4">
-                {overdueLeads.map(lead => (
-                  <div key={lead.id} className="p-3 rounded-xl border border-red-100 bg-red-50">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-red-800 flex items-center gap-1">
-                          <Calendar className="w-3 h-3 shrink-0" />{fmtDate(lead.appointmentDate!)}
-                        </p>
-                        <p className="text-xs text-gray-700 font-semibold truncate mt-0.5">{lead.clientName}</p>
-                        <p className="text-xs text-gray-500 truncate">{lead.assignedTo?.name || 'Без клоузера'}</p>
+                {overdueLeads.map(lead => {
+                  const overdueDate = lead.postponedDate || lead.appointmentDate
+                  const isPostponed = lead.consultationStatus === 'postponed'
+                  return (
+                    <div key={lead.id} className="p-3 rounded-xl border border-red-100 bg-red-50">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-red-800 flex items-center gap-1">
+                            <Calendar className="w-3 h-3 shrink-0" />{fmtDate(overdueDate!)}
+                            {isPostponed && <span className="text-orange-500 text-[10px] font-medium">(перенос)</span>}
+                          </p>
+                          <p className="text-xs text-gray-700 font-semibold truncate mt-0.5">{lead.clientName}</p>
+                          <p className="text-xs text-gray-500 truncate">{lead.assignedTo?.name || 'Без клоузера'}</p>
+                        </div>
+                        <button
+                          onClick={() => setStatusLead(lead)}
+                          className="text-xs text-red-600 hover:text-red-800 font-semibold whitespace-nowrap shrink-0"
+                        >
+                          Отметить
+                        </button>
                       </div>
-                      <button
-                        onClick={() => setStatusLead(lead)}
-                        className="text-xs text-red-600 hover:text-red-800 font-semibold whitespace-nowrap shrink-0"
-                      >
-                        Отметить
-                      </button>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>

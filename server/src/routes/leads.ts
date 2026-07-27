@@ -101,21 +101,22 @@ router.get('/unqualified', authenticate, async (req: AuthRequest, res: Response)
   }
 })
 
-// ── GET /api/leads/today-appointments — lider: consultations scheduled today ──
-// Shows ALL leads scheduled for today regardless of consultationStatus (client shows grayed if already set)
+// ── GET /api/leads/today-appointments — lider: leads CREATED today (by server timestamp) ──
+// Uses createdAt (not the manually-entered date field), so a lead entered today
+// but with yesterday's date still appears. Ignores the period filter.
 router.get('/today-appointments', authenticate, async (req: AuthRequest, res: Response) => {
-  const today = getKzToday() // use KZ UTC+5 date, not UTC
+  const today = getKzToday() // KZ UTC+5 date string YYYY-MM-DD
   try {
+    // Start/end of today in KZ time, expressed as UTC for Prisma createdAt query
+    const startUtc = new Date(`${today}T00:00:00+05:00`)
+    const endUtc   = new Date(`${today}T23:59:59+05:00`)
     const leads = await prisma.lead.findMany({
       where: {
         createdById: req.user!.id,
-        OR: [
-          { appointmentDate: today },
-          { postponedDate: today },
-        ],
+        createdAt: { gte: startUtc, lte: endUtc },
       },
       include: INCLUDE_FULL,
-      orderBy: { appointmentTime: 'asc' },
+      orderBy: { createdAt: 'desc' },
     })
     res.json(leads)
   } catch (e) {
@@ -124,17 +125,23 @@ router.get('/today-appointments', authenticate, async (req: AuthRequest, res: Re
 })
 
 // ── GET /api/leads/overdue-appointments — lider: past meetings needing action ──
-// Only shows leads that are "planned" or have no status yet (not already resolved)
+// Excludes happened/not_happened. Includes:
+//   1. Leads with appointmentDate in the past and no status or planned
+//   2. Postponed leads where postponedDate (or appointmentDate if no postponedDate) is in the past
 router.get('/overdue-appointments', authenticate, async (req: AuthRequest, res: Response) => {
   const today = getKzToday()
   try {
     const leads = await prisma.lead.findMany({
       where: {
         createdById: req.user!.id,
-        appointmentDate: { lt: today },
         OR: [
-          { consultationStatus: null },
-          { consultationStatus: 'planned' },
+          // Plain overdue: appointment in the past, status null or planned
+          { appointmentDate: { lt: today }, consultationStatus: null },
+          { appointmentDate: { lt: today }, consultationStatus: 'planned' },
+          // Postponed: postponedDate in the past
+          { consultationStatus: 'postponed', postponedDate: { lt: today } },
+          // Postponed but no postponedDate set → fall back to original appointmentDate
+          { consultationStatus: 'postponed', postponedDate: null, appointmentDate: { lt: today } },
         ],
       },
       include: INCLUDE_FULL,
