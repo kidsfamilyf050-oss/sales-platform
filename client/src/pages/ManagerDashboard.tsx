@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
-import { Plus, Pencil, Trash2, ExternalLink, X, Check, Download, ChevronRight, Archive } from 'lucide-react'
+import { Plus, Pencil, Trash2, ExternalLink, X, Check, Download, ChevronRight, Archive, Calendar, Clock } from 'lucide-react'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useT } from '../i18n'
@@ -257,14 +257,14 @@ export default function ManagerDashboard() {
               <div className="space-y-1.5">
                 {closerRankingData.ranking.map((r: any, idx: number) => {
                   const isMe = r.id === closerRankingData.currentUserId
-                  const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`
+                  const medalCls = idx === 0 ? 'text-yellow-500 font-black' : idx === 1 ? 'text-gray-400 font-black' : idx === 2 ? 'text-amber-600 font-black' : 'text-gray-400 font-medium'
                   return (
                     <div key={r.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
                       isMe
                         ? 'bg-blue-50 border-2 border-blue-300 shadow-sm'
                         : 'bg-gray-50 border border-gray-100'
                     }`}>
-                      <span className="text-base w-7 text-center shrink-0">{medal}</span>
+                      <span className={`text-sm w-7 text-center shrink-0 ${medalCls}`}>{idx + 1}.</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className={`text-sm font-semibold truncate ${isMe ? 'text-blue-800' : 'text-gray-800'}`}>{r.name}</span>
@@ -569,7 +569,7 @@ export default function ManagerDashboard() {
           <div className="card">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
-                🗓 Консультации сегодня
+                <Calendar className="w-4 h-4 text-blue-500" /> Консультации сегодня
               </h3>
               <span className={`text-xs font-bold rounded-full px-2.5 py-1 ${todayAppointments.length > 0 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
                 {todayAppointments.length}
@@ -583,7 +583,7 @@ export default function ManagerDashboard() {
                   const usePostponed = lead.postponedDate === todayStr
                   const time = usePostponed ? lead.postponedTime : lead.appointmentTime
                   const statusColor = lead.consultationStatus === 'happened' ? 'text-green-600' : lead.consultationStatus === 'not_happened' ? 'text-red-500' : lead.consultationStatus === 'postponed' ? 'text-orange-500' : 'text-gray-400'
-                  const statusLabel = lead.consultationStatus === 'happened' ? '✓ Состоялась' : lead.consultationStatus === 'not_happened' ? '✗ Не состоялась' : lead.consultationStatus === 'postponed' ? '↗ Перенос' : '⏰ Ожидается'
+                  const statusLabel = lead.consultationStatus === 'happened' ? 'Состоялась' : lead.consultationStatus === 'not_happened' ? 'Не состоялась' : lead.consultationStatus === 'postponed' ? 'Перенос' : 'Ожидается'
                   return (
                     <div key={lead.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 border border-gray-100">
                       <div className="text-sm font-bold text-blue-700 w-12 shrink-0 text-center">
@@ -636,14 +636,14 @@ export default function ManagerDashboard() {
               <div className="space-y-1.5">
                 {rankingData.ranking.map((r: any, idx: number) => {
                   const isMe = r.id === rankingData.currentUserId
-                  const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`
+                  const medalCls = idx === 0 ? 'text-yellow-500 font-black' : idx === 1 ? 'text-gray-400 font-black' : idx === 2 ? 'text-amber-600 font-black' : 'text-gray-400 font-medium'
                   return (
                     <div key={r.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
                       isMe
                         ? 'bg-blue-50 border-2 border-blue-300 shadow-sm'
                         : 'bg-gray-50 border border-gray-100'
                     }`}>
-                      <span className="text-base w-7 text-center shrink-0">{medal}</span>
+                      <span className={`text-sm w-7 text-center shrink-0 ${medalCls}`}>{idx + 1}.</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className={`text-sm font-semibold truncate ${isMe ? 'text-blue-800' : 'text-gray-800'}`}>{r.name}</span>

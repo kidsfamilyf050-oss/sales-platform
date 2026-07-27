@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import PeriodSelector, { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
-import { Phone, Calendar, User, ChevronDown, ChevronUp, Check, X, CheckSquare, Plus, ExternalLink, Banknote, Pencil, Package, ArrowRightLeft } from 'lucide-react'
+import { Phone, Calendar, User, ChevronDown, ChevronUp, Check, X, CheckSquare, Plus, ExternalLink, Banknote, Pencil, Package, ArrowRightLeft, CheckCircle2, XCircle, RefreshCw, AlertTriangle } from 'lucide-react'
 
 type Lead = {
   id: string
@@ -509,53 +509,63 @@ function ConsultationStatusSection({ lead }: { lead: Lead }) {
   const isTodayAppt = displayDate === today
   const hasStatus = !!lead.consultationStatus
 
-  const statusLabels: Record<string, { label: string; cls: string }> = {
-    happened: { label: '✅ Состоялась', cls: 'bg-green-100 text-green-700 border-green-200' },
-    not_happened: { label: '❌ Не состоялась', cls: 'bg-red-100 text-red-700 border-red-200' },
-    postponed: { label: '🔄 Перенос', cls: 'bg-orange-100 text-orange-700 border-orange-200' },
+  const statusLabels: Record<string, { label: string; cls: string; Icon: React.ElementType }> = {
+    happened:     { label: 'Состоялась',    cls: 'bg-green-100 text-green-700 border-green-200',   Icon: CheckCircle2 },
+    not_happened: { label: 'Не состоялась', cls: 'bg-red-100 text-red-700 border-red-200',         Icon: XCircle },
+    postponed:    { label: 'Перенос',       cls: 'bg-orange-100 text-orange-700 border-orange-200', Icon: RefreshCw },
   }
 
   return (
     <div className={`rounded-xl border p-3 space-y-2 ${isOverdueAppt && !hasStatus ? 'bg-red-50 border-red-200' : isTodayAppt && !hasStatus ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'}`}>
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-gray-600">
-          📅 Встреча: {displayDate.split('-').reverse().join('.')}
+        <p className="text-xs font-semibold text-gray-600 flex items-center gap-1">
+          <Calendar className="w-3 h-3 shrink-0 text-blue-500" />
+          Встреча: {displayDate.split('-').reverse().join('.')}
           {displayTime && ` в ${displayTime}`}
           {lead.postponedDate && lead.postponedDate !== lead.appointmentDate && (
             <span className="ml-1 text-orange-500 font-normal">(перенесено)</span>
           )}
         </p>
-        {hasStatus && (
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${statusLabels[lead.consultationStatus!]?.cls ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
-            {statusLabels[lead.consultationStatus!]?.label ?? lead.consultationStatus}
-          </span>
-        )}
+        {hasStatus && (() => {
+          const cfg = statusLabels[lead.consultationStatus!]
+          const SIcon = cfg?.Icon
+          return (
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full border flex items-center gap-1 ${cfg?.cls ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+              {SIcon && <SIcon className="w-3 h-3" />}
+              {cfg?.label ?? lead.consultationStatus}
+            </span>
+          )
+        })()}
       </div>
 
       {/* Status buttons — shown when no status yet OR when postponed (can postpone again) */}
       {(!hasStatus || lead.consultationStatus === 'postponed') && !showPostpone && (
         <div>
-          <p className="text-xs text-gray-500 mb-2">
-            {isOverdueAppt ? '⚠️ Встреча просрочена — отметьте результат' : 'Отметьте результат встречи:'}
+          <p className={`text-xs mb-2 flex items-center gap-1 ${isOverdueAppt ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
+            {isOverdueAppt && <AlertTriangle className="w-3 h-3 shrink-0" />}
+            {isOverdueAppt ? 'Встреча просрочена — отметьте результат' : 'Отметьте результат встречи:'}
           </p>
           <div className="flex gap-2 flex-wrap">
-            {(['happened', 'not_happened'] as const).map(s => (
-              <button
-                key={s}
-                onClick={() => statusMut.mutate({ consultationStatus: s })}
-                disabled={statusMut.isPending}
-                className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:opacity-80 disabled:opacity-40 ${statusLabels[s].cls}`}
-              >
-                {statusLabels[s].label}
-              </button>
-            ))}
+            {(['happened', 'not_happened'] as const).map(s => {
+              const BIcon = statusLabels[s].Icon
+              return (
+                <button
+                  key={s}
+                  onClick={() => statusMut.mutate({ consultationStatus: s })}
+                  disabled={statusMut.isPending}
+                  className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:opacity-80 disabled:opacity-40 flex items-center gap-1 ${statusLabels[s].cls}`}
+                >
+                  <BIcon className="w-3 h-3" />{statusLabels[s].label}
+                </button>
+              )
+            })}
             {/* Перенос — opens date picker instead of immediately saving */}
             <button
               onClick={() => { setPDate(tomorrowStr()); setPTime(''); setShowPostpone(true) }}
               disabled={statusMut.isPending}
-              className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:opacity-80 disabled:opacity-40 ${statusLabels.postponed.cls}`}
+              className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:opacity-80 disabled:opacity-40 flex items-center gap-1 ${statusLabels.postponed.cls}`}
             >
-              {statusLabels.postponed.label}
+              <RefreshCw className="w-3 h-3" />{statusLabels.postponed.label}
             </button>
           </div>
         </div>
@@ -662,7 +672,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
             <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{lead.date}</span>
             {lead.appointmentDate && (
               <span className={`flex items-center gap-1 font-medium ${lead.consultationStatus === 'happened' ? 'text-green-600' : lead.consultationStatus === 'not_happened' ? 'text-red-500' : (lead.postponedDate || lead.appointmentDate) < new Date().toISOString().slice(0,10) && !lead.consultationStatus ? 'text-red-600' : 'text-blue-600'}`}>
-                📅 {(lead.postponedDate || lead.appointmentDate).split('-').reverse().join('.')}{(lead.postponedTime || lead.appointmentTime) ? ` ${lead.postponedTime || lead.appointmentTime}` : ''}
+                <Calendar className="w-3 h-3 shrink-0" />{(lead.postponedDate || lead.appointmentDate).split('-').reverse().join('.')}{(lead.postponedTime || lead.appointmentTime) ? ` ${lead.postponedTime || lead.appointmentTime}` : ''}
                 {lead.postponedDate && lead.postponedDate !== lead.appointmentDate && <span className="text-orange-500 text-[10px] ml-0.5">↻</span>}
               </span>
             )}

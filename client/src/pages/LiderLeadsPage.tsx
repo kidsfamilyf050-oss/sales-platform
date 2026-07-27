@@ -710,18 +710,19 @@ function QuickStatusModal({ lead, onClose }: { lead: Lead; onClose: () => void }
           <p className="text-sm font-semibold text-gray-900">{lead.clientName}</p>
           <p className="text-xs text-gray-500 mt-0.5">{lead.phone}</p>
           {(lead.appointmentDate || lead.postponedDate) && (
-            <p className="text-xs text-blue-600 mt-1">
-              📅 {fmtDateTime(lead.postponedDate || lead.appointmentDate, lead.postponedTime || lead.appointmentTime)}
+            <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+              <Calendar className="w-3 h-3 shrink-0" />
+              {fmtDateTime(lead.postponedDate || lead.appointmentDate, lead.postponedTime || lead.appointmentTime)}
               {lead.assignedTo ? ` · ${lead.assignedTo.name}` : ''}
             </p>
           )}
         </div>
         <div className="space-y-2 mb-4">
           {[
-            ['planned',      '📅 Запланировано', 'border-cyan-500 bg-cyan-50 text-cyan-800'],
-            ['happened',     '✅ Состоялась',    'border-green-500 bg-green-50 text-green-800'],
-            ['not_happened', '❌ Не состоялась', 'border-red-500 bg-red-50 text-red-800'],
-            ['postponed',    '🔄 Перенос',       'border-orange-500 bg-orange-50 text-orange-800'],
+            ['planned',      'Запланировано', 'border-cyan-500 bg-cyan-50 text-cyan-800'],
+            ['happened',     'Состоялась',    'border-green-500 bg-green-50 text-green-800'],
+            ['not_happened', 'Не состоялась', 'border-red-500 bg-red-50 text-red-800'],
+            ['postponed',    'Перенос',       'border-orange-500 bg-orange-50 text-orange-800'],
           ].map(([val, label, cls]) => (
             <button key={val} onClick={() => {
               setStatus(val)
@@ -1271,8 +1272,8 @@ export default function LiderLeadsPage() {
                   <div key={lead.id} className="p-3 rounded-xl border border-red-100 bg-red-50">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-red-800">
-                          📅 {fmtDate(lead.appointmentDate!)}
+                        <p className="text-xs font-bold text-red-800 flex items-center gap-1">
+                          <Calendar className="w-3 h-3 shrink-0" />{fmtDate(lead.appointmentDate!)}
                         </p>
                         <p className="text-xs text-gray-700 font-semibold truncate mt-0.5">{lead.clientName}</p>
                         <p className="text-xs text-gray-500 truncate">{lead.assignedTo?.name || 'Без клоузера'}</p>
