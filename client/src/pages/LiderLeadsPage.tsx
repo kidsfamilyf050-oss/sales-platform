@@ -818,7 +818,7 @@ export default function LiderLeadsPage() {
     return p.toString()
   }
 
-  const qKey = ['lider-report', periodStore.period, periodStore.customFrom, periodStore.customTo,
+  const qKey = ['lider-report', periodStore.period, periodStore.monthOffset, periodStore.customFrom, periodStore.customTo,
     search, channelId, ktsStatus, subStatusFilter, consultationFilter, dateFilter]
 
   const { data, isLoading, refetch } = useQuery<ReportData>({
