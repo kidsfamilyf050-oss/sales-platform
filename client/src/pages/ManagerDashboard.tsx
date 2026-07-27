@@ -600,9 +600,6 @@ export default function ManagerDashboard() {
             )}
           </div>
 
-          {/* п.15: removed "Лиды за неделю" — no longer shown */}
-          )}
-
           {/* Conversion: записано → проведено */}
           {summary.meetingsScheduled > 0 && (
             <div className="card bg-blue-50/40 border border-blue-100">
