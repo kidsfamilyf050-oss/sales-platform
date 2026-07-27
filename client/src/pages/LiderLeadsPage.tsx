@@ -1147,7 +1147,7 @@ export default function LiderLeadsPage() {
         {reminders && totalReminderCount > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {reminders.needStatusUpdate > 0 && (
-              <button onClick={() => applyQuickFilter({ subStatus: 'scheduled', consultationStatus: 'planned' })}
+              <button onClick={() => applyQuickFilter({ subStatus: '', consultationStatus: 'needUpdate' })}
                 className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-xl hover:border-red-400 transition-colors text-left">
                 <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
                 <span className="text-xs font-medium text-gray-800">{t('lider.btn.updateStatus')}</span>
@@ -1484,9 +1484,11 @@ export default function LiderLeadsPage() {
                             <SubStatusBadge value={lead.subStatus} />
                           </td>
                           <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">
-                            {/* п.7: for postponed leads show the rescheduled date */}
-                            {lead.consultationStatus === 'postponed' && lead.postponedDate
-                              ? <span className="text-orange-600">{fmtDateTime(lead.postponedDate, lead.postponedTime)}</span>
+                            {/* п.7: show postponedDate when it exists (even after status changes to happened) */}
+                            {lead.postponedDate
+                              ? <span className={lead.consultationStatus === 'postponed' ? 'text-orange-600' : ''}>
+                                  {fmtDateTime(lead.postponedDate, lead.postponedTime)}
+                                </span>
                               : fmtDateTime(lead.appointmentDate, lead.appointmentTime)}
                           </td>
                           <td className="px-3 py-3 text-xs font-medium text-gray-700 whitespace-nowrap">

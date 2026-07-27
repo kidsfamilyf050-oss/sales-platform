@@ -165,7 +165,12 @@ router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response
     }
     if (channelId) where.salesChannelId = channelId as string
     if (subStatus) where.subStatus = subStatus as string
-    if (consultationStatus) where.consultationStatus = consultationStatus as string
+    // 'needUpdate' is a special combined filter: planned OR postponed (for "Обновить статус" button)
+    if (consultationStatus === 'needUpdate') {
+      where.consultationStatus = { in: ['planned', 'postponed'] } as any
+    } else if (consultationStatus) {
+      where.consultationStatus = consultationStatus as string
+    }
     if (dateFilter) where.appointmentDate = dateFilter as string
     if (ktsStatus === 'qualified') { where.isQualified = true }
     else if (ktsStatus === 'unqualified') { where.isQualified = false }
@@ -194,10 +199,15 @@ router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response
 
     // п.6: needStatusUpdate — only planned or no-status past appointments (not already resolved)
     const reminders = {
-      needStatusUpdate: allLeads.filter(l =>
-        l.appointmentDate && l.appointmentDate < today &&
-        (!l.consultationStatus || l.consultationStatus === 'planned')
-      ).length,
+      needStatusUpdate: allLeads.filter(l => {
+        // Leads with planned status and past appointment date
+        const plannedPast = l.appointmentDate && l.appointmentDate < today &&
+          (!l.consultationStatus || l.consultationStatus === 'planned')
+        // Postponed leads where the postponedDate is in the past (or no new date set)
+        const postponedPast = l.consultationStatus === 'postponed' &&
+          (!l.postponedDate || l.postponedDate < today)
+        return plannedPast || postponedPast
+      }).length,
       thinkingTooLong: (() => {
         const twoDaysAgo = new Date(Date.now() + 5 * 60 * 60 * 1000); twoDaysAgo.setDate(twoDaysAgo.getDate() - 2)
         const cutoff = twoDaysAgo.toISOString().slice(0, 10)

@@ -481,16 +481,32 @@ function ConsultationStatusSection({ lead }: { lead: Lead }) {
   const qc = useQueryClient()
   const today = new Date().toISOString().slice(0, 10)
 
+  // State for postpone date modal
+  const [showPostpone, setShowPostpone] = useState(false)
+  const tomorrowStr = () => {
+    const d = new Date(); d.setDate(d.getDate() + 1)
+    return d.toISOString().slice(0, 10)
+  }
+  const [pDate, setPDate] = useState(tomorrowStr())
+  const [pTime, setPTime] = useState('')
+
   const statusMut = useMutation({
-    mutationFn: (consultationStatus: string) =>
-      api.put(`/leads/${lead.id}`, { consultationStatus }).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['closer-leads'] }),
+    mutationFn: (payload: { consultationStatus: string; postponedDate?: string; postponedTime?: string }) =>
+      api.put(`/leads/${lead.id}`, payload).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['closer-leads'] })
+      setShowPostpone(false)
+    },
   })
 
   if (!lead.appointmentDate) return null
 
-  const isOverdueAppt = lead.appointmentDate < today
-  const isTodayAppt = lead.appointmentDate === today
+  // Displayed meeting date: use the latest postponed date if it exists
+  const displayDate = lead.postponedDate || lead.appointmentDate
+  const displayTime = lead.postponedTime || lead.appointmentTime
+
+  const isOverdueAppt = displayDate < today
+  const isTodayAppt = displayDate === today
   const hasStatus = !!lead.consultationStatus
 
   const statusLabels: Record<string, { label: string; cls: string }> = {
@@ -503,8 +519,11 @@ function ConsultationStatusSection({ lead }: { lead: Lead }) {
     <div className={`rounded-xl border p-3 space-y-2 ${isOverdueAppt && !hasStatus ? 'bg-red-50 border-red-200' : isTodayAppt && !hasStatus ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'}`}>
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-gray-600">
-          📅 Встреча: {lead.appointmentDate.split('-').reverse().join('.')}
-          {lead.appointmentTime && ` в ${lead.appointmentTime}`}
+          📅 Встреча: {displayDate.split('-').reverse().join('.')}
+          {displayTime && ` в ${displayTime}`}
+          {lead.postponedDate && lead.postponedDate !== lead.appointmentDate && (
+            <span className="ml-1 text-orange-500 font-normal">(перенесено)</span>
+          )}
         </p>
         {hasStatus && (
           <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${statusLabels[lead.consultationStatus!]?.cls ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
@@ -512,28 +531,76 @@ function ConsultationStatusSection({ lead }: { lead: Lead }) {
           </span>
         )}
       </div>
-      {!hasStatus && (
+
+      {/* Status buttons — shown when no status yet OR when postponed (can postpone again) */}
+      {(!hasStatus || lead.consultationStatus === 'postponed') && !showPostpone && (
         <div>
           <p className="text-xs text-gray-500 mb-2">
             {isOverdueAppt ? '⚠️ Встреча просрочена — отметьте результат' : 'Отметьте результат встречи:'}
           </p>
           <div className="flex gap-2 flex-wrap">
-            {(['happened', 'not_happened', 'postponed'] as const).map(s => (
+            {(['happened', 'not_happened'] as const).map(s => (
               <button
                 key={s}
-                onClick={() => statusMut.mutate(s)}
+                onClick={() => statusMut.mutate({ consultationStatus: s })}
                 disabled={statusMut.isPending}
                 className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:opacity-80 disabled:opacity-40 ${statusLabels[s].cls}`}
               >
                 {statusLabels[s].label}
               </button>
             ))}
+            {/* Перенос — opens date picker instead of immediately saving */}
+            <button
+              onClick={() => { setPDate(tomorrowStr()); setPTime(''); setShowPostpone(true) }}
+              disabled={statusMut.isPending}
+              className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:opacity-80 disabled:opacity-40 ${statusLabels.postponed.cls}`}
+            >
+              {statusLabels.postponed.label}
+            </button>
           </div>
         </div>
       )}
-      {hasStatus && (
+
+      {/* Postpone date picker */}
+      {showPostpone && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 space-y-2">
+          <p className="text-xs font-semibold text-orange-700">Укажите новую дату консультации:</p>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={pDate}
+              min={today}
+              onChange={e => setPDate(e.target.value)}
+              className="flex-1 border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+            />
+            <input
+              type="time"
+              value={pTime}
+              onChange={e => setPTime(e.target.value)}
+              className="w-24 border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => statusMut.mutate({ consultationStatus: 'postponed', postponedDate: pDate, postponedTime: pTime || undefined })}
+              disabled={!pDate || statusMut.isPending}
+              className="flex-1 bg-orange-500 text-white text-xs font-semibold py-2 rounded-lg hover:bg-orange-600 disabled:opacity-40 transition-colors"
+            >
+              Сохранить перенос
+            </button>
+            <button
+              onClick={() => setShowPostpone(false)}
+              className="px-3 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg transition-colors"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
+
+      {hasStatus && lead.consultationStatus !== 'postponed' && (
         <button
-          onClick={() => statusMut.mutate('')}
+          onClick={() => statusMut.mutate({ consultationStatus: '' })}
           disabled={statusMut.isPending}
           className="text-xs text-gray-400 hover:text-gray-600 underline"
         >
@@ -594,8 +661,9 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
             <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{lead.phone}</span>
             <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{lead.date}</span>
             {lead.appointmentDate && (
-              <span className={`flex items-center gap-1 font-medium ${lead.consultationStatus === 'happened' ? 'text-green-600' : lead.consultationStatus === 'not_happened' ? 'text-red-500' : lead.appointmentDate < new Date().toISOString().slice(0,10) && !lead.consultationStatus ? 'text-red-600' : 'text-blue-600'}`}>
-                📅 {lead.appointmentDate.split('-').reverse().join('.')}{lead.appointmentTime ? ` ${lead.appointmentTime}` : ''}
+              <span className={`flex items-center gap-1 font-medium ${lead.consultationStatus === 'happened' ? 'text-green-600' : lead.consultationStatus === 'not_happened' ? 'text-red-500' : (lead.postponedDate || lead.appointmentDate) < new Date().toISOString().slice(0,10) && !lead.consultationStatus ? 'text-red-600' : 'text-blue-600'}`}>
+                📅 {(lead.postponedDate || lead.appointmentDate).split('-').reverse().join('.')}{(lead.postponedTime || lead.appointmentTime) ? ` ${lead.postponedTime || lead.appointmentTime}` : ''}
+                {lead.postponedDate && lead.postponedDate !== lead.appointmentDate && <span className="text-orange-500 text-[10px] ml-0.5">↻</span>}
               </span>
             )}
             {lead.salesChannel && <span>{lead.salesChannel.name}</span>}
