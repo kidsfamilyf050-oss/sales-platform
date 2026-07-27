@@ -41,6 +41,8 @@ interface Stats {
   totalPostponed: number
   totalScheduled: number
   conversionToScheduled: number
+  meetingsAttendedPlan: number
+  planCompletion: number
   funnel: { total: number; qualified: number; scheduled: number; happened: number; sold: number }
   deptStats?: { total: number; scheduled: number; happened: number } | null
 }
@@ -1052,6 +1054,32 @@ export default function LiderLeadsPage() {
             </div>
           ))}
         </div>
+
+        {/* Выполнение плана (only shown when a plan is set) */}
+        {stats?.meetingsAttendedPlan > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-5 flex items-center gap-5">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-gray-400 font-medium mb-1">Выполнение плана по встречам</p>
+              <div className="flex items-end gap-2">
+                <p className={`text-3xl font-bold ${stats.planCompletion >= 75 ? 'text-green-600' : stats.planCompletion >= 40 ? 'text-yellow-500' : 'text-red-500'}`}>
+                  {stats.planCompletion}%
+                </p>
+                <p className="text-sm text-gray-400 mb-0.5">
+                  {stats.totalHappened} из {stats.meetingsAttendedPlan} встреч
+                </p>
+              </div>
+            </div>
+            <div className="w-40 shrink-0">
+              <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${stats.planCompletion >= 75 ? 'bg-green-500' : stats.planCompletion >= 40 ? 'bg-yellow-400' : 'bg-red-400'}`}
+                  style={{ width: `${Math.min(stats.planCompletion, 100)}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1 text-right">план: {stats.meetingsAttendedPlan}</p>
+            </div>
+          </div>
+        )}
 
         {/* п.17: Department stats */}
         {stats?.deptStats && (

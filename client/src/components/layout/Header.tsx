@@ -96,9 +96,10 @@ export default function Header({ onMenuClick }: Props) {
                     const cfg = COLOR_MAP[alert.color] ?? COLOR_MAP.blue
                     const Icon = cfg.Icon
                     return (
-                      <button key={alert.type}
-                        onClick={() => { navigate(alert.url); setOpen(false) }}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left"
+                      <a key={alert.type}
+                        href={alert.url}
+                        onClick={(e) => { e.preventDefault(); setOpen(false); navigate(alert.url) }}
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer"
                       >
                         <div className={`w-8 h-8 rounded-xl ${cfg.bg} flex items-center justify-center shrink-0`}>
                           <Icon className={`w-4 h-4 ${cfg.text}`} />
@@ -107,7 +108,7 @@ export default function Header({ onMenuClick }: Props) {
                         <span className={`text-sm font-bold ${cfg.text} ${cfg.bg} px-2.5 py-1 rounded-xl shrink-0`}>
                           {alert.count}
                         </span>
-                      </button>
+                      </a>
                     )
                   })}
                 </div>

@@ -223,6 +223,11 @@ router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response
       postponedNoDate: allLeads.filter(l => l.consultationStatus === 'postponed' && !l.postponedDate).length,
     }
 
+    // Plan completion for this lider
+    const liderPlans = await prisma.plan.findMany({ where: { userId: req.user!.id } })
+    const meetingsAttendedPlan = liderPlans.find(p => p.type === 'MEETINGS_ATTENDED')?.value || 0
+    const planCompletion = meetingsAttendedPlan > 0 ? Math.round((totalHappened / meetingsAttendedPlan) * 1000) / 10 : 0
+
     // п.17: department stats for the lider's own department
     const deptStats = req.user!.departmentId ? await (async () => {
       const deptLeads = await prisma.lead.findMany({
@@ -249,6 +254,8 @@ router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response
         totalPostponed,
         totalScheduled,
         conversionToScheduled,
+        meetingsAttendedPlan,
+        planCompletion,
         funnel: {
           total: totalLeads,
           qualified: allLeads.filter(l => l.isQualified).length,

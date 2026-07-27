@@ -557,12 +557,6 @@ export default function ManagerDashboard() {
             <StatCard label={t('dash.manager.attended')} value={summary.meetingsAttended} color="blue" />
             <StatCard label="Конверсия запись→конс." value={summary.meetingsScheduled > 0 ? `${Math.round(summary.meetingsAttended / summary.meetingsScheduled * 100)}%` : '—'} color="yellow" />
             <StatCard label={t('dash.manager.meetingsPlan')} value={summary.meetingsScheduledPlan} sub={summary.planCompletion > 0 ? `${summary.planCompletion}% выполн.` : undefined} />
-            <StatCard
-              label="Выполнение плана"
-              value={`${summary.planCompletion ?? 0}%`}
-              color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 40 ? 'yellow' : 'red'}
-              sub={summary.meetingsScheduledPlan > 0 ? `${summary.meetingsAttended} из ${summary.meetingsScheduledPlan}` : undefined}
-            />
           </div>
 
           {/* ── Today's consultations ── */}
