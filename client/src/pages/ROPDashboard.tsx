@@ -180,7 +180,7 @@ function LiderDetail({ m }: { m: any }) {
             <span className="text-gray-500">{t('dash.funnel.leadsReceived')}: <span className="font-bold text-gray-900">{report.leadsReceived || report.leads || 0}</span></span>
             <span className="text-gray-500">{t('dash.rop.funnelStepQual')}: <span className="font-bold text-gray-900">{report.qualifiedLeads || 0}</span></span>
             <span className="text-gray-500">{t('dash.funnel.scheduled')}: <span className="font-bold text-gray-900">{report.meetingsScheduled || 0}</span></span>
-            <span className="text-gray-500">{t('dash.funnel.attended')}: <span className="font-bold text-gray-900">{report.meetingsAttended || 0}</span></span>
+            <span className="text-gray-500">{t('dash.funnel.attended')} <span className="text-gray-400 font-normal text-[10px]">(проведено консультаций)</span>: <span className="font-bold text-gray-900">{report.meetingsAttended || 0}</span></span>
             {report.comment && <span className="text-gray-400 italic">💬 {report.comment}</span>}
           </div>
         </div>

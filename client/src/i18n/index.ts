@@ -267,7 +267,7 @@ const ru = {
   'dash.manager.qualified': 'Квалифицировано',
   'dash.manager.transferred': 'Передано клоузеру',
   'dash.manager.meetings': 'Записано на встречу',
-  'dash.manager.attended': 'Проведено консультаций',
+  'dash.manager.attended': 'Состоялись',
   'dash.manager.noData': 'Нет данных за этот период',
 
   // Tracking
@@ -323,7 +323,7 @@ const ru = {
   'tracking.field.leads': 'Лидов получено',
   'tracking.field.qualifiedLeads': 'Квалифицировано',
   'tracking.field.meetingsScheduled': 'Записано на встречу',
-  'tracking.field.meetingsAttended': 'Проведено консультаций',
+  'tracking.field.meetingsAttended': 'Состоялись',
   'tracking.field.leadsM': 'Лидов',
   'tracking.field.qualifiedLeadsM': 'Квалиф. лидов',
   'tracking.field.budget': 'Бюджет за день',
@@ -556,7 +556,7 @@ const ru = {
   'dash.manager.attendedLabel': 'Консультаций:',
   'dash.manager.leadsplan': 'План лидов',
   'dash.manager.qualRate': '% квалификации',
-  'dash.manager.meetingsAttended': 'Проведено консультаций',
+  'dash.manager.meetingsAttended': 'Состоялись',
   'dash.manager.meetingsPlan': 'План консультаций',
   'dash.manager.planCompletionMeetings': 'Выполнение плана по консультациям',
   'dash.manager.schedToAtt': 'Конверсия записано → консультация',
@@ -691,6 +691,44 @@ const ru = {
   'marketing.noBudgetData': 'нет данных бюджета',
   'marketing.salesOfLeads': '{{sales}} из {{leads}} лидов',
   'marketing.noLeadData': 'нет данных по лидам',
+
+  // Lider leads page stats
+  'lider.stats.total': 'Всего лидов',
+  'lider.stats.happened': 'Состоялись',
+  'lider.stats.cancelled': 'Отменились',
+  'lider.stats.postponed': 'Перенесены',
+  'lider.stats.refusal': 'Отказ',
+  'lider.stats.convLead': 'Конверсия лид→запись',
+  'lider.stats.convMeet': 'Конверсия запись→конс.',
+  'lider.stats.scheduledToday': 'Записаны на сегодня',
+  'lider.stats.period': 'За период',
+  'lider.stats.fromScheduled': '% от записанных',
+
+  // Lider dept stats
+  'lider.dept.title': 'Показатели отдела',
+  'lider.dept.total': 'Всего лидов',
+  'lider.dept.scheduled': 'Записаны',
+  'lider.dept.happened': 'Состоялись',
+
+  // Lider funnel
+  'lider.funnel.title': 'Воронка',
+  'lider.funnel.total': 'Всего',
+  'lider.funnel.qualified': 'Квал',
+  'lider.funnel.scheduled': 'Записаны',
+  'lider.funnel.happened': 'Состоялись',
+  'lider.funnel.sold': 'Продано',
+  'lider.funnel.reminders': 'Напоминания',
+
+  // Lider badges & buttons
+  'lider.badge.qual': 'Квал',
+  'lider.badge.unqual': 'Не квал',
+  'lider.badge.inwork': 'В работе КЦ',
+  'lider.btn.save': 'Сохранить',
+  'lider.btn.addLead': 'Добавить лид',
+  'lider.btn.addRow': '+ Новый лид',
+  'lider.btn.updateStatus': 'Обновить статус встреч',
+  'lider.filter.applyFilters': 'Применить',
+  'lider.filter.resetFilters': 'Сбросить',
 }
 
 const kk: typeof ru = {
@@ -1380,6 +1418,44 @@ const kk: typeof ru = {
   'marketing.noBudgetData': 'бюджет деректері жоқ',
   'marketing.salesOfLeads': '{{leads}} лидтен {{sales}}',
   'marketing.noLeadData': 'лид деректері жоқ',
+
+  // Lider leads page stats
+  'lider.stats.total': 'Барлық лидтер',
+  'lider.stats.happened': 'Өтті',
+  'lider.stats.cancelled': 'Болдырылмады',
+  'lider.stats.postponed': 'Ауыстырылды',
+  'lider.stats.refusal': 'Бас тарту',
+  'lider.stats.convLead': 'Конверсия лид→жазу',
+  'lider.stats.convMeet': 'Конверсия жазу→конс.',
+  'lider.stats.scheduledToday': 'Бүгін жазылды',
+  'lider.stats.period': 'Кезең бойынша',
+  'lider.stats.fromScheduled': '% жазылғандардан',
+
+  // Lider dept stats
+  'lider.dept.title': 'Бөлім көрсеткіштері',
+  'lider.dept.total': 'Барлық лидтер',
+  'lider.dept.scheduled': 'Жазылды',
+  'lider.dept.happened': 'Өтті',
+
+  // Lider funnel
+  'lider.funnel.title': 'Шұңқыр',
+  'lider.funnel.total': 'Барлығы',
+  'lider.funnel.qualified': 'Сараланды',
+  'lider.funnel.scheduled': 'Жазылды',
+  'lider.funnel.happened': 'Өтті',
+  'lider.funnel.sold': 'Сатылды',
+  'lider.funnel.reminders': 'Еске салулар',
+
+  // Lider badges & buttons
+  'lider.badge.qual': 'Сараланды',
+  'lider.badge.unqual': 'Сараланбады',
+  'lider.badge.inwork': 'КО жұмысында',
+  'lider.btn.save': 'Сақтау',
+  'lider.btn.addLead': 'Лид қосу',
+  'lider.btn.addRow': '+ Жаңа лид',
+  'lider.btn.updateStatus': 'Кездесу күйін жаңарту',
+  'lider.filter.applyFilters': 'Қолдану',
+  'lider.filter.resetFilters': 'Тазалау',
 }
 
 // ── Store ────────────────────────────────────────────────────────────────────

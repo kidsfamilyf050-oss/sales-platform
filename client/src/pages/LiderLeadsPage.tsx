@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
+import { useT } from '../i18n'
 import {
   Plus, Search, X, ExternalLink, ChevronUp, ChevronDown,
   ChevronLeft, ChevronRight, MoreVertical, Bell, Clock,
@@ -41,6 +42,7 @@ interface Stats {
   totalScheduled: number
   conversionToScheduled: number
   funnel: { total: number; qualified: number; scheduled: number; happened: number; sold: number }
+  deptStats?: { total: number; scheduled: number; happened: number } | null
 }
 
 interface Reminders {
@@ -351,7 +353,10 @@ function AddLeadModal({
             <div className="p-3.5 bg-green-50 border border-green-100 rounded-xl space-y-3">
               <p className="text-xs font-semibold text-green-700">Дата и время консультации</p>
               <div className="grid grid-cols-2 gap-3">
-                <input type="date" value={appointmentDate} onChange={e => setAppointmentDate(e.target.value)}
+                {/* п.4: min=date prevents scheduling before lead arrival; п.5: auto-set planned status */}
+                <input type="date" value={appointmentDate}
+                  min={date}
+                  onChange={e => setAppointmentDate(e.target.value)}
                   className="w-full border border-green-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
                 <input type="time" value={appointmentTime} onChange={e => setAppointmentTime(e.target.value)}
                   className="w-full border border-green-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
@@ -385,11 +390,13 @@ function AddLeadModal({
               className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
               Отмена
             </button>
-            <button type="submit" disabled={mutation.isPending}
+            {/* п.8: channel required */}
+            <button type="submit" disabled={mutation.isPending || !salesChannelId}
               className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">
               {mutation.isPending ? 'Сохранение...' : 'Добавить лид'}
             </button>
           </div>
+          {!salesChannelId && <p className="text-xs text-orange-600 text-center">Выберите рекламный канал</p>}
           {mutation.isError && <p className="text-xs text-red-600 text-center">Ошибка при сохранении</p>}
         </form>
       </div>
@@ -546,7 +553,14 @@ function EditLeadModal({
             <div className="p-3.5 bg-green-50 border border-green-100 rounded-xl space-y-3">
               <p className="text-xs font-semibold text-green-700">Дата и время консультации</p>
               <div className="grid grid-cols-2 gap-3">
-                <input type="date" value={appointmentDate} onChange={e => setAppointmentDate(e.target.value)}
+                {/* п.4: min=date prevents scheduling before lead arrival */}
+                <input type="date" value={appointmentDate}
+                  min={date}
+                  onChange={e => {
+                    setAppointmentDate(e.target.value)
+                    // п.5: auto-set planned status when appointment date is picked
+                    if (e.target.value && !consultationStatus) setConsultationStatus('planned')
+                  }}
                   className="w-full border border-green-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
                 <input type="time" value={appointmentTime} onChange={e => setAppointmentTime(e.target.value)}
                   className="w-full border border-green-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
@@ -568,7 +582,8 @@ function EditLeadModal({
             </div>
           )}
 
-          {hasAppointment && (
+          {/* п.3: hide meeting status for Не квал */}
+          {hasAppointment && ktsMode !== 'unqual' && (
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-2">Статус встречи</label>
               <div className="grid grid-cols-2 gap-2">
@@ -616,11 +631,13 @@ function EditLeadModal({
               className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
               Отмена
             </button>
-            <button type="submit" disabled={mutation.isPending}
+            {/* п.8: channel required */}
+            <button type="submit" disabled={mutation.isPending || !salesChannelId}
               className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">
               {mutation.isPending ? 'Сохранение...' : 'Сохранить изменения'}
             </button>
           </div>
+          {!salesChannelId && <p className="text-xs text-orange-600 text-center">Выберите рекламный канал</p>}
           {mutation.isError && <p className="text-xs text-red-600 text-center">Ошибка при сохранении</p>}
         </form>
       </div>
@@ -712,6 +729,7 @@ function QuickStatusModal({ lead, onClose }: { lead: Lead; onClose: () => void }
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function LiderLeadsPage() {
   const qc = useQueryClient()
+  const { t } = useT()
 
   // Global period (from header PeriodSelector)
   const periodStore = usePeriodStore()
@@ -859,6 +877,8 @@ export default function LiderLeadsPage() {
 
   const saveInlineLead = () => {
     if (!inlineName.trim()) return
+    // п.8: channel required
+    if (!inlineChannelId) return
     // When inwork mode but subStatus not explicitly set, default to in_work_kc
     const resolvedSubStatus = inlineKtsMode === 'unqual'
       ? undefined
@@ -940,18 +960,10 @@ export default function LiderLeadsPage() {
     <div className="flex-1 overflow-y-auto bg-gray-50 min-h-0">
       <div className="p-4 md:p-6 max-w-[1500px] mx-auto">
 
-        {/* ── Header: no local period tabs, no Add button ── */}
+        {/* ── Header ── */}
         <div className="flex flex-wrap items-center gap-3 mb-5">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-gray-900">Отчёт лидоруба</h1>
-            {totalReminderCount > 0 && (
-              <span className="flex items-center gap-1 text-xs font-semibold text-orange-700 bg-orange-100 rounded-full px-2.5 py-1">
-                <Bell className="w-3 h-3" /> {totalReminderCount}
-              </span>
-            )}
-          </div>
+          <h1 className="text-xl font-bold text-gray-900">Отчёт лидоруба</h1>
           <div className="flex-1" />
-          {/* ✅ Fix #5: Excel export */}
           <button onClick={exportExcel}
             className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors">
             <Download className="w-4 h-4" /> Экспорт Excel
@@ -962,28 +974,59 @@ export default function LiderLeadsPage() {
           </button>
         </div>
 
-        {/* ── Stats cards ── */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
+        {/* ── Stats cards — п.9: clickable to apply filter, п.16: conversion added ── */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 mb-5">
           {[
-            { label: 'Всего лидов',        value: stats?.totalLeads,           sub: 'За период',   color: 'text-gray-900' },
-            { label: 'Записаны сегодня',   value: stats?.totalScheduledToday,  sub: null,          color: 'text-blue-600' },
-            { label: 'Состоялись',         value: stats?.totalHappened,        sub: stats?.totalScheduled ? `${pct(stats.totalHappened, stats.totalScheduled)}% от записанных` : '', color: 'text-green-600' },
-            { label: 'Отменились',         value: stats?.totalCancelled,       sub: stats?.totalScheduled ? `${pct(stats.totalCancelled, stats.totalScheduled)}% от записанных` : '', color: 'text-red-500' },
-            { label: 'Перенесены',         value: stats?.totalPostponed,       sub: stats?.totalScheduled ? `${pct(stats.totalPostponed, stats.totalScheduled)}% от записанных` : '', color: 'text-orange-500' },
-            { label: 'Конверсия в запись', value: `${stats?.conversionToScheduled ?? '—'}%`, sub: stats ? `${stats.totalScheduled} из ${stats.totalLeads} лидов` : '', color: 'text-purple-600' },
+            { label: t('lider.stats.total'),    value: stats?.totalLeads,          sub: t('lider.stats.period'), color: 'text-gray-900', filter: null },
+            { label: t('lider.stats.happened'), value: stats?.totalHappened,       sub: stats?.totalScheduled ? `${pct(stats.totalHappened, stats.totalScheduled)}% ${t('lider.stats.fromScheduled')}` : '', color: 'text-green-600', filter: { consultation: 'happened' } },
+            { label: t('lider.stats.cancelled'),value: stats?.totalCancelled,      sub: stats?.totalScheduled ? `${pct(stats.totalCancelled, stats.totalScheduled)}% ${t('lider.stats.fromScheduled')}` : '', color: 'text-red-500', filter: { consultation: 'not_happened' } },
+            { label: t('lider.stats.postponed'),value: stats?.totalPostponed,      sub: stats?.totalScheduled ? `${pct(stats.totalPostponed, stats.totalScheduled)}% ${t('lider.stats.fromScheduled')}` : '', color: 'text-orange-500', filter: { consultation: 'postponed' } },
+            { label: t('lider.stats.refusal'),  value: (data?.leads ? undefined : undefined), sub: null, color: 'text-red-400', filter: { subStatus: 'refused' } },
+            { label: t('lider.stats.convLead'), value: `${stats?.conversionToScheduled ?? '—'}%`, sub: stats ? `${stats.totalScheduled} из ${stats.totalLeads}` : '', color: 'text-purple-600', filter: null },
+            { label: t('lider.stats.convMeet'), value: stats?.totalScheduled ? `${pct(stats.totalHappened, stats.totalScheduled)}%` : '—', sub: stats ? `${stats.totalHappened} из ${stats.totalScheduled}` : '', color: 'text-blue-600', filter: null },
           ].map((card, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-sm transition-shadow">
+            <div key={i}
+              onClick={() => {
+                if (!card.filter) return
+                const f = card.filter as any
+                if (f.consultation) {
+                  setPendingConsultation(f.consultation); setConsultationFilter(f.consultation)
+                  setPendingSubStatus(''); setSubStatusFilter('')
+                } else if (f.subStatus) {
+                  setPendingSubStatus(f.subStatus); setSubStatusFilter(f.subStatus)
+                  setPendingConsultation(''); setConsultationFilter('')
+                }
+                resetPage()
+              }}
+              className={`bg-white rounded-2xl border border-gray-100 p-4 transition-shadow ${card.filter ? 'hover:shadow-md hover:border-blue-200 cursor-pointer' : 'hover:shadow-sm'}`}>
               <p className="text-xs text-gray-400 mb-1.5 leading-tight font-medium">{card.label}</p>
               <p className={`text-2xl font-bold ${card.color}`}>{card.value ?? '—'}</p>
-              {i === 1 && (stats?.totalScheduledToday ?? 0) > 0 && (
-                <button onClick={() => setShowAllToday(true)} className="text-xs text-blue-500 hover:underline mt-1 block font-medium">
-                  Смотреть список →
-                </button>
-              )}
               {card.sub && <p className="text-xs text-gray-400 mt-1">{card.sub}</p>}
+              {card.filter && <p className="text-[10px] text-blue-400 mt-1">↑ нажми для фильтра</p>}
             </div>
           ))}
         </div>
+
+        {/* п.17: Department stats */}
+        {stats?.deptStats && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-5">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{t('lider.dept.title')}</p>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-gray-900">{stats.deptStats.total}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{t('lider.dept.total')}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-green-600">{stats.deptStats.scheduled}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{t('lider.dept.scheduled')}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-blue-600">{stats.deptStats.happened}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{t('lider.dept.happened')}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Filters with deferred Apply button ── */}
         <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-4">
@@ -1037,11 +1080,11 @@ export default function LiderLeadsPage() {
             {/* ✅ Fix #7/#11: Apply + Reset */}
             <button onClick={applyFilters}
               className="flex items-center gap-1.5 py-2 px-4 text-sm font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors whitespace-nowrap">
-              <Check className="w-3.5 h-3.5" /> Применить
+              <Check className="w-3.5 h-3.5" /> {t('lider.filter.applyFilters')}
             </button>
             <button onClick={resetFilters}
               className="flex items-center gap-1 py-2 px-3 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-medium">
-              <X className="w-3.5 h-3.5" /> Сбросить
+              <X className="w-3.5 h-3.5" /> {t('lider.filter.resetFilters')}
             </button>
           </div>
           {filtersActive && (
@@ -1061,10 +1104,10 @@ export default function LiderLeadsPage() {
         {reminders && totalReminderCount > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {reminders.needStatusUpdate > 0 && (
-              <button onClick={() => applyQuickFilter({ subStatus: 'scheduled', consultationStatus: '' })}
+              <button onClick={() => applyQuickFilter({ subStatus: 'scheduled', consultationStatus: 'planned' })}
                 className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-xl hover:border-red-400 transition-colors text-left">
                 <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                <span className="text-xs font-medium text-gray-800">Обновить статус встреч</span>
+                <span className="text-xs font-medium text-gray-800">{t('lider.btn.updateStatus')}</span>
                 <span className="text-xs font-bold text-red-600 bg-red-100 rounded-full px-2 py-0.5">{reminders.needStatusUpdate}</span>
               </button>
             )}
@@ -1319,7 +1362,8 @@ export default function LiderLeadsPage() {
                           <td className="px-2 py-3">
                             <div className="flex flex-col gap-1.5">
                               <button onClick={saveInlineLead}
-                                disabled={!inlineName.trim() || createMutation.isPending}
+                                disabled={!inlineName.trim() || !inlineChannelId || createMutation.isPending}
+                                title={!inlineChannelId ? 'Выберите рекламный канал' : undefined}
                                 className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-40 transition-colors whitespace-nowrap">
                                 <Check className="w-3 h-3" /> Сохранить
                               </button>
@@ -1380,7 +1424,10 @@ export default function LiderLeadsPage() {
                             <SubStatusBadge value={lead.subStatus} />
                           </td>
                           <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">
-                            {fmtDateTime(lead.appointmentDate, lead.appointmentTime)}
+                            {/* п.7: for postponed leads show the rescheduled date */}
+                            {lead.consultationStatus === 'postponed' && lead.postponedDate
+                              ? <span className="text-orange-600">{fmtDateTime(lead.postponedDate, lead.postponedTime)}</span>
+                              : fmtDateTime(lead.appointmentDate, lead.appointmentTime)}
                           </td>
                           <td className="px-3 py-3 text-xs font-medium text-gray-700 whitespace-nowrap">
                             {lead.assignedTo?.name ?? <span className="text-gray-300">—</span>}
@@ -1462,11 +1509,11 @@ export default function LiderLeadsPage() {
                 <h3 className="text-sm font-bold text-gray-700 mb-4">Воронка лидов</h3>
                 <div className="flex items-stretch gap-1.5">
                   {[
-                    { label: 'Всего',       value: funnel.total,     pct: null,                                                    bg: 'bg-slate-100 text-slate-800 border-slate-200' },
-                    { label: 'Квалиф.',     value: funnel.qualified, pct: pct(funnel.qualified, funnel.total),                     bg: 'bg-green-100 text-green-800 border-green-200' },
-                    { label: 'Записаны',    value: funnel.scheduled, pct: pct(funnel.scheduled, funnel.qualified || funnel.total), bg: 'bg-blue-100 text-blue-800 border-blue-200' },
-                    { label: 'Состоялись', value: funnel.happened,  pct: pct(funnel.happened, funnel.scheduled || 1),             bg: 'bg-purple-100 text-purple-800 border-purple-200' },
-                    { label: 'Оплаты',     value: funnel.sold,      pct: pct(funnel.sold, funnel.happened || 1),                  bg: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+                    { label: t('lider.funnel.total'),     value: funnel.total,     pct: null,                                                    bg: 'bg-slate-100 text-slate-800 border-slate-200' },
+                    { label: t('lider.funnel.qualified'), value: funnel.qualified, pct: pct(funnel.qualified, funnel.total),                     bg: 'bg-green-100 text-green-800 border-green-200' },
+                    { label: t('lider.funnel.scheduled'), value: funnel.scheduled, pct: pct(funnel.scheduled, funnel.qualified || funnel.total), bg: 'bg-blue-100 text-blue-800 border-blue-200' },
+                    { label: t('lider.funnel.happened'),  value: funnel.happened,  pct: pct(funnel.happened, funnel.scheduled || 1),             bg: 'bg-purple-100 text-purple-800 border-purple-200' },
+                    { label: t('lider.funnel.sold'),      value: funnel.sold,      pct: pct(funnel.sold, funnel.happened || 1),                  bg: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
                   ].map((step, i, arr) => (
                     <div key={step.label} className="flex items-center gap-1.5 flex-1 min-w-0">
                       <div className={`flex-1 border-2 rounded-2xl p-3 text-center ${step.bg}`}>

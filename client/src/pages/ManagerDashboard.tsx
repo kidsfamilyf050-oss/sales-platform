@@ -550,13 +550,14 @@ export default function ManagerDashboard() {
           </div>
 
           {/* Lider stats — primary KPI: consultations conducted */}
+          {/* п.16: moved conversion to stats, removed plan completion row */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
-            <StatCard label={t('dash.manager.meetingsPlan')} value={summary.meetingsScheduledPlan} />
-            <StatCard label={t('dash.manager.attended')} value={summary.meetingsAttended} color="blue" />
-            <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
-            <StatCard label={t('dash.manager.meetings')} value={summary.meetingsScheduled} />
-            <StatCard label={t('dash.manager.qualified')} value={summary.qualifiedLeads} sub={`${summary.qualRate}% квал.`} />
             <StatCard label={t('dash.manager.leads')} value={summary.leads} sub={summary.leadsplan > 0 ? `план ${summary.leadsplan}` : undefined} />
+            <StatCard label={t('dash.manager.qualified')} value={summary.qualifiedLeads} sub={`${summary.qualRate}% квал.`} />
+            <StatCard label={t('dash.manager.meetings')} value={summary.meetingsScheduled} />
+            <StatCard label={t('dash.manager.attended')} value={summary.meetingsAttended} color="blue" />
+            <StatCard label="Конверсия запись→конс." value={summary.meetingsScheduled > 0 ? `${Math.round(summary.meetingsAttended / summary.meetingsScheduled * 100)}%` : '—'} color="purple" />
+            <StatCard label={t('dash.manager.meetingsPlan')} value={summary.meetingsScheduledPlan} sub={summary.planCompletion > 0 ? `${summary.planCompletion}% выполн.` : undefined} />
           </div>
 
           {/* ── Today's consultations ── */}
@@ -599,37 +600,7 @@ export default function ManagerDashboard() {
             )}
           </div>
 
-          {/* ── Recent leads this week ── */}
-          {recentLeads.length > 0 && (
-            <div className="card">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-gray-900 text-sm">📋 Лиды за неделю</h3>
-                <button onClick={() => navigate('/lider/leads')} className="text-xs text-blue-500 hover:underline">Все →</button>
-              </div>
-              <div className="space-y-1.5">
-                {recentLeads.map((lead: any) => {
-                  const subColors: Record<string, string> = { scheduled: 'bg-blue-100 text-blue-700', refused: 'bg-red-100 text-red-600', thinking: 'bg-yellow-100 text-yellow-700' }
-                  const subLabels: Record<string, string> = { scheduled: 'Записан', refused: 'Отказ', thinking: 'Думает', in_work_kc: 'В работе КЦ' }
-                  const sub = lead.subStatus as string
-                  return (
-                    <div key={lead.id} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{lead.clientName}</p>
-                        <p className="text-xs text-gray-400">{lead.salesChannel?.name || '—'}</p>
-                      </div>
-                      {sub && (
-                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${subColors[sub] || 'bg-gray-100 text-gray-500'}`}>
-                          {subLabels[sub] || sub}
-                        </span>
-                      )}
-                      {!lead.isQualified && (
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Не квал</span>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+          {/* п.15: removed "Лиды за неделю" — no longer shown */}
           )}
 
           {/* Conversion: записано → проведено */}

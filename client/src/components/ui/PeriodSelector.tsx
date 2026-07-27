@@ -70,7 +70,6 @@ export default function PeriodSelector() {
   const presets: { value: Exclude<Period, 'custom'>; labelKey: string }[] = [
     { value: 'today',     labelKey: 'period.today' },
     { value: 'yesterday', labelKey: 'period.yesterday' },
-    { value: 'week',      labelKey: 'period.week' },
     { value: 'month',     labelKey: 'period.month' },
   ]
 

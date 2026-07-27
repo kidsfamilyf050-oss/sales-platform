@@ -123,7 +123,8 @@ router.get('/today-appointments', authenticate, async (req: AuthRequest, res: Re
   }
 })
 
-// ── GET /api/leads/overdue-appointments — lider: past meetings with no status ──
+// ── GET /api/leads/overdue-appointments — lider: past meetings needing action ──
+// Only shows leads that are "planned" or have no status yet (not already resolved)
 router.get('/overdue-appointments', authenticate, async (req: AuthRequest, res: Response) => {
   const today = getKzToday()
   try {
@@ -131,7 +132,10 @@ router.get('/overdue-appointments', authenticate, async (req: AuthRequest, res: 
       where: {
         createdById: req.user!.id,
         appointmentDate: { lt: today },
-        consultationStatus: null,
+        OR: [
+          { consultationStatus: null },
+          { consultationStatus: 'planned' },
+        ],
       },
       include: INCLUDE_FULL,
       orderBy: { appointmentDate: 'desc' },
@@ -163,9 +167,9 @@ router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response
     if (subStatus) where.subStatus = subStatus as string
     if (consultationStatus) where.consultationStatus = consultationStatus as string
     if (dateFilter) where.appointmentDate = dateFilter as string
-    if (ktsStatus === 'qualified') { where.isQualified = true; where.assignedToId = null }
+    if (ktsStatus === 'qualified') { where.isQualified = true }
     else if (ktsStatus === 'unqualified') { where.isQualified = false }
-    else if (ktsStatus === 'in_work') { where.assignedToId = { not: null } }
+    else if (ktsStatus === 'in_work') { where.subStatus = 'in_work_kc' }
 
     const leads = await prisma.lead.findMany({ where, include: INCLUDE_FULL, orderBy: { createdAt: 'desc' } })
 
@@ -177,8 +181,9 @@ router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response
 
     const today = getKzToday() // KZ-correct date
     const totalLeads = allLeads.length
+    // п.10: count all leads scheduled today regardless of consultationStatus
     const totalScheduledToday = allLeads.filter(l =>
-      (l.appointmentDate === today && !l.consultationStatus) || l.postponedDate === today
+      l.appointmentDate === today || l.postponedDate === today
     ).length
     // SOLD leads always count as "happened" even if closer didn't explicitly mark consultationStatus
     const totalHappened = allLeads.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length
@@ -187,19 +192,35 @@ router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response
     const totalScheduled = allLeads.filter(l => l.subStatus === 'scheduled').length
     const conversionToScheduled = totalLeads > 0 ? Math.round(totalScheduled / totalLeads * 100) : 0
 
-    // Reminder counts — also count not_happened (needs follow-up action)
+    // п.6: needStatusUpdate — only planned or no-status past appointments (not already resolved)
     const reminders = {
       needStatusUpdate: allLeads.filter(l =>
         l.appointmentDate && l.appointmentDate < today &&
-        (!l.consultationStatus || l.consultationStatus === 'not_happened')
+        (!l.consultationStatus || l.consultationStatus === 'planned')
       ).length,
       thinkingTooLong: (() => {
-        const twoDaysAgo = new Date(); twoDaysAgo.setDate(twoDaysAgo.getDate() - 2)
+        const twoDaysAgo = new Date(Date.now() + 5 * 60 * 60 * 1000); twoDaysAgo.setDate(twoDaysAgo.getDate() - 2)
         const cutoff = twoDaysAgo.toISOString().slice(0, 10)
         return allLeads.filter(l => l.subStatus === 'thinking' && l.date < cutoff).length
       })(),
       postponedNoDate: allLeads.filter(l => l.consultationStatus === 'postponed' && !l.postponedDate).length,
     }
+
+    // п.17: department stats for the lider's own department
+    const deptStats = req.user!.departmentId ? await (async () => {
+      const deptLeads = await prisma.lead.findMany({
+        where: {
+          createdBy: { departmentId: req.user!.departmentId },
+          date: { gte: fromStr, lte: toStr },
+        },
+        select: { subStatus: true, consultationStatus: true, status: true },
+      })
+      return {
+        total: deptLeads.length,
+        scheduled: deptLeads.filter(l => l.subStatus === 'scheduled').length,
+        happened: deptLeads.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length,
+      }
+    })() : null
 
     res.json({
       leads,
@@ -218,6 +239,7 @@ router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response
           happened: allLeads.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length,
           sold: allLeads.filter(l => l.status === 'SOLD').length,
         },
+        deptStats,
       },
       reminders,
     })
@@ -679,14 +701,21 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 // ── Helper ────────────────────────────────────────────────────────────────────
 function getPeriodStr(period: string, from?: string, to?: string) {
   if (from && to) return { fromStr: from, toStr: to }
-  const now = new Date()
+  // Use KZ timezone (UTC+5) for all date calculations
+  const nowKz = new Date(Date.now() + 5 * 60 * 60 * 1000)
   const pad = (n: number) => String(n).padStart(2, '0')
-  const str = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-  if (period === 'today') { const s = str(now); return { fromStr: s, toStr: s } }
-  if (period === 'yesterday') { const y = new Date(now); y.setDate(y.getDate() - 1); const s = str(y); return { fromStr: s, toStr: s } }
-  if (period === 'week') { const s = new Date(now); s.setDate(s.getDate() - 7); return { fromStr: str(s), toStr: str(now) } }
+  const str = (d: Date) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`
+  if (period === 'today') { const s = str(nowKz); return { fromStr: s, toStr: s } }
+  if (period === 'yesterday') {
+    const y = new Date(nowKz); y.setUTCDate(y.getUTCDate() - 1); const s = str(y)
+    return { fromStr: s, toStr: s }
+  }
+  if (period === 'week') {
+    const s = new Date(nowKz); s.setUTCDate(s.getUTCDate() - 7)
+    return { fromStr: str(s), toStr: str(nowKz) }
+  }
   // month
-  const y = now.getFullYear(); const mo = now.getMonth() + 1
+  const y = nowKz.getUTCFullYear(); const mo = nowKz.getUTCMonth() + 1
   return { fromStr: `${y}-${pad(mo)}-01`, toStr: `${y}-${pad(mo)}-${pad(new Date(y, mo, 0).getDate())}` }
 }
 

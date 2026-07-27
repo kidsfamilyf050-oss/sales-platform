@@ -241,7 +241,7 @@ export default function OwnerDashboard() {
                     <FunnelStep label={t('dash.funnel.scheduled')} value={summary.totalMeetingsScheduled} color="text-orange-500" />
                     <FunnelArrow pctVal={scheduledToAtt} />
                     <FunnelStep label={t('dash.funnel.attended')} value={summary.totalMeetingsAttended}
-                      color="text-orange-600" />
+                      sub="(проведено консультаций)" color="text-orange-600" />
                   </>
                 )}
                 <FunnelArrow pctVal={summary.totalMeetingsAttended > 0 ? attToSale : leadsToSale} />
