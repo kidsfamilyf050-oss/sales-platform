@@ -365,7 +365,10 @@ function AddLeadModal({
                 {/* п.4: min=date prevents scheduling before lead arrival; п.5: auto-set planned status */}
                 <input type="date" value={appointmentDate}
                   min={date}
-                  onChange={e => setAppointmentDate(e.target.value)}
+                  onChange={e => {
+                    setAppointmentDate(e.target.value)
+                    if (e.target.value) setConsultationStatus('planned')
+                  }}
                   className="w-full border border-green-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
                 <input type="time" value={appointmentTime} onChange={e => setAppointmentTime(e.target.value)}
                   className="w-full border border-green-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
@@ -583,8 +586,8 @@ function EditLeadModal({
                   min={date}
                   onChange={e => {
                     setAppointmentDate(e.target.value)
-                    // п.5: auto-set planned status when appointment date is picked
-                    if (e.target.value && !consultationStatus) setConsultationStatus('planned')
+                    // п.5: auto-set planned status when appointment date is picked (user can change manually)
+                    if (e.target.value) setConsultationStatus('planned')
                   }}
                   className="w-full border border-green-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
                 <input type="time" value={appointmentTime} onChange={e => setAppointmentTime(e.target.value)}
@@ -1375,7 +1378,14 @@ export default function LiderLeadsPage() {
                             <div className="space-y-1">
                               <input type="date" value={inlineAppointmentDate}
                                 min={inlineDate}
-                                onChange={e => setInlineAppointmentDate(e.target.value)}
+                                onChange={e => {
+                                  setInlineAppointmentDate(e.target.value)
+                                  if (e.target.value) {
+                                    // Auto-set statuses when a meeting date is chosen
+                                    if (inlineSubStatus !== 'refused') setInlineSubStatus('scheduled')
+                                    setInlineConsultationStatus('planned')
+                                  }
+                                }}
                                 className="w-32 text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
                               <input type="time" value={inlineAppointmentTime} onChange={e => setInlineAppointmentTime(e.target.value)}
                                 className="w-24 text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
