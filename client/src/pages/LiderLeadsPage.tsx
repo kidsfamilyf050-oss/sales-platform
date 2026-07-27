@@ -1063,21 +1063,42 @@ export default function LiderLeadsPage() {
         {stats && stats.meetingsAttendedPlan > 0 && (() => {
           const pct = stats.planCompletion
           const color = pct >= 75 ? 'text-green-600' : pct >= 40 ? 'text-yellow-500' : 'text-red-500'
-          const barColor = pct >= 75 ? 'bg-green-500' : pct >= 40 ? 'bg-yellow-400' : 'bg-red-400'
+          const grad = pct >= 75
+            ? 'from-emerald-400 to-green-600'
+            : pct >= 40
+            ? 'from-yellow-300 to-amber-500'
+            : 'from-red-400 to-rose-600'
+          const glow = pct >= 75
+            ? 'shadow-[0_0_12px_rgba(34,197,94,0.4)]'
+            : pct >= 40
+            ? 'shadow-[0_0_12px_rgba(251,191,36,0.4)]'
+            : 'shadow-[0_0_12px_rgba(239,68,68,0.35)]'
           return (
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-5 flex items-center gap-5">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-400 font-medium mb-1">Выполнение плана по встречам</p>
-                <div className="flex items-end gap-2">
-                  <p className={`text-3xl font-bold ${color}`}>{pct}%</p>
-                  <p className="text-sm text-gray-400 mb-0.5">{stats.totalHappened} из {stats.meetingsAttendedPlan} встреч</p>
+            <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-5">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Выполнение плана по встречам</p>
+                  <div className="flex items-end gap-2 mt-0.5">
+                    <p className={`text-3xl font-black ${color}`}>{pct}%</p>
+                    <p className="text-sm text-gray-400 mb-0.5 font-medium">{stats.totalHappened} из {stats.meetingsAttendedPlan} встреч</p>
+                  </div>
+                </div>
+                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center ${glow}`}>
+                  <span className="text-white text-lg font-black">{pct}%</span>
                 </div>
               </div>
-              <div className="w-40 shrink-0">
-                <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
-                </div>
-                <p className="text-[11px] text-gray-400 mt-1 text-right">план: {stats.meetingsAttendedPlan}</p>
+              <div className="relative h-5 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className={`absolute inset-y-0 left-0 rounded-full bg-gradient-to-r ${grad} transition-all duration-700 ease-out`}
+                  style={{ width: `${Math.min(pct, 100)}%` }}
+                />
+                {/* shimmer line */}
+                <div className="absolute inset-y-0 left-0 right-0 bg-gradient-to-b from-white/20 to-transparent rounded-full pointer-events-none" />
+                {pct > 12 && (
+                  <span className="absolute left-3 inset-y-0 flex items-center text-[11px] font-bold text-white/90 drop-shadow">
+                    {stats.totalHappened} / {stats.meetingsAttendedPlan}
+                  </span>
+                )}
               </div>
             </div>
           )
@@ -1279,7 +1300,7 @@ export default function LiderLeadsPage() {
 
         {/* ── Overdue meetings ── */}
         {overdueLeads.length > 0 && (
-          <div className="mx-4 mb-2 bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden">
+          <div className="mb-4 bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden">
             <button
               className="w-full flex items-center justify-between px-4 py-3 hover:bg-red-50/50 transition-colors"
               onClick={() => setShowOverdue(v => !v)}>

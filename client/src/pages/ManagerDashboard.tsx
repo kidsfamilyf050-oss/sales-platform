@@ -270,16 +270,24 @@ export default function ManagerDashboard() {
                           <span className={`text-sm font-semibold truncate ${isMe ? 'text-blue-800' : 'text-gray-800'}`}>{r.name}</span>
                           {isMe && <span className="text-xs font-bold text-blue-600 shrink-0">← Ты здесь</span>}
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 relative h-4 bg-gray-100 rounded-full overflow-hidden">
                             <div
-                              className={`h-1.5 rounded-full ${r.completion >= 75 ? 'bg-green-500' : r.completion >= 50 ? 'bg-amber-400' : 'bg-red-400'}`}
+                              className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 bg-gradient-to-r ${r.completion >= 75 ? 'from-emerald-400 to-green-600' : r.completion >= 50 ? 'from-yellow-300 to-amber-500' : 'from-red-400 to-rose-500'}`}
                               style={{ width: `${Math.min(100, r.completion)}%` }}
                             />
+                            <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent rounded-full pointer-events-none" />
+                            {r.completion > 15 && (
+                              <span className="absolute left-2.5 inset-y-0 flex items-center text-[10px] font-bold text-white/95 drop-shadow">
+                                {r.completion}%
+                              </span>
+                            )}
                           </div>
-                          <span className={`text-xs font-bold w-12 text-right shrink-0 ${r.completion >= 75 ? 'text-green-600' : r.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
-                            {r.plan > 0 ? `${r.completion}%` : '—'}
-                          </span>
+                          {r.completion <= 15 && (
+                            <span className={`text-xs font-bold w-10 text-right shrink-0 ${r.completion >= 75 ? 'text-green-600' : r.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                              {r.plan > 0 ? `${r.completion}%` : '—'}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
@@ -643,17 +651,24 @@ export default function ManagerDashboard() {
                           <span className={`text-sm font-semibold truncate ${isMe ? 'text-blue-800' : 'text-gray-800'}`}>{r.name}</span>
                           {isMe && <span className="text-xs font-bold text-blue-600 shrink-0">{t('dash.lider.rankMe')}</span>}
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {/* Progress bar */}
-                          <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 relative h-4 bg-gray-100 rounded-full overflow-hidden">
                             <div
-                              className={`h-1.5 rounded-full ${r.completion >= 75 ? 'bg-green-500' : r.completion >= 50 ? 'bg-amber-400' : 'bg-red-400'}`}
+                              className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 bg-gradient-to-r ${r.completion >= 75 ? 'from-emerald-400 to-green-600' : r.completion >= 50 ? 'from-yellow-300 to-amber-500' : 'from-red-400 to-rose-500'}`}
                               style={{ width: `${Math.min(100, r.completion)}%` }}
                             />
+                            <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent rounded-full pointer-events-none" />
+                            {r.completion > 15 && (
+                              <span className="absolute left-2.5 inset-y-0 flex items-center text-[10px] font-bold text-white/95 drop-shadow">
+                                {r.completion}%
+                              </span>
+                            )}
                           </div>
-                          <span className={`text-xs font-bold w-12 text-right shrink-0 ${r.completion >= 75 ? 'text-green-600' : r.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
-                            {r.plan > 0 ? `${r.completion}%` : '—'}
-                          </span>
+                          {r.completion <= 15 && (
+                            <span className={`text-xs font-bold w-10 text-right shrink-0 ${r.completion >= 75 ? 'text-green-600' : r.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                              {r.plan > 0 ? `${r.completion}%` : '—'}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
