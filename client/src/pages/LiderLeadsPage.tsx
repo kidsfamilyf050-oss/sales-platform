@@ -249,9 +249,18 @@ function AddLeadModal({
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['lider-report'] }); onClose() },
   })
 
+  const [addError, setAddError] = useState<string | null>(null)
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!clientName.trim() || !phone.trim()) return
+    // п.4: appointment date cannot be before lead arrival date
+    if (appointmentDate && date && appointmentDate < date) {
+      setAddError(
+        `Дата встречи (${fmtDate(appointmentDate)}) не может быть раньше даты поступления лида (${fmtDate(date)}).\n\nИсправьте дату встречи или дату поступления лида.`
+      )
+      return
+    }
     const isQualified = ktsMode !== 'unqual'
     // Send assignedToId for all qualified modes (not just inwork)
     const chosenAssignee = ktsMode === 'unqual' ? undefined : assignedToId || undefined
@@ -397,6 +406,13 @@ function AddLeadModal({
             </button>
           </div>
           {!salesChannelId && <p className="text-xs text-orange-600 text-center">Выберите рекламный канал</p>}
+          {addError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+              <p className="text-xs text-red-700 font-semibold mb-1">⚠ Ошибка</p>
+              <p className="text-xs text-red-600 whitespace-pre-line">{addError}</p>
+              <button type="button" onClick={() => setAddError(null)} className="mt-2 text-xs text-red-500 underline">Закрыть</button>
+            </div>
+          )}
           {mutation.isError && <p className="text-xs text-red-600 text-center">Ошибка при сохранении</p>}
         </form>
       </div>
@@ -442,6 +458,8 @@ function EditLeadModal({
     }
   }
 
+  const [editError, setEditError] = useState<string | null>(null)
+
   const mutation = useMutation({
     mutationFn: (data: any) => api.put(`/leads/${lead.id}`, data).then(r => r.data),
     onSuccess: () => {
@@ -454,6 +472,13 @@ function EditLeadModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    // п.4: appointment date cannot be before lead arrival date
+    if (appointmentDate && date && appointmentDate < date) {
+      setEditError(
+        `Дата встречи (${fmtDate(appointmentDate)}) не может быть раньше даты поступления лида (${fmtDate(date)}).\n\nИсправьте дату встречи или дату поступления лида.`
+      )
+      return
+    }
     const isQualified = ktsMode !== 'unqual'
     // Send assignedToId for all qualified modes (not just inwork)
     const chosenAssignee = ktsMode === 'unqual' ? null : assignedToId || null
@@ -638,6 +663,13 @@ function EditLeadModal({
             </button>
           </div>
           {!salesChannelId && <p className="text-xs text-orange-600 text-center">Выберите рекламный канал</p>}
+          {editError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+              <p className="text-xs text-red-700 font-semibold mb-1">⚠ Ошибка</p>
+              <p className="text-xs text-red-600 whitespace-pre-line">{editError}</p>
+              <button type="button" onClick={() => setEditError(null)} className="mt-2 text-xs text-red-500 underline">Закрыть</button>
+            </div>
+          )}
           {mutation.isError && <p className="text-xs text-red-600 text-center">Ошибка при сохранении</p>}
         </form>
       </div>
@@ -775,6 +807,7 @@ export default function LiderLeadsPage() {
   // Modals
   const [editLead, setEditLead] = useState<Lead | null>(null)
   const [statusLead, setStatusLead] = useState<Lead | null>(null)
+  const [validationError, setValidationError] = useState<string | null>(null)
   const [showAllToday, setShowAllToday] = useState(true)
 
   const resetPage = () => setPage(1)
@@ -879,6 +912,13 @@ export default function LiderLeadsPage() {
     if (!inlineName.trim()) return
     // п.8: channel required
     if (!inlineChannelId) return
+    // п.4: appointment date cannot be before lead arrival date
+    if (inlineAppointmentDate && inlineDate && inlineAppointmentDate < inlineDate) {
+      setValidationError(
+        `Дата встречи (${fmtDate(inlineAppointmentDate)}) не может быть раньше даты поступления лида (${fmtDate(inlineDate)}).\n\nИсправьте дату встречи или дату поступления лида.`
+      )
+      return
+    }
     // When inwork mode but subStatus not explicitly set, default to in_work_kc
     const resolvedSubStatus = inlineKtsMode === 'unqual'
       ? undefined
@@ -1315,10 +1355,14 @@ export default function LiderLeadsPage() {
                               ))}
                             </div>
                           </td>
-                          {/* Sub-status (Записан/Отказ/Думает) */}
+                          {/* Sub-status (Записан/Отказ/Думает) — disabled for Не квал */}
                           <td className="px-2 py-3">
-                            <select value={inlineSubStatus} onChange={e => setInlineSubStatus(e.target.value)}
-                              className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white w-28">
+                            <select value={inlineSubStatus}
+                              disabled={inlineKtsMode === 'unqual'}
+                              onChange={e => setInlineSubStatus(e.target.value)}
+                              className={`text-xs border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white w-28 ${
+                                inlineKtsMode === 'unqual' ? 'opacity-40 cursor-not-allowed border-gray-200' : 'border-gray-300'
+                              }`}>
                               <option value="">— статус —</option>
                               <option value="scheduled">Записан</option>
                               <option value="refused">Отказ</option>
@@ -1326,10 +1370,12 @@ export default function LiderLeadsPage() {
                               <option value="in_work_kc">В работе КЦ</option>
                             </select>
                           </td>
-                          {/* Appointment date + time */}
+                          {/* Appointment date + time — min=inlineDate prevents booking before lead arrival */}
                           <td className="px-2 py-3">
                             <div className="space-y-1">
-                              <input type="date" value={inlineAppointmentDate} onChange={e => setInlineAppointmentDate(e.target.value)}
+                              <input type="date" value={inlineAppointmentDate}
+                                min={inlineDate}
+                                onChange={e => setInlineAppointmentDate(e.target.value)}
                                 className="w-32 text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
                               <input type="time" value={inlineAppointmentTime} onChange={e => setInlineAppointmentTime(e.target.value)}
                                 className="w-24 text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
@@ -1541,6 +1587,27 @@ export default function LiderLeadsPage() {
       {/* Modals */}
       {editLead && <EditLeadModal lead={editLead} onClose={() => setEditLead(null)} channels={channels} closers={closers} />}
       {statusLead && <QuickStatusModal lead={statusLead} onClose={() => setStatusLead(null)} />}
+
+      {/* Validation error modal (date conflict) */}
+      {validationError && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4" onClick={() => setValidationError(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900 mb-1">Ошибка в дате</h3>
+                <p className="text-sm text-gray-600 whitespace-pre-line">{validationError}</p>
+              </div>
+            </div>
+            <button onClick={() => setValidationError(null)}
+              className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold transition-colors">
+              Понял, исправлю
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
