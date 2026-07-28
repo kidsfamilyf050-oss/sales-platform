@@ -182,11 +182,17 @@ router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response
     if (ktsStatus === 'qualified') {
       where.isQualified = true
       // KtsBadge shows "В работе КЦ" in TWO cases — both must be excluded from "Квал":
-      // 1. subStatus === 'in_work_kc' (lider manually set)
-      // 2. status === 'IN_WORK' (closer accepted the lead)
+      // 1. subStatus === 'in_work_kc' (lider manually set)  → exclude via AND/OR
+      // 2. status === 'IN_WORK' (closer accepted the lead)  → exclude via status filter
       where.status = { not: 'IN_WORK' } as any
       if (!subStatus) {
-        where.subStatus = { not: 'in_work_kc' } as any
+        // IMPORTANT: Prisma { not: 'in_work_kc' } generates SQL "!= 'in_work_kc'"
+        // which EXCLUDES NULLs (SQL NULL != x → NULL, not TRUE).
+        // "Квал •" leads have subStatus = null → we must explicitly include null.
+        where.AND = [
+          ...(Array.isArray(where.AND) ? where.AND : []),
+          { OR: [{ subStatus: null }, { subStatus: { not: 'in_work_kc' } }] } as any,
+        ]
       }
     } else if (ktsStatus === 'unqualified') {
       where.isQualified = false
