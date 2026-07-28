@@ -179,9 +179,18 @@ router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response
       where.consultationStatus = consultationStatus as string
     }
     if (dateFilter) where.appointmentDate = dateFilter as string
-    if (ktsStatus === 'qualified') { where.isQualified = true }
-    else if (ktsStatus === 'unqualified') { where.isQualified = false }
-    else if (ktsStatus === 'in_work') { where.subStatus = 'in_work_kc' }
+    if (ktsStatus === 'qualified') {
+      where.isQualified = true
+      // 'Квал' must NOT include 'В работе КЦ' (in_work_kc) — that's a separate UI bucket.
+      // Only apply the exclusion if no explicit subStatus filter is active (which already narrows it).
+      if (!subStatus) {
+        where.subStatus = { not: 'in_work_kc' } as any
+      }
+    } else if (ktsStatus === 'unqualified') {
+      where.isQualified = false
+    } else if (ktsStatus === 'in_work') {
+      where.subStatus = 'in_work_kc'
+    }
 
     const leads = await prisma.lead.findMany({ where, include: INCLUDE_FULL, orderBy: { createdAt: 'desc' } })
 
