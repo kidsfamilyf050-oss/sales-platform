@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
@@ -886,7 +887,10 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
 export default function CloserLeadsPage() {
   const periodState = usePeriodStore()
   const params = buildPeriodParams(periodState)
-  const [tab, setTab] = useState<'incoming' | 'inwork' | 'refused' | 'sold' | 'refunds'>('incoming')
+  const [searchParams] = useSearchParams()
+  const [tab, setTab] = useState<'incoming' | 'inwork' | 'refused' | 'sold' | 'refunds'>(
+    (searchParams.get('tab') as 'incoming' | 'inwork' | 'refused' | 'sold' | 'refunds') || 'incoming'
+  )
 
   const incomingQ = useQuery({
     queryKey: ['closer-leads', 'incoming'],

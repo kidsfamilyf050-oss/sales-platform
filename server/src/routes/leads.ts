@@ -839,6 +839,20 @@ router.get('/closer-archive', authenticate, async (req: AuthRequest, res: Respon
   }
 })
 
+// ── GET /api/leads/:id — single lead (for ROP/OWNER drill-down) ──────────────
+router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const lead = await prisma.lead.findFirst({
+      where: { id: req.params.id, createdBy: { companyId: req.user!.companyId } },
+      include: INCLUDE_FULL,
+    })
+    if (!lead) return res.status(404).json({ error: 'Not found' })
+    res.json(lead)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── Helper ────────────────────────────────────────────────────────────────────
 function getPeriodStr(period: string, from?: string, to?: string) {
   if (from && to) return { fromStr: from, toStr: to }

@@ -91,7 +91,7 @@ export default function ROPLinksPage() {
             className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${tab === 'IN_WORK' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
             <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-            В работе
+            Дожим
           </button>
         </div>
       </div>
@@ -111,7 +111,7 @@ export default function ROPLinksPage() {
           </select>
         )}
         <span className="ml-auto text-sm text-gray-400">
-          {filtered.length} {tab === 'REFUSAL' ? 'отказников' : 'в работе'}
+          {filtered.length} {tab === 'REFUSAL' ? 'отказников' : 'в дожиме'}
         </span>
       </div>
 

@@ -331,11 +331,12 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     // Refunds from Lead model
     const ropRefundedLeads = await prisma.lead.findMany({
       where: { createdBy: { companyId: req.user!.companyId }, status: 'SOLD', isRefund: true, date: { gte: fromStr, lte: toStr } },
-      select: { netAmount: true, amount: true },
+      select: { id: true, netAmount: true, amount: true },
     })
     const ropRefundCount  = ropRefundedLeads.length
     const ropRefundTotal  = ropRefundedLeads.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
     const ropNetSales     = totalSalesAmount - ropRefundTotal
+    const ropRefundedLeadIds = new Set(ropRefundedLeads.map(l => l.id))
 
     // Clients/consultations from closer reports
     const clientsReceived = sumReportField(closerReports, 'clientsReceived')
@@ -368,7 +369,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const periodSalesByManager: Record<string, any[]> = {}
     for (const s of periodSales) {
       if (!periodSalesByManager[s.userId]) periodSalesByManager[s.userId] = []
-      periodSalesByManager[s.userId].push({ id: s.id, amount: s.amount, netAmount: s.netAmount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date, productName: s.product?.name || null })
+      periodSalesByManager[s.userId].push({ id: s.id, amount: s.amount, netAmount: s.netAmount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date, productName: s.product?.name || null, leadId: s.leadId ?? null, isRefund: !!(s.leadId && ropRefundedLeadIds.has(s.leadId)) })
     }
 
     // Per-manager metrics from Lead model (source of truth — no manual reports needed)
@@ -540,13 +541,14 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         prisma.lead.count({ where: { assignedToId: userId, status: 'SOLD', isRefund: false, date: { gte: fromStr, lte: toStr } } }),
         prisma.lead.findMany({
           where: { assignedToId: userId, status: 'SOLD', isRefund: true, date: { gte: fromStr, lte: toStr } },
-          select: { netAmount: true, amount: true },
+          select: { id: true, netAmount: true, amount: true },
         }),
       ])
 
       const refundCount = refundedLeads.length
       const refundTotal = refundedLeads.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
       const netSalesAmount = salesAmount - refundTotal
+      const refundedLeadIds = new Set(refundedLeads.map(l => l.id))
 
       // Lead-based totals for period stats display
       const leadTotal = inWorkLeadsCount + leadRefusedCount + leadSoldCount
@@ -569,6 +571,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           paymentType: s.paymentType, paymentMethod: s.paymentMethod,
           bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment,
           leadId: s.leadId, createdAt: s.createdAt,
+          isRefund: !!(s.leadId && refundedLeadIds.has(s.leadId)),
         })),
         todayReport,
         recentReports: reports.slice(0, 7),

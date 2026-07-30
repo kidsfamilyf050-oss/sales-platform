@@ -241,7 +241,7 @@ export default function ManagerDashboard() {
               <p className="text-2xl font-bold text-amber-500">{summary.inWorkLeadsCount ?? 0}</p>
               <p className="text-xs text-gray-300 group-hover:text-amber-400 mt-1 transition-colors">активных</p>
             </div>
-            <div onClick={() => navigate('/closer/archive')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-red-100 hover:bg-red-50/30 border border-transparent">
+            <div onClick={() => navigate('/closer/leads?tab=refused')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-red-100 hover:bg-red-50/30 border border-transparent">
               <p className="text-xs font-medium text-gray-400 group-hover:text-red-500 transition-colors uppercase tracking-wide mb-1">Отказы</p>
               <p className="text-2xl font-bold text-red-500">{summary.leadRefusedCount ?? 0}</p>
               <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">за период</p>
@@ -322,9 +322,10 @@ export default function ManagerDashboard() {
             ) : (
               <div className="space-y-2">
                 {(periodSalesData as any[]).map((s: any) => (
-                  <div key={s.id} className="flex items-start justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                  <div key={s.id} className={`flex items-start justify-between p-3 rounded-xl border ${s.isRefund ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100'}`}>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {s.isRefund && <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-200 text-red-700">Возврат</span>}
                         {s.leadId ? (
                           <>
                             <span className="text-xs text-gray-400 shrink-0">Заявка: {new Date(s.date + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
@@ -333,13 +334,24 @@ export default function ManagerDashboard() {
                         ) : (
                           <span className="text-xs text-gray-400 w-16 shrink-0">{new Date(s.date + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
                         )}
-                        <span className="font-bold text-gray-900">₸ {fmt(net(s))}</span>
-                        {s.netAmount && s.netAmount !== s.amount && <span className="text-xs text-gray-400 line-through">₸ {fmt(Number(s.amount))}</span>}
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {PAYMENT_TYPE_LABEL[s.paymentType]}
-                        </span>
+                        {s.isRefund ? (
+                          <>
+                            <span className="font-bold text-red-600">−₸ {fmt(Number(s.amount))}</span>
+                            <span className="text-xs text-gray-400 line-through">₸ {fmt(net(s))}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-bold text-gray-900">₸ {fmt(net(s))}</span>
+                            {s.netAmount && s.netAmount !== s.amount && <span className="text-xs text-gray-400 line-through">₸ {fmt(Number(s.amount))}</span>}
+                          </>
+                        )}
+                        {!s.isRefund && (
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {PAYMENT_TYPE_LABEL[s.paymentType]}
+                          </span>
+                        )}
                         <span className="text-xs text-gray-500">{gatewayLabel(s.paymentMethod)}</span>
-                        {s.netAmount && <span className="text-xs text-green-600 font-medium">Бюджет: {s.netAmount.toLocaleString('ru')} ₸</span>}
+                        {!s.isRefund && s.netAmount && <span className="text-xs text-green-600 font-medium">Бюджет: {s.netAmount.toLocaleString('ru')} ₸</span>}
                         {s.months && showMonths(s.paymentMethod) && <span className="text-xs text-gray-400">{s.months} мес.</span>}
                       </div>
                       {s.crmLink && (

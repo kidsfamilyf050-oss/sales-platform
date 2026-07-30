@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { X } from 'lucide-react'
 import { api } from '../api/client'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 import StatCard from '../components/ui/StatCard'
@@ -52,10 +53,74 @@ function Funnel({ steps }: { steps: { label: string; value: number; color?: stri
   )
 }
 
+// Lead detail modal (for ROP drill-down)
+function LeadModal({ leadId, onClose }: { leadId: string; onClose: () => void }) {
+  const { data: lead, isLoading } = useQuery({
+    queryKey: ['lead-detail', leadId],
+    queryFn: () => api.get(`/leads/${leadId}`).then(r => r.data),
+  })
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+          <h3 className="font-bold text-gray-900">Заявка</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {isLoading ? (
+          <div className="p-6 text-center text-gray-400 text-sm">Загрузка...</div>
+        ) : !lead ? (
+          <div className="p-6 text-center text-gray-400 text-sm">Заявка не найдена</div>
+        ) : (
+          <div className="p-4 space-y-3 text-sm">
+            <div className="flex items-center gap-3">
+              <div>
+                <p className="font-bold text-gray-900 text-base">{lead.clientName}</p>
+                {lead.phone && <p className="text-gray-500">{lead.phone}</p>}
+              </div>
+              <span className={`ml-auto px-2 py-0.5 rounded-full text-xs font-medium ${
+                lead.status === 'SOLD' ? 'bg-green-100 text-green-700' :
+                lead.status === 'REFUSED' ? 'bg-red-100 text-red-700' :
+                lead.status === 'IN_WORK' ? 'bg-amber-100 text-amber-700' :
+                'bg-gray-100 text-gray-600'
+              }`}>
+                {lead.status === 'SOLD' ? 'Продажа' : lead.status === 'REFUSED' ? 'Отказ' : lead.status === 'IN_WORK' ? 'Дожим' : lead.status}
+                {lead.isRefund && ' · Возврат'}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div><span className="text-gray-400">Дата заявки:</span> <span className="font-medium">{lead.date}</span></div>
+              <div><span className="text-gray-400">Канал:</span> <span className="font-medium">{lead.salesChannel?.name || '—'}</span></div>
+              {lead.assignedTo && <div><span className="text-gray-400">Клоузер:</span> <span className="font-medium">{lead.assignedTo.name}</span></div>}
+              {lead.amount && <div><span className="text-gray-400">Сумма:</span> <span className="font-bold text-green-700">₸ {lead.amount?.toLocaleString('ru')}</span></div>}
+              {lead.isRefund && lead.refundComment && <div className="col-span-2"><span className="text-gray-400">Причина возврата:</span> <span className="font-medium text-red-600">{lead.refundComment}</span></div>}
+              {lead.crmLink && (
+                <div className="col-span-2">
+                  <a href={lead.crmLink} target="_blank" rel="noreferrer"
+                    className="flex items-center gap-1 text-blue-500 hover:underline">
+                    <ExternalLink className="w-3 h-3" /> Открыть в CRM
+                  </a>
+                </div>
+              )}
+            </div>
+            {lead.closerComment && (
+              <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600">
+                💬 {lead.closerComment}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // Expanded manager row — shows period sales and today's report
 function ManagerDetail({ m }: { m: any }) {
   const { t } = useT()
   const [expandedSales, setExpandedSales] = useState<Set<string>>(new Set())
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   // m.sales = period sales (matches selected period); m.todaySales = today only (for status)
   const periodSales: any[] = m.sales || []
   const net = (s: any) => Number(s.netAmount ?? s.amount) || 0
@@ -67,6 +132,8 @@ function ManagerDetail({ m }: { m: any }) {
   })
 
   return (
+    <>
+      {selectedLeadId && <LeadModal leadId={selectedLeadId} onClose={() => setSelectedLeadId(null)} />}
     <tr>
       <td colSpan={12} className="pb-3 px-0">
         <div className="ml-6 mr-2 bg-gray-50 rounded-xl border border-gray-100 p-4 space-y-3">
@@ -88,20 +155,31 @@ function ManagerDetail({ m }: { m: any }) {
                   const hasDiscount = s.netAmount && s.netAmount !== s.amount
                   const isOpen = expandedSales.has(s.id)
                   return (
-                    <div key={s.id} className="bg-white rounded-lg border border-gray-100 overflow-hidden">
+                    <div key={s.id} className={`rounded-lg border overflow-hidden ${s.isRefund ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100'}`}>
                       {/* Collapsed row — clickable */}
                       <div
-                        className="flex items-center gap-3 text-xs px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors"
+                        className={`flex items-center gap-3 text-xs px-3 py-2 cursor-pointer transition-colors ${s.isRefund ? 'hover:bg-red-100' : 'hover:bg-gray-50'}`}
                         onClick={() => toggleSale(s.id)}
                       >
                         <ChevronRight className={`w-3 h-3 text-gray-400 shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
-                        {/* Net amount primary */}
-                        <span className="font-bold text-gray-900 whitespace-nowrap min-w-[80px]">₸ {fmt(netAmt)}</span>
-                        {/* Gross amount gray strikethrough if different */}
-                        {hasDiscount && <span className="text-gray-400 line-through text-[11px]">₸ {fmt(grossAmt)}</span>}
-                        <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {PAYMENT_TYPE_LABEL[s.paymentType] || s.paymentType}
-                        </span>
+                        {s.isRefund && <span className="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-red-200 text-red-700 shrink-0">Возврат</span>}
+                        {/* Amount: for refund show gross (full paid amount), for normal show net */}
+                        {s.isRefund ? (
+                          <>
+                            <span className="font-bold text-red-600 whitespace-nowrap min-w-[80px]">−₸ {fmt(grossAmt)}</span>
+                            <span className="text-gray-400 line-through text-[11px]">₸ {fmt(netAmt)}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-bold text-gray-900 whitespace-nowrap min-w-[80px]">₸ {fmt(netAmt)}</span>
+                            {hasDiscount && <span className="text-gray-400 line-through text-[11px]">₸ {fmt(grossAmt)}</span>}
+                          </>
+                        )}
+                        {!s.isRefund && (
+                          <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {PAYMENT_TYPE_LABEL[s.paymentType] || s.paymentType}
+                          </span>
+                        )}
                         {s.productName && (
                           <span className="px-1.5 py-0.5 rounded-full text-[11px] font-medium bg-purple-100 text-purple-700 shrink-0">
                             📦 {s.productName}
@@ -115,12 +193,20 @@ function ManagerDetail({ m }: { m: any }) {
                             <ExternalLink className="w-3 h-3" /> CRM
                           </a>
                         )}
+                        {s.leadId && (
+                          <button
+                            onClick={e => { e.stopPropagation(); setSelectedLeadId(s.leadId) }}
+                            className="ml-auto shrink-0 px-2 py-0.5 rounded-lg text-[11px] font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                          >
+                            Заявка →
+                          </button>
+                        )}
                       </div>
                       {/* Expanded detail */}
                       {isOpen && (
-                        <div className="border-t border-gray-100 px-4 py-3 bg-gray-50/50 grid grid-cols-2 gap-x-8 gap-y-1.5 text-xs">
+                        <div className={`border-t px-4 py-3 grid grid-cols-2 gap-x-8 gap-y-1.5 text-xs ${s.isRefund ? 'border-red-200 bg-red-50/50' : 'border-gray-100 bg-gray-50/50'}`}>
                           <div className="flex justify-between"><span className="text-gray-500">Сумма продажи</span><span className="font-medium">₸ {fmt(grossAmt)}</span></div>
-                          <div className="flex justify-between"><span className="text-gray-500">Бюджет сделки</span><span className="font-bold text-green-700">₸ {fmt(netAmt)}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-500">Бюджет сделки</span><span className={`font-bold ${s.isRefund ? 'text-red-600' : 'text-green-700'}`}>₸ {fmt(netAmt)}</span></div>
                           {hasDiscount && <div className="flex justify-between"><span className="text-gray-500">Комиссия</span><span className="font-medium text-orange-600">{Math.round((1 - netAmt / grossAmt) * 100)}%</span></div>}
                           {s.productName && <div className="flex justify-between"><span className="text-gray-500">Продукт</span><span className="font-medium text-purple-700">📦 {s.productName}</span></div>}
                           {s.paymentMethod && <div className="flex justify-between"><span className="text-gray-500">Шлюз</span><span className="font-medium">{PAYMENT_METHOD_LABEL[s.paymentMethod] || s.paymentMethod}</span></div>}
@@ -155,6 +241,7 @@ function ManagerDetail({ m }: { m: any }) {
         </div>
       </td>
     </tr>
+    </>
   )
 }
 
