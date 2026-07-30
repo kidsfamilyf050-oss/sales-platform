@@ -920,22 +920,25 @@ export default function CloserLeadsPage() {
   const sold: Lead[] = soldQ.data || []
   const refunds: Lead[] = refundsQ.data || []
 
+  // Refunded leads show ONLY in Возвраты tab, not in Продажи
+  const soldPure = sold.filter(l => !l.isRefund)
+  const soldWithRefunds = sold.filter(l => l.isRefund)
+
   const tabs = [
-    { key: 'incoming', label: 'Запланированные', count: incoming.length, dot: 'bg-blue-500', urgent: incoming.length > 0 },
-    { key: 'inwork',   label: 'Дожим',           count: inwork.length,   dot: 'bg-amber-400' },
-    { key: 'refused',  label: 'Отказы',           count: refused.length,  dot: 'bg-red-400' },
-    { key: 'sold',     label: 'Продажи',          count: sold.length,     dot: 'bg-green-400' },
-    { key: 'refunds',  label: 'Возвраты',         count: refunds.length,  dot: 'bg-orange-400', urgent: refunds.length > 0 },
+    { key: 'incoming', label: 'Запланированные', count: incoming.length,  dot: 'bg-blue-500', urgent: incoming.length > 0 },
+    { key: 'inwork',   label: 'Дожим',           count: inwork.length,    dot: 'bg-amber-400' },
+    { key: 'refused',  label: 'Отказы',           count: refused.length,   dot: 'bg-red-400' },
+    { key: 'sold',     label: 'Продажи',          count: soldPure.length,  dot: 'bg-green-400' },
+    { key: 'refunds',  label: 'Возвраты',         count: refunds.length,   dot: 'bg-orange-400', urgent: refunds.length > 0 },
   ] as const
 
-  const currentLeads = tab === 'incoming' ? incoming : tab === 'inwork' ? inwork : tab === 'refused' ? refused : tab === 'sold' ? sold : refunds
+  const currentLeads = tab === 'incoming' ? incoming : tab === 'inwork' ? inwork : tab === 'refused' ? refused : tab === 'sold' ? soldPure : refunds
   const currentQ = tab === 'incoming' ? incomingQ : tab === 'inwork' ? inworkQ : tab === 'refused' ? refusedQ : tab === 'sold' ? soldQ : refundsQ
 
-  // Net revenue + refund stats for sold tab
-  const soldNetTotal     = sold.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
-  const soldWithRefunds  = sold.filter(l => l.isRefund)
-  const soldRefundTotal  = soldWithRefunds.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
-  const refundsNetTotal  = refunds.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+  // Net revenue + refund stats (use amount = gross for refund display)
+  const soldNetTotal    = soldPure.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+  const soldRefundTotal = soldWithRefunds.reduce((s, l) => s + (l.amount ?? 0), 0)
+  const refundsGrossTotal = refunds.reduce((s, l) => s + (l.amount ?? 0), 0)
   const todayStr         = new Date().toISOString().slice(0, 10)
 
   return (
@@ -975,7 +978,7 @@ export default function CloserLeadsPage() {
               <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-1.5 text-sm flex items-center gap-1.5">
                 <RotateCcw className="w-3.5 h-3.5 text-orange-500" />
                 <span className="text-orange-600 font-medium">Возвраты: </span>
-                <span className="text-orange-700 font-bold">{soldWithRefunds.length} шт. / ₸ {soldRefundTotal.toLocaleString('ru')}</span>
+                <span className="text-orange-700 font-bold">{soldWithRefunds.length} шт. / ₸ {soldRefundTotal.toLocaleString('ru')} (полная сумма)</span>
               </div>
             )}
           </div>
@@ -986,7 +989,7 @@ export default function CloserLeadsPage() {
             <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-1.5 text-sm flex items-center gap-1.5">
               <RotateCcw className="w-3.5 h-3.5 text-orange-500" />
               <span className="text-orange-600 font-medium">Итого возвращено: </span>
-              <span className="text-orange-700 font-bold">{refunds.length} шт. / ₸ {refundsNetTotal.toLocaleString('ru')}</span>
+              <span className="text-orange-700 font-bold">{refunds.length} шт. / ₸ {refundsGrossTotal.toLocaleString('ru')}</span>
             </div>
           </div>
         )}

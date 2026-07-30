@@ -246,15 +246,10 @@ export default function ManagerDashboard() {
               <p className="text-2xl font-bold text-red-500">{summary.leadRefusedCount ?? 0}</p>
               <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">за период</p>
             </div>
-            <div onClick={() => navigate('/closer/leads')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-red-200 hover:bg-red-50/40 border border-transparent">
+            <div onClick={() => navigate('/closer/leads?tab=refunds')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-red-200 hover:bg-red-50/40 border border-transparent">
               <p className="text-xs font-medium text-gray-400 group-hover:text-red-500 transition-colors uppercase tracking-wide mb-1">Возвраты</p>
               <p className="text-2xl font-bold text-red-500">{summary.refundCount ?? 0}</p>
               <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">{summary.refundCount > 0 ? `−₸ ${fmt(summary.refundTotal ?? 0)}` : 'нет за период'}</p>
-            </div>
-            <div onClick={() => navigate('/closer/tasks')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-purple-200 hover:bg-purple-50/40 border border-transparent">
-              <p className="text-xs font-medium text-gray-400 group-hover:text-purple-500 transition-colors uppercase tracking-wide mb-1">Задач</p>
-              <p className="text-2xl font-bold text-purple-600">{summary.pendingTasksCount ?? 0}</p>
-              <p className="text-xs text-gray-300 group-hover:text-purple-400 mt-1 transition-colors">ожидает</p>
             </div>
           </div>
 

@@ -351,7 +351,7 @@ export default function ROPDashboard() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
         <StatCard label={t('dash.rop.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
         <StatCard label={t('dash.rop.salesFact')} value={`₸ ${fmt(summary.netSalesAmount ?? summary.salesAmount)}`} color="blue" />
         <StatCard label="Возвраты" value={`${summary.refundCount ?? 0} шт.`}
