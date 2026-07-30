@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { X } from 'lucide-react'
+import { X, RotateCcw, ExternalLink as ExtLink } from 'lucide-react'
 import { api } from '../api/client'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 import StatCard from '../components/ui/StatCard'
@@ -49,6 +49,65 @@ function Funnel({ steps }: { steps: { label: string; value: number; color?: stri
           </div>
         )
       })}
+    </div>
+  )
+}
+
+// Refunds drill-down modal
+function RefundsModal({ leads, onClose }: { leads: any[]; onClose: () => void }) {
+  const total = leads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-2">
+            <RotateCcw className="w-4 h-4 text-red-500" />
+            <h3 className="font-bold text-gray-900">Возвраты за период</h3>
+            <span className="text-sm text-red-600 font-semibold bg-red-50 px-2 py-0.5 rounded-full">
+              {leads.length} шт. · −₸ {total.toLocaleString('ru')}
+            </span>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="overflow-y-auto flex-1">
+          {leads.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-sm">Возвратов нет</div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {leads.map((l: any) => (
+                <div key={l.id} className="px-4 py-3 hover:bg-red-50/40 transition-colors">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm">{l.clientName}</p>
+                      {l.phone && <p className="text-xs text-gray-400">{l.phone}</p>}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-bold text-red-600 text-sm">−₸ {(l.amount ?? l.netAmount ?? 0).toLocaleString('ru')}</p>
+                      <p className="text-xs text-gray-400">{l.date}</p>
+                    </div>
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-3 flex-wrap text-xs text-gray-500">
+                    {l.assignedTo && <span>👤 {l.assignedTo.name}</span>}
+                    {l.salesChannel && <span>📢 {l.salesChannel.name}</span>}
+                    {l.refundComment && (
+                      <span className="text-red-500 italic">💬 {l.refundComment}</span>
+                    )}
+                    {l.crmLink && (
+                      <a href={l.crmLink} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-1 text-blue-500 hover:underline ml-auto"
+                        onClick={e => e.stopPropagation()}>
+                        <ExtLink className="w-3 h-3" /> CRM
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -307,6 +366,7 @@ export default function ROPDashboard() {
   })
 
   const [expandedManagers, setExpandedManagers] = useState<Set<string>>(new Set())
+  const [showRefunds, setShowRefunds] = useState(false)
 
   const toggleExpand = (id: string) => setExpandedManagers(prev => {
     const next = new Set(prev)
@@ -323,7 +383,7 @@ export default function ROPDashboard() {
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
   if (!data) return null
 
-  const { summary, funnel, marketing, managerRating, liderRating, productStats = [], gatewayAnalytics = [] } = data as any
+  const { summary, funnel, marketing, managerRating, liderRating, productStats = [], gatewayAnalytics = [], refundedLeads = [] } = data as any
 
   const funnelSteps = [
     { label: 'Лидов получено',      value: funnel.leadsReceived,    color: 'bg-purple-400' },
@@ -350,13 +410,29 @@ export default function ROPDashboard() {
         </button>
       </div>
 
+      {showRefunds && <RefundsModal leads={refundedLeads} onClose={() => setShowRefunds(false)} />}
+
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
         <StatCard label={t('dash.rop.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
         <StatCard label={t('dash.rop.salesFact')} value={`₸ ${fmt(summary.netSalesAmount ?? summary.salesAmount)}`} color="blue" />
-        <StatCard label="Возвраты" value={`${summary.refundCount ?? 0} шт.`}
-          color={summary.refundCount > 0 ? 'red' : 'default'}
-          sub={summary.refundCount > 0 ? `−₸ ${fmt(summary.refundTotal)}` : undefined} />
+        <div
+          onClick={() => summary.refundCount > 0 && setShowRefunds(true)}
+          className={summary.refundCount > 0 ? 'cursor-pointer group' : ''}
+          title={summary.refundCount > 0 ? 'Нажмите чтобы посмотреть возвраты' : undefined}
+        >
+          <div className={`card transition-all duration-150 ${summary.refundCount > 0 ? 'group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent' : ''}`}>
+            <p className={`text-xs font-medium uppercase tracking-wide mb-1 ${summary.refundCount > 0 ? 'text-gray-400 group-hover:text-red-500 transition-colors' : 'text-gray-400'}`}>Возвраты</p>
+            <p className={`text-2xl font-bold ${summary.refundCount > 0 ? 'text-red-500' : 'text-gray-900'}`}>
+              {summary.refundCount ?? 0} шт.
+            </p>
+            {summary.refundCount > 0 && (
+              <p className="text-xs text-gray-400 group-hover:text-red-400 mt-1 transition-colors">
+                −₸ {fmt(summary.refundTotal)} · нажмите →
+              </p>
+            )}
+          </div>
+        </div>
         <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
         <StatCard label={t('dash.rop.deals')} value={summary.salesCount} />
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} sub={t('dash.rop.conversionSub')} />

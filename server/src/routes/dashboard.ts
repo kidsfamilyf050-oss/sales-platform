@@ -328,10 +328,14 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const totalSalesAmount = periodSales.reduce((s, x) => s + (x.netAmount ?? x.amount), 0)
     const totalSalesCount = periodSales.length
 
-    // Refunds from Lead model
+    // Refunds from Lead model — include full detail for ROP drill-down
     const ropRefundedLeads = await prisma.lead.findMany({
       where: { createdBy: { companyId: req.user!.companyId }, status: 'SOLD', isRefund: true, date: { gte: fromStr, lte: toStr } },
-      select: { id: true, netAmount: true, amount: true },
+      include: {
+        assignedTo: { select: { id: true, name: true } },
+        salesChannel: { select: { id: true, name: true } },
+      },
+      orderBy: { refundedAt: 'desc' },
     })
     const ropRefundCount  = ropRefundedLeads.length
     const ropRefundTotal  = ropRefundedLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
@@ -489,6 +493,12 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       liderRating,
       productStats,
       gatewayAnalytics: buildGatewayAnalytics(periodSales),
+      refundedLeads: ropRefundedLeads.map(l => ({
+        id: l.id, clientName: l.clientName, phone: l.phone, date: l.date,
+        amount: l.amount, netAmount: l.netAmount, refundComment: l.refundComment,
+        crmLink: l.crmLink, assignedTo: l.assignedTo, salesChannel: l.salesChannel,
+        refundedAt: l.refundedAt,
+      })),
     })
   } catch (e) {
     console.error(e)
