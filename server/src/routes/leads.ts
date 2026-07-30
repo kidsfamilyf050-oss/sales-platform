@@ -728,6 +728,7 @@ router.put('/:id/qualify', authenticate, async (req: AuthRequest, res: Response)
 })
 
 // ── DELETE /api/leads/:id ─────────────────────────────────────────────────────
+// Soft delete — sets status=DELETED + deletedAt, preserves in archive
 router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
@@ -736,8 +737,63 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     if (lead.createdById !== req.user!.id && role !== 'OWNER' && role !== 'ROP') {
       return res.status(403).json({ error: 'Forbidden' })
     }
-    await prisma.lead.delete({ where: { id: req.params.id } })
+    // Soft delete: mark as DELETED to preserve history
+    await prisma.lead.update({
+      where: { id: req.params.id },
+      data: { status: 'DELETED' as any, deletedAt: new Date(), deletedById: req.user!.id },
+    })
     res.json({ ok: true })
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── Refund a SOLD lead ─────────────────────────────────────────────────────
+router.put('/:id/refund', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
+    if (!lead) return res.status(404).json({ error: 'Not found' })
+    if (lead.assignedToId !== req.user!.id && req.user!.role !== 'OWNER' && req.user!.role !== 'ROP') {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    if (lead.status !== 'SOLD') return res.status(400).json({ error: 'Только SOLD лид можно вернуть' })
+    const updated = await prisma.lead.update({
+      where: { id: req.params.id },
+      data: {
+        isRefund: true,
+        refundedAt: new Date(),
+        refundComment: req.body.refundComment || null,
+      },
+    })
+    res.json(updated)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── GET /api/leads/closer-archive — full audit log for closer (all statuses + deleted) ─────────
+router.get('/closer-archive', authenticate, async (req: AuthRequest, res: Response) => {
+  const { from, to, period = 'month', search, status } = req.query
+  const { fromStr, toStr } = getPeriodStr(period as string, from as string, to as string)
+  try {
+    const where: any = {
+      assignedToId: req.user!.id,
+      createdAt: { gte: new Date(fromStr + 'T00:00:00+05:00'), lte: new Date(toStr + 'T23:59:59+05:00') },
+    }
+    if (search) where.OR = [
+      { clientName: { contains: search as string, mode: 'insensitive' } },
+      { phone: { contains: search as string } },
+    ]
+    if (status && status !== 'all') where.status = status as string
+    const leads = await prisma.lead.findMany({
+      where,
+      include: {
+        ...INCLUDE_FULL,
+        // createdBy included in INCLUDE_FULL
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+    res.json(leads)
   } catch (e) {
     console.error(e); res.status(500).json({ error: 'Server error' })
   }

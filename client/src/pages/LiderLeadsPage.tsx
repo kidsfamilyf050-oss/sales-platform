@@ -987,16 +987,15 @@ export default function LiderLeadsPage() {
     </span>
   )
 
-  // ✅ Fix #5: Excel export via server (ExcelJS)
   const exportExcel = async () => {
     try {
-      const res = await api.get(`/export/lider-leads?${buildParams()}`, { responseType: 'blob' })
+      const res = await api.get(`/export/lider-full?${buildParams()}`, { responseType: 'blob' })
       const blob = new Blob([res.data as any], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url; a.download = `lider-leads-${new Date().toISOString().slice(0, 10)}.xlsx`
+      a.href = url; a.download = `lider-report-${new Date().toISOString().slice(0, 10)}.xlsx`
       document.body.appendChild(a); a.click()
       document.body.removeChild(a); URL.revokeObjectURL(url)
     } catch { alert('Ошибка экспорта') }

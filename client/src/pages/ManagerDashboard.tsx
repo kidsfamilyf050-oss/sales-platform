@@ -198,7 +198,7 @@ export default function ManagerDashboard() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => downloadExport('manager', buildPeriodParams(periodStore))}
+            onClick={() => downloadExport(isCloser ? 'manager' : 'lider-full', buildPeriodParams(periodStore))}
             className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
             title="Скачать отчёт Excel"
           >
@@ -244,8 +244,6 @@ export default function ManagerDashboard() {
               <p className="text-xs text-gray-300 group-hover:text-purple-400 mt-1 transition-colors">ожидает</p>
             </div>
           </div>
-
-          <ProgressBar value={summary.planCompletion} label={t('dash.manager.planCompletionSales')} />
 
           {/* Closer leaderboard — competitive ranking */}
           {closerRankingData?.ranking?.length > 0 && (

@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
-import PeriodSelector, { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
-import { Phone, Calendar, User, ChevronDown, ChevronUp, Check, X, CheckSquare, Plus, ExternalLink, Banknote, Pencil, Package, ArrowRightLeft, CheckCircle2, XCircle, RefreshCw, AlertTriangle } from 'lucide-react'
+import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
+import { Phone, Calendar, User, ChevronDown, ChevronUp, Check, X, CheckSquare, Plus, ExternalLink, Banknote, Pencil, Package, ArrowRightLeft, CheckCircle2, XCircle, RefreshCw, AlertTriangle, RotateCcw } from 'lucide-react'
 
 type Lead = {
   id: string
   clientName: string
   phone: string
   date: string
+  createdAt: string
   isQualified: boolean
   isScheduled: boolean
   comment: string | null
@@ -31,11 +32,14 @@ type Lead = {
   months: number | null
   crmLink: string | null
   closerComment: string | null
+  isRefund: boolean
+  refundComment: string | null
 }
 
 const PAYMENT_TYPE = [
   { value: 'new_sale', label: 'Новая продажа' },
   { value: 'additional', label: 'Доплата' },
+  { value: 'refund', label: 'Возврат' },
 ]
 
 // Payment gateways with fee percentages
@@ -252,6 +256,38 @@ function EditLeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   )
 }
 
+// ── Refund Button component ───────────────────────────────────────────────────
+function RefundButton({ lead }: { lead: Lead }) {
+  const qc = useQueryClient()
+  const [show, setShow] = useState(false)
+  const [comment, setComment] = useState('')
+  const refundMut = useMutation({
+    mutationFn: () => api.put(`/leads/${lead.id}/refund`, { refundComment: comment }).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['closer-leads'] }); setShow(false) },
+  })
+  if (!show) return (
+    <button onClick={() => setShow(true)}
+      className="flex items-center gap-1.5 text-sm text-orange-600 border border-orange-200 bg-orange-50 hover:bg-orange-100 px-3 py-2 rounded-lg font-medium transition-colors w-full justify-center">
+      <RotateCcw className="w-4 h-4" /> Оформить возврат
+    </button>
+  )
+  return (
+    <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 space-y-2">
+      <p className="text-xs font-semibold text-orange-700">Причина возврата (необязательно):</p>
+      <input className="input text-sm" value={comment} onChange={e => setComment(e.target.value)} placeholder="Передумал, технические проблемы..." />
+      <div className="flex gap-2">
+        <button onClick={() => refundMut.mutate()} disabled={refundMut.isPending}
+          className="flex-1 bg-orange-500 text-white text-xs font-semibold py-2 rounded-lg hover:bg-orange-600 disabled:opacity-40 transition-colors">
+          Подтвердить возврат
+        </button>
+        <button onClick={() => setShow(false)} className="px-3 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg">
+          Отмена
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── In-Work Section (combined sell form + refuse + task) ──────────────────────
 function InWorkSection({ lead }: { lead: Lead }) {
   const qc = useQueryClient()
@@ -431,6 +467,19 @@ function InWorkSection({ lead }: { lead: Lead }) {
         </button>
       </div>
 
+      {/* Возврат — only show for SOLD leads */}
+      {lead.status === 'SOLD' && !lead.isRefund && (
+        <div className="border-t border-gray-100 pt-3">
+          <RefundButton lead={lead} />
+        </div>
+      )}
+      {lead.isRefund && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-sm text-orange-700 font-medium flex items-center gap-2">
+          <RotateCcw className="w-4 h-4 shrink-0" />
+          Возврат оформлен{lead.refundComment ? `: ${lead.refundComment}` : ''}
+        </div>
+      )}
+
       {/* Secondary actions */}
       <div className="space-y-2 border-t border-gray-100 pt-3">
         {lossReasons.length > 0 && (
@@ -477,7 +526,7 @@ function InWorkSection({ lead }: { lead: Lead }) {
 
 // ── Lead Card ─────────────────────────────────────────────────────────────────
 // ── Consultation Status Section ───────────────────────────────────────────────
-function ConsultationStatusSection({ lead }: { lead: Lead }) {
+function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; compact?: boolean }) {
   const qc = useQueryClient()
   const today = new Date().toISOString().slice(0, 10)
 
@@ -621,16 +670,19 @@ function ConsultationStatusSection({ lead }: { lead: Lead }) {
   )
 }
 
-function LeadCard({ lead, showAccept = false, showWork = false, readonly = false }: {
+function LeadCard({ lead, showAccept = false, showWork = false, readonly = false, highlightToday = false }: {
   lead: Lead
   showAccept?: boolean
   showWork?: boolean
   readonly?: boolean
+  highlightToday?: boolean
 }) {
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showTransferModal, setShowTransferModal] = useState(false)
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const isNew = lead.date === todayStr
 
   const acceptMut = useMutation({
     mutationFn: () => api.put(`/leads/${lead.id}/accept`).then(r => r.data),
@@ -651,8 +703,18 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
   // Display amount — prefer netAmount (бюджет сделки) when available
   const displayAmount = lead.netAmount ?? lead.amount
 
+  // Show consultation buttons inline on card for inwork leads with pending appointment
+  const showInlineConsult = showWork
+    && lead.appointmentDate
+    && (!lead.consultationStatus || lead.consultationStatus === 'postponed')
+
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className={`rounded-xl border shadow-sm overflow-hidden ${highlightToday && isNew ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'}`}>
+      {highlightToday && isNew && (
+        <div className="bg-green-500 text-white text-[11px] font-bold px-3 py-0.5 text-center tracking-wide uppercase">
+          Новая заявка сегодня
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-start gap-3 p-4 cursor-pointer" onClick={() => setOpen(o => !o)}>
         <div className="flex-1 min-w-0">
@@ -783,6 +845,20 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
             </a>
           )}
 
+          {/* Refund button for SOLD leads */}
+          {readonly && lead.status === 'SOLD' && !lead.isRefund && (
+            <RefundButton lead={lead} />
+          )}
+          {readonly && lead.status === 'SOLD' && lead.isRefund && (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2 text-sm text-orange-700 flex items-center gap-2">
+              <RotateCcw className="w-4 h-4 shrink-0" />
+              <div>
+                <p className="font-semibold">Возврат оформлен</p>
+                {lead.refundComment && <p className="text-xs text-orange-500 mt-0.5">{lead.refundComment}</p>}
+              </div>
+            </div>
+          )}
+
           {/* Closer comment */}
           {readonly && lead.closerComment && (
             <p className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
@@ -790,6 +866,13 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
               {lead.closerComment}
             </p>
           )}
+        </div>
+      )}
+
+      {/* Inline consultation buttons — visible WITHOUT expanding card */}
+      {showInlineConsult && !open && (
+        <div className="px-4 pb-3 border-t border-gray-50 pt-3">
+          <ConsultationStatusSection lead={lead} compact />
         </div>
       )}
 
@@ -829,17 +912,20 @@ export default function CloserLeadsPage() {
   const sold: Lead[] = soldQ.data || []
 
   const tabs = [
-    { key: 'incoming', label: 'Новые', count: incoming.length, dot: 'bg-blue-500', urgent: incoming.length > 0 },
-    { key: 'inwork', label: 'В работе', count: inwork.length, dot: 'bg-amber-400' },
-    { key: 'refused', label: 'Отказы', count: refused.length, dot: 'bg-red-400' },
-    { key: 'sold', label: 'Продажи', count: sold.length, dot: 'bg-green-400' },
+    { key: 'incoming', label: 'Запланированные', count: incoming.length, dot: 'bg-blue-500', urgent: incoming.length > 0 },
+    { key: 'inwork',   label: 'Дожим',           count: inwork.length,   dot: 'bg-amber-400' },
+    { key: 'refused',  label: 'Отказы',           count: refused.length,  dot: 'bg-red-400' },
+    { key: 'sold',     label: 'Продажи',          count: sold.length,     dot: 'bg-green-400' },
   ] as const
 
   const currentLeads = tab === 'incoming' ? incoming : tab === 'inwork' ? inwork : tab === 'refused' ? refused : sold
   const currentQ = tab === 'incoming' ? incomingQ : tab === 'inwork' ? inworkQ : tab === 'refused' ? refusedQ : soldQ
 
-  // Net revenue for sold tab
-  const soldNetTotal = sold.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+  // Net revenue + refund stats for sold tab
+  const soldNetTotal  = sold.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+  const refunds       = sold.filter(l => l.isRefund)
+  const refundTotal   = refunds.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+  const todayStr      = new Date().toISOString().slice(0, 10)
 
   return (
     <div className="space-y-5 max-w-[1200px] mx-auto px-4 md:px-8 py-4 md:py-6">
@@ -848,7 +934,7 @@ export default function CloserLeadsPage() {
         <p className="text-sm text-gray-400 mt-0.5">Лиды от лидорубов</p>
       </div>
 
-      {/* Period + tabs */}
+      {/* Tabs */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-1 bg-gray-100 rounded-xl p-1 flex-wrap">
           {tabs.map(t => (
@@ -867,12 +953,20 @@ export default function CloserLeadsPage() {
             </button>
           ))}
         </div>
-        {tab !== 'incoming' && <PeriodSelector />}
-        {/* Net total for sold tab */}
+        {/* Net total + refund stats for sold tab */}
         {tab === 'sold' && sold.length > 0 && (
-          <div className="ml-auto bg-green-50 border border-green-200 rounded-xl px-4 py-1.5 text-sm">
-            <span className="text-green-600 font-medium">Бюджет: </span>
-            <span className="text-green-700 font-bold">₸ {soldNetTotal.toLocaleString('ru')}</span>
+          <div className="flex items-center gap-2 flex-wrap ml-auto">
+            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-1.5 text-sm">
+              <span className="text-green-600 font-medium">Бюджет: </span>
+              <span className="text-green-700 font-bold">₸ {soldNetTotal.toLocaleString('ru')}</span>
+            </div>
+            {refunds.length > 0 && (
+              <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-1.5 text-sm flex items-center gap-1.5">
+                <RotateCcw className="w-3.5 h-3.5 text-orange-500" />
+                <span className="text-orange-600 font-medium">Возвраты: </span>
+                <span className="text-orange-700 font-bold">{refunds.length} шт. / ₸ {refundTotal.toLocaleString('ru')}</span>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -905,6 +999,7 @@ export default function CloserLeadsPage() {
               showAccept={tab === 'incoming'}
               showWork={tab === 'inwork'}
               readonly={tab === 'refused' || tab === 'sold'}
+              highlightToday={tab === 'incoming' || tab === 'inwork'}
             />
           ))}
         </div>

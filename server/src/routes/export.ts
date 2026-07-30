@@ -885,7 +885,478 @@ router.get('/marketer', authenticate, async (req: AuthRequest, res: Response) =>
   }
 })
 
-// ── Lider leads export ─────────────────────────────────────────────────────
+// ── Lider FULL export (Лиды + Мой кабинет combined, 5 sheets) ────────────
+
+router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) => {
+  const { period = 'month', from, to, search, channelId, ktsStatus, subStatus, consultationStatus, date: dateFilter } = req.query
+  const { start, end } = getPeriodDates(period as string, from as string, to as string)
+  const fromStr = dateToStr(start)
+  const toStr   = dateToStr(end)
+  const userId  = req.user!.id
+  const pLabel  = periodLabel(period as string, from as string, to as string)
+
+  // Period key for plans (use start month)
+  const periodKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
+
+  try {
+    // ── Build lead filter (mirrors LiderLeadsPage filter logic) ─────────────
+    const leadWhere: any = {
+      createdById: userId,
+      date: { gte: fromStr, lte: toStr },
+    }
+    if (search) leadWhere.OR = [
+      { clientName: { contains: search as string, mode: 'insensitive' } },
+      { phone: { contains: search as string } },
+      { leadLink: { contains: search as string, mode: 'insensitive' } },
+    ]
+    if (channelId)          leadWhere.salesChannelId = channelId as string
+    if (subStatus)          leadWhere.subStatus = subStatus as string
+    if (consultationStatus) leadWhere.consultationStatus = consultationStatus as string
+    if (dateFilter)         leadWhere.appointmentDate = dateFilter as string
+    if (ktsStatus === 'qualified') {
+      leadWhere.isQualified = true
+      leadWhere.status = { not: 'IN_WORK' }
+      if (!subStatus) {
+        leadWhere.AND = [{ OR: [{ subStatus: null }, { subStatus: { not: 'in_work_kc' } }] }]
+      }
+    } else if (ktsStatus === 'unqualified') {
+      leadWhere.isQualified = false
+    } else if (ktsStatus === 'in_work') {
+      leadWhere.OR = [{ subStatus: 'in_work_kc' }, { status: 'IN_WORK' }]
+    }
+
+    // ── Fetch all data in parallel ────────────────────────────────────────
+    const [user, leads, reports, plans] = await Promise.all([
+      prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
+      prisma.lead.findMany({
+        where: leadWhere,
+        include: {
+          salesChannel: { select: { id: true, name: true } },
+          assignedTo:   { select: { name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.report.findMany({
+        where: { userId, date: { gte: start, lte: end } },
+        orderBy: { date: 'asc' },
+      }),
+      prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey, userId } }),
+    ])
+
+    // ── Overall aggregates ────────────────────────────────────────────────
+    const totalLeads     = leads.length
+    const totalQual      = leads.filter(l => l.isQualified).length
+    const totalScheduled = leads.filter(l =>
+      l.consultationStatus && ['planned', 'happened', 'not_happened', 'postponed'].includes(l.consultationStatus)
+    ).length
+    const totalHappened  = leads.filter(l => l.consultationStatus === 'happened').length
+
+    const meetPlan  = plans.find(p => p.type === 'MEETINGS_ATTENDED')?.value || 0
+    const leadsPlan = plans.find(p => p.type === 'LEADS')?.value || 0
+
+    const pctMeet  = meetPlan  > 0 ? pctOneDecimal(totalHappened, meetPlan)  : 0
+    const pctLeads = leadsPlan > 0 ? pctOneDecimal(totalLeads, leadsPlan)     : 0
+    const pctQual  = totalLeads > 0 ? pctOneDecimal(totalQual, totalLeads)    : 0
+
+    // ── Monthly breakdown ─────────────────────────────────────────────────
+    // Group leads by calendar month (use lead date field = day in KZ)
+    const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
+    const monthMap = new Map<string, { label: string; leads: number; qual: number; scheduled: number; happened: number }>()
+    for (const l of leads) {
+      // use l.date (YYYY-MM-DD string)
+      const [y, m] = (l.date as string).split('-')
+      const key = `${y}-${m}`
+      if (!monthMap.has(key)) {
+        monthMap.set(key, {
+          label: `${MONTHS_RU[parseInt(m, 10) - 1]} ${y}`,
+          leads: 0, qual: 0, scheduled: 0, happened: 0,
+        })
+      }
+      const mo = monthMap.get(key)!
+      mo.leads++
+      if (l.isQualified) mo.qual++
+      if (l.consultationStatus && ['planned','happened','not_happened','postponed'].includes(l.consultationStatus)) mo.scheduled++
+      if (l.consultationStatus === 'happened') mo.happened++
+    }
+    const monthRows = [...monthMap.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([, v]) => v)
+
+    const isMultiMonth = monthRows.length > 1
+
+    // ── Channel breakdown ─────────────────────────────────────────────────
+    const chanMap = new Map<string, { name: string; leads: number; qual: number; scheduled: number; happened: number }>()
+    for (const l of leads) {
+      const cId   = (l as any).salesChannel?.id   || '__none__'
+      const cName = (l as any).salesChannel?.name || '— без канала —'
+      if (!chanMap.has(cId)) chanMap.set(cId, { name: cName, leads: 0, qual: 0, scheduled: 0, happened: 0 })
+      const ch = chanMap.get(cId)!
+      ch.leads++
+      if (l.isQualified) ch.qual++
+      if (l.consultationStatus && ['planned','happened','not_happened','postponed'].includes(l.consultationStatus)) ch.scheduled++
+      if (l.consultationStatus === 'happened') ch.happened++
+    }
+    const chanRows = [...chanMap.values()].sort((a, b) => b.leads - a.leads)
+
+    // ── Status helpers ────────────────────────────────────────────────────
+    const statusLabels: Record<string, string> = {
+      scheduled:    'Записан',      refused:      'Отказ',
+      thinking:     'Думает',       in_work_kc:   'В работе КЦ',
+      happened:     'Состоялась',   not_happened: 'Не состоялась',
+      postponed:    'Перенос',
+    }
+    const fmtD = (s?: string | null) => s ? s.split('-').reverse().join('.') : ''
+    const ktsLabel = (l: any) => !l.isQualified ? 'Не квал' : l.status === 'IN_WORK' ? 'В работе КЦ' : l.subStatus === 'in_work_kc' ? 'В работе КЦ' : l.assignedToId ? 'Квал (клоузер)' : 'Квал'
+
+    // ── Build workbook ────────────────────────────────────────────────────
+    const wb = new ExcelJS.Workbook()
+    wb.creator = 'SalesPlatform'
+    wb.created = new Date()
+
+    // ════════════════════════════════════════════════════════════════════
+    // SHEET 1: Сводка
+    // ════════════════════════════════════════════════════════════════════
+    const wsSum = wb.addWorksheet('Сводка', { properties: { tabColor: { argb: C_BLUE_MID } } })
+    wsSum.columns = [{ key: 'l', width: 34 }, { key: 'v', width: 22 }]
+
+    wsSum.mergeCells('A1:B1')
+    wsSum.getCell('A1').value = `📊 Отчёт лидоруба — ${user?.name || ''}`
+    styleTitleRow(wsSum, 1, 2)
+
+    wsSum.mergeCells('A2:B2')
+    const subCell = wsSum.getCell('A2')
+    subCell.value = `Период: ${pLabel}${ktsStatus || search || channelId ? '  |  Применены фильтры' : ''}`
+    subCell.font = { size: 10, color: { argb: 'FF64748B' }, name: 'Calibri' }
+    subCell.alignment = { horizontal: 'left', vertical: 'middle' }
+    wsSum.getRow(2).height = 20
+    wsSum.addRow([])
+
+    // — Воронка ————————————————————————————————————————————————
+    styleSubHeader(wsSum, wsSum.addRow(['Воронка лидов', '']).number, 2)
+    const funnelItems = [
+      { label: 'Лидов получено',         value: totalLeads,     pct: leadsPlan > 0 ? `план: ${leadsPlan}  /  факт: ${totalLeads}  /  ${pctLeads}%` : `${totalLeads}` },
+      { label: '→ Квалифицировано',       value: totalQual,      pct: `${pctOneDecimal(totalQual, totalLeads)}% от лидов` },
+      { label: '→ Записано на встречу',   value: totalScheduled, pct: `${pctOneDecimal(totalScheduled, totalQual)}% от квал` },
+      { label: '→ Пришло на встречу',     value: totalHappened,  pct: `${pctOneDecimal(totalHappened, totalScheduled)}% от записанных` },
+    ]
+    let rn = wsSum.lastRow!.number + 1
+    for (const fi of funnelItems) {
+      const row = wsSum.addRow([fi.label, fi.value])
+      const cell1 = row.getCell(1); const cell2 = row.getCell(2)
+      cell1.font = { size: 10, name: 'Calibri', color: { argb: 'FF475569' } }
+      cell1.alignment = { horizontal: 'left', vertical: 'middle' }
+      // add comment with % as note below
+      cell2.font = { bold: true, size: 11, name: 'Calibri', color: { argb: C_BLUE_DARK } }
+      cell2.alignment = { horizontal: 'left', vertical: 'middle' }
+      // small note in col C
+      wsSum.getCell(`C${row.number}`).value = fi.pct
+      wsSum.getCell(`C${row.number}`).font = { italic: true, size: 9, name: 'Calibri', color: { argb: 'FF94A3B8' } }
+      wsSum.getCell(`C${row.number}`).alignment = { horizontal: 'left', vertical: 'middle' }
+      row.height = 22
+      rn++
+    }
+    wsSum.columns[2] = { key: 'c', width: 36 } // widen col C for notes
+
+    wsSum.addRow([])
+
+    // — Выполнение планов ───────────────────────────────────────
+    styleSubHeader(wsSum, wsSum.addRow(['Выполнение планов', '']).number, 2)
+    if (meetPlan > 0) {
+      const planRow = wsSum.addRow(['Выполнение плана по встречам', `${pctMeet}%`])
+      planRow.getCell(1).font = { size: 10, name: 'Calibri', color: { argb: 'FF475569' } }
+      planRow.getCell(2).font = { bold: true, size: 13, name: 'Calibri', color: { argb: completionTextColor(pctMeet) } }
+      planRow.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: completionColor(pctMeet) } }
+      planRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' }
+      planRow.height = 24
+      wsSum.addRow(['  Факт встреч', totalHappened]).getCell(1).font = { size: 10, name: 'Calibri', color: { argb: 'FF64748B' } }
+      wsSum.addRow(['  План встреч', meetPlan]).getCell(1).font     = { size: 10, name: 'Calibri', color: { argb: 'FF64748B' } }
+    }
+    if (leadsPlan > 0) {
+      wsSum.addRow([])
+      const planRow2 = wsSum.addRow(['Выполнение плана по лидам', `${pctLeads}%`])
+      planRow2.getCell(1).font = { size: 10, name: 'Calibri', color: { argb: 'FF475569' } }
+      planRow2.getCell(2).font = { bold: true, size: 13, name: 'Calibri', color: { argb: completionTextColor(pctLeads) } }
+      planRow2.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: completionColor(pctLeads) } }
+      planRow2.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' }
+      planRow2.height = 24
+      wsSum.addRow(['  Факт лидов', totalLeads]).getCell(1).font = { size: 10, name: 'Calibri', color: { argb: 'FF64748B' } }
+      wsSum.addRow(['  План по лидам', leadsPlan]).getCell(1).font = { size: 10, name: 'Calibri', color: { argb: 'FF64748B' } }
+    }
+
+    wsSum.addRow([])
+
+    // — Топ-3 канала ────────────────────────────────────────────
+    if (chanRows.length > 0) {
+      styleSubHeader(wsSum, wsSum.addRow(['Топ каналов по лидам', '']).number, 2)
+      chanRows.slice(0, 5).forEach((ch, i) => {
+        const r = wsSum.addRow([`${i + 1}. ${ch.name}`, ch.leads])
+        r.getCell(1).font = { size: 10, name: 'Calibri', color: { argb: 'FF475569' } }
+        r.getCell(2).font = { bold: true, size: 11, name: 'Calibri', color: { argb: C_BLUE_DARK } }
+        wsSum.getCell(`C${r.number}`).value = ch.qual > 0 ? `квал: ${ch.qual}  (${pctOneDecimal(ch.qual, ch.leads)}%)` : ''
+        wsSum.getCell(`C${r.number}`).font  = { italic: true, size: 9, name: 'Calibri', color: { argb: 'FF94A3B8' } }
+        r.height = 20
+      })
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // SHEET 2: По месяцам (only if multi-month)
+    // ════════════════════════════════════════════════════════════════════
+    if (isMultiMonth) {
+      const wsMon = wb.addWorksheet('По месяцам', { properties: { tabColor: { argb: 'FF7C3AED' } } })
+      const monCols = ['Месяц', 'Лидов', 'Квалиф.', '% квал', 'Записано', 'Пришло', '% пришло от записанных', 'Вып. плана встреч']
+      wsMon.columns = [
+        { key: 'month', width: 20 }, { key: 'leads',  width: 12 }, { key: 'qual',  width: 12 },
+        { key: 'qpct',  width: 12 }, { key: 'sched',  width: 14 }, { key: 'happ',  width: 14 },
+        { key: 'hpct',  width: 26 }, { key: 'plan',   width: 22 },
+      ]
+      wsMon.mergeCells(`A1:${String.fromCharCode(64 + monCols.length)}1`)
+      wsMon.getCell('A1').value = `По месяцам — ${pLabel}`
+      styleTitleRow(wsMon, 1, monCols.length)
+      wsMon.addRow([])
+      styleHeaderRow(wsMon, wsMon.addRow(monCols).number, monCols.length)
+
+      let altMon = false
+      for (const mo of monthRows) {
+        const qPct = mo.leads > 0   ? pctOneDecimal(mo.qual, mo.leads) : 0
+        const hPct = mo.scheduled > 0 ? pctOneDecimal(mo.happened, mo.scheduled) : 0
+        const planPct = meetPlan > 0 ? pctOneDecimal(mo.happened, meetPlan) : null
+        const row = wsMon.addRow([
+          mo.label, mo.leads, mo.qual,
+          `${qPct}%`, mo.scheduled, mo.happened, `${hPct}%`,
+          planPct !== null ? `${planPct}%` : '—',
+        ])
+        styleDataRow(wsMon, row.number, monCols.length, altMon)
+        altMon = !altMon
+        row.getCell(1).font = { bold: true, size: 10, name: 'Calibri', color: { argb: 'FF1E293B' } }
+        for (let c = 2; c <= 8; c++) row.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' }
+        // colour plan completion
+        if (planPct !== null) {
+          row.getCell(8).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: completionColor(planPct) } }
+          row.getCell(8).font = { bold: true, size: 10, name: 'Calibri', color: { argb: completionTextColor(planPct) } }
+        }
+        // highlight high qual%
+        if (qPct >= 70) {
+          row.getCell(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GREEN_LIGHT } }
+          row.getCell(4).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_GREEN_TEXT } }
+        } else if (qPct < 40 && mo.leads > 0) {
+          row.getCell(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_RED_LIGHT } }
+          row.getCell(4).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_RED_TEXT } }
+        }
+      }
+
+      // Totals
+      const totQ = monthRows.reduce((s, m) => s + m.qual, 0)
+      const totS = monthRows.reduce((s, m) => s + m.scheduled, 0)
+      const totH = monthRows.reduce((s, m) => s + m.happened, 0)
+      const totL = monthRows.reduce((s, m) => s + m.leads, 0)
+      const totRow = wsMon.addRow([
+        'ИТОГО', totL, totQ,
+        `${pctOneDecimal(totQ, totL)}%`, totS, totH,
+        `${pctOneDecimal(totH, totS)}%`,
+        meetPlan > 0 ? `${pctOneDecimal(totH, meetPlan)}%` : '—',
+      ])
+      for (let c = 1; c <= monCols.length; c++) {
+        totRow.getCell(c).font  = { bold: true, size: 10, name: 'Calibri', color: { argb: C_BLUE_DARK } }
+        totRow.getCell(c).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_HDR } }
+        totRow.getCell(c).border = { top: { style: 'medium', color: { argb: C_BLUE_MID } } }
+        totRow.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' }
+      }
+      totRow.height = 22
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // SHEET 3: По каналам
+    // ════════════════════════════════════════════════════════════════════
+    const wsChan = wb.addWorksheet('По каналам', { properties: { tabColor: { argb: 'FFEA580C' } } })
+    const chanCols = ['Канал', 'Лидов', 'Квалиф.', '% квал', 'Записано', 'Пришло', '% пришло', 'Доля от всех']
+    wsChan.columns = [
+      { key: 'chan', width: 24 }, { key: 'leads', width: 12 }, { key: 'qual',  width: 12 },
+      { key: 'qpct', width: 12 }, { key: 'sched', width: 14 }, { key: 'happ', width: 14 },
+      { key: 'hpct', width: 14 }, { key: 'share', width: 16 },
+    ]
+    wsChan.mergeCells(`A1:${String.fromCharCode(64 + chanCols.length)}1`)
+    wsChan.getCell('A1').value = `По каналам — ${pLabel}`
+    styleTitleRow(wsChan, 1, chanCols.length)
+    wsChan.addRow([])
+    styleHeaderRow(wsChan, wsChan.addRow(chanCols).number, chanCols.length)
+
+    let altC = false
+    for (const ch of chanRows) {
+      const qPct    = ch.leads > 0     ? pctOneDecimal(ch.qual, ch.leads)       : 0
+      const hPct    = ch.scheduled > 0 ? pctOneDecimal(ch.happened, ch.scheduled) : 0
+      const share   = totalLeads > 0   ? pctOneDecimal(ch.leads, totalLeads)    : 0
+      const row = wsChan.addRow([ch.name, ch.leads, ch.qual, `${qPct}%`, ch.scheduled, ch.happened, `${hPct}%`, `${share}%`])
+      styleDataRow(wsChan, row.number, chanCols.length, altC)
+      altC = !altC
+      row.getCell(1).font = { bold: false, size: 10, name: 'Calibri', color: { argb: 'FF1E293B' } }
+      for (let c = 2; c <= 8; c++) row.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' }
+      // colour qual%
+      if (qPct >= 70) {
+        row.getCell(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GREEN_LIGHT } }
+        row.getCell(4).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_GREEN_TEXT } }
+      } else if (qPct < 40 && ch.leads > 0) {
+        row.getCell(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_RED_LIGHT } }
+        row.getCell(4).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_RED_TEXT } }
+      }
+    }
+    // Totals
+    const cTotRow = wsChan.addRow(['ИТОГО', totalLeads, totalQual, `${pctQual}%`, totalScheduled, totalHappened,
+      `${totalScheduled > 0 ? pctOneDecimal(totalHappened, totalScheduled) : 0}%`, '100%'])
+    for (let c = 1; c <= chanCols.length; c++) {
+      cTotRow.getCell(c).font  = { bold: true, size: 10, name: 'Calibri', color: { argb: C_BLUE_DARK } }
+      cTotRow.getCell(c).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_HDR } }
+      cTotRow.getCell(c).border = { top: { style: 'medium', color: { argb: C_BLUE_MID } } }
+      cTotRow.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' }
+    }
+    cTotRow.height = 22
+
+    // ════════════════════════════════════════════════════════════════════
+    // SHEET 4: Все лиды
+    // ════════════════════════════════════════════════════════════════════
+    const wsLeads = wb.addWorksheet('Все лиды', { properties: { tabColor: { argb: C_BLUE_MID } } })
+    const LCOLS = 12
+    wsLeads.columns = [
+      { key: 'date',   width: 20 }, { key: 'client', width: 24 }, { key: 'phone',  width: 16 },
+      { key: 'link',   width: 32 }, { key: 'chan',   width: 18 }, { key: 'kts',    width: 16 },
+      { key: 'sub',    width: 16 }, { key: 'apptD',  width: 14 }, { key: 'apptT', width: 10 },
+      { key: 'closer', width: 22 }, { key: 'consul', width: 18 }, { key: 'post',   width: 18 },
+    ]
+    wsLeads.mergeCells(`A1:${String.fromCharCode(64 + LCOLS)}1`)
+    wsLeads.getCell('A1').value = `Все лиды — ${pLabel}`
+    styleTitleRow(wsLeads, 1, LCOLS)
+    wsLeads.addRow([])
+    styleHeaderRow(wsLeads, wsLeads.addRow([
+      'Дата поступления', 'Клиент', 'Телефон', 'Ссылка', 'Рекламный канал',
+      'Квал / Не квал', 'Записан / Отказ', 'Дата записи', 'Время', 'Клоузер',
+      'Статус встречи', 'Перенос на',
+    ]).number, LCOLS)
+
+    leads.forEach((l, i) => {
+      const d   = new Date(l.createdAt)
+      const pad = (n: number) => String(n).padStart(2, '0')
+      // KZ offset: createdAt is UTC, display +5
+      const kzDate = new Date(l.createdAt.getTime() + 5 * 3600 * 1000)
+      const dateStr = `${pad(kzDate.getUTCDate())}.${pad(kzDate.getUTCMonth()+1)}.${kzDate.getUTCFullYear()} ${pad(kzDate.getUTCHours())}:${pad(kzDate.getUTCMinutes())}`
+      const row = wsLeads.addRow([
+        dateStr,
+        l.clientName,
+        l.phone,
+        l.leadLink || '',
+        (l as any).salesChannel?.name || '',
+        ktsLabel(l),
+        l.subStatus ? (statusLabels[l.subStatus] || l.subStatus) : '',
+        fmtD(l.appointmentDate),
+        l.appointmentTime || '',
+        (l as any).assignedTo?.name || '',
+        l.consultationStatus ? (statusLabels[l.consultationStatus] || l.consultationStatus) : '',
+        l.postponedDate ? `${fmtD(l.postponedDate)}${l.postponedTime ? ' ' + l.postponedTime : ''}` : '',
+      ])
+      styleDataRow(wsLeads, row.number, LCOLS, i % 2 === 1)
+      row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' }
+
+      // Colour KTS cell
+      const kts = ktsLabel(l)
+      if (kts === 'Квал' || kts === 'Квал (клоузер)') {
+        row.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GREEN_LIGHT } }
+        row.getCell(6).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_GREEN_TEXT } }
+      } else if (kts === 'Не квал') {
+        row.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_RED_LIGHT } }
+        row.getCell(6).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_RED_TEXT } }
+      } else {
+        row.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_AMBER_LIGHT } }
+        row.getCell(6).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_AMBER_TEXT } }
+      }
+      // Colour consultation status
+      const cs = l.consultationStatus
+      if (cs === 'happened') {
+        row.getCell(11).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GREEN_LIGHT } }
+        row.getCell(11).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_GREEN_TEXT } }
+      } else if (cs === 'not_happened') {
+        row.getCell(11).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_RED_LIGHT } }
+        row.getCell(11).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_RED_TEXT } }
+      } else if (cs === 'postponed') {
+        row.getCell(11).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_AMBER_LIGHT } }
+        row.getCell(11).font = { size: 10, name: 'Calibri', color: { argb: C_AMBER_TEXT } }
+      }
+    })
+
+    // Totals
+    const lTotRow = wsLeads.addRow([`Итого: ${leads.length} лидов`, '', '', '', '',
+      `Квал: ${totalQual}`, `Записано: ${totalScheduled}`, '', '', '', `Пришло: ${totalHappened}`, ''])
+    for (let c = 1; c <= LCOLS; c++) {
+      lTotRow.getCell(c).font  = { bold: true, size: 10, name: 'Calibri', color: { argb: C_BLUE_DARK } }
+      lTotRow.getCell(c).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_HDR } }
+      lTotRow.getCell(c).border = { top: { style: 'medium', color: { argb: C_BLUE_MID } } }
+    }
+    lTotRow.height = 22
+
+    // ════════════════════════════════════════════════════════════════════
+    // SHEET 5: Ежедневные отчёты
+    // ════════════════════════════════════════════════════════════════════
+    if (reports.length > 0) {
+      const wsRep = wb.addWorksheet('Ежедневные отчёты', { properties: { tabColor: { argb: 'FF16A34A' } } })
+      const repCols = ['Дата', 'Лидов', 'Квалиф.', 'Записано на встречу', 'Пришло на встречу', 'Комментарий']
+      wsRep.columns = [
+        { key: 'date', width: 14 }, { key: 'leads', width: 12 }, { key: 'qual', width: 12 },
+        { key: 'sched', width: 22 }, { key: 'happ', width: 22 }, { key: 'comment', width: 40 },
+      ]
+      wsRep.mergeCells(`A1:${String.fromCharCode(64 + repCols.length)}1`)
+      wsRep.getCell('A1').value = `Ежедневные отчёты — ${pLabel}`
+      styleTitleRow(wsRep, 1, repCols.length)
+      wsRep.addRow([])
+      styleHeaderRow(wsRep, wsRep.addRow(repCols).number, repCols.length)
+
+      reports.forEach((r, i) => {
+        const d = r.data as any
+        const sched = Number(d.meetingsScheduled) || 0
+        const happ  = Number(d.meetingsAttended)  || 0
+        const row = wsRep.addRow([
+          fmtDate(r.date),
+          Number(d.leadsReceived) || Number(d.leads) || 0,
+          Number(d.qualifiedLeads) || 0,
+          sched, happ, d.comment || '',
+        ])
+        styleDataRow(wsRep, row.number, repCols.length, i % 2 === 0)
+        for (let c = 1; c <= 5; c++) row.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' }
+        row.getCell(6).alignment = { horizontal: 'left', vertical: 'middle' }
+        if (happ > 0) {
+          row.getCell(5).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GREEN_LIGHT } }
+          row.getCell(5).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_GREEN_TEXT } }
+        }
+      })
+
+      // Totals
+      const rTot = wsRep.addRow([
+        'ИТОГО',
+        sumLiderLeads(reports),
+        sumField(reports, 'qualifiedLeads'),
+        sumField(reports, 'meetingsScheduled'),
+        sumField(reports, 'meetingsAttended'),
+        `${reports.length} дней`,
+      ])
+      for (let c = 1; c <= repCols.length; c++) {
+        rTot.getCell(c).font  = { bold: true, size: 10, name: 'Calibri', color: { argb: C_BLUE_DARK } }
+        rTot.getCell(c).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_HDR } }
+        rTot.getCell(c).border = { top: { style: 'medium', color: { argb: C_BLUE_MID } } }
+        rTot.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' }
+      }
+      rTot.height = 22
+    }
+
+    // ── Send ─────────────────────────────────────────────────────────────
+    const safeName = (user?.name || 'lider').replace(/[^а-яёА-ЯЁa-zA-Z0-9]/g, '_')
+    const filename = `lider_${safeName}_${fromStr}_${toStr}.xlsx`
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`)
+    await wb.xlsx.write(res)
+    res.end()
+  } catch (e) {
+    console.error('Export lider-full error:', e)
+    res.status(500).json({ error: 'Export failed' })
+  }
+})
+
+// ── Lider leads export (legacy, kept for compatibility) ────────────────────
 
 router.get('/lider-leads', authenticate, async (req: AuthRequest, res: Response) => {
   const { period = 'month', from, to, search, channelId, ktsStatus, subStatus, consultationStatus, date: dateFilter } = req.query

@@ -2,192 +2,156 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
-import { Phone, Calendar, User, ExternalLink, Banknote, ChevronDown, ChevronUp, Pencil, Check, X, CheckSquare, ChevronLeft, ChevronRight } from 'lucide-react'
-
-const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
-function getMonthLabel(offset: number) {
-  const d = new Date()
-  const t = new Date(d.getFullYear(), d.getMonth() + offset, 1)
-  return `${MONTHS_RU[t.getMonth()]} ${t.getFullYear()}`
-}
+import {
+  Phone, Calendar, User, ExternalLink, Banknote, ChevronDown, ChevronUp,
+  Check, X, CheckSquare, Trash2, RotateCcw, Search, Filter,
+} from 'lucide-react'
 
 type Lead = {
   id: string
   clientName: string
   phone: string
   date: string
+  createdAt: string
   isQualified: boolean
   comment: string | null
   status: string
+  subStatus: string | null
+  appointmentDate: string | null
+  appointmentTime: string | null
+  consultationStatus: string | null
   salesChannel: { id: string; name: string } | null
   createdBy: { id: string; name: string }
+  assignedTo: { id: string; name: string } | null
   tasks: { id: string; title: string; dueDate: string; completed: boolean }[]
   amount: number | null
+  netAmount: number | null
   paymentType: string | null
   paymentMethod: string | null
-  bank: string | null
-  months: number | null
   crmLink: string | null
   closerComment: string | null
+  isRefund: boolean
+  refundComment: string | null
+  deletedAt: string | null
 }
 
-const PAYMENT_TYPE: Record<string, string> = { new_sale: 'Новая', additional: 'Доплата' }
-const PAYMENT_METHOD: Record<string, string> = { cash: 'Нал', card: 'Безнал', credit: 'Кредит', installment: 'Рассрочка' }
-const PAYMENT_TYPE_OPT = [{ value: 'new_sale', label: 'Новая продажа' }, { value: 'additional', label: 'Доплата' }]
-const PAYMENT_METHOD_OPT = [{ value: 'cash', label: 'Нал' }, { value: 'card', label: 'Безнал' }, { value: 'credit', label: 'Кредит' }, { value: 'installment', label: 'Рассрочка' }]
-const BANKS = ['Kaspi Bank', 'Halyk', 'BCC', 'Forte', 'Jusan', 'RBK', 'Другой']
+const STATUS_CONFIG: Record<string, { label: string; dot: string; badge: string }> = {
+  ASSIGNED:    { label: 'Запланирован',   dot: 'bg-blue-400',   badge: 'bg-blue-50 text-blue-700' },
+  IN_WORK:     { label: 'Дожим',          dot: 'bg-amber-400',  badge: 'bg-amber-50 text-amber-700' },
+  REFUSED:     { label: 'Отказ',          dot: 'bg-red-400',    badge: 'bg-red-50 text-red-700' },
+  SOLD:        { label: 'Продажа',        dot: 'bg-green-400',  badge: 'bg-green-50 text-green-700' },
+  DELETED:     { label: 'Удалено',        dot: 'bg-gray-400',   badge: 'bg-gray-100 text-gray-500' },
+  UNQUALIFIED: { label: 'Не квал',        dot: 'bg-gray-300',   badge: 'bg-gray-50 text-gray-500' },
+  NEW:         { label: 'Новый',          dot: 'bg-purple-400', badge: 'bg-purple-50 text-purple-700' },
+}
 
-function isOverdue(dueDate: string) {
-  return dueDate < new Date().toISOString().slice(0, 10)
+const PAYMENT_LABEL: Record<string, string> = {
+  new_sale: 'Новая продажа', additional: 'Доплата', refund: 'Возврат',
 }
 
 function fmtDate(s: string) {
   if (!s) return ''
-  return new Date(s + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })
+  return new Date(s + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-// ── Edit Modal ────────────────────────────────────────────────────────────────
-function EditLeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
+function fmtDateTime(s: string) {
+  if (!s) return ''
+  const d = new Date(s)
+  return d.toLocaleString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
+// ── Lead Card ────────────────────────────────────────────────────────────────
+function ArchiveCard({ lead }: { lead: Lead }) {
   const qc = useQueryClient()
-  const [form, setForm] = useState({
-    amount: lead.amount ? String(lead.amount) : '',
-    paymentType: lead.paymentType || 'new_sale',
-    paymentMethod: lead.paymentMethod || 'card',
-    bank: lead.bank || '',
-    months: lead.months ? String(lead.months) : '',
-    crmLink: lead.crmLink || '',
-    closerComment: lead.closerComment || '',
-  })
-  const [error, setError] = useState('')
-  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
-
-  const saveMut = useMutation({
-    mutationFn: () => api.put(`/leads/${lead.id}`, {
-      ...form,
-      amount: form.amount ? Number(form.amount) : null,
-      months: form.months ? Number(form.months) : null,
-    }).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['archive-leads'] }); onClose() },
-    onError: (e: any) => setError(e.response?.data?.error || 'Ошибка'),
-  })
-
-  // Restore REFUSED lead back to IN_WORK
-  const restoreMut = useMutation({
-    mutationFn: () => api.put(`/leads/${lead.id}/restore`).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['archive-leads'] }); onClose() },
-    onError: (e: any) => setError(e.response?.data?.error || 'Ошибка'),
-  })
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-gray-900">Редактировать — {lead.clientName}</h3>
-          {lead.status === 'REFUSED' && (
-            <button onClick={() => restoreMut.mutate()} disabled={restoreMut.isPending}
-              className="text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg font-medium transition-colors">
-              Вернуть в работу
-            </button>
-          )}
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-medium text-gray-500 block mb-1">Сумма</label>
-            <input type="number" className="input" value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="0" />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-gray-500 block mb-1">Тип оплаты</label>
-            <select className="input" value={form.paymentType} onChange={e => set('paymentType', e.target.value)}>
-              {PAYMENT_TYPE_OPT.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-gray-500 block mb-1">Способ оплаты</label>
-            <select className="input" value={form.paymentMethod} onChange={e => set('paymentMethod', e.target.value)}>
-              {PAYMENT_METHOD_OPT.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-gray-500 block mb-1">Банк</label>
-            <select className="input" value={form.bank} onChange={e => set('bank', e.target.value)}>
-              <option value="">— не выбран —</option>
-              {BANKS.map(b => <option key={b} value={b}>{b}</option>)}
-            </select>
-          </div>
-          {(form.paymentMethod === 'credit' || form.paymentMethod === 'installment') && (
-            <div>
-              <label className="text-xs font-medium text-gray-500 block mb-1">Месяцев</label>
-              <input type="number" className="input" value={form.months} onChange={e => set('months', e.target.value)} placeholder="12" />
-            </div>
-          )}
-          <div className="col-span-2">
-            <label className="text-xs font-medium text-gray-500 block mb-1">CRM-ссылка</label>
-            <input type="url" className="input" value={form.crmLink} onChange={e => set('crmLink', e.target.value)} placeholder="https://..." />
-          </div>
-          <div className="col-span-2">
-            <label className="text-xs font-medium text-gray-500 block mb-1">Комментарий</label>
-            <textarea className="input resize-none h-16" value={form.closerComment} onChange={e => set('closerComment', e.target.value)} placeholder="Заметки..." />
-          </div>
-        </div>
-        {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg mt-3">{error}</p>}
-        <div className="flex gap-3 mt-5">
-          <button onClick={onClose} className="flex-1 btn-outline">Отмена</button>
-          <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending} className="flex-1 btn-primary">Сохранить</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Lead Card ─────────────────────────────────────────────────────────────────
-function LeadCard({ lead }: { lead: Lead }) {
   const [open, setOpen] = useState(false)
-  const [showEdit, setShowEdit] = useState(false)
+
   const completedTasks = lead.tasks.filter(t => t.completed).length
   const totalTasks = lead.tasks.length
-  const isRefused = lead.status === 'REFUSED'
-  const dotColor = isRefused ? 'bg-red-400' : 'bg-amber-400'
+  const cfg = STATUS_CONFIG[lead.status] ?? STATUS_CONFIG.NEW
+  const isDeleted = lead.status === 'DELETED'
+  const isSold = lead.status === 'SOLD'
+
+  const restoreMut = useMutation({
+    mutationFn: () => api.put(`/leads/${lead.id}/restore`).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['closer-archive'] }),
+  })
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className={`rounded-xl border shadow-sm overflow-hidden ${isDeleted ? 'opacity-60 bg-gray-50 border-gray-200' : 'bg-white border-gray-100'}`}>
       <div className="flex items-start gap-3 p-4 cursor-pointer" onClick={() => setOpen(o => !o)}>
-        <span className={`w-2.5 h-2.5 rounded-full ${dotColor} mt-1.5 shrink-0`} />
+        <span className={`w-2.5 h-2.5 rounded-full ${cfg.dot} mt-1.5 shrink-0`} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-semibold text-gray-900">{lead.clientName}</p>
-            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${isRefused ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-700'}`}>
-              {isRefused ? 'Отказ' : 'В работе'}
+            <p className={`font-semibold ${isDeleted ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+              {lead.clientName}
+            </p>
+            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${cfg.badge}`}>
+              {cfg.label}
             </span>
+            {lead.isRefund && (
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 flex items-center gap-0.5">
+                <RotateCcw className="w-3 h-3" /> Возврат
+              </span>
+            )}
             {totalTasks > 0 && (
               <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${completedTasks === totalTasks ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                 <CheckSquare className="w-3 h-3 inline mr-0.5" />{completedTasks}/{totalTasks}
               </span>
             )}
-            {lead.amount && <span className="text-[11px] font-medium text-green-600 flex items-center gap-0.5"><Banknote className="w-3 h-3" />₸ {Number(lead.amount).toLocaleString('ru')}</span>}
+            {(lead.netAmount ?? lead.amount) && (
+              <span className={`text-[11px] font-medium flex items-center gap-0.5 ${isSold && !lead.isRefund ? 'text-green-600' : 'text-gray-400'}`}>
+                <Banknote className="w-3 h-3" />
+                ₸ {Number(lead.netAmount ?? lead.amount).toLocaleString('ru')}
+                {lead.paymentType && <span className="ml-0.5">({PAYMENT_LABEL[lead.paymentType] ?? lead.paymentType})</span>}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3 mt-1 text-xs text-gray-400 flex-wrap">
             <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{lead.phone}</span>
             <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{lead.date}</span>
-            <span className="flex items-center gap-1"><User className="w-3 h-3" />{lead.createdBy.name}</span>
-            {lead.paymentType && <span>{PAYMENT_TYPE[lead.paymentType]}</span>}
-            {lead.paymentMethod && <span>{PAYMENT_METHOD[lead.paymentMethod]}</span>}
-            {lead.bank && <span>{lead.bank}</span>}
+            {lead.appointmentDate && (
+              <span className="flex items-center gap-1 text-blue-500">
+                <Calendar className="w-3 h-3" />Встреча: {lead.appointmentDate.split('-').reverse().join('.')}
+                {lead.appointmentTime ? ` ${lead.appointmentTime}` : ''}
+              </span>
+            )}
+            {lead.salesChannel && <span>{lead.salesChannel.name}</span>}
+            <span className="flex items-center gap-1"><User className="w-3 h-3" />{lead.createdBy?.name}</span>
+            <span className="text-gray-300">Поступил: {fmtDateTime(lead.createdAt)}</span>
+            {isDeleted && lead.deletedAt && (
+              <span className="text-red-400 flex items-center gap-1">
+                <Trash2 className="w-3 h-3" /> Удалён: {fmtDateTime(lead.deletedAt)}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={e => { e.stopPropagation(); setShowEdit(true) }}
-            className="p-1.5 rounded-lg text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition-colors"
-            title="Редактировать"
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
+          {lead.status === 'REFUSED' && (
+            <button
+              onClick={e => { e.stopPropagation(); restoreMut.mutate() }}
+              disabled={restoreMut.isPending}
+              className="text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg font-medium transition-colors"
+              title="Вернуть в работу"
+            >
+              В работу
+            </button>
+          )}
           {open ? <ChevronUp className="w-4 h-4 text-gray-300" /> : <ChevronDown className="w-4 h-4 text-gray-300" />}
         </div>
       </div>
 
       {open && (
         <div className="px-4 pb-4 pt-1 border-t border-gray-50 space-y-3">
+          {/* Consultation status */}
+          {lead.consultationStatus && (
+            <div className={`text-xs font-medium px-3 py-2 rounded-lg ${
+              lead.consultationStatus === 'happened' ? 'bg-green-50 text-green-700' :
+              lead.consultationStatus === 'not_happened' ? 'bg-red-50 text-red-700' :
+              'bg-orange-50 text-orange-700'
+            }`}>
+              Встреча: {lead.consultationStatus === 'happened' ? '✓ Состоялась' : lead.consultationStatus === 'not_happened' ? '✗ Не состоялась' : '↻ Перенос'}
+            </div>
+          )}
           {lead.comment && (
             <p className="text-sm text-gray-600 bg-blue-50 px-3 py-2 rounded-lg border-l-2 border-blue-300">
               <span className="text-xs font-semibold text-blue-600 block mb-0.5">Комментарий лидоруба</span>
@@ -200,6 +164,12 @@ function LeadCard({ lead }: { lead: Lead }) {
               {lead.closerComment}
             </p>
           )}
+          {lead.isRefund && lead.refundComment && (
+            <p className="text-sm bg-orange-50 text-orange-700 px-3 py-2 rounded-lg">
+              <span className="text-xs font-semibold block mb-0.5">Причина возврата</span>
+              {lead.refundComment}
+            </p>
+          )}
           {lead.crmLink && (
             <a href={lead.crmLink} target="_blank" rel="noreferrer"
               className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline font-medium">
@@ -210,26 +180,20 @@ function LeadCard({ lead }: { lead: Lead }) {
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Задачи</p>
               <div className="space-y-1.5">
-                {lead.tasks.map(task => {
-                  const overdue = !task.completed && isOverdue(task.dueDate)
-                  return (
-                    <div key={task.id} className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg ${task.completed ? 'bg-green-50 text-green-700' : overdue ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-700'}`}>
-                      {task.completed
-                        ? <Check className="w-4 h-4 text-green-600 shrink-0" />
-                        : <div className="w-4 h-4 rounded-full border-2 border-current shrink-0" />
-                      }
-                      <span className={task.completed ? 'line-through opacity-60' : ''}>{task.title}</span>
-                      <span className="ml-auto text-xs opacity-60">{fmtDate(task.dueDate)}</span>
-                    </div>
-                  )
-                })}
+                {lead.tasks.map(task => (
+                  <div key={task.id} className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg ${task.completed ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-700'}`}>
+                    {task.completed
+                      ? <Check className="w-4 h-4 text-green-600 shrink-0" />
+                      : <div className="w-4 h-4 rounded-full border-2 border-current shrink-0" />
+                    }
+                    <span className={task.completed ? 'line-through opacity-60' : ''}>{task.title}</span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
         </div>
       )}
-
-      {showEdit && <EditLeadModal lead={lead} onClose={() => setShowEdit(false)} />}
     </div>
   )
 }
@@ -237,89 +201,141 @@ function LeadCard({ lead }: { lead: Lead }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function CloserArchivePage() {
   const periodState = usePeriodStore()
-  const { monthOffset, setMonthOffset, setPeriod } = periodState
-  // Always force month mode on this page
-  const params = buildPeriodParams({ ...periodState, period: 'month' })
-  const [tab, setTab] = useState<'refused' | 'inwork'>('refused')
+  const params = buildPeriodParams(periodState)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
 
-  const refusedQ = useQuery({
-    queryKey: ['archive-leads', 'refused', params],
-    queryFn: () => api.get(`/leads/refused?${params}`).then(r => r.data),
+  const archiveQ = useQuery({
+    queryKey: ['closer-archive', params, statusFilter],
+    queryFn: () => api.get(`/leads/closer-archive?${params}${statusFilter !== 'all' ? `&status=${statusFilter}` : ''}`).then(r => r.data),
   })
 
-  const inworkQ = useQuery({
-    queryKey: ['archive-leads', 'inwork', params],
-    queryFn: () => api.get(`/leads/in-work?${params}`).then(r => r.data),
-  })
+  const leads: Lead[] = archiveQ.data || []
 
-  const refused: Lead[] = refusedQ.data || []
-  const inwork: Lead[] = inworkQ.data || []
-  const currentLeads = tab === 'refused' ? refused : inwork
-  const currentQ = tab === 'refused' ? refusedQ : inworkQ
+  // Client-side search filter
+  const filtered = search
+    ? leads.filter(l =>
+        l.clientName.toLowerCase().includes(search.toLowerCase()) ||
+        l.phone.includes(search)
+      )
+    : leads
+
+  // Stats
+  const sold = filtered.filter(l => l.status === 'SOLD' && !l.isRefund)
+  const refunds = filtered.filter(l => l.isRefund)
+  const refused = filtered.filter(l => l.status === 'REFUSED')
+  const deleted = filtered.filter(l => l.status === 'DELETED')
+  const soldTotal = sold.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+  const refundTotal = refunds.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+
+  const STATUS_FILTERS = [
+    { value: 'all',      label: 'Все' },
+    { value: 'SOLD',     label: 'Продажи' },
+    { value: 'REFUSED',  label: 'Отказы' },
+    { value: 'IN_WORK',  label: 'Дожим' },
+    { value: 'ASSIGNED', label: 'Запланированные' },
+    { value: 'DELETED',  label: 'Удалённые' },
+  ]
 
   return (
-    <div className="space-y-5 px-4 md:px-6 py-2 md:py-4">
+    <div className="space-y-5 px-4 md:px-6 py-2 md:py-4 max-w-[1200px] mx-auto">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Архив встреч</h1>
-        <p className="text-sm text-gray-400 mt-0.5">Отказники и встречи в работе за период</p>
+        <h1 className="text-2xl font-bold text-gray-900">Журнал заявок</h1>
+        <p className="text-sm text-gray-400 mt-0.5">Полная история всех заявок, включая удалённые</p>
       </div>
 
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
-          <button
-            onClick={() => setTab('refused')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'refused' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            <span className="w-2 h-2 rounded-full bg-red-400" />
-            Отказники
-            {refused.length > 0 && <span className="text-xs px-1.5 py-0.5 rounded-full font-bold bg-gray-200 text-gray-600">{refused.length}</span>}
-          </button>
-          <button
-            onClick={() => setTab('inwork')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'inwork' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            <span className="w-2 h-2 rounded-full bg-amber-400" />
-            В работе
-            {inwork.length > 0 && <span className="text-xs px-1.5 py-0.5 rounded-full font-bold bg-gray-200 text-gray-600">{inwork.length}</span>}
-          </button>
-        </div>
-        <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-1">
-          <button
-            onClick={() => setMonthOffset(monthOffset - 1)}
-            className="p-1 rounded-md text-gray-500 hover:text-gray-800 hover:bg-white transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="text-sm font-semibold text-gray-800 px-2 whitespace-nowrap min-w-[130px] text-center">
-            {getMonthLabel(monthOffset)}
-          </span>
-          <button
-            onClick={() => setMonthOffset(Math.min(0, monthOffset + 1))}
-            disabled={monthOffset >= 0}
-            className="p-1 rounded-md text-gray-500 hover:text-gray-800 hover:bg-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {currentQ.isLoading && <div className="card text-center text-gray-400 py-12">Загрузка...</div>}
-
-      {!currentQ.isLoading && currentLeads.length === 0 && (
-        <div className="card text-center py-14">
-          <div className="w-12 h-12 bg-gray-100 rounded-xl mx-auto flex items-center justify-center mb-3">
-            <X className="w-6 h-6 text-gray-300" />
+      {/* Stats summary */}
+      {!archiveQ.isLoading && filtered.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-white border border-gray-100 rounded-xl p-3 text-center">
+            <p className="text-xs text-gray-400 font-medium">Всего заявок</p>
+            <p className="text-2xl font-black text-gray-800 mt-0.5">{filtered.length}</p>
           </div>
-          <p className="text-gray-400 font-medium">
-            {tab === 'refused' ? 'Нет отказов за период' : 'Нет заявок в работе за период'}
-          </p>
+          <div className="bg-green-50 border border-green-100 rounded-xl p-3 text-center">
+            <p className="text-xs text-green-600 font-medium">Продажи</p>
+            <p className="text-2xl font-black text-green-700 mt-0.5">{sold.length}</p>
+            {soldTotal > 0 && <p className="text-[11px] text-green-500 mt-0.5">₸ {soldTotal.toLocaleString('ru')}</p>}
+          </div>
+          {refunds.length > 0 && (
+            <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 text-center">
+              <p className="text-xs text-orange-600 font-medium">Возвраты</p>
+              <p className="text-2xl font-black text-orange-700 mt-0.5">{refunds.length}</p>
+              {refundTotal > 0 && <p className="text-[11px] text-orange-500 mt-0.5">₸ {refundTotal.toLocaleString('ru')}</p>}
+            </div>
+          )}
+          <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-center">
+            <p className="text-xs text-red-600 font-medium">Отказы</p>
+            <p className="text-2xl font-black text-red-700 mt-0.5">{refused.length}</p>
+          </div>
+          {deleted.length > 0 && (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center col-span-2 sm:col-span-1">
+              <p className="text-xs text-gray-500 font-medium flex items-center justify-center gap-1">
+                <Trash2 className="w-3 h-3" /> Удалено
+              </p>
+              <p className="text-2xl font-black text-gray-500 mt-0.5">{deleted.length}</p>
+            </div>
+          )}
         </div>
       )}
 
-      {!currentQ.isLoading && currentLeads.length > 0 && (
+      {/* Search + filter */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            placeholder="Поиск по имени или телефону..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 flex-wrap">
+          {STATUS_FILTERS.map(f => (
+            <button
+              key={f.value}
+              onClick={() => setStatusFilter(f.value)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${statusFilter === f.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              {f.label}
+              {f.value !== 'all' && (
+                <span className="ml-1.5 text-[10px] opacity-60">
+                  {filtered.filter(l => l.status === f.value).length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Deleted warning banner */}
+      {deleted.length > 0 && statusFilter !== 'DELETED' && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
+          <Trash2 className="w-5 h-5 text-amber-500 shrink-0" />
+          <p className="text-sm text-amber-700">
+            <span className="font-semibold">{deleted.length} заявок удалено</span> — они видны в журнале и не могут быть скрыты навсегда. Фильтр «Удалённые» покажет их.
+          </p>
+          <button onClick={() => setStatusFilter('DELETED')} className="ml-auto text-xs text-amber-700 font-semibold underline whitespace-nowrap">
+            Показать
+          </button>
+        </div>
+      )}
+
+      {archiveQ.isLoading && <div className="bg-white rounded-xl border border-gray-100 p-12 text-center text-gray-400">Загрузка...</div>}
+
+      {!archiveQ.isLoading && filtered.length === 0 && (
+        <div className="bg-white rounded-xl border border-gray-100 p-14 text-center">
+          <div className="w-12 h-12 bg-gray-100 rounded-xl mx-auto flex items-center justify-center mb-3">
+            <Filter className="w-6 h-6 text-gray-300" />
+          </div>
+          <p className="text-gray-400 font-medium">Нет заявок за этот период</p>
+          <p className="text-xs text-gray-300 mt-1">Измените период в верхнем меню</p>
+        </div>
+      )}
+
+      {!archiveQ.isLoading && filtered.length > 0 && (
         <div className="space-y-3">
-          {currentLeads.map((lead: Lead) => (
-            <LeadCard key={lead.id} lead={lead} />
+          {filtered.map(lead => (
+            <ArchiveCard key={lead.id} lead={lead} />
           ))}
         </div>
       )}

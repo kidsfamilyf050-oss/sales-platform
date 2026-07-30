@@ -281,6 +281,7 @@ enum LeadStatus {
   REFUSED      // closer refused
   SOLD         // converted to sale
   UNQUALIFIED  // not qualified
+  DELETED      // soft-deleted (audit log preserved)
 }
 
 model Lead {
@@ -333,6 +334,15 @@ model Lead {
   // Loss reason selected by closer on refusal
   lossReasonId   String?
   lossReason     LossReason?   @relation(fields: [lossReasonId], references: [id])
+
+  // Refund flag — marks a SOLD lead as refunded
+  isRefund       Boolean       @default(false)
+  refundedAt     DateTime?
+  refundComment  String?
+
+  // Soft delete — lead stays in DB but shows in archive as "Удалено"
+  deletedAt      DateTime?
+  deletedById    String?       // userId who deleted it
 
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
