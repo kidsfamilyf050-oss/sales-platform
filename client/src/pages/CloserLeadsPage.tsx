@@ -562,7 +562,8 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
 
   const isOverdueAppt = displayDate < today
   const isTodayAppt = displayDate === today
-  const hasStatus = !!lead.consultationStatus
+  // 'planned' is not an outcome status — treat same as no status so buttons still show
+  const hasStatus = !!lead.consultationStatus && lead.consultationStatus !== 'planned'
 
   const statusLabels: Record<string, { label: string; cls: string; Icon: React.ElementType }> = {
     happened:     { label: 'Состоялась',    cls: 'bg-green-100 text-green-700 border-green-200',   Icon: CheckCircle2 },

@@ -236,7 +236,7 @@ export default function ManagerDashboard() {
               <p className="text-2xl font-bold text-blue-600">{summary.pendingLeadsCount ?? 0}</p>
               <p className="text-xs text-gray-300 group-hover:text-blue-400 mt-1 transition-colors">новые заявки</p>
             </div>
-            <div onClick={() => navigate('/closer/leads')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-amber-200 hover:bg-amber-50/40 border border-transparent">
+            <div onClick={() => navigate('/closer/leads?tab=inwork')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-amber-200 hover:bg-amber-50/40 border border-transparent">
               <p className="text-xs font-medium text-gray-400 group-hover:text-amber-500 transition-colors uppercase tracking-wide mb-1">Дожим</p>
               <p className="text-2xl font-bold text-amber-500">{summary.inWorkLeadsCount ?? 0}</p>
               <p className="text-xs text-gray-300 group-hover:text-amber-400 mt-1 transition-colors">активных</p>
