@@ -536,7 +536,6 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
   const qc = useQueryClient()
   const today = new Date().toISOString().slice(0, 10)
 
-  // State for postpone date modal
   const [showPostpone, setShowPostpone] = useState(false)
   const tomorrowStr = () => {
     const d = new Date(); d.setDate(d.getDate() + 1)
@@ -554,15 +553,7 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
     },
   })
 
-  if (!lead.appointmentDate) return null
-
-  // Displayed meeting date: use the latest postponed date if it exists
-  const displayDate = lead.postponedDate || lead.appointmentDate
-  const displayTime = lead.postponedTime || lead.appointmentTime
-
-  const isOverdueAppt = displayDate < today
-  const isTodayAppt = displayDate === today
-  // 'planned' is not an outcome status — treat same as no status so buttons still show
+  // 'planned' is not a real outcome — treat as no status so buttons always show
   const hasStatus = !!lead.consultationStatus && lead.consultationStatus !== 'planned'
 
   const statusLabels: Record<string, { label: string; cls: string; Icon: React.ElementType }> = {
@@ -571,30 +562,60 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
     postponed:    { label: 'Перенос',       cls: 'bg-orange-100 text-orange-700 border-orange-200', Icon: RefreshCw },
   }
 
+  // When there's an appointment date, compute overdue/today flags for styling
+  const displayDate = lead.postponedDate || lead.appointmentDate || null
+  const displayTime = lead.postponedTime || lead.appointmentTime || null
+  const isOverdueAppt = !!displayDate && displayDate < today
+  const isTodayAppt = !!displayDate && displayDate === today
+
+  const bgCls = isOverdueAppt && !hasStatus
+    ? 'bg-red-50 border-red-200'
+    : isTodayAppt && !hasStatus
+    ? 'bg-blue-50 border-blue-200'
+    : 'bg-gray-50 border-gray-100'
+
   return (
-    <div className={`rounded-xl border p-3 space-y-2 ${isOverdueAppt && !hasStatus ? 'bg-red-50 border-red-200' : isTodayAppt && !hasStatus ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'}`}>
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-gray-600 flex items-center gap-1">
-          <Calendar className="w-3 h-3 shrink-0 text-blue-500" />
-          Встреча: {displayDate.split('-').reverse().join('.')}
-          {displayTime && ` в ${displayTime}`}
-          {lead.postponedDate && lead.postponedDate !== lead.appointmentDate && (
-            <span className="ml-1 text-orange-500 font-normal">(перенесено)</span>
-          )}
-        </p>
-        {hasStatus && (() => {
-          const cfg = statusLabels[lead.consultationStatus!]
-          const SIcon = cfg?.Icon
-          return (
+    <div className={`rounded-xl border p-3 space-y-2 ${bgCls}`}>
+      {/* Meeting date header — only when appointment was set */}
+      {displayDate && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold text-gray-600 flex items-center gap-1">
+            <Calendar className="w-3 h-3 shrink-0 text-blue-500" />
+            Встреча: {displayDate.split('-').reverse().join('.')}
+            {displayTime && ` в ${displayTime}`}
+            {lead.postponedDate && lead.postponedDate !== lead.appointmentDate && (
+              <span className="ml-1 text-orange-500 font-normal">(перенесено)</span>
+            )}
+          </p>
+          {hasStatus && (() => {
+            const cfg = statusLabels[lead.consultationStatus!]
+            const SIcon = cfg?.Icon
+            return (
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full border flex items-center gap-1 ${cfg?.cls ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                {SIcon && <SIcon className="w-3 h-3" />}
+                {cfg?.label ?? lead.consultationStatus}
+              </span>
+            )
+          })()}
+        </div>
+      )}
+
+      {/* Status chip when no appointment date */}
+      {!displayDate && hasStatus && (() => {
+        const cfg = statusLabels[lead.consultationStatus!]
+        const SIcon = cfg?.Icon
+        return (
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-gray-600">Консультация</p>
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full border flex items-center gap-1 ${cfg?.cls ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
               {SIcon && <SIcon className="w-3 h-3" />}
               {cfg?.label ?? lead.consultationStatus}
             </span>
-          )
-        })()}
-      </div>
+          </div>
+        )
+      })()}
 
-      {/* Status buttons — shown when no status yet OR when postponed (can postpone again) */}
+      {/* Action buttons — always shown when no final outcome yet */}
       {(!hasStatus || lead.consultationStatus === 'postponed') && !showPostpone && (
         <div>
           <p className={`text-xs mb-2 flex items-center gap-1 ${isOverdueAppt ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
@@ -615,7 +636,6 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
                 </button>
               )
             })}
-            {/* Перенос — opens date picker instead of immediately saving */}
             <button
               onClick={() => { setPDate(tomorrowStr()); setPTime(''); setShowPostpone(true) }}
               disabled={statusMut.isPending}
@@ -632,44 +652,27 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 space-y-2">
           <p className="text-xs font-semibold text-orange-700">Укажите новую дату консультации:</p>
           <div className="flex gap-2">
-            <input
-              type="date"
-              value={pDate}
-              min={today}
-              onChange={e => setPDate(e.target.value)}
-              className="flex-1 border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
-            />
-            <input
-              type="time"
-              value={pTime}
-              onChange={e => setPTime(e.target.value)}
-              className="w-24 border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
-            />
+            <input type="date" value={pDate} min={today} onChange={e => setPDate(e.target.value)}
+              className="flex-1 border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
+            <input type="time" value={pTime} onChange={e => setPTime(e.target.value)}
+              className="w-24 border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => statusMut.mutate({ consultationStatus: 'postponed', postponedDate: pDate, postponedTime: pTime || undefined })}
               disabled={!pDate || statusMut.isPending}
               className="flex-1 bg-orange-500 text-white text-xs font-semibold py-2 rounded-lg hover:bg-orange-600 disabled:opacity-40 transition-colors"
-            >
-              Сохранить перенос
-            </button>
-            <button
-              onClick={() => setShowPostpone(false)}
+            >Сохранить перенос</button>
+            <button onClick={() => setShowPostpone(false)}
               className="px-3 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg transition-colors"
-            >
-              Отмена
-            </button>
+            >Отмена</button>
           </div>
         </div>
       )}
 
       {hasStatus && lead.consultationStatus !== 'postponed' && (
-        <button
-          onClick={() => statusMut.mutate({ consultationStatus: '' })}
-          disabled={statusMut.isPending}
-          className="text-xs text-gray-400 hover:text-gray-600 underline"
-        >
+        <button onClick={() => statusMut.mutate({ consultationStatus: '' })} disabled={statusMut.isPending}
+          className="text-xs text-gray-400 hover:text-gray-600 underline">
           Сбросить статус
         </button>
       )}
@@ -723,10 +726,9 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
   // Display amount — prefer netAmount (бюджет сделки) when available
   const displayAmount = lead.netAmount ?? lead.amount
 
-  // Show consultation buttons inline on card for inwork leads with pending appointment
-  // 'planned' treated same as null — it's "scheduled but no outcome yet"
+  // Show consultation section inline for ALL inwork leads without a final outcome
+  // No appointmentDate required — buttons show regardless
   const showInlineConsult = showWork
-    && lead.appointmentDate
     && (!lead.consultationStatus || lead.consultationStatus === 'postponed' || lead.consultationStatus === 'planned')
 
   return (
