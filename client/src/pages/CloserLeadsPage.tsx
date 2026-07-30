@@ -724,9 +724,10 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
   const displayAmount = lead.netAmount ?? lead.amount
 
   // Show consultation buttons inline on card for inwork leads with pending appointment
+  // 'planned' treated same as null — it's "scheduled but no outcome yet"
   const showInlineConsult = showWork
     && lead.appointmentDate
-    && (!lead.consultationStatus || lead.consultationStatus === 'postponed')
+    && (!lead.consultationStatus || lead.consultationStatus === 'postponed' || lead.consultationStatus === 'planned')
 
   return (
     <div className={`rounded-xl border shadow-sm overflow-hidden ${highlightToday && isNew ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'}`}>
