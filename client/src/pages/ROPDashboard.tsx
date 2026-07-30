@@ -366,7 +366,6 @@ export default function ROPDashboard() {
   })
 
   const [expandedManagers, setExpandedManagers] = useState<Set<string>>(new Set())
-  const [showRefunds, setShowRefunds] = useState(false)
 
   const toggleExpand = (id: string) => setExpandedManagers(prev => {
     const next = new Set(prev)
@@ -383,7 +382,7 @@ export default function ROPDashboard() {
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
   if (!data) return null
 
-  const { summary, funnel, marketing, managerRating, liderRating, productStats = [], gatewayAnalytics = [], refundedLeads = [] } = data as any
+  const { summary, funnel, marketing, managerRating, liderRating, productStats = [], gatewayAnalytics = [] } = data as any
 
   const funnelSteps = [
     { label: 'Лидов получено',      value: funnel.leadsReceived,    color: 'bg-purple-400' },
@@ -410,27 +409,24 @@ export default function ROPDashboard() {
         </button>
       </div>
 
-      {showRefunds && <RefundsModal leads={refundedLeads} onClose={() => setShowRefunds(false)} />}
-
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
         <StatCard label={t('dash.rop.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
         <StatCard label={t('dash.rop.salesFact')} value={`₸ ${fmt(summary.netSalesAmount ?? summary.salesAmount)}`} color="blue" />
         <div
-          onClick={() => summary.refundCount > 0 && setShowRefunds(true)}
-          className={summary.refundCount > 0 ? 'cursor-pointer group' : ''}
-          title={summary.refundCount > 0 ? 'Нажмите чтобы посмотреть возвраты' : undefined}
+          onClick={() => navigate('/rop/links?tab=REFUND')}
+          className="cursor-pointer group"
+          title="Открыть список возвратов"
         >
-          <div className={`card transition-all duration-150 ${summary.refundCount > 0 ? 'group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent' : ''}`}>
-            <p className={`text-xs font-medium uppercase tracking-wide mb-1 ${summary.refundCount > 0 ? 'text-gray-400 group-hover:text-red-500 transition-colors' : 'text-gray-400'}`}>Возвраты</p>
+          <div className="card transition-all duration-150 group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent">
+            <p className="text-xs font-medium uppercase tracking-wide mb-1 text-gray-400 group-hover:text-red-500 transition-colors">Возвраты</p>
             <p className={`text-2xl font-bold ${summary.refundCount > 0 ? 'text-red-500' : 'text-gray-900'}`}>
               {summary.refundCount ?? 0} шт.
             </p>
-            {summary.refundCount > 0 && (
-              <p className="text-xs text-gray-400 group-hover:text-red-400 mt-1 transition-colors">
-                −₸ {fmt(summary.refundTotal)} · нажмите →
-              </p>
-            )}
+            {summary.refundCount > 0
+              ? <p className="text-xs text-gray-400 group-hover:text-red-400 mt-1 transition-colors">−₸ {fmt(summary.refundTotal)} · нажмите →</p>
+              : <p className="text-xs text-gray-300 group-hover:text-red-300 mt-1 transition-colors">нажмите →</p>
+            }
           </div>
         </div>
         <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />

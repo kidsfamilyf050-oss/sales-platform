@@ -86,13 +86,16 @@ router.get('/dashboard', authenticate, async (req: AuthRequest, res: Response) =
     })
 
     // 3. Sales in period — Sale.date is a String (YYYY-MM-DD), use string comparison
-    const sales = await prisma.sale.findMany({
-      where: {
-        companyId,
-        date: { gte: fromStr, lte: toStr },
-      },
-      select: { id: true, amount: true },
-    })
+    const [sales, refundedLeadsForRevenue] = await Promise.all([
+      prisma.sale.findMany({
+        where: { companyId, date: { gte: fromStr, lte: toStr } },
+        select: { id: true, amount: true },
+      }),
+      prisma.lead.findMany({
+        where: { companyId, status: 'SOLD', isRefund: true, date: { gte: fromStr, lte: toStr } },
+        select: { amount: true, netAmount: true },
+      }),
+    ])
 
     // 4. All sales channels for company
     const channels = await prisma.salesChannel.findMany({
@@ -112,7 +115,9 @@ router.get('/dashboard', authenticate, async (req: AuthRequest, res: Response) =
     const scheduled      = leads.filter(l => l.subStatus === 'scheduled').length
     const happened       = leads.filter(l => l.consultationStatus === 'happened').length
     const totalSalesCount = sales.length
-    const totalRevenue   = sales.reduce((s, sale) => s + Number(sale.amount), 0)
+    const grossRevenue   = sales.reduce((s, sale) => s + Number(sale.amount), 0)
+    const totalRefundAmt = refundedLeadsForRevenue.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
+    const totalRevenue   = grossRevenue - totalRefundAmt
     const totalSpend     = budgets.reduce((s, b) => s + b.spend, 0)
 
     const cpl   = totalLeads > 0 && totalSpend > 0 ? Math.round(totalSpend / totalLeads) : 0
