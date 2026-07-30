@@ -771,6 +771,38 @@ router.put('/:id/refund', authenticate, async (req: AuthRequest, res: Response) 
   }
 })
 
+// ── GET /api/leads/refunds — returns refunded leads for closer (or all company for ROP/OWNER) ─────
+router.get('/refunds', authenticate, async (req: AuthRequest, res: Response) => {
+  const { from, to, period = 'month' } = req.query
+  const { fromStr, toStr } = getPeriodStr(period as string, from as string, to as string)
+  try {
+    const isManager = req.user!.role === 'MANAGER'
+    const where: any = {
+      isRefund: true,
+      status: 'SOLD',
+    }
+    if (isManager) {
+      where.assignedToId = req.user!.id
+    } else {
+      // ROP/OWNER — filter by company via createdBy
+      where.createdBy = { companyId: req.user!.companyId }
+    }
+    // Filter by refundedAt date range
+    where.refundedAt = {
+      gte: new Date(fromStr + 'T00:00:00+05:00'),
+      lte: new Date(toStr + 'T23:59:59+05:00'),
+    }
+    const leads = await prisma.lead.findMany({
+      where,
+      include: INCLUDE_FULL,
+      orderBy: { refundedAt: 'desc' },
+    })
+    res.json(leads)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── GET /api/leads/closer-archive — full audit log for closer (all statuses + deleted) ─────────
 router.get('/closer-archive', authenticate, async (req: AuthRequest, res: Response) => {
   const { from, to, period = 'month', search, status } = req.query

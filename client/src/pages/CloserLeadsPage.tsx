@@ -886,7 +886,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
 export default function CloserLeadsPage() {
   const periodState = usePeriodStore()
   const params = buildPeriodParams(periodState)
-  const [tab, setTab] = useState<'incoming' | 'inwork' | 'refused' | 'sold'>('incoming')
+  const [tab, setTab] = useState<'incoming' | 'inwork' | 'refused' | 'sold' | 'refunds'>('incoming')
 
   const incomingQ = useQuery({
     queryKey: ['closer-leads', 'incoming'],
@@ -905,27 +905,34 @@ export default function CloserLeadsPage() {
     queryKey: ['closer-leads', 'sold', params],
     queryFn: () => api.get(`/leads/sold?${params}`).then(r => r.data),
   })
+  const refundsQ = useQuery({
+    queryKey: ['closer-leads', 'refunds', params],
+    queryFn: () => api.get(`/leads/refunds?${params}`).then(r => r.data),
+  })
 
   const incoming: Lead[] = incomingQ.data || []
   const inwork: Lead[] = inworkQ.data || []
   const refused: Lead[] = refusedQ.data || []
   const sold: Lead[] = soldQ.data || []
+  const refunds: Lead[] = refundsQ.data || []
 
   const tabs = [
     { key: 'incoming', label: 'Запланированные', count: incoming.length, dot: 'bg-blue-500', urgent: incoming.length > 0 },
     { key: 'inwork',   label: 'Дожим',           count: inwork.length,   dot: 'bg-amber-400' },
     { key: 'refused',  label: 'Отказы',           count: refused.length,  dot: 'bg-red-400' },
     { key: 'sold',     label: 'Продажи',          count: sold.length,     dot: 'bg-green-400' },
+    { key: 'refunds',  label: 'Возвраты',         count: refunds.length,  dot: 'bg-orange-400', urgent: refunds.length > 0 },
   ] as const
 
-  const currentLeads = tab === 'incoming' ? incoming : tab === 'inwork' ? inwork : tab === 'refused' ? refused : sold
-  const currentQ = tab === 'incoming' ? incomingQ : tab === 'inwork' ? inworkQ : tab === 'refused' ? refusedQ : soldQ
+  const currentLeads = tab === 'incoming' ? incoming : tab === 'inwork' ? inwork : tab === 'refused' ? refused : tab === 'sold' ? sold : refunds
+  const currentQ = tab === 'incoming' ? incomingQ : tab === 'inwork' ? inworkQ : tab === 'refused' ? refusedQ : tab === 'sold' ? soldQ : refundsQ
 
   // Net revenue + refund stats for sold tab
-  const soldNetTotal  = sold.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
-  const refunds       = sold.filter(l => l.isRefund)
-  const refundTotal   = refunds.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
-  const todayStr      = new Date().toISOString().slice(0, 10)
+  const soldNetTotal     = sold.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+  const soldWithRefunds  = sold.filter(l => l.isRefund)
+  const soldRefundTotal  = soldWithRefunds.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+  const refundsNetTotal  = refunds.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+  const todayStr         = new Date().toISOString().slice(0, 10)
 
   return (
     <div className="space-y-5 max-w-[1200px] mx-auto px-4 md:px-8 py-4 md:py-6">
@@ -946,7 +953,7 @@ export default function CloserLeadsPage() {
               <span className={`w-2 h-2 rounded-full shrink-0 ${t.dot}`} />
               {t.label}
               {t.count > 0 && (
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${(t as any).urgent ? 'bg-blue-600 text-white animate-pulse' : 'bg-gray-200 text-gray-600'}`}>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${(t as any).urgent && t.key !== 'refunds' ? 'bg-blue-600 text-white animate-pulse' : t.key === 'refunds' ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-600'}`}>
                   {t.count}
                 </span>
               )}
@@ -960,13 +967,23 @@ export default function CloserLeadsPage() {
               <span className="text-green-600 font-medium">Бюджет: </span>
               <span className="text-green-700 font-bold">₸ {soldNetTotal.toLocaleString('ru')}</span>
             </div>
-            {refunds.length > 0 && (
+            {soldWithRefunds.length > 0 && (
               <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-1.5 text-sm flex items-center gap-1.5">
                 <RotateCcw className="w-3.5 h-3.5 text-orange-500" />
                 <span className="text-orange-600 font-medium">Возвраты: </span>
-                <span className="text-orange-700 font-bold">{refunds.length} шт. / ₸ {refundTotal.toLocaleString('ru')}</span>
+                <span className="text-orange-700 font-bold">{soldWithRefunds.length} шт. / ₸ {soldRefundTotal.toLocaleString('ru')}</span>
               </div>
             )}
+          </div>
+        )}
+        {/* Refunds tab stats */}
+        {tab === 'refunds' && refunds.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap ml-auto">
+            <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-1.5 text-sm flex items-center gap-1.5">
+              <RotateCcw className="w-3.5 h-3.5 text-orange-500" />
+              <span className="text-orange-600 font-medium">Итого возвращено: </span>
+              <span className="text-orange-700 font-bold">{refunds.length} шт. / ₸ {refundsNetTotal.toLocaleString('ru')}</span>
+            </div>
           </div>
         )}
       </div>
@@ -984,7 +1001,8 @@ export default function CloserLeadsPage() {
           <p className="text-gray-400 font-medium">
             {tab === 'incoming' ? 'Нет новых встреч' :
              tab === 'inwork' ? 'Нет встреч в работе' :
-             tab === 'refused' ? 'Нет отказов за период' : 'Нет продаж за период'}
+             tab === 'refused' ? 'Нет отказов за период' :
+             tab === 'refunds' ? 'Нет возвратов за период' : 'Нет продаж за период'}
           </p>
           {tab === 'incoming' && <p className="text-xs text-gray-300 mt-1">Лидорубы пришлют встречи сюда</p>}
         </div>
@@ -998,7 +1016,7 @@ export default function CloserLeadsPage() {
               lead={lead}
               showAccept={tab === 'incoming'}
               showWork={tab === 'inwork'}
-              readonly={tab === 'refused' || tab === 'sold'}
+              readonly={tab === 'refused' || tab === 'sold' || tab === 'refunds'}
               highlightToday={tab === 'incoming' || tab === 'inwork'}
             />
           ))}

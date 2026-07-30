@@ -676,7 +676,7 @@ const ru = {
   // Consultations / refusals / in-work metrics
   'dash.consultations': 'Консультаций',
   'dash.refusals': 'Отказов',
-  'dash.inWork': 'В работе',
+  'dash.inWork': 'Дожим',
 
   // Click-to-detail hint (ROP table subtitles)
   'dash.clickToDetail': 'Нажмите на строку чтобы увидеть детали',
@@ -1403,7 +1403,7 @@ const kk: typeof ru = {
   // Consultations / refusals / in-work metrics
   'dash.consultations': 'Кеңестер',
   'dash.refusals': 'Бас тартулар',
-  'dash.inWork': 'Жұмыста',
+  'dash.inWork': 'Дожим',
 
   // Click-to-detail hint (ROP table subtitles)
   'dash.clickToDetail': 'Жолды басыңыз, мәліметтерді қараңыз',

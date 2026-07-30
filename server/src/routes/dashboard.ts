@@ -105,10 +105,20 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const totalBudget    = marketerReports.reduce((s, r) => s + (Number((r.data as any).adBudget) || Number((r.data as any).budget) || 0), 0)
 
     // ── Lider funnel (Lead model — live per-lead data) ────────────────────
-    const allLiderLeads = await prisma.lead.findMany({
-      where: { createdBy: { companyId: req.user!.companyId }, date: { gte: fromStr, lte: toStr } },
-      select: { isQualified: true, assignedToId: true, status: true, consultationStatus: true },
-    })
+    const [allLiderLeads, companyRefundedLeads] = await Promise.all([
+      prisma.lead.findMany({
+        where: { createdBy: { companyId: req.user!.companyId }, date: { gte: fromStr, lte: toStr } },
+        select: { isQualified: true, assignedToId: true, status: true, consultationStatus: true },
+      }),
+      prisma.lead.findMany({
+        where: { createdBy: { companyId: req.user!.companyId }, status: 'SOLD', isRefund: true, date: { gte: fromStr, lte: toStr } },
+        select: { netAmount: true, amount: true, assignedToId: true },
+      }),
+    ])
+
+    const totalRefundCount  = companyRefundedLeads.length
+    const totalRefundAmount = companyRefundedLeads.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+    const totalNetSales     = totalSalesAmount - totalRefundAmount
     const totalLiderLeads        = allLiderLeads.length
     const totalQualifiedLeads    = allLiderLeads.filter(l => l.isQualified).length
     const totalMeetingsScheduled = allLiderLeads.filter(l => l.assignedToId != null).length // "Передано клоузеру"
@@ -241,9 +251,10 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     res.json({
       summary: {
         salesPlan, totalSalesAmount, totalSalesCount, avgCheck: Math.round(avgCheck),
+        totalRefundCount, totalRefundAmount, totalNetSales,
         conversion: Math.round(conversion * 10) / 10,
         conversionLabel,
-        planCompletion: salesPlan > 0 ? Math.round((totalSalesAmount / salesPlan) * 1000) / 10 : 0,
+        planCompletion: salesPlan > 0 ? Math.round((totalNetSales / salesPlan) * 1000) / 10 : 0,
         totalConsultations, totalRefusals, totalInWork,
         // Marketing block — leads from Lead model, budget from MARKETER reports
         marketingLeads: totalLiderLeads, leadsplan, totalBudget, budgetPlan, leadCost: Math.round(leadCost),
@@ -316,6 +327,15 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
 
     const totalSalesAmount = periodSales.reduce((s, x) => s + (x.netAmount ?? x.amount), 0)
     const totalSalesCount = periodSales.length
+
+    // Refunds from Lead model
+    const ropRefundedLeads = await prisma.lead.findMany({
+      where: { createdBy: { companyId: req.user!.companyId }, status: 'SOLD', isRefund: true, date: { gte: fromStr, lte: toStr } },
+      select: { netAmount: true, amount: true },
+    })
+    const ropRefundCount  = ropRefundedLeads.length
+    const ropRefundTotal  = ropRefundedLeads.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+    const ropNetSales     = totalSalesAmount - ropRefundTotal
 
     // Clients/consultations from closer reports
     const clientsReceived = sumReportField(closerReports, 'clientsReceived')
@@ -456,9 +476,10 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     res.json({
       summary: {
         salesPlan, salesAmount: totalSalesAmount, salesCount: totalSalesCount,
+        refundCount: ropRefundCount, refundTotal: ropRefundTotal, netSalesAmount: ropNetSales,
         conversion: totalConsultations > 0 ? Math.round((totalSalesCount / totalConsultations) * 1000) / 10 : 0,
-        avgCheck: totalSalesCount > 0 ? Math.round(totalSalesAmount / totalSalesCount) : 0,
-        planCompletion: salesPlan > 0 ? Math.round((totalSalesAmount / salesPlan) * 1000) / 10 : 0,
+        avgCheck: totalSalesCount > 0 ? Math.round(ropNetSales / totalSalesCount) : 0,
+        planCompletion: salesPlan > 0 ? Math.round((ropNetSales / salesPlan) * 1000) / 10 : 0,
         totalConsultations, totalRefusals, totalInWork,
       },
       funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount: totalSalesCount },
@@ -511,13 +532,21 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const conversion = consultations > 0 ? Math.round((salesCount / consultations) * 1000) / 10 : 0
 
       // Lead-based stats for closer
-      const [pendingLeadsCount, inWorkLeadsCount, pendingTasksCount, leadRefusedCount, leadSoldCount] = await Promise.all([
+      const [pendingLeadsCount, inWorkLeadsCount, pendingTasksCount, leadRefusedCount, leadSoldCount, refundedLeads] = await Promise.all([
         prisma.lead.count({ where: { assignedToId: userId, status: 'ASSIGNED' } }),
         prisma.lead.count({ where: { assignedToId: userId, status: 'IN_WORK' } }),
         prisma.leadTask.count({ where: { userId, completed: false } }),
         prisma.lead.count({ where: { assignedToId: userId, status: 'REFUSED', date: { gte: fromStr, lte: toStr } } }),
-        prisma.lead.count({ where: { assignedToId: userId, status: 'SOLD', date: { gte: fromStr, lte: toStr } } }),
+        prisma.lead.count({ where: { assignedToId: userId, status: 'SOLD', isRefund: false, date: { gte: fromStr, lte: toStr } } }),
+        prisma.lead.findMany({
+          where: { assignedToId: userId, status: 'SOLD', isRefund: true, date: { gte: fromStr, lte: toStr } },
+          select: { netAmount: true, amount: true },
+        }),
       ])
+
+      const refundCount = refundedLeads.length
+      const refundTotal = refundedLeads.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+      const netSalesAmount = salesAmount - refundTotal
 
       // Lead-based totals for period stats display
       const leadTotal = inWorkLeadsCount + leadRefusedCount + leadSoldCount
@@ -527,9 +556,10 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         type: 'CLOSER',
         summary: {
           salesPlan, salesAmount, salesCount,
-          planCompletion: salesPlan > 0 ? Math.round((salesAmount / salesPlan) * 1000) / 10 : 0,
+          refundCount, refundTotal, netSalesAmount,
+          planCompletion: salesPlan > 0 ? Math.round((netSalesAmount / salesPlan) * 1000) / 10 : 0,
           conversion,
-          avgCheck: salesCount > 0 ? Math.round(salesAmount / salesCount) : 0,
+          avgCheck: salesCount > 0 ? Math.round(netSalesAmount / salesCount) : 0,
           consultations, refusals, inWork,
           pendingLeadsCount, inWorkLeadsCount, pendingTasksCount,
           leadRefusedCount, leadSoldCount, leadTotal, leadConversion,

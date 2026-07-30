@@ -214,7 +214,8 @@ export default function ManagerDashboard() {
           {/* Period stats */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
             <StatCard label={t('dash.manager.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
-            <StatCard label={t('dash.manager.salesPeriod')} value={`₸ ${fmt(summary.salesAmount)}`} color="blue" />
+            <StatCard label={t('dash.manager.salesPeriod')} value={`₸ ${fmt(summary.netSalesAmount ?? summary.salesAmount)}`} color="blue"
+              sub={summary.refundCount > 0 ? `−₸ ${fmt(summary.refundTotal)} возвраты` : undefined} />
             <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
             <StatCard label={t('dash.manager.deals')} value={summary.salesCount} />
             <StatCard label={t('dash.conversion')} value={`${summary.leadConversion ?? summary.conversion}%`} />
@@ -229,7 +230,7 @@ export default function ManagerDashboard() {
               <p className="text-xs text-gray-300 group-hover:text-blue-400 mt-1 transition-colors">новые заявки</p>
             </div>
             <div onClick={() => navigate('/closer/leads')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-amber-200 hover:bg-amber-50/40 border border-transparent">
-              <p className="text-xs font-medium text-gray-400 group-hover:text-amber-500 transition-colors uppercase tracking-wide mb-1">В работе</p>
+              <p className="text-xs font-medium text-gray-400 group-hover:text-amber-500 transition-colors uppercase tracking-wide mb-1">Дожим</p>
               <p className="text-2xl font-bold text-amber-500">{summary.inWorkLeadsCount ?? 0}</p>
               <p className="text-xs text-gray-300 group-hover:text-amber-400 mt-1 transition-colors">активных</p>
             </div>
