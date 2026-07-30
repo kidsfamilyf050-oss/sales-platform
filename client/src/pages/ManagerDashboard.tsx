@@ -127,6 +127,13 @@ export default function ManagerDashboard() {
   })
   const recentLeads: any[] = (recentLeadsData?.leads || []).slice(0, 6)
 
+  // Closer: refunded leads for the selected period
+  const { data: refundLeads = [] } = useQuery<any[]>({
+    queryKey: ['closer-refunds', params],
+    queryFn: () => api.get(`/leads/refunds?${params}`).then(r => r.data),
+    refetchInterval: 60000,
+  })
+
 
   // Sales for selected date
   const { data: todaySales = [] } = useQuery({
@@ -238,6 +245,11 @@ export default function ManagerDashboard() {
               <p className="text-xs font-medium text-gray-400 group-hover:text-red-500 transition-colors uppercase tracking-wide mb-1">Отказы</p>
               <p className="text-2xl font-bold text-red-500">{summary.leadRefusedCount ?? 0}</p>
               <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">за период</p>
+            </div>
+            <div onClick={() => navigate('/closer/leads')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-red-200 hover:bg-red-50/40 border border-transparent">
+              <p className="text-xs font-medium text-gray-400 group-hover:text-red-500 transition-colors uppercase tracking-wide mb-1">Возвраты</p>
+              <p className="text-2xl font-bold text-red-500">{summary.refundCount ?? 0}</p>
+              <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">{summary.refundCount > 0 ? `−₸ ${fmt(summary.refundTotal ?? 0)}` : 'нет за период'}</p>
             </div>
             <div onClick={() => navigate('/closer/tasks')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-purple-200 hover:bg-purple-50/40 border border-transparent">
               <p className="text-xs font-medium text-gray-400 group-hover:text-purple-500 transition-colors uppercase tracking-wide mb-1">Задач</p>
@@ -354,6 +366,37 @@ export default function ManagerDashboard() {
               </div>
             )}
           </div>
+
+          {/* ── REFUNDS ── */}
+          {(refundLeads as any[]).length > 0 && (
+            <div className="card border-l-4 border-l-red-400">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="font-semibold text-red-600">Возвраты за период</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {(refundLeads as any[]).length} шт. · −₸ {fmt((refundLeads as any[]).reduce((s: number, l: any) => s + (l.netAmount ?? l.amount ?? 0), 0))}
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {(refundLeads as any[]).map((l: any) => (
+                  <div key={l.id} className="flex items-start justify-between p-3 bg-red-50 rounded-xl border border-red-100">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-200 text-red-700">Возврат</span>
+                        <span className="font-bold text-red-600">−₸ {fmt(l.netAmount ?? l.amount ?? 0)}</span>
+                        <span className="text-xs text-gray-400">
+                          {new Date((l.refundedAt ?? l.date + 'T12:00:00')).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}
+                        </span>
+                      </div>
+                      {l.name && <p className="text-xs text-gray-600 mt-1 font-medium">{l.name}</p>}
+                      {l.refundComment && <p className="text-xs text-gray-500 mt-0.5">💬 {l.refundComment}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ── TODAY'S SALES ── entered throughout the day */}
           <div className="card">

@@ -787,11 +787,19 @@ router.get('/refunds', authenticate, async (req: AuthRequest, res: Response) => 
       // ROP/OWNER — filter by company via createdBy
       where.createdBy = { companyId: req.user!.companyId }
     }
-    // Filter by refundedAt date range
-    where.refundedAt = {
-      gte: new Date(fromStr + 'T00:00:00+05:00'),
-      lte: new Date(toStr + 'T23:59:59+05:00'),
-    }
+    // Filter by refundedAt if set, otherwise fallback to lead's date field
+    where.OR = [
+      {
+        refundedAt: {
+          gte: new Date(fromStr + 'T00:00:00+05:00'),
+          lte: new Date(toStr + 'T23:59:59+05:00'),
+        },
+      },
+      {
+        refundedAt: null,
+        date: { gte: fromStr, lte: toStr },
+      },
+    ]
     const leads = await prisma.lead.findMany({
       where,
       include: INCLUDE_FULL,

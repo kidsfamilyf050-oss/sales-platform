@@ -208,8 +208,10 @@ export default function OwnerDashboard() {
       {/* ── Block 1: Sales KPIs ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
         <StatCard label={t('dash.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
-        <StatCard label={t('dash.salesFact')} value={`₸ ${fmt(summary.totalNetSales ?? summary.totalSalesAmount)}`} color="blue"
-          sub={summary.totalRefundCount > 0 ? `−₸ ${fmt(summary.totalRefundAmount)} возвраты (${summary.totalRefundCount} шт.)` : undefined} />
+        <StatCard label={t('dash.salesFact')} value={`₸ ${fmt(summary.totalNetSales ?? summary.totalSalesAmount)}`} color="blue" />
+        <StatCard label="Возвраты" value={`${summary.totalRefundCount ?? 0} шт.`}
+          color={summary.totalRefundCount > 0 ? 'red' : 'default'}
+          sub={summary.totalRefundCount > 0 ? `−₸ ${fmt(summary.totalRefundAmount)}` : undefined} />
         <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`}
           color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`}

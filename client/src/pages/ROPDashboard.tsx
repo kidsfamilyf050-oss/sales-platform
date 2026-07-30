@@ -266,8 +266,10 @@ export default function ROPDashboard() {
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
         <StatCard label={t('dash.rop.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
-        <StatCard label={t('dash.rop.salesFact')} value={`₸ ${fmt(summary.netSalesAmount ?? summary.salesAmount)}`} color="blue"
-          sub={summary.refundCount > 0 ? `−₸ ${fmt(summary.refundTotal)} возвраты (${summary.refundCount} шт.)` : undefined} />
+        <StatCard label={t('dash.rop.salesFact')} value={`₸ ${fmt(summary.netSalesAmount ?? summary.salesAmount)}`} color="blue" />
+        <StatCard label="Возвраты" value={`${summary.refundCount ?? 0} шт.`}
+          color={summary.refundCount > 0 ? 'red' : 'default'}
+          sub={summary.refundCount > 0 ? `−₸ ${fmt(summary.refundTotal)}` : undefined} />
         <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
         <StatCard label={t('dash.rop.deals')} value={summary.salesCount} />
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} sub={t('dash.rop.conversionSub')} />
