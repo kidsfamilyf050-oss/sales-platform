@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
-import { Phone, Calendar, User, ChevronDown, ChevronUp, Check, X, CheckSquare, Plus, ExternalLink, Banknote, Pencil, Package, ArrowRightLeft, CheckCircle2, XCircle, RefreshCw, AlertTriangle, RotateCcw } from 'lucide-react'
+import { Phone, Calendar, User, ChevronDown, ChevronUp, Check, X, CheckSquare, Plus, ExternalLink, Banknote, Pencil, Package, ArrowRightLeft, CheckCircle2, XCircle, RefreshCw, AlertTriangle, RotateCcw, Trash2, ArchiveRestore } from 'lucide-react'
 
 type Lead = {
   id: string
@@ -35,6 +35,7 @@ type Lead = {
   closerComment: string | null
   isRefund: boolean
   refundComment: string | null
+  deletedAt: string | null
 }
 
 const PAYMENT_TYPE = [
@@ -477,7 +478,11 @@ function InWorkSection({ lead }: { lead: Lead }) {
       {lead.isRefund && (
         <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-sm text-orange-700 font-medium flex items-center gap-2">
           <RotateCcw className="w-4 h-4 shrink-0" />
-          Возврат оформлен{lead.refundComment ? `: ${lead.refundComment}` : ''}
+          <div>
+            <span>Возврат оформлен</span>
+            {lead.amount && <span className="ml-2 font-bold">₸ {lead.amount.toLocaleString('ru')}</span>}
+            {lead.refundComment && <p className="text-xs text-orange-500 mt-0.5">{lead.refundComment}</p>}
+          </div>
         </div>
       )}
 
@@ -671,22 +676,35 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
   )
 }
 
-function LeadCard({ lead, showAccept = false, showWork = false, readonly = false, highlightToday = false }: {
+function LeadCard({ lead, showAccept = false, showWork = false, readonly = false, highlightToday = false, showDelete = false, showRestore = false }: {
   lead: Lead
   showAccept?: boolean
   showWork?: boolean
   readonly?: boolean
   highlightToday?: boolean
+  showDelete?: boolean
+  showRestore?: boolean
 }) {
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showTransferModal, setShowTransferModal] = useState(false)
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false)
   const todayStr = new Date().toISOString().slice(0, 10)
   const isNew = lead.date === todayStr
 
   const acceptMut = useMutation({
     mutationFn: () => api.put(`/leads/${lead.id}/accept`).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['closer-leads'] }),
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: () => api.delete(`/leads/${lead.id}`).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['closer-leads'] }); setShowConfirmDelete(false) },
+  })
+
+  const restoreMut = useMutation({
+    mutationFn: () => api.put(`/leads/${lead.id}/undelete`).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['closer-leads'] }),
   })
 
@@ -771,7 +789,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
               <ArrowRightLeft className="w-4 h-4" /> Передать
             </button>
           )}
-          {readonly && (
+          {readonly && !showRestore && (
             <button
               onClick={e => { e.stopPropagation(); setShowEditModal(true) }}
               className="p-1.5 rounded-lg text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition-colors"
@@ -779,6 +797,38 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
             >
               <Pencil className="w-4 h-4" />
             </button>
+          )}
+          {showRestore && (
+            <button
+              onClick={e => { e.stopPropagation(); restoreMut.mutate() }}
+              disabled={restoreMut.isPending}
+              className="flex items-center gap-1.5 text-sm text-green-600 bg-green-50 hover:bg-green-100 border border-green-200 px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-40"
+            >
+              <ArchiveRestore className="w-4 h-4" /> Восстановить
+            </button>
+          )}
+          {showDelete && !showConfirmDelete && (
+            <button
+              onClick={e => { e.stopPropagation(); setShowConfirmDelete(true) }}
+              className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+              title="Удалить"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+          {showDelete && showConfirmDelete && (
+            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+              <span className="text-xs text-red-600 font-medium">Удалить?</span>
+              <button
+                onClick={() => deleteMut.mutate()}
+                disabled={deleteMut.isPending}
+                className="text-xs px-2 py-1 bg-red-500 text-white rounded-md font-medium disabled:opacity-40"
+              >Да</button>
+              <button
+                onClick={() => setShowConfirmDelete(false)}
+                className="text-xs px-2 py-1 border border-gray-200 rounded-md text-gray-500 hover:bg-gray-50"
+              >Нет</button>
+            </div>
           )}
           <div className="text-gray-300">
             {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -854,7 +904,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
             <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2 text-sm text-orange-700 flex items-center gap-2">
               <RotateCcw className="w-4 h-4 shrink-0" />
               <div>
-                <p className="font-semibold">Возврат оформлен</p>
+                <p className="font-semibold">Возврат оформлен{lead.amount ? ` — ₸ ${lead.amount.toLocaleString('ru')}` : ''}</p>
                 {lead.refundComment && <p className="text-xs text-orange-500 mt-0.5">{lead.refundComment}</p>}
               </div>
             </div>
@@ -888,8 +938,8 @@ export default function CloserLeadsPage() {
   const periodState = usePeriodStore()
   const params = buildPeriodParams(periodState)
   const [searchParams] = useSearchParams()
-  const [tab, setTab] = useState<'incoming' | 'inwork' | 'refused' | 'sold' | 'refunds'>(
-    (searchParams.get('tab') as 'incoming' | 'inwork' | 'refused' | 'sold' | 'refunds') || 'incoming'
+  const [tab, setTab] = useState<'incoming' | 'inwork' | 'refused' | 'sold' | 'refunds' | 'trash'>(
+    (searchParams.get('tab') as 'incoming' | 'inwork' | 'refused' | 'sold' | 'refunds' | 'trash') || 'incoming'
   )
 
   const incomingQ = useQuery({
@@ -913,12 +963,17 @@ export default function CloserLeadsPage() {
     queryKey: ['closer-leads', 'refunds', params],
     queryFn: () => api.get(`/leads/refunds?${params}`).then(r => r.data),
   })
+  const trashQ = useQuery({
+    queryKey: ['closer-leads', 'trash'],
+    queryFn: () => api.get('/leads/trash').then(r => r.data),
+  })
 
   const incoming: Lead[] = incomingQ.data || []
   const inwork: Lead[] = inworkQ.data || []
   const refused: Lead[] = refusedQ.data || []
   const sold: Lead[] = soldQ.data || []
   const refunds: Lead[] = refundsQ.data || []
+  const trash: Lead[] = trashQ.data || []
 
   // Refunded leads show ONLY in Возвраты tab, not in Продажи
   const soldPure = sold.filter(l => !l.isRefund)
@@ -930,10 +985,11 @@ export default function CloserLeadsPage() {
     { key: 'refused',  label: 'Отказы',           count: refused.length,   dot: 'bg-red-400' },
     { key: 'sold',     label: 'Продажи',          count: soldPure.length,  dot: 'bg-green-400' },
     { key: 'refunds',  label: 'Возвраты',         count: refunds.length,   dot: 'bg-orange-400', urgent: refunds.length > 0 },
+    { key: 'trash',    label: 'Корзина',           count: trash.length,     dot: 'bg-gray-400' },
   ] as const
 
-  const currentLeads = tab === 'incoming' ? incoming : tab === 'inwork' ? inwork : tab === 'refused' ? refused : tab === 'sold' ? soldPure : refunds
-  const currentQ = tab === 'incoming' ? incomingQ : tab === 'inwork' ? inworkQ : tab === 'refused' ? refusedQ : tab === 'sold' ? soldQ : refundsQ
+  const currentLeads = tab === 'incoming' ? incoming : tab === 'inwork' ? inwork : tab === 'refused' ? refused : tab === 'sold' ? soldPure : tab === 'trash' ? trash : refunds
+  const currentQ = tab === 'incoming' ? incomingQ : tab === 'inwork' ? inworkQ : tab === 'refused' ? refusedQ : tab === 'sold' ? soldQ : tab === 'trash' ? trashQ : refundsQ
 
   // Net revenue + refund stats (use amount = gross for refund display)
   const soldNetTotal    = soldPure.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
@@ -1009,7 +1065,8 @@ export default function CloserLeadsPage() {
             {tab === 'incoming' ? 'Нет новых встреч' :
              tab === 'inwork' ? 'Нет встреч в работе' :
              tab === 'refused' ? 'Нет отказов за период' :
-             tab === 'refunds' ? 'Нет возвратов за период' : 'Нет продаж за период'}
+             tab === 'refunds' ? 'Нет возвратов за период' :
+             tab === 'trash' ? 'Корзина пуста' : 'Нет продаж за период'}
           </p>
           {tab === 'incoming' && <p className="text-xs text-gray-300 mt-1">Лидорубы пришлют встречи сюда</p>}
         </div>
@@ -1023,8 +1080,10 @@ export default function CloserLeadsPage() {
               lead={lead}
               showAccept={tab === 'incoming'}
               showWork={tab === 'inwork'}
-              readonly={tab === 'refused' || tab === 'sold' || tab === 'refunds'}
+              readonly={tab === 'refused' || tab === 'sold' || tab === 'refunds' || tab === 'trash'}
               highlightToday={tab === 'incoming' || tab === 'inwork'}
+              showDelete={tab !== 'trash'}
+              showRestore={tab === 'trash'}
             />
           ))}
         </div>

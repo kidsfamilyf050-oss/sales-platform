@@ -297,7 +297,7 @@ router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response
 router.get('/incoming', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const leads = await prisma.lead.findMany({
-      where: { assignedToId: req.user!.id, status: 'ASSIGNED' },
+      where: { assignedToId: req.user!.id, status: 'ASSIGNED', deletedAt: null },
       include: INCLUDE_FULL,
       orderBy: { createdAt: 'desc' },
     })
@@ -317,6 +317,7 @@ router.get('/in-work', authenticate, async (req: AuthRequest, res: Response) => 
         assignedToId: req.user!.id,
         status: 'IN_WORK',
         date: { gte: fromStr, lte: toStr },
+        deletedAt: null,
       },
       include: INCLUDE_FULL,
       orderBy: { updatedAt: 'desc' },
@@ -337,6 +338,7 @@ router.get('/refused', authenticate, async (req: AuthRequest, res: Response) => 
         assignedToId: req.user!.id,
         status: 'REFUSED',
         date: { gte: fromStr, lte: toStr },
+        deletedAt: null,
       },
       include: INCLUDE_FULL,
       orderBy: { updatedAt: 'desc' },
@@ -357,6 +359,7 @@ router.get('/sold', authenticate, async (req: AuthRequest, res: Response) => {
         assignedToId: req.user!.id,
         status: 'SOLD',
         date: { gte: fromStr, lte: toStr },
+        deletedAt: null,
       },
       include: INCLUDE_FULL,
       orderBy: { updatedAt: 'desc' },
@@ -379,6 +382,7 @@ router.get('/all', authenticate, async (req: AuthRequest, res: Response) => {
       date: { gte: fromStr, lte: toStr },
     }
     if (status) where.status = status
+    where.deletedAt = null
     const leads = await prisma.lead.findMany({
       where,
       include: INCLUDE_FULL,
@@ -728,21 +732,45 @@ router.put('/:id/qualify', authenticate, async (req: AuthRequest, res: Response)
 })
 
 // ── DELETE /api/leads/:id ─────────────────────────────────────────────────────
-// Soft delete — sets status=DELETED + deletedAt, preserves in archive
+// Soft delete — sets deletedAt, keeps original status for restore
 router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
     if (!lead) return res.status(404).json({ error: 'Not found' })
     const role = req.user!.role
-    if (lead.createdById !== req.user!.id && role !== 'OWNER' && role !== 'ROP') {
+    const isAssigned = lead.assignedToId === req.user!.id
+    const isCreator  = lead.createdById === req.user!.id
+    if (!isAssigned && !isCreator && role !== 'OWNER' && role !== 'ROP') {
       return res.status(403).json({ error: 'Forbidden' })
     }
-    // Soft delete: mark as DELETED to preserve history
+    // Soft delete: keep original status, only mark deletedAt
     await prisma.lead.update({
       where: { id: req.params.id },
-      data: { status: 'DELETED' as any, deletedAt: new Date(), deletedById: req.user!.id },
+      data: { deletedAt: new Date(), deletedById: req.user!.id },
     })
     res.json({ ok: true })
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── PUT /api/leads/:id/undelete — restore from trash ─────────────────────────
+router.put('/:id/undelete', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
+    if (!lead) return res.status(404).json({ error: 'Not found' })
+    const role = req.user!.role
+    const isAssigned = lead.assignedToId === req.user!.id
+    const isCreator  = lead.createdById === req.user!.id
+    if (!isAssigned && !isCreator && role !== 'OWNER' && role !== 'ROP') {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    const updated = await prisma.lead.update({
+      where: { id: req.params.id },
+      data: { deletedAt: null, deletedById: null },
+      include: INCLUDE_FULL,
+    })
+    res.json(updated)
   } catch (e) {
     console.error(e); res.status(500).json({ error: 'Server error' })
   }
@@ -780,6 +808,7 @@ router.get('/refunds', authenticate, async (req: AuthRequest, res: Response) => 
     const where: any = {
       isRefund: true,
       status: 'SOLD',
+      deletedAt: null,
     }
     if (isManager) {
       where.assignedToId = req.user!.id
@@ -832,6 +861,31 @@ router.get('/closer-archive', authenticate, async (req: AuthRequest, res: Respon
         // createdBy included in INCLUDE_FULL
       },
       orderBy: { createdAt: 'desc' },
+    })
+    res.json(leads)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── GET /api/leads/trash — closer: their soft-deleted leads (корзина) ────────
+router.get('/trash', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const isManager = req.user!.role === 'MANAGER'
+    const where: any = { deletedAt: { not: null } }
+    if (isManager) {
+      // Closer sees their own deleted leads
+      where.OR = [
+        { assignedToId: req.user!.id },
+        { createdById: req.user!.id },
+      ]
+    } else {
+      where.createdBy = { companyId: req.user!.companyId }
+    }
+    const leads = await prisma.lead.findMany({
+      where,
+      include: INCLUDE_FULL,
+      orderBy: { deletedAt: 'desc' },
     })
     res.json(leads)
   } catch (e) {

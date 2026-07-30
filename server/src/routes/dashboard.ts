@@ -117,7 +117,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     ])
 
     const totalRefundCount  = companyRefundedLeads.length
-    const totalRefundAmount = companyRefundedLeads.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+    const totalRefundAmount = companyRefundedLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
     const totalNetSales     = totalSalesAmount - totalRefundAmount
     const totalLiderLeads        = allLiderLeads.length
     const totalQualifiedLeads    = allLiderLeads.filter(l => l.isQualified).length
@@ -334,7 +334,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       select: { id: true, netAmount: true, amount: true },
     })
     const ropRefundCount  = ropRefundedLeads.length
-    const ropRefundTotal  = ropRefundedLeads.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+    const ropRefundTotal  = ropRefundedLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
     const ropNetSales     = totalSalesAmount - ropRefundTotal
     const ropRefundedLeadIds = new Set(ropRefundedLeads.map(l => l.id))
 
@@ -546,7 +546,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       ])
 
       const refundCount = refundedLeads.length
-      const refundTotal = refundedLeads.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+      const refundTotal = refundedLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
       const netSalesAmount = salesAmount - refundTotal
       const refundedLeadIds = new Set(refundedLeads.map(l => l.id))
 
