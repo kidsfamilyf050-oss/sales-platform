@@ -96,7 +96,7 @@ router.get('/departments', authenticate, async (req: AuthRequest, res: Response)
       include: {
         users: {
           where: includeArchived ? undefined : { status: 'ACTIVE' },
-          select: { id: true, name: true, role: true, managerType: true, status: true },
+          select: { id: true, name: true, role: true, managerType: true, status: true, showInPlans: true, canManageGateways: true },
         },
       },
     })

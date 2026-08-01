@@ -1,12 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import { useHeartbeat } from '../../hooks/useHeartbeat'
+import { useAuthStore } from '../../store/auth'
+import { api } from '../../api/client'
 
 export default function Layout() {
   useHeartbeat()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { token, setUser } = useAuthStore()
+
+  // Refresh user profile on mount so that owner-changed permissions
+  // (canManageGateways, showInPlans, etc.) take effect without re-login
+  useEffect(() => {
+    if (!token) return
+    api.get('/auth/me').then(r => setUser(r.data)).catch(() => {})
+  }, [token])
 
   return (
     <div className="flex h-screen bg-gray-50">
