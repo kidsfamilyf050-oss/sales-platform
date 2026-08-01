@@ -250,7 +250,11 @@ export default function PlansPage() {
       {/* Sales departments */}
       {salesDepts.map((dept: any, idx: number) => {
         const liders = dept.users.filter((u: any) => u.role === 'MANAGER' && u.managerType === 'LIDER' && u.showInPlans !== false)
-        const closers = dept.users.filter((u: any) => u.role === 'MANAGER' && (u.managerType === 'CLOSER' || !u.managerType) && u.showInPlans !== false)
+        // Closers = MANAGER closers + ROPs who opted in to plans
+        const closers = dept.users.filter((u: any) =>
+          (u.role === 'MANAGER' && (u.managerType === 'CLOSER' || !u.managerType) && u.showInPlans !== false) ||
+          (u.role === 'ROP' && u.showInPlans === true)
+        )
         const deptLabel = salesDepts.length > 1 ? `${dept.name} №${idx + 1}` : dept.name
 
         return (
@@ -298,7 +302,7 @@ export default function PlansPage() {
                     <ManagerRow
                       key={u.id}
                       name={u.name}
-                      role={t('role.closer')}
+                      role={u.role === 'ROP' ? t('role.ROP') : t('role.closer')}
                       plans={MANAGER_CLOSER_PLANS}
                       values={MANAGER_CLOSER_PLANS.reduce((acc, p) => ({
                         ...acc, [p.type]: getVal(p.type, { userId: u.id })
