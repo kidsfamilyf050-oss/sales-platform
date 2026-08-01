@@ -156,9 +156,11 @@ function ChannelBudgetRow({
   const qc = useQueryClient()
   const { data: existing } = useQuery({
     queryKey: ['channel-budget-row', channel.id, dateFrom, dateTo],
-    queryFn: () => api.get(`/channel-budgets?from=${dateFrom}&to=${dateTo}`).then(r =>
-      (r.data as any[]).filter((b: any) => b.channelId === channel.id).reduce((s: number, b: any) => s + b.spend, 0)
-    ),
+    queryFn: () => api.get(`/channel-budgets?from=${dateFrom}&to=${dateTo}`).then(r => {
+      const found = (r.data as any[]).filter((b: any) => b.channelId === channel.id)
+      if (found.length === 0) return null  // no record at all
+      return found.reduce((s: number, b: any) => s + b.spend, 0)
+    }),
   })
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
@@ -167,10 +169,14 @@ function ChannelBudgetRow({
     mutationFn: () => api.put('/channel-budgets', { channelId: channel.id, date: dateFrom, spend: Number(value) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['channel-budget-row'] })
+      qc.invalidateQueries({ queryKey: ['channel-budgets-history'] })
       qc.invalidateQueries({ queryKey: ['marketing-dashboard'] })
       setEditing(false)
     },
   })
+
+  // existing === null → no record; existing === 0 → record with 0; existing > 0 → has spend
+  const hasSaved = existing !== null && existing !== undefined
 
   return (
     <span className="flex items-center gap-1">
@@ -178,14 +184,15 @@ function ChannelBudgetRow({
         <>
           <input type="number" value={value} onChange={e => setValue(e.target.value)} autoFocus
             className="w-24 text-xs border border-blue-300 rounded px-1.5 py-1 outline-none focus:ring-2 focus:ring-blue-400"
-            placeholder="0" onKeyDown={e => e.key === 'Enter' && saveMut.mutate()} />
-          <button onClick={() => saveMut.mutate()} className="text-blue-600 hover:text-blue-800 p-0.5"><CheckCircle className="w-3.5 h-3.5" /></button>
+            placeholder="0" onKeyDown={e => { if (e.key === 'Enter') saveMut.mutate(); if (e.key === 'Escape') setEditing(false) }} />
+          <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending}
+            className="text-blue-600 hover:text-blue-800 p-0.5"><CheckCircle className="w-3.5 h-3.5" /></button>
           <button onClick={() => setEditing(false)} className="text-gray-400 hover:text-gray-600 p-0.5"><X className="w-3 h-3" /></button>
         </>
       ) : (
-        <button onClick={() => { setValue(existing ? String(existing) : ''); setEditing(true) }}
+        <button onClick={() => { setValue(hasSaved ? String(existing) : ''); setEditing(true) }}
           className="flex items-center gap-1 text-xs text-gray-700 hover:text-blue-700 group">
-          {existing ? `₸ ${existing.toLocaleString('ru-RU')}` : <span className="text-gray-300">— введите</span>}
+          {hasSaved ? `₸ ${(existing as number).toLocaleString('ru-RU')}` : <span className="text-gray-300">— введите</span>}
           <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-blue-500" />
         </button>
       )}
@@ -589,9 +596,61 @@ export default function MarketingPage() {
   )
 }
 
+// ─── Editable history cell ────────────────────────────────────────────────────
+function HistoryCell({
+  date, channel, initialSpend, onSaved,
+}: {
+  date: string
+  channel: { id: string; name: string }
+  initialSpend: number | null   // null = no record
+  onSaved: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState('')
+
+  const saveMut = useMutation({
+    mutationFn: () => api.put('/channel-budgets', { channelId: channel.id, date, spend: Number(value) || 0 }),
+    onSuccess: () => { setEditing(false); onSaved() },
+  })
+
+  if (editing) {
+    return (
+      <td className="px-2 py-1.5 whitespace-nowrap text-right">
+        <span className="flex items-center justify-end gap-1">
+          <input type="number" value={value} onChange={e => setValue(e.target.value)} autoFocus
+            className="w-20 text-xs border border-blue-300 rounded px-1.5 py-1 outline-none focus:ring-2 focus:ring-blue-400 text-right"
+            placeholder="0"
+            onKeyDown={e => { if (e.key === 'Enter') saveMut.mutate(); if (e.key === 'Escape') setEditing(false) }}
+          />
+          <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending}
+            className="text-blue-600 hover:text-blue-800"><CheckCircle className="w-3.5 h-3.5" /></button>
+          <button onClick={() => setEditing(false)}
+            className="text-gray-400 hover:text-gray-600"><X className="w-3 h-3" /></button>
+        </span>
+      </td>
+    )
+  }
+
+  const hasValue = initialSpend !== null && initialSpend !== undefined
+  return (
+    <td className="px-3 py-2.5 whitespace-nowrap text-right">
+      <button
+        onClick={() => { setValue(hasValue ? String(initialSpend) : ''); setEditing(true) }}
+        className={`text-sm w-full text-right hover:text-blue-600 transition-colors group relative ${hasValue && (initialSpend as number) > 0 ? 'text-gray-800 font-medium' : 'text-gray-300'}`}
+        title="Нажмите для редактирования"
+      >
+        {hasValue && (initialSpend as number) >= 0
+          ? (initialSpend as number).toLocaleString('ru-RU')
+          : '—'}
+        <Pencil className="w-3 h-3 absolute -right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-60 text-blue-500 transition-opacity" />
+      </button>
+    </td>
+  )
+}
+
 // ─── Daily Expenses History ───────────────────────────────────────────────────
-function DailyExpensesHistory({ channels }: { channels: { id: string; name: string }[] }) {
-  // Fetch last 30 days of channel budgets
+function DailyExpensesHistory({ channels: activeChannels }: { channels: { id: string; name: string }[] }) {
+  const qc = useQueryClient()
   const today = localDateStr(new Date())
   const d30 = new Date(); d30.setDate(d30.getDate() - 29)
   const from30 = localDateStr(d30)
@@ -599,24 +658,40 @@ function DailyExpensesHistory({ channels }: { channels: { id: string; name: stri
   const histQ = useQuery({
     queryKey: ['channel-budgets-history', from30, today],
     queryFn: () => api.get(`/channel-budgets?from=${from30}&to=${today}`).then(r =>
-      r.data as { date: string; channel: { id: string; name: string }; spend: number }[]
+      r.data as { date: string; channelId: string; channel: { id: string; name: string }; spend: number }[]
     ),
   })
 
   const rows = histQ.data || []
 
-  // Group by date (descending) → {date: string, byChannel: Record<channelId, spend>, total: number}
+  // All channels: active + any archived ones that appear in history
+  const allChannels = useMemo(() => {
+    const seen = new Map<string, { id: string; name: string; archived?: boolean }>()
+    for (const ch of activeChannels) seen.set(ch.id, ch)
+    for (const r of rows) {
+      if (!seen.has(r.channel.id)) seen.set(r.channel.id, { ...r.channel, archived: true })
+    }
+    return Array.from(seen.values())
+  }, [rows, activeChannels])
+
+  // Group by date (descending): { date, byChannel: { channelId → spend | null } }
   const byDate = useMemo(() => {
     const map: Record<string, { date: string; byChannel: Record<string, number>; total: number }> = {}
     for (const r of rows) {
       if (!map[r.date]) map[r.date] = { date: r.date, byChannel: {}, total: 0 }
-      map[r.date].byChannel[r.channel.id] = (map[r.date].byChannel[r.channel.id] || 0) + r.spend
+      map[r.date].byChannel[r.channelId] = (map[r.date].byChannel[r.channelId] || 0) + r.spend
       map[r.date].total += r.spend
     }
     return Object.values(map).sort((a, b) => b.date.localeCompare(a.date))
   }, [rows])
 
-  if (channels.length === 0) return null
+  const onSaved = () => {
+    qc.invalidateQueries({ queryKey: ['channel-budgets-history'] })
+    qc.invalidateQueries({ queryKey: ['channel-budget-row'] })
+    qc.invalidateQueries({ queryKey: ['marketing-dashboard'] })
+  }
+
+  if (activeChannels.length === 0 && rows.length === 0) return null
 
   function fmtDate(s: string) {
     const [y, m, d] = s.split('-')
@@ -628,7 +703,7 @@ function DailyExpensesHistory({ channels }: { channels: { id: string; name: stri
       <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
         <div>
           <h2 className="font-bold text-gray-900">История расходов по дням</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Последние 30 дней</p>
+          <p className="text-xs text-gray-400 mt-0.5">Последние 30 дней · нажмите на ячейку для редактирования</p>
         </div>
         {histQ.isLoading && <RefreshCw className="w-4 h-4 text-gray-300 animate-spin" />}
       </div>
@@ -644,22 +719,31 @@ function DailyExpensesHistory({ channels }: { channels: { id: string; name: stri
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/50">
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">Дата</th>
-                {channels.map(ch => (
-                  <th key={ch.id} className="text-right px-3 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">{ch.name}</th>
+                {allChannels.map(ch => (
+                  <th key={ch.id} className="text-right px-3 py-3 text-xs font-semibold whitespace-nowrap">
+                    <span className={ch.archived ? 'text-gray-300 line-through' : 'text-gray-500'}>{ch.name}</span>
+                    {ch.archived && <span className="ml-1 text-gray-300 text-[10px] font-normal no-underline" style={{ textDecoration: 'none' }}>(архив)</span>}
+                  </th>
                 ))}
                 <th className="text-right px-5 py-3 text-xs font-semibold text-gray-700 whitespace-nowrap">Итого ₸</th>
               </tr>
             </thead>
             <tbody>
               {byDate.map(row => (
-                <tr key={row.date} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/40 transition-colors">
+                <tr key={row.date} className="border-b border-gray-50 last:border-0 hover:bg-blue-50/20 transition-colors">
                   <td className="px-5 py-2.5 text-gray-700 font-medium whitespace-nowrap">{fmtDate(row.date)}</td>
-                  {channels.map(ch => {
-                    const spend = row.byChannel[ch.id] || 0
+                  {allChannels.map(ch => {
+                    const spend = row.byChannel[ch.id]
+                    // spend === undefined → no record for this channel on this date
+                    const initialSpend = spend !== undefined ? spend : null
                     return (
-                      <td key={ch.id} className={`text-right px-3 py-2.5 whitespace-nowrap ${spend > 0 ? 'text-gray-800' : 'text-gray-300'}`}>
-                        {spend > 0 ? spend.toLocaleString('ru-RU') : '—'}
-                      </td>
+                      <HistoryCell
+                        key={ch.id}
+                        date={row.date}
+                        channel={ch}
+                        initialSpend={initialSpend}
+                        onSaved={onSaved}
+                      />
                     )
                   })}
                   <td className="text-right px-5 py-2.5 font-semibold text-gray-900 whitespace-nowrap">
