@@ -1,9 +1,20 @@
 import { Router, Response } from 'express'
 import { PrismaClient } from '@prisma/client'
-import { authenticate, requireRole, AuthRequest } from '../middleware/auth'
+import { authenticate, AuthRequest } from '../middleware/auth'
 
 const router = Router()
 const prisma = new PrismaClient()
+
+// OWNER always allowed; ROP only if canManageGateways === true
+async function requireGatewayAccess(req: AuthRequest, res: any, next: any) {
+  const role = req.user!.role
+  if (role === 'OWNER') return next()
+  if (role === 'ROP') {
+    const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { canManageGateways: true } })
+    if (user?.canManageGateways) return next()
+  }
+  return res.status(403).json({ error: 'Нет доступа к управлению шлюзами' })
+}
 
 const DEFAULT_GATEWAYS = [
   { name: 'GetPay',                                   value: 'GetPay',            feePct: 0.13,   sortOrder: 0 },
@@ -49,7 +60,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 })
 
 // POST /api/payment-gateways — create new gateway
-router.post('/', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRequest, res: Response) => {
+router.post('/', authenticate, requireGatewayAccess, async (req: AuthRequest, res: Response) => {
   const { name, value, feePct, isActive } = req.body
   if (!name?.trim() || !value?.trim()) return res.status(400).json({ error: 'name и value обязательны' })
 
@@ -79,7 +90,7 @@ router.post('/', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRequ
 })
 
 // PUT /api/payment-gateways/:id — update
-router.put('/:id', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRequest, res: Response) => {
+router.put('/:id', authenticate, requireGatewayAccess, async (req: AuthRequest, res: Response) => {
   try {
     const gw = await prisma.paymentGateway.findFirst({
       where: { id: req.params.id, companyId: req.user!.companyId },
@@ -104,7 +115,7 @@ router.put('/:id', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRe
 })
 
 // DELETE /api/payment-gateways/:id
-router.delete('/:id', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRequest, res: Response) => {
+router.delete('/:id', authenticate, requireGatewayAccess, async (req: AuthRequest, res: Response) => {
   try {
     const gw = await prisma.paymentGateway.findFirst({
       where: { id: req.params.id, companyId: req.user!.companyId },

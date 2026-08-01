@@ -182,7 +182,7 @@ function GatewayRow({ gw }: { gw: Gateway }) {
             <button
               onClick={toggleActive}
               disabled={updateMut.isPending}
-              title={gw.isActive ? 'Скрыть' : 'Показать'}
+              title={gw.isActive ? 'В архив' : 'Восстановить'}
               className={`p-1.5 rounded-lg transition-colors ${gw.isActive ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
             >
               {gw.isActive ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
@@ -221,8 +221,9 @@ export default function GatewaysPage() {
     queryFn: () => api.get('/payment-gateways').then(r => r.data),
   })
 
-  if (user?.role !== 'OWNER' && user?.role !== 'ROP') {
-    return <div className="card text-center py-14 text-gray-400">Нет доступа</div>
+  const canAccess = user?.role === 'OWNER' || (user?.role === 'ROP' && (user as any).canManageGateways === true)
+  if (!canAccess) {
+    return <div className="card text-center py-14 text-gray-400">Нет доступа. Собственник должен выдать права на управление шлюзами.</div>
   }
 
   const active = gateways.filter(g => g.isActive)
@@ -262,18 +263,17 @@ export default function GatewaysPage() {
         </div>
       )}
 
-      {/* Hidden gateways */}
+      {/* Archived gateways */}
       {inactive.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Скрытые ({inactive.length})</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Архив ({inactive.length})</p>
           {inactive.map(gw => <GatewayRow key={gw.id} gw={gw} />)}
         </div>
       )}
 
-      <div className="card bg-amber-50 border-amber-200 text-xs text-amber-700 space-y-1">
+      <div className="card bg-amber-50 border-amber-200 text-xs text-amber-700">
         <p className="font-semibold">Важно:</p>
-        <p>Скрытые шлюзы не отображаются в форме оплаты клоузеров, но исторические данные сохраняются.</p>
-        <p>Внутренний код (value) нельзя изменить после создания — он привязан к историческим продажам.</p>
+        <p className="mt-1">Архивированные шлюзы не отображаются в форме оплаты клоузеров, но исторические данные сохраняются.</p>
       </div>
     </div>
   )

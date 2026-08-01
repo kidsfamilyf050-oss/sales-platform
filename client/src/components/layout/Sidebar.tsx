@@ -52,7 +52,7 @@ export default function Sidebar({ onClose }: Props) {
       { to: '/tracking',      label: t('nav.control'),   icon: Activity },
       { to: '/rop/tasks',     label: 'Задачи',           icon: ClipboardList },
       { to: '/products',      label: 'Продукты',         icon: Package },
-      { to: '/gateways',      label: 'Шлюзы',           icon: CreditCard },
+      ...(user?.canManageGateways ? [{ to: '/gateways', label: 'Шлюзы', icon: CreditCard }] : []),
       { to: '/users',         label: t('nav.users'),     icon: Users },
       { to: '/plans',         label: t('nav.plans'),     icon: Target },
       { to: '/settings',      label: t('nav.settings'),  icon: Settings },

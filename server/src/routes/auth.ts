@@ -74,7 +74,7 @@ router.post('/login', async (req: Request, res: Response) => {
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: JWT_EXPIRES })
     res.json({
       token,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, managerType: user.managerType, companyId: user.companyId, departmentId: user.departmentId },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, managerType: user.managerType, companyId: user.companyId, departmentId: user.departmentId, canManageGateways: user.canManageGateways },
     })
   } catch (e) {
     console.error(e)
@@ -123,7 +123,7 @@ router.post('/accept-invite', async (req: Request, res: Response) => {
     const jwtToken = jwt.sign({ userId: updated.id }, JWT_SECRET, { expiresIn: JWT_EXPIRES })
     res.json({
       token: jwtToken,
-      user: { id: updated.id, name: updated.name, email: updated.email, role: updated.role, managerType: updated.managerType, companyId: updated.companyId, departmentId: updated.departmentId },
+      user: { id: updated.id, name: updated.name, email: updated.email, role: updated.role, managerType: updated.managerType, companyId: updated.companyId, departmentId: updated.departmentId, canManageGateways: (updated as any).canManageGateways },
     })
   } catch (e) {
     console.error(e)
@@ -192,7 +192,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: { id: true, name: true, email: true, phone: true, role: true, managerType: true, companyId: true, departmentId: true, status: true, lastLoginAt: true },
+      select: { id: true, name: true, email: true, phone: true, role: true, managerType: true, companyId: true, departmentId: true, canManageGateways: true, status: true, lastLoginAt: true },
     })
     res.json(user)
   } catch (e) {

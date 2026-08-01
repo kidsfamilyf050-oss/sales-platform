@@ -9,6 +9,7 @@ export interface User {
   managerType: 'LIDER' | 'CLOSER' | null
   companyId: string
   departmentId: string | null
+  canManageGateways?: boolean
 }
 
 interface AuthState {
