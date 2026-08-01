@@ -44,8 +44,8 @@ const PAYMENT_TYPE = [
   { value: 'refund', label: 'Возврат' },
 ]
 
-// Payment gateways with fee percentages
-const PAYMENT_GATEWAYS = [
+// Static fallback gateways (used if API not loaded yet)
+const DEFAULT_GATEWAYS = [
   { value: 'GetPay',            label: 'GetPay',                                    fee: 0.13 },
   { value: 'TipTopPay_KZ',      label: 'Tip Top Pay (карта КЗ)',                    fee: 0.065 },
   { value: 'TipTopPay_Foreign', label: 'Tip Top Pay (карта зарубежного банка)',      fee: 0.079 },
@@ -60,17 +60,31 @@ const PAYMENT_GATEWAYS = [
   { value: 'Kaspi_Bookkeeper',  label: 'Каспи счет (через бухгалтера)',              fee: 0.03 },
 ]
 
-const GATEWAY_FEE_MAP = Object.fromEntries(PAYMENT_GATEWAYS.map(g => [g.value, g.fee]))
+type GatewayItem = { value: string; label: string; fee: number }
 
-function calcNetAmount(amount: number, gateway: string) {
-  const fee = GATEWAY_FEE_MAP[gateway] ?? 0.03
+function apiToGateway(g: any): GatewayItem { return { value: g.value, label: g.name, fee: g.feePct } }
+
+function calcNetAmount(amount: number, gateway: string, gateways: GatewayItem[]) {
+  const fee = gateways.find(g => g.value === gateway)?.fee ?? 0.03
   return Math.round(amount * (1 - fee) * 100) / 100
 }
 
-// Gateway label lookup (handles legacy values like 'cash', 'card', etc.)
-function gatewayLabel(value: string | null) {
+// Gateway label lookup — searches ALL gateways including inactive (for historical display)
+function gatewayLabel(value: string | null, gateways: GatewayItem[]) {
   if (!value) return '—'
-  return PAYMENT_GATEWAYS.find(g => g.value === value)?.label ?? value
+  return gateways.find(g => g.value === value)?.label ?? value
+}
+
+// Hook to get gateways from cache (active only for dropdown, all for labels)
+function useGateways() {
+  const { data } = useQuery<any[]>({
+    queryKey: ['payment-gateways'],
+    queryFn: () => api.get('/payment-gateways').then(r => r.data),
+    staleTime: 5 * 60 * 1000,
+  })
+  const all: GatewayItem[] = data?.length ? data.map(apiToGateway) : DEFAULT_GATEWAYS
+  const active: GatewayItem[] = data?.length ? data.filter((g: any) => g.isActive).map(apiToGateway) : DEFAULT_GATEWAYS
+  return { all, active }
 }
 
 function fmtDate(s: string) {
@@ -174,6 +188,7 @@ function AddTaskModal({ leadId, onClose }: { leadId: string; onClose: () => void
 // ── Edit Lead Modal ───────────────────────────────────────────────────────────
 function EditLeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const qc = useQueryClient()
+  const { all: allGateways, active: activeGateways } = useGateways()
   const [form, setForm] = useState({
     amount: lead.amount ? String(lead.amount) : '',
     paymentType: lead.paymentType || 'new_sale',
@@ -186,10 +201,10 @@ function EditLeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const [error, setError] = useState('')
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
-  const selectedGateway = PAYMENT_GATEWAYS.find(g => g.value === form.paymentMethod)
+  const selectedGateway = allGateways.find(g => g.value === form.paymentMethod)
   const numAmount = Number(form.amount) || 0
   const feePercent = selectedGateway ? Math.round(selectedGateway.fee * 1000) / 10 : null
-  const netAmount = selectedGateway && numAmount > 0 ? calcNetAmount(numAmount, form.paymentMethod) : null
+  const netAmount = selectedGateway && numAmount > 0 ? calcNetAmount(numAmount, form.paymentMethod, allGateways) : null
 
   const saveMut = useMutation({
     mutationFn: () => api.put(`/leads/${lead.id}`, {
@@ -220,7 +235,7 @@ function EditLeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
             <label className="text-xs font-medium text-gray-500 block mb-1">Платёжный шлюз</label>
             <select className="input" value={form.paymentMethod} onChange={e => set('paymentMethod', e.target.value)}>
               <option value="">— выберите шлюз —</option>
-              {PAYMENT_GATEWAYS.map(g => (
+              {activeGateways.map(g => (
                 <option key={g.value} value={g.value}>{g.label} ({Math.round(g.fee * 1000) / 10}%)</option>
               ))}
             </select>
@@ -293,6 +308,7 @@ function RefundButton({ lead }: { lead: Lead }) {
 // ── In-Work Section (combined sell form + refuse + task) ──────────────────────
 function InWorkSection({ lead }: { lead: Lead }) {
   const qc = useQueryClient()
+  const { all: allGateways, active: activeGateways } = useGateways()
   const [form, setForm] = useState({
     amount: lead.amount ? String(lead.amount) : '',
     paymentType: lead.paymentType || 'new_sale',
@@ -309,10 +325,10 @@ function InWorkSection({ lead }: { lead: Lead }) {
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
   // Derived fee/netAmount display
-  const selectedGateway = PAYMENT_GATEWAYS.find(g => g.value === form.paymentMethod)
+  const selectedGateway = allGateways.find(g => g.value === form.paymentMethod)
   const numAmount = Number(form.amount) || 0
   const feePercent = selectedGateway ? Math.round(selectedGateway.fee * 1000) / 10 : null
-  const netAmount = selectedGateway && numAmount > 0 ? calcNetAmount(numAmount, form.paymentMethod) : null
+  const netAmount = selectedGateway && numAmount > 0 ? calcNetAmount(numAmount, form.paymentMethod, allGateways) : null
 
   // Fetch products for selector
   const { data: products = [] } = useQuery<{ id: string; name: string; price: number }[]>({
@@ -411,7 +427,7 @@ function InWorkSection({ lead }: { lead: Lead }) {
           <label className="text-xs font-medium text-gray-500 block mb-1">Платёжный шлюз</label>
           <select className="input" value={form.paymentMethod} onChange={e => set('paymentMethod', e.target.value)}>
             <option value="">— выберите шлюз —</option>
-            {PAYMENT_GATEWAYS.map(g => (
+            {activeGateways.map(g => (
               <option key={g.value} value={g.value}>
                 {g.label} — {Math.round(g.fee * 1000) / 10}%
               </option>
@@ -690,6 +706,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
   showRestore?: boolean
 }) {
   const qc = useQueryClient()
+  const { all: allGateways } = useGateways()
   const [open, setOpen] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showTransferModal, setShowTransferModal] = useState(false)
@@ -770,7 +787,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
               </span>
             )}
             {lead.paymentMethod && (
-              <span className="text-gray-400">{gatewayLabel(lead.paymentMethod)}</span>
+              <span className="text-gray-400">{gatewayLabel(lead.paymentMethod, allGateways)}</span>
             )}
           </div>
         </div>
@@ -856,7 +873,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
             <div className="bg-green-50 border border-green-100 rounded-lg px-3 py-2 text-sm">
               <p className="text-xs font-semibold text-green-700 mb-1">Детали продажи</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-green-800">
-                <span>Шлюз: <b>{gatewayLabel(lead.paymentMethod)}</b></span>
+                <span>Шлюз: <b>{gatewayLabel(lead.paymentMethod, allGateways)}</b></span>
                 {lead.amount && <span>Сумма: <b>₸ {lead.amount.toLocaleString('ru')}</b></span>}
                 {lead.netAmount && <span>Бюджет: <b>₸ {lead.netAmount.toLocaleString('ru')}</b></span>}
                 {lead.paymentType && <span>Тип: <b>{lead.paymentType === 'new_sale' ? 'Новая' : 'Доплата'}</b></span>}

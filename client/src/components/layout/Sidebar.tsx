@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   BarChart2, Users, FileText, Settings, TrendingUp, Target,
-  LogOut, Activity, X, Inbox, CheckSquare, UserPlus, Archive, ClipboardList, Package,
+  LogOut, Activity, X, Inbox, CheckSquare, UserPlus, Archive, ClipboardList, Package, CreditCard,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useT } from '../../i18n'
@@ -42,6 +42,7 @@ export default function Sidebar({ onClose }: Props) {
       { to: '/tracking',        label: t('nav.control'),     icon: Activity },
       { to: '/marketing',       label: t('nav.marketing'),   icon: TrendingUp },
       { to: '/products',        label: 'Продукты',           icon: Package },
+      { to: '/gateways',        label: 'Шлюзы',             icon: CreditCard },
       { to: '/users',           label: t('nav.users'),       icon: Users },
       { to: '/plans',           label: t('nav.plans'),       icon: Target },
       { to: '/settings',        label: t('nav.settings'),    icon: Settings },
@@ -51,6 +52,7 @@ export default function Sidebar({ onClose }: Props) {
       { to: '/tracking',      label: t('nav.control'),   icon: Activity },
       { to: '/rop/tasks',     label: 'Задачи',           icon: ClipboardList },
       { to: '/products',      label: 'Продукты',         icon: Package },
+      { to: '/gateways',      label: 'Шлюзы',           icon: CreditCard },
       { to: '/users',         label: t('nav.users'),     icon: Users },
       { to: '/plans',         label: t('nav.plans'),     icon: Target },
       { to: '/settings',      label: t('nav.settings'),  icon: Settings },

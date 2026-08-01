@@ -146,10 +146,18 @@ function TaskExpanded({ task, onClose }: { task: LeadTask; onClose: () => void }
           rows={2}
           value={comment}
           onChange={e => setComment(e.target.value)}
-          onBlur={saveComment}
           placeholder={task.completed ? 'Комментарий сотрудника...' : 'Заметка по задаче...'}
           className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none text-gray-700 placeholder-gray-400"
         />
+        <div className="flex justify-end mt-1">
+          <button
+            onClick={saveComment}
+            disabled={comment === (task.comment || '') || updateMut.isPending}
+            className="text-xs font-semibold px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-40 transition-colors flex items-center gap-1"
+          >
+            <Check className="w-3 h-3" /> Сохранить
+          </button>
+        </div>
       </div>
       <div className="flex flex-wrap gap-2">
         {!task.completed && (

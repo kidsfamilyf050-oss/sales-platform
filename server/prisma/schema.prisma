@@ -27,15 +27,16 @@ model Company {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  departments   Department[]
-  users         User[]
-  plans         Plan[]
-  notifications Notification[]
-  salesChannels  SalesChannel[]
-  leads          Lead[]
-  channelBudgets ChannelBudget[]
-  products       Product[]
-  lossReasons    LossReason[]
+  departments     Department[]
+  users           User[]
+  plans           Plan[]
+  notifications   Notification[]
+  salesChannels   SalesChannel[]
+  leads           Lead[]
+  channelBudgets  ChannelBudget[]
+  products        Product[]
+  lossReasons     LossReason[]
+  paymentGateways PaymentGateway[]
 }
 
 model Department {
@@ -403,6 +404,23 @@ model LossReason {
 
   leads Lead[]
 
+  @@index([companyId])
+}
+
+// ── Payment Gateways (managed by OWNER/ROP) ───────────────────────────────────
+model PaymentGateway {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  value     String   // internal key stored in Sale.paymentMethod / Lead.paymentMethod
+  feePct    Float    @default(0.03)
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, value])
   @@index([companyId])
 }
 
