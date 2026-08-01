@@ -349,8 +349,8 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const qualifiedLeads = ropLiderLeadsFull.filter(l => l.isQualified).length
     // "Передано клоузеру" = leads assigned to a closer (any status past NEW/UNQUALIFIED)
     const meetingsScheduled = ropLiderLeadsFull.filter(l => l.assignedToId != null).length
-    // "Консультация состоялась" = consultationStatus = happened
-    const meetingsAttended = ropLiderLeadsFull.filter(l => l.consultationStatus === 'happened').length
+    // "Консультация состоялась" = consultationStatus = happened OR lead already sold (safety net)
+    const meetingsAttended = ropLiderLeadsFull.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length
 
     // Dept plan first; fall back to company-wide (explicitly exclude personal plans with !p.userId)
     const salesPlan = plans.find(p => p.departmentId === deptId && !p.userId && p.type === 'SALES_AMOUNT')?.value ||
@@ -391,7 +391,8 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     }
 
     // Company-level totals from Lead model
-    const totalConsultations = allCompanyLeads.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length
+    // totalConsultations uses same source+filter as funnel.meetingsAttended so both cards show identical numbers
+    const totalConsultations = meetingsAttended
     const totalRefusals = allCompanyLeads.filter(l => l.status === 'REFUSED').length
     const totalInWork = allCompanyLeads.filter(l => l.status === 'IN_WORK').length
 
@@ -488,7 +489,8 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       summary: {
         salesPlan, salesAmount: totalSalesAmount, salesCount: totalSalesCount,
         refundCount: ropRefundCount, refundTotal: ropRefundTotal, netSalesAmount: ropNetSales,
-        conversion: totalConsultations > 0 ? Math.round((totalSalesCount / totalConsultations) * 1000) / 10 : 0,
+        // Use Math.round(x * 100) = whole percent — matches funnel step-to-step display
+        conversion: totalConsultations > 0 ? Math.round((totalSalesCount / totalConsultations) * 100) : 0,
         avgCheck: totalSalesCount > 0 ? Math.round(ropNetSales / totalSalesCount) : 0,
         planCompletion: salesPlan > 0 ? Math.round((ropNetSales / salesPlan) * 1000) / 10 : 0,
         totalConsultations, totalRefusals, totalInWork,
