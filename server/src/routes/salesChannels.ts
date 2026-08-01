@@ -5,11 +5,15 @@ import { authenticate, AuthRequest } from '../middleware/auth'
 const router = Router()
 const prisma = new PrismaClient()
 
-// GET /api/sales-channels — list all for company
+// GET /api/sales-channels — list active channels (or all with ?archived=true)
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    const includeArchived = req.query.archived === 'true'
     const channels = await prisma.salesChannel.findMany({
-      where: { companyId: req.user!.companyId },
+      where: {
+        companyId: req.user!.companyId,
+        ...(includeArchived ? {} : { isActive: true }),
+      },
       orderBy: { createdAt: 'asc' },
     })
     res.json(channels)
@@ -50,7 +54,39 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   }
 })
 
-// DELETE /api/sales-channels/:id
+// PUT /api/sales-channels/:id/archive — soft archive (preserves history)
+router.put('/:id/archive', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const ch = await prisma.salesChannel.findUnique({ where: { id: req.params.id } })
+    if (!ch) return res.status(404).json({ error: 'Not found' })
+    if (ch.companyId !== req.user!.companyId) return res.status(403).json({ error: 'Forbidden' })
+    const updated = await prisma.salesChannel.update({
+      where: { id: req.params.id },
+      data: { isActive: false },
+    })
+    res.json(updated)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PUT /api/sales-channels/:id/restore — restore from archive
+router.put('/:id/restore', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const ch = await prisma.salesChannel.findUnique({ where: { id: req.params.id } })
+    if (!ch) return res.status(404).json({ error: 'Not found' })
+    if (ch.companyId !== req.user!.companyId) return res.status(403).json({ error: 'Forbidden' })
+    const updated = await prisma.salesChannel.update({
+      where: { id: req.params.id },
+      data: { isActive: true },
+    })
+    res.json(updated)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// DELETE /api/sales-channels/:id — hard delete (only if no leads attached)
 router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const ch = await prisma.salesChannel.findUnique({ where: { id: req.params.id } })

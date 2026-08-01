@@ -197,7 +197,7 @@ function ChannelBudgetRow({
 export default function MarketingPage() {
   const qc = useQueryClient()
   const { user } = useAuthStore()
-  const canManagePlans = user?.role === 'OWNER' || user?.role === 'ROP'
+  const canManagePlans = user?.role === 'OWNER' || user?.role === 'MARKETER'
   const periodState = usePeriodStore()
   const [activeTab, setActiveTab] = useState<'dashboard' | 'entry' | 'channels'>('dashboard')
   const [editingPlans, setEditingPlans] = useState(false)
@@ -517,6 +517,7 @@ export default function MarketingPage() {
         {activeTab === 'entry' && (
           <div className="space-y-5">
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
+
               <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
                 <div>
                   <h2 className="font-bold text-gray-900">Ввод расходов по каналам</h2>
@@ -572,6 +573,9 @@ export default function MarketingPage() {
                 </>
               )}
             </div>
+
+            {/* Daily expenses history */}
+            <DailyExpensesHistory channels={channels} />
           </div>
         )}
 
@@ -585,16 +589,112 @@ export default function MarketingPage() {
   )
 }
 
+// ─── Daily Expenses History ───────────────────────────────────────────────────
+function DailyExpensesHistory({ channels }: { channels: { id: string; name: string }[] }) {
+  // Fetch last 30 days of channel budgets
+  const today = localDateStr(new Date())
+  const d30 = new Date(); d30.setDate(d30.getDate() - 29)
+  const from30 = localDateStr(d30)
+
+  const histQ = useQuery({
+    queryKey: ['channel-budgets-history', from30, today],
+    queryFn: () => api.get(`/channel-budgets?from=${from30}&to=${today}`).then(r =>
+      r.data as { date: string; channel: { id: string; name: string }; spend: number }[]
+    ),
+  })
+
+  const rows = histQ.data || []
+
+  // Group by date (descending) → {date: string, byChannel: Record<channelId, spend>, total: number}
+  const byDate = useMemo(() => {
+    const map: Record<string, { date: string; byChannel: Record<string, number>; total: number }> = {}
+    for (const r of rows) {
+      if (!map[r.date]) map[r.date] = { date: r.date, byChannel: {}, total: 0 }
+      map[r.date].byChannel[r.channel.id] = (map[r.date].byChannel[r.channel.id] || 0) + r.spend
+      map[r.date].total += r.spend
+    }
+    return Object.values(map).sort((a, b) => b.date.localeCompare(a.date))
+  }, [rows])
+
+  if (channels.length === 0) return null
+
+  function fmtDate(s: string) {
+    const [y, m, d] = s.split('-')
+    return `${d}.${m}.${y}`
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
+        <div>
+          <h2 className="font-bold text-gray-900">История расходов по дням</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Последние 30 дней</p>
+        </div>
+        {histQ.isLoading && <RefreshCw className="w-4 h-4 text-gray-300 animate-spin" />}
+      </div>
+
+      {byDate.length === 0 && !histQ.isLoading ? (
+        <div className="text-center py-10 text-gray-400">
+          <BarChart2 className="w-8 h-8 mx-auto mb-2 text-gray-200" />
+          <p className="text-sm">Нет данных за последние 30 дней</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50/50">
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">Дата</th>
+                {channels.map(ch => (
+                  <th key={ch.id} className="text-right px-3 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">{ch.name}</th>
+                ))}
+                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-700 whitespace-nowrap">Итого ₸</th>
+              </tr>
+            </thead>
+            <tbody>
+              {byDate.map(row => (
+                <tr key={row.date} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/40 transition-colors">
+                  <td className="px-5 py-2.5 text-gray-700 font-medium whitespace-nowrap">{fmtDate(row.date)}</td>
+                  {channels.map(ch => {
+                    const spend = row.byChannel[ch.id] || 0
+                    return (
+                      <td key={ch.id} className={`text-right px-3 py-2.5 whitespace-nowrap ${spend > 0 ? 'text-gray-800' : 'text-gray-300'}`}>
+                        {spend > 0 ? spend.toLocaleString('ru-RU') : '—'}
+                      </td>
+                    )
+                  })}
+                  <td className="text-right px-5 py-2.5 font-semibold text-gray-900 whitespace-nowrap">
+                    {row.total.toLocaleString('ru-RU')}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Sales Channels Management ────────────────────────────────────────────────
 function SalesChannelsSection() {
   const qc = useQueryClient()
   const [newName, setNewName] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
+  const [showArchived, setShowArchived] = useState(false)
 
+  // Active channels
   const channelsQ = useQuery({
     queryKey: ['sales-channels'],
-    queryFn: () => api.get('/sales-channels').then(r => r.data as { id: string; name: string; createdAt: string }[]),
+    queryFn: () => api.get('/sales-channels').then(r => r.data as { id: string; name: string; isActive: boolean; createdAt: string }[]),
+  })
+  // Archived channels
+  const archivedQ = useQuery({
+    queryKey: ['sales-channels-archived'],
+    queryFn: () => api.get('/sales-channels?archived=true').then(r =>
+      (r.data as { id: string; name: string; isActive: boolean; createdAt: string }[]).filter(c => !c.isActive)
+    ),
+    enabled: showArchived,
   })
 
   const createMut = useMutation({
@@ -605,22 +705,29 @@ function SalesChannelsSection() {
     mutationFn: ({ id, name }: { id: string; name: string }) => api.put(`/sales-channels/${id}`, { name }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sales-channels'] }); setEditingId(null) },
   })
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => api.delete(`/sales-channels/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sales-channels'] }),
+  const archiveMut = useMutation({
+    mutationFn: (id: string) => api.put(`/sales-channels/${id}/archive`, {}),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sales-channels'] }); qc.invalidateQueries({ queryKey: ['sales-channels-archived'] }) },
+  })
+  const restoreMut = useMutation({
+    mutationFn: (id: string) => api.put(`/sales-channels/${id}/restore`, {}),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sales-channels'] }); qc.invalidateQueries({ queryKey: ['sales-channels-archived'] }) },
   })
 
   const channels = channelsQ.data || []
+  const archived = archivedQ.data || []
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5">
-      <h2 className="font-bold text-gray-900 mb-1">Управление рекламными каналами</h2>
-      <p className="text-sm text-gray-400 mb-5">
-        Каналы будут доступны во всех выпадающих списках при добавлении лидов.
-      </p>
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-5">
+      <div>
+        <h2 className="font-bold text-gray-900 mb-0.5">Управление рекламными каналами</h2>
+        <p className="text-sm text-gray-400">
+          Каналы доступны во всех выпадающих списках. Архивирование скрывает канал из выборки лидоруба, но сохраняет историю.
+        </p>
+      </div>
 
       {/* Add new */}
-      <div className="flex items-center gap-2 mb-5">
+      <div className="flex items-center gap-2">
         <input value={newName} onChange={e => setNewName(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && newName.trim() && createMut.mutate()}
           placeholder="Название канала (Instagram, TikTok...)"
@@ -631,14 +738,13 @@ function SalesChannelsSection() {
         </button>
       </div>
 
+      {/* Active channels */}
       {channels.length === 0 && !channelsQ.isLoading && (
         <div className="text-center py-10 text-gray-400">
           <TrendingUp className="w-8 h-8 mx-auto mb-2 text-gray-200" />
-          <p className="text-sm">Нет каналов. Добавьте первый канал выше.</p>
-          <p className="text-xs mt-1 text-gray-300">Например: Instagram, TikTok, Facebook, Google Ads, Яндекс Директ</p>
+          <p className="text-sm">Нет активных каналов. Добавьте первый канал выше.</p>
         </div>
       )}
-
       <div className="space-y-2">
         {channels.map(ch => (
           <div key={ch.id} className="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0">
@@ -657,13 +763,46 @@ function SalesChannelsSection() {
               <>
                 <span className="flex-1 text-sm font-medium text-gray-800">{ch.name}</span>
                 <button onClick={() => { setEditingId(ch.id); setEditName(ch.name) }}
-                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
-                <button onClick={() => confirm(`Удалить канал "${ch.name}"?`) && deleteMut.mutate(ch.id)}
-                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Переименовать">
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => { if (window.confirm(`Архивировать канал "${ch.name}"?\n\nКанал исчезнет из списков при добавлении лидов, но история расходов и лидов сохранится.`)) archiveMut.mutate(ch.id) }}
+                  disabled={archiveMut.isPending}
+                  className="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors" title="Архивировать">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </>
             )}
           </div>
         ))}
+      </div>
+
+      {/* Archived section */}
+      <div className="border-t border-gray-100 pt-4">
+        <button onClick={() => setShowArchived(s => !s)}
+          className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-600 transition-colors">
+          <RefreshCw className={`w-3.5 h-3.5 transition-transform ${showArchived ? 'rotate-180' : ''}`} />
+          {showArchived ? 'Скрыть архив' : `Показать архив ${archived.length > 0 ? `(${archived.length})` : ''}`}
+        </button>
+        {showArchived && (
+          <div className="mt-3 space-y-2">
+            {archivedQ.isLoading && <p className="text-xs text-gray-400 py-2">Загрузка...</p>}
+            {!archivedQ.isLoading && archived.length === 0 && (
+              <p className="text-xs text-gray-400 py-2">Архив пуст</p>
+            )}
+            {archived.map(ch => (
+              <div key={ch.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0 opacity-60">
+                <div className="w-2 h-2 rounded-full bg-gray-300 shrink-0" />
+                <span className="flex-1 text-sm text-gray-500 line-through">{ch.name}</span>
+                <button onClick={() => restoreMut.mutate(ch.id)} disabled={restoreMut.isPending}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-1 rounded-lg hover:bg-blue-50 transition-colors">
+                  Восстановить
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

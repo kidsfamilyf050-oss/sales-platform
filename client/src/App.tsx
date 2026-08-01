@@ -25,6 +25,7 @@ import CloserTasksPage from './pages/CloserTasksPage'
 import LiderTasksPage from './pages/LiderTasksPage'
 import CloserArchivePage from './pages/CloserArchivePage'
 import ROPTasksPage from './pages/ROPTasksPage'
+import MarketerTasksPage from './pages/MarketerTasksPage'
 import ProductsPage from './pages/ProductsPage'
 // Admin
 import AdminLoginPage from './pages/admin/AdminLoginPage'
@@ -83,6 +84,7 @@ export default function App() {
           <Route path="/lider/tasks" element={<LiderTasksPage />} />
           <Route path="/closer/archive" element={<CloserArchivePage />} />
           <Route path="/rop/tasks" element={<ROPTasksPage />} />
+          <Route path="/marketer/tasks" element={<MarketerTasksPage />} />
           <Route path="/products" element={<ProductsPage />} />
         </Route>
         {/* Super Admin Panel */}

@@ -460,9 +460,15 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       }
     }).sort((a, b) => b.completion - a.completion)
 
-    // Marketing block — leads from Lead model (source of truth), budget from MARKETER reports
+    // Marketing block — leads from Lead model (source of truth), budget from channelBudgets + marketer reports
     const totalLeads = leadsReceived // from ropLiderLeadsFull (Lead model)
-    const totalBudget = marketerReports.reduce((s, r) => s + (Number((r.data as any).budget) || Number((r.data as any).adBudget) || 0), 0)
+    const channelBudgetsForROP = await prisma.channelBudget.findMany({
+      where: { companyId: req.user!.companyId, date: { gte: fromStr, lte: toStr } },
+      select: { spend: true },
+    })
+    const channelBudgetTotal = channelBudgetsForROP.reduce((s, b) => s + b.spend, 0)
+    const reportBudgetTotal  = marketerReports.reduce((s, r) => s + (Number((r.data as any).budget) || Number((r.data as any).adBudget) || 0), 0)
+    const totalBudget = channelBudgetTotal > 0 ? channelBudgetTotal : reportBudgetTotal
     const leadsplan = plans.find(p => !p.userId && !p.departmentId && p.type === 'LEADS')?.value || 0
 
     // ── Product stats (from Sale model) ────────────────────────────────────────

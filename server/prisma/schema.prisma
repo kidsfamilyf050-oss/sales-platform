@@ -249,6 +249,7 @@ model SalesChannel {
   companyId String
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name      String
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
   leads          Lead[]

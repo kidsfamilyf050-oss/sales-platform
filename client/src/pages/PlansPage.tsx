@@ -4,6 +4,7 @@ import { api } from '../api/client'
 import { Save, Target, Users, TrendingUp, DollarSign, CheckCircle, Info, Building2, UserCircle, Megaphone } from 'lucide-react'
 import { useT } from '../i18n'
 import { usePeriodStore } from '../components/ui/PeriodSelector'
+import { useAuthStore } from '../store/auth'
 
 // Plan configs are defined inside the component to use t()
 
@@ -99,6 +100,8 @@ export default function PlansPage() {
   const { t } = useT()
   const qc = useQueryClient()
   const { monthOffset } = usePeriodStore()
+  const user = useAuthStore(s => s.user)
+  const isROP = user?.role === 'ROP'
   const now = new Date()
   const period = getPeriod(new Date(now.getFullYear(), now.getMonth() + monthOffset, 1))
   const [saved, setSaved] = useState(false)
@@ -343,8 +346,8 @@ export default function PlansPage() {
         )
       })}
 
-      {/* Marketing — company-level only when no marketing departments */}
-      {marketingDepts.length === 0 && (
+      {/* Marketing — company-level only when no marketing departments; hidden for ROP */}
+      {marketingDepts.length === 0 && !isROP && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Megaphone className="w-5 h-5 text-orange-500" />
@@ -367,8 +370,8 @@ export default function PlansPage() {
         </div>
       )}
 
-      {/* Marketing departments */}
-      {marketingDepts.map((dept: any) => {
+      {/* Marketing departments — hidden for ROP */}
+      {!isROP && marketingDepts.map((dept: any) => {
         const marketers = dept.users.filter((u: any) => u.role === 'MARKETER')
         return (
           <div key={dept.id} className="space-y-4">

@@ -18,6 +18,7 @@ export default function Sidebar({ onClose }: Props) {
 
   const isLider = user?.role === 'MANAGER' && user?.managerType === 'LIDER'
   const isCloser = user?.role === 'MANAGER' && user?.managerType !== 'LIDER'
+  const isMarketer = user?.role === 'MARKETER'
 
   const { data: incomingLeads } = useQuery({
     queryKey: ['sidebar-incoming'],
@@ -31,7 +32,7 @@ export default function Sidebar({ onClose }: Props) {
     queryKey: ['sidebar-tasks'],
     queryFn: () => api.get('/lead-tasks?completed=false').then(r => r.data),
     refetchInterval: 30000,
-    enabled: isCloser || isLider,
+    enabled: isCloser || isLider || isMarketer,
   })
   const activeTasksCount: number = Array.isArray(activeTasks) ? activeTasks.length : 0
 
@@ -49,7 +50,6 @@ export default function Sidebar({ onClose }: Props) {
       { to: '/dashboard/rop', label: t('nav.dashboard'), icon: BarChart2 },
       { to: '/tracking',      label: t('nav.control'),   icon: Activity },
       { to: '/rop/tasks',     label: 'Задачи',           icon: ClipboardList },
-      { to: '/marketing',     label: t('nav.marketing'), icon: TrendingUp },
       { to: '/products',      label: 'Продукты',         icon: Package },
       { to: '/users',         label: t('nav.users'),     icon: Users },
       { to: '/plans',         label: t('nav.plans'),     icon: Target },
@@ -66,7 +66,8 @@ export default function Sidebar({ onClose }: Props) {
       { to: '/closer/archive',    label: 'Архив',           icon: Archive },
     ],
     MARKETER: [
-      { to: '/marketing', label: t('nav.marketing'), icon: TrendingUp },
+      { to: '/marketing',       label: t('nav.marketing'), icon: TrendingUp },
+      { to: '/marketer/tasks',  label: 'Задачи',           icon: CheckSquare },
     ],
   }
 
@@ -74,7 +75,7 @@ export default function Sidebar({ onClose }: Props) {
 
   const getBadge = (to: string) => {
     if (isCloser && to === '/closer/leads' && incomingCount > 0) return incomingCount
-    if (((isCloser && to === '/closer/tasks') || (isLider && to === '/lider/tasks')) && activeTasksCount > 0) return activeTasksCount
+    if (((isCloser && to === '/closer/tasks') || (isLider && to === '/lider/tasks') || (isMarketer && to === '/marketer/tasks')) && activeTasksCount > 0) return activeTasksCount
     return null
   }
 
