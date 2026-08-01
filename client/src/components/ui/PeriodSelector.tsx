@@ -46,7 +46,7 @@ export const usePeriodStore = create<PeriodState>((set) => ({
   setMonthOffset: (monthOffset) => set({ monthOffset }),
 }))
 
-// Build query params string for API calls
+// Build query params string for API calls — always returns from/to so all pages can use them uniformly
 export function buildPeriodParams(state: PeriodState): string {
   if (state.period === 'custom') {
     return `from=${state.customFrom}&to=${state.customTo}`
@@ -55,7 +55,11 @@ export function buildPeriodParams(state: PeriodState): string {
     const { from, to } = getOffsetMonthDates(state.monthOffset)
     return `from=${from}&to=${to}`
   }
-  return `period=${state.period}`
+  // today / yesterday — compute concrete dates
+  const d = new Date()
+  if (state.period === 'yesterday') d.setDate(d.getDate() - 1)
+  const dateStr = localDateStr(d)
+  return `from=${dateStr}&to=${dateStr}`
 }
 
 export default function PeriodSelector() {
