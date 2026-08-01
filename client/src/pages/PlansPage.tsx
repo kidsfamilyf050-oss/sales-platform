@@ -249,8 +249,8 @@ export default function PlansPage() {
 
       {/* Sales departments */}
       {salesDepts.map((dept: any, idx: number) => {
-        const liders = dept.users.filter((u: any) => u.managerType === 'LIDER')
-        const closers = dept.users.filter((u: any) => u.managerType === 'CLOSER' || (!u.managerType && u.role === 'MANAGER'))
+        const liders = dept.users.filter((u: any) => u.role === 'MANAGER' && u.managerType === 'LIDER' && u.showInPlans !== false)
+        const closers = dept.users.filter((u: any) => u.role === 'MANAGER' && (u.managerType === 'CLOSER' || !u.managerType) && u.showInPlans !== false)
         const deptLabel = salesDepts.length > 1 ? `${dept.name} №${idx + 1}` : dept.name
 
         return (

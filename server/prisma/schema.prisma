@@ -71,6 +71,7 @@ model User {
   company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
+  showInPlans  Boolean     @default(true)
   inviteToken  String?     @unique
   invitedAt    DateTime?
   lastLoginAt  DateTime?

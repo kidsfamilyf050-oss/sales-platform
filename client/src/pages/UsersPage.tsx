@@ -10,13 +10,13 @@ export default function UsersPage() {
   const { t } = useT()
   const currentUser = useAuthStore(s => s.user)
   const [showForm, setShowForm]     = useState(false)
-  const [form, setForm]             = useState({ name: '', email: '', phone: '', role: 'MANAGER', managerType: 'CLOSER', departmentId: '' })
+  const [form, setForm]             = useState({ name: '', email: '', phone: '', role: 'MANAGER', managerType: 'CLOSER', departmentId: '', showInPlans: true })
   const [inviteLink, setInviteLink] = useState('')
   const [editingId, setEditingId]   = useState<string | null>(null)
   const [editForm, setEditForm]     = useState<any>({})
   const [editSaved, setEditSaved]   = useState(false)
 
-  const emptyForm = { name: '', email: '', phone: '', role: 'MANAGER', managerType: 'CLOSER', departmentId: '' }
+  const emptyForm = { name: '', email: '', phone: '', role: 'MANAGER', managerType: 'CLOSER', departmentId: '', showInPlans: true }
 
   const roleLabels: Record<string, string> = {
     OWNER: t('role.OWNER'),
@@ -119,6 +119,7 @@ export default function UsersPage() {
       role: u.role,
       managerType: u.managerType || 'CLOSER',
       departmentId: u.departmentId || '',
+      showInPlans: u.showInPlans !== false,
     })
   }
 
@@ -176,6 +177,14 @@ export default function UsersPage() {
                 </select>
               </div>
             )}
+            <div className="col-span-2 flex items-center gap-2 py-1">
+              <input type="checkbox" id="showInPlans-create" checked={form.showInPlans}
+                onChange={e => setForm(f => ({ ...f, showInPlans: e.target.checked }))}
+                className="w-4 h-4 rounded accent-blue-600" />
+              <label htmlFor="showInPlans-create" className="text-sm text-gray-700 cursor-pointer select-none">
+                Отображать в планах
+              </label>
+            </div>
             {departments.length > 0 && (
               <div className="col-span-2">
                 <label className="label">{t('common.department')}</label>
@@ -313,6 +322,14 @@ export default function UsersPage() {
                             </select>
                           </div>
                         )}
+                        <div className="col-span-2 flex items-center gap-2 py-1">
+                          <input type="checkbox" id={`showInPlans-${u.id}`} checked={editForm.showInPlans !== false}
+                            onChange={e => setEditForm((f: any) => ({ ...f, showInPlans: e.target.checked }))}
+                            className="w-4 h-4 rounded accent-blue-600" />
+                          <label htmlFor={`showInPlans-${u.id}`} className="text-sm text-gray-700 cursor-pointer select-none">
+                            Отображать в планах
+                          </label>
+                        </div>
                         {departments.length > 0 && (
                           <div>
                             <label className="text-xs text-gray-500 block mb-1">{t('common.department')}</label>

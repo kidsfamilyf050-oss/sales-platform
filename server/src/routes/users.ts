@@ -30,7 +30,7 @@ router.get('/', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthReque
     }
     const users = await prisma.user.findMany({
       where,
-      select: { id: true, name: true, email: true, phone: true, role: true, managerType: true, status: true, departmentId: true, department: { select: { name: true } }, lastLoginAt: true, createdAt: true, invitedAt: true, inviteToken: true },
+      select: { id: true, name: true, email: true, phone: true, role: true, managerType: true, showInPlans: true, status: true, departmentId: true, department: { select: { name: true } }, lastLoginAt: true, createdAt: true, invitedAt: true, inviteToken: true },
       orderBy: { createdAt: 'asc' },
     })
     res.json(users)
@@ -41,7 +41,7 @@ router.get('/', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthReque
 
 // Invite new user
 router.post('/invite', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRequest, res: Response) => {
-  const { name, email, phone, role, managerType, departmentId } = req.body
+  const { name, email, phone, role, managerType, departmentId, showInPlans } = req.body
   if (!name || !email || !role) return res.status(400).json({ error: 'Missing fields' })
 
   try {
@@ -55,7 +55,8 @@ router.post('/invite', authenticate, requireRole('OWNER', 'ROP'), async (req: Au
         name, email,
         phone: phone || null,
         role,
-        managerType: managerType || null,
+        managerType: role === 'MANAGER' ? (managerType || null) : null,
+        showInPlans: showInPlans !== undefined ? Boolean(showInPlans) : true,
         companyId: req.user!.companyId,
         departmentId: departmentId || null,
         inviteToken,
@@ -77,7 +78,7 @@ router.post('/invite', authenticate, requireRole('OWNER', 'ROP'), async (req: Au
 
 // Update user (status, department, role, email)
 router.put('/:id', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRequest, res: Response) => {
-  const { name, email, phone, role, managerType, departmentId, status } = req.body
+  const { name, email, phone, role, managerType, departmentId, status, showInPlans } = req.body
   try {
     const target = await prisma.user.findFirst({ where: { id: req.params.id, companyId: req.user!.companyId } })
     if (!target) return res.status(404).json({ error: 'Not found' })
@@ -100,11 +101,13 @@ router.put('/:id', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthRe
         ...(email && { email }),
         ...(phone !== undefined && { phone }),
         ...(role && { role }),
-        ...(managerType !== undefined && { managerType }),
+        // If role changes away from MANAGER, clear managerType; if staying MANAGER, update it
+        ...((role || managerType !== undefined) && { managerType: (role || target.role) === 'MANAGER' ? (managerType ?? target.managerType) : null }),
         ...(departmentId !== undefined && { departmentId }),
         ...(status && { status }),
+        ...(showInPlans !== undefined && { showInPlans: Boolean(showInPlans) }),
       },
-      select: { id: true, name: true, email: true, phone: true, role: true, managerType: true, status: true, departmentId: true },
+      select: { id: true, name: true, email: true, phone: true, role: true, managerType: true, showInPlans: true, status: true, departmentId: true },
     })
     res.json(updated)
   } catch (e) {
