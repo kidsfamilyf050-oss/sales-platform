@@ -131,6 +131,89 @@ function ConsultationBadge({ value }: { value?: string | null }) {
   return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${s.cls}`}>{t(s.labelKey as any)}</span>
 }
 
+// ── FilterDropdown — custom translated dropdown replacing native <select> ──────
+function FilterDropdown({
+  value, onChange, options, placeholder,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: { value: string; label: string }[]
+  placeholder: string
+}) {
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 })
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+
+  const handleOpen = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 160) })
+    }
+    setOpen(p => !p)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    const onOut = (e: MouseEvent) => {
+      if (
+        listRef.current && !listRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) setOpen(false)
+    }
+    const onScroll = () => setOpen(false)
+    document.addEventListener('mousedown', onOut)
+    document.addEventListener('scroll', onScroll, true)
+    return () => {
+      document.removeEventListener('mousedown', onOut)
+      document.removeEventListener('scroll', onScroll, true)
+    }
+  }, [open])
+
+  const selected = options.find(o => o.value === value)
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={handleOpen}
+        className={`flex items-center gap-1.5 py-2 px-3 text-sm border rounded-xl focus:outline-none transition-colors whitespace-nowrap ${
+          value
+            ? 'border-blue-300 bg-blue-50 text-blue-800'
+            : 'border-gray-200 text-gray-600 bg-white hover:border-gray-300'
+        }`}
+      >
+        <span>{selected ? selected.label : placeholder}</span>
+        <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${open ? 'rotate-180' : ''} ${value ? 'text-blue-500' : 'text-gray-400'}`} />
+      </button>
+      {open && createPortal(
+        <div
+          ref={listRef}
+          style={{ position: 'fixed', top: pos.top, left: pos.left, minWidth: pos.width, zIndex: 9999 }}
+          className="bg-white rounded-xl shadow-2xl border border-gray-100 py-1 overflow-hidden"
+        >
+          <button
+            onClick={() => { onChange(''); setOpen(false) }}
+            className={`w-full text-left px-4 py-2 text-sm transition-colors ${!value ? 'font-semibold text-blue-600 bg-blue-50' : 'text-gray-500 hover:bg-gray-50'}`}
+          >
+            {placeholder}
+          </button>
+          {options.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => { onChange(opt.value); setOpen(false) }}
+              className={`w-full text-left px-4 py-2 text-sm transition-colors ${value === opt.value ? 'font-semibold text-blue-700 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'}`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+    </>
+  )
+}
+
 // ── Row Menu (portal — fixes overflow clipping) ───────────────────────────────
 function RowMenu({ lead, onEdit, onStatus, onDelete }: {
   lead: Lead
@@ -213,6 +296,7 @@ function AddLeadModal({
   closers: { id: string; name: string }[]
 }) {
   const qc = useQueryClient()
+  const { t } = useT()
   const [clientName, setClientName] = useState('')
   const [phone, setPhone] = useState('')
   const [date, setDate] = useState(localDateStr()) // fix: use local timezone date
@@ -1175,35 +1259,45 @@ export default function LiderLeadsPage() {
                 placeholder={t('lider.search')}
                 className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
-            {/* ✅ Fix #2/#7: channel filter with pending state */}
-            <select value={pendingChannelId} onChange={e => setPendingChannelId(e.target.value)}
-              className={`py-2 px-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${pendingChannelId ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-600'}`}>
-              <option value="">{t('lider.allChannels')}</option>
-              {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <select value={pendingKtsStatus} onChange={e => setPendingKtsStatus(e.target.value)}
-              className={`py-2 px-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${pendingKtsStatus ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-600'}`}>
-              <option value="">{t('lider.qualFilter')}</option>
-              <option value="qualified">{t('lider.badge.qual')}</option>
-              <option value="unqualified">{t('lider.badge.unqual')}</option>
-              <option value="in_work">{t('lider.badge.inwork')}</option>
-            </select>
-            <select value={pendingSubStatus} onChange={e => setPendingSubStatus(e.target.value)}
-              className={`py-2 px-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${pendingSubStatus ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-600'}`}>
-              <option value="">{t('lider.subStatusFilter')}</option>
-              <option value="scheduled">{t('lider.sub.scheduled')}</option>
-              <option value="refused">{t('lider.sub.refused')}</option>
-              <option value="thinking">{t('lider.sub.thinking')}</option>
-              <option value="in_work_kc">{t('lider.sub.inwork')}</option>
-            </select>
-            <select value={pendingConsultation} onChange={e => setPendingConsultation(e.target.value)}
-              className={`py-2 px-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${pendingConsultation ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-600'}`}>
-              <option value="">{t('lider.consultFilter')}</option>
-              <option value="planned">{t('lider.consult.planned')}</option>
-              <option value="happened">{t('lider.consult.happened')}</option>
-              <option value="not_happened">{t('lider.consult.notHappened')}</option>
-              <option value="postponed">{t('lider.consult.postponed')}</option>
-            </select>
+            {/* ✅ Custom dropdowns (non-native) for full i18n support */}
+            <FilterDropdown
+              value={pendingChannelId}
+              onChange={setPendingChannelId}
+              placeholder={t('lider.allChannels')}
+              options={channels.map(c => ({ value: c.id, label: c.name }))}
+            />
+            <FilterDropdown
+              value={pendingKtsStatus}
+              onChange={setPendingKtsStatus}
+              placeholder={t('lider.qualFilter')}
+              options={[
+                { value: 'qualified',   label: t('lider.badge.qual') },
+                { value: 'unqualified', label: t('lider.badge.unqual') },
+                { value: 'in_work',     label: t('lider.badge.inwork') },
+              ]}
+            />
+            <FilterDropdown
+              value={pendingSubStatus}
+              onChange={setPendingSubStatus}
+              placeholder={t('lider.subStatusFilter')}
+              options={[
+                { value: 'scheduled',  label: t('lider.sub.scheduled') },
+                { value: 'refused',    label: t('lider.sub.refused') },
+                { value: 'thinking',   label: t('lider.sub.thinking') },
+                { value: 'in_work_kc', label: t('lider.sub.inwork') },
+              ]}
+            />
+            <FilterDropdown
+              value={pendingConsultation}
+              onChange={setPendingConsultation}
+              placeholder={t('lider.consultFilter')}
+              options={[
+                { value: 'planned',      label: t('lider.consult.planned') },
+                { value: 'happened',     label: t('lider.consult.happened') },
+                { value: 'not_happened', label: t('lider.consult.notHappened') },
+                { value: 'postponed',    label: t('lider.consult.postponed') },
+              ]}
+            />
             <div className="flex items-center gap-1.5 border border-gray-200 rounded-xl px-3 py-2">
               <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
               <input type="date" value={pendingDate} onChange={e => setPendingDate(e.target.value)}
