@@ -349,82 +349,66 @@ export default function PlansPage() {
         )
       })}
 
-      {/* Marketing — company-level only when no marketing departments; hidden for ROP */}
-      {marketingDepts.length === 0 && !isROP && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Megaphone className="w-5 h-5 text-orange-500" />
-            <h2 className="font-bold text-gray-800 text-lg">{t('plans.marketing')}</h2>
-          </div>
-          <SectionCard
-            title={t('plans.marketingCompany')}
-            subtitle={t('plans.marketingCompanySub')}
-            icon={Megaphone}
-            iconColor="bg-orange-50"
-          >
-            <div className="grid grid-cols-2 gap-4">
-              {MARKETING_PLANS.map(p => (
-                <PlanInput key={p.type} label={p.label} unit={p.unit} hint={p.hint}
-                  value={getVal(p.type, { company: true })}
-                  onChange={v => setVal(p.type, v, { company: true })} />
-              ))}
-            </div>
-          </SectionCard>
-        </div>
-      )}
+      {/* Marketing — always ONE unified section regardless of how many MARKETING departments exist; hidden for ROP */}
+      {!isROP && (
+        (() => {
+          // Collect all marketers from ALL marketing departments (dedup by id)
+          const allMarketers = marketingDepts
+            .flatMap((d: any) => d.users.filter((u: any) => u.role === 'MARKETER'))
+            .filter((u: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === u.id) === i)
 
-      {/* Marketing departments — hidden for ROP */}
-      {!isROP && marketingDepts.map((dept: any) => {
-        const marketers = dept.users.filter((u: any) => u.role === 'MARKETER')
-        return (
-          <div key={dept.id} className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Megaphone className="w-5 h-5 text-orange-500" />
-              <h2 className="font-bold text-gray-800 text-lg">{t('plans.marketing')}</h2>
-            </div>
-
-            <SectionCard
-              title={t('plans.marketingDept')}
-              subtitle={t('plans.marketingDeptSub')}
-              icon={Megaphone}
-              iconColor="bg-orange-50"
-            >
-              <div className="grid grid-cols-2 gap-4">
-                {MARKETING_PLANS.map(p => (
-                  <PlanInput key={p.type} label={p.label} unit={p.unit} hint={p.hint}
-                    value={getVal(p.type, { deptId: dept.id })}
-                    onChange={v => setVal(p.type, v, { deptId: dept.id })} />
-                ))}
+          return (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Megaphone className="w-5 h-5 text-orange-500" />
+                <h2 className="font-bold text-gray-800 text-lg">{t('plans.marketing')}</h2>
               </div>
-            </SectionCard>
 
-            {marketers.length > 0 && (
+              {/* Company-level marketing plan (single source of truth) */}
               <SectionCard
-                title={`${t('plans.marketers')} (${marketers.length})`}
-                subtitle={t('plans.marketersSub')}
-                icon={Users}
+                title={t('plans.marketingCompany')}
+                subtitle={t('plans.marketingCompanySub')}
+                icon={Megaphone}
                 iconColor="bg-orange-50"
               >
-                <div className="space-y-3">
-                  {marketers.map((u: any) => (
-                    <ManagerRow
-                      key={u.id}
-                      name={u.name}
-                      role={t('role.MARKETER')}
-                      plans={MARKETER_PERSONAL_PLANS}
-                      values={{
-                        LEADS: getVal('LEADS', { userId: u.id }),
-                        BUDGET: getVal('BUDGET', { userId: u.id }),
-                      }}
-                      onChange={(type, val) => setVal(type, val, { userId: u.id })}
-                    />
+                <div className="grid grid-cols-2 gap-4">
+                  {MARKETING_PLANS.map(p => (
+                    <PlanInput key={p.type} label={p.label} unit={p.unit} hint={p.hint}
+                      value={getVal(p.type, { company: true })}
+                      onChange={v => setVal(p.type, v, { company: true })} />
                   ))}
                 </div>
               </SectionCard>
-            )}
-          </div>
-        )
-      })}
+
+              {/* All marketers across all marketing departments */}
+              {allMarketers.length > 0 && (
+                <SectionCard
+                  title={`${t('plans.marketers')} (${allMarketers.length})`}
+                  subtitle={t('plans.marketersSub')}
+                  icon={Users}
+                  iconColor="bg-orange-50"
+                >
+                  <div className="space-y-3">
+                    {allMarketers.map((u: any) => (
+                      <ManagerRow
+                        key={u.id}
+                        name={u.name}
+                        role={t('role.MARKETER')}
+                        plans={MARKETER_PERSONAL_PLANS}
+                        values={{
+                          LEADS: getVal('LEADS', { userId: u.id }),
+                          BUDGET: getVal('BUDGET', { userId: u.id }),
+                        }}
+                        onChange={(type, val) => setVal(type, val, { userId: u.id })}
+                      />
+                    ))}
+                  </div>
+                </SectionCard>
+              )}
+            </div>
+          )
+        })()
+      )}
     </div>
   )
 }
