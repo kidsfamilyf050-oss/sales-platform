@@ -472,6 +472,7 @@ function EditLeadModal({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['lider-report'] })
       qc.invalidateQueries({ queryKey: ['today-appointments'] })
+      qc.invalidateQueries({ queryKey: ['scheduled-today'] })
       qc.invalidateQueries({ queryKey: ['overdue-appointments'] })
       onClose()
     },
@@ -696,6 +697,7 @@ function QuickStatusModal({ lead, onClose }: { lead: Lead; onClose: () => void }
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['lider-report'] })
       qc.invalidateQueries({ queryKey: ['today-appointments'] })
+      qc.invalidateQueries({ queryKey: ['scheduled-today'] })
       qc.invalidateQueries({ queryKey: ['overdue-appointments'] })
       onClose()
     },
@@ -881,9 +883,18 @@ export default function LiderLeadsPage() {
   const { data: todayLeads = [] } = useQuery<Lead[]>({
     queryKey: ['today-appointments'],
     queryFn: () => api.get('/leads/today-appointments').then(r => r.data),
-    refetchInterval: 5000,   // real-time: every 5 seconds
+    refetchInterval: 5000,
     staleTime: 0,
   })
+
+  // Today's leads that have been scheduled for a meeting (any date)
+  const { data: scheduledTodayLeads = [] } = useQuery<Lead[]>({
+    queryKey: ['scheduled-today'],
+    queryFn: () => api.get('/leads/scheduled-today').then(r => r.data),
+    refetchInterval: 5000,
+    staleTime: 0,
+  })
+  const [showScheduledToday, setShowScheduledToday] = useState(true)
 
   const { data: overdueLeads = [] } = useQuery<Lead[]>({
     queryKey: ['overdue-appointments'],
@@ -903,6 +914,7 @@ export default function LiderLeadsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['lider-report'] })
       qc.invalidateQueries({ queryKey: ['today-appointments'] })
+      qc.invalidateQueries({ queryKey: ['scheduled-today'] })
       qc.invalidateQueries({ queryKey: ['overdue-appointments'] })
       resetInlineForm()
     },
@@ -1252,6 +1264,56 @@ export default function LiderLeadsPage() {
             )}
           </div>
         )}
+
+        {/* ── Today's leads that have been scheduled (any date) ── */}
+        <div className="bg-white rounded-2xl border border-green-100 mb-4 overflow-hidden">
+          <button
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-green-50/40 transition-colors"
+            onClick={() => setShowScheduledToday(v => !v)}>
+            <span className="flex items-center gap-2 text-sm font-bold text-gray-900">
+              <Check className="w-4 h-4 text-green-500" />
+              Записаны сегодня
+              {scheduledTodayLeads.length > 0 && (
+                <span className="bg-green-600 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-1">{scheduledTodayLeads.length}</span>
+              )}
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">Сегодняшние лиды, которых записали на встречу</span>
+              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showScheduledToday ? 'rotate-180' : ''}`} />
+            </span>
+          </button>
+          {showScheduledToday && (
+            scheduledTodayLeads.length === 0 ? (
+              <div className="px-4 pb-4 text-center py-6 text-gray-400">
+                <Calendar className="w-8 h-8 mx-auto mb-2 text-gray-200" />
+                <p className="text-sm">Сегодня ни одного лида не записали на встречу</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 px-4 pb-4">
+                {scheduledTodayLeads.map(lead => {
+                  const apptDate = lead.postponedDate || lead.appointmentDate
+                  const apptTime = lead.postponedDate ? lead.postponedTime : lead.appointmentTime
+                  const cs = lead.consultationStatus
+                  const csColor = cs === 'happened' ? 'text-green-600' : cs === 'cancelled' ? 'text-red-500' : cs === 'postponed' ? 'text-orange-500' : 'text-blue-600'
+                  const csLabel = cs === 'happened' ? 'Состоялась' : cs === 'cancelled' ? 'Не состоялась' : cs === 'postponed' ? 'Перенесена' : cs === 'planned' ? 'Запланирована' : 'Записан'
+                  return (
+                    <div key={lead.id} className="p-3 rounded-xl border bg-green-50 border-green-100">
+                      <p className="text-xs font-bold text-gray-900 truncate">{lead.clientName}</p>
+                      <p className="text-xs text-gray-500 truncate mt-0.5">{lead.assignedTo?.name || 'Без клоузера'}</p>
+                      {apptDate && (
+                        <p className="text-xs text-gray-700 mt-1 flex items-center gap-1">
+                          <Calendar className="w-3 h-3 shrink-0 text-green-600" />
+                          {fmtDate(apptDate)}{apptTime ? ` ${apptTime}` : ''}
+                        </p>
+                      )}
+                      <p className={`text-xs font-semibold mt-1 ${csColor}`}>{csLabel}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          )}
+        </div>
 
         {/* ── Leads with meeting scheduled for today ── */}
         <div className="bg-white rounded-2xl border border-blue-100 mb-4 overflow-hidden">

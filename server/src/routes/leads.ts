@@ -123,6 +123,27 @@ router.get('/today-appointments', authenticate, async (req: AuthRequest, res: Re
   }
 })
 
+// ── GET /api/leads/scheduled-today — lider: today's leads that have been scheduled (any date) ──
+// Shows leads where date = today AND appointmentDate IS set.
+// Includes closer updates (consultationStatus, etc.) via INCLUDE_FULL.
+router.get('/scheduled-today', authenticate, async (req: AuthRequest, res: Response) => {
+  const today = getKzToday()
+  try {
+    const leads = await prisma.lead.findMany({
+      where: {
+        createdById: req.user!.id,
+        date: today,
+        appointmentDate: { not: null },
+      },
+      include: INCLUDE_FULL,
+      orderBy: { appointmentDate: 'asc' },
+    })
+    res.json(leads)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── GET /api/leads/overdue-appointments — lider: past meetings needing action ──
 // Excludes happened/not_happened. Includes:
 //   1. Leads with appointmentDate in the past and no status or planned
