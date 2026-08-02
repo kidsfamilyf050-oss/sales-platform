@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
+import { useT } from '../i18n'
 import { Phone, Calendar, User, ChevronDown, ChevronUp, Check, X, CheckSquare, Plus, ExternalLink, Banknote, Pencil, Package, ArrowRightLeft, CheckCircle2, XCircle, RefreshCw, AlertTriangle, RotateCcw, Trash2, ArchiveRestore } from 'lucide-react'
 
 type Lead = {
@@ -38,11 +39,8 @@ type Lead = {
   deletedAt: string | null
 }
 
-const PAYMENT_TYPE = [
-  { value: 'new_sale', label: 'Новая продажа' },
-  { value: 'additional', label: 'Доплата' },
-  { value: 'refund', label: 'Возврат' },
-]
+// Payment type options — built inside components using t()
+
 
 // Static fallback gateways (used if API not loaded yet)
 const DEFAULT_GATEWAYS = [
@@ -99,6 +97,7 @@ function isOverdue(dueDate: string) {
 // ── Transfer Modal ─────────────────────────────────────────────────────────────
 function TransferModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const qc = useQueryClient()
+  const { t } = useT()
   const [newCloserId, setNewCloserId] = useState('')
   const [error, setError] = useState('')
 
@@ -110,18 +109,18 @@ function TransferModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const transferMut = useMutation({
     mutationFn: () => api.put(`/leads/${lead.id}/transfer`, { newCloserId }).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['closer-leads'] }); onClose() },
-    onError: (e: any) => setError(e.response?.data?.error || 'Ошибка'),
+    onError: (e: any) => setError(e.response?.data?.error || t('common.error')),
   })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
-        <h3 className="font-bold text-gray-900 mb-1">Передать встречу</h3>
+        <h3 className="font-bold text-gray-900 mb-1">{t('cl.transfer.title')}</h3>
         <p className="text-sm text-gray-500 mb-4">{lead.clientName}</p>
         <div>
-          <label className="text-xs font-semibold text-gray-600 block mb-1">Выберите клоузера</label>
+          <label className="text-xs font-semibold text-gray-600 block mb-1">{t('cl.transfer.chooseCloser')}</label>
           <select className="input" value={newCloserId} onChange={e => setNewCloserId(e.target.value)} autoFocus>
-            <option value="">— выберите клоузера —</option>
+            <option value="">{t('cl.transfer.placeholder')}</option>
             {closers.map(c => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
@@ -129,13 +128,13 @@ function TransferModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
         </div>
         {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg mt-3">{error}</p>}
         <div className="flex gap-3 mt-5">
-          <button onClick={onClose} className="flex-1 btn-outline">Отмена</button>
+          <button onClick={onClose} className="flex-1 btn-outline">{t('common.cancel')}</button>
           <button
-            onClick={() => { if (!newCloserId) return setError('Выберите клоузера'); transferMut.mutate() }}
+            onClick={() => { if (!newCloserId) return setError(t('cl.transfer.error')); transferMut.mutate() }}
             disabled={transferMut.isPending}
             className="flex-1 btn-primary"
           >
-            Передать
+            {t('cl.transfer.btn')}
           </button>
         </div>
       </div>
@@ -146,6 +145,7 @@ function TransferModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
 // ── Add Task Modal ────────────────────────────────────────────────────────────
 function AddTaskModal({ leadId, onClose }: { leadId: string; onClose: () => void }) {
   const qc = useQueryClient()
+  const { t } = useT()
   const today = new Date().toISOString().slice(0, 10)
   const [title, setTitle] = useState('')
   const [dueDate, setDueDate] = useState(today)
@@ -154,30 +154,30 @@ function AddTaskModal({ leadId, onClose }: { leadId: string; onClose: () => void
   const createTask = useMutation({
     mutationFn: () => api.post('/lead-tasks', { leadId, title, dueDate }).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['closer-leads'] }); onClose() },
-    onError: (e: any) => setError(e.response?.data?.error || 'Ошибка'),
+    onError: (e: any) => setError(e.response?.data?.error || t('common.error')),
   })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
-        <h3 className="font-bold text-gray-900 mb-4">Добавить задачу</h3>
+        <h3 className="font-bold text-gray-900 mb-4">{t('cl.addTask.title')}</h3>
         <div className="space-y-3">
           <div>
-            <label className="text-xs font-semibold text-gray-600 block mb-1">Задача *</label>
+            <label className="text-xs font-semibold text-gray-600 block mb-1">{t('cl.addTask.label')}</label>
             <input className="input" value={title} onChange={e => setTitle(e.target.value)}
-              placeholder="Перезвонить, отправить КП..." autoFocus />
+              placeholder={t('cl.addTask.placeholder')} autoFocus />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-600 block mb-1">Срок выполнения *</label>
+            <label className="text-xs font-semibold text-gray-600 block mb-1">{t('cl.addTask.due')}</label>
             <input type="date" className="input" value={dueDate} onChange={e => setDueDate(e.target.value)} />
           </div>
           {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
         </div>
         <div className="flex gap-3 mt-5">
-          <button onClick={onClose} className="flex-1 btn-outline">Отмена</button>
-          <button onClick={() => { if (!title.trim()) return setError('Введите задачу'); createTask.mutate() }}
+          <button onClick={onClose} className="flex-1 btn-outline">{t('common.cancel')}</button>
+          <button onClick={() => { if (!title.trim()) return setError(t('common.error')); createTask.mutate() }}
             disabled={createTask.isPending} className="flex-1 btn-primary">
-            Добавить
+            {t('cl.addTask.btn')}
           </button>
         </div>
       </div>
@@ -188,6 +188,7 @@ function AddTaskModal({ leadId, onClose }: { leadId: string; onClose: () => void
 // ── Edit Lead Modal ───────────────────────────────────────────────────────────
 function EditLeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const qc = useQueryClient()
+  const { t } = useT()
   const { all: allGateways, active: activeGateways } = useGateways()
   const [form, setForm] = useState({
     amount: lead.amount ? String(lead.amount) : '',
@@ -201,6 +202,12 @@ function EditLeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const [error, setError] = useState('')
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
+  const paymentTypes = [
+    { value: 'new_sale',   label: t('cl.payType.new') },
+    { value: 'additional', label: t('cl.payType.additional') },
+    { value: 'refund',     label: t('cl.payType.refund') },
+  ]
+
   const selectedGateway = allGateways.find(g => g.value === form.paymentMethod)
   const numAmount = Number(form.amount) || 0
   const feePercent = selectedGateway ? Math.round(selectedGateway.fee * 1000) / 10 : null
@@ -213,28 +220,28 @@ function EditLeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
       months: form.months ? Number(form.months) : null,
     }).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['closer-leads'] }); onClose() },
-    onError: (e: any) => setError(e.response?.data?.error || 'Ошибка'),
+    onError: (e: any) => setError(e.response?.data?.error || t('common.error')),
   })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <h3 className="font-bold text-gray-900 mb-4">Редактировать встречу — {lead.clientName}</h3>
+        <h3 className="font-bold text-gray-900 mb-4">{t('cl.edit.title')} — {lead.clientName}</h3>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-medium text-gray-500 block mb-1">Тип оплаты</label>
+            <label className="text-xs font-medium text-gray-500 block mb-1">{t('cl.inwork.payType')}</label>
             <select className="input" value={form.paymentType} onChange={e => set('paymentType', e.target.value)}>
-              {PAYMENT_TYPE.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+              {paymentTypes.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-500 block mb-1">Сумма</label>
+            <label className="text-xs font-medium text-gray-500 block mb-1">{t('cl.inwork.amount')}</label>
             <input type="number" className="input" value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="0" />
           </div>
           <div className="col-span-2">
-            <label className="text-xs font-medium text-gray-500 block mb-1">Платёжный шлюз</label>
+            <label className="text-xs font-medium text-gray-500 block mb-1">{t('cl.inwork.gateway')}</label>
             <select className="input" value={form.paymentMethod} onChange={e => set('paymentMethod', e.target.value)}>
-              <option value="">— выберите шлюз —</option>
+              <option value="">{t('cl.inwork.gatewayPlaceholder')}</option>
               {activeGateways.map(g => (
                 <option key={g.value} value={g.value}>{g.label} ({Math.round(g.fee * 1000) / 10}%)</option>
               ))}
@@ -243,29 +250,29 @@ function EditLeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
           {selectedGateway && numAmount > 0 && (
             <div className="col-span-2 grid grid-cols-2 gap-3">
               <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-center">
-                <p className="text-[11px] text-amber-600 font-semibold">% комиссии</p>
+                <p className="text-[11px] text-amber-600 font-semibold">{t('cl.inwork.feeLabel')}</p>
                 <p className="text-lg font-bold text-amber-700">{feePercent}%</p>
               </div>
               <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-center">
-                <p className="text-[11px] text-green-600 font-semibold">Бюджет сделки</p>
+                <p className="text-[11px] text-green-600 font-semibold">{t('cl.inwork.dealBudget')}</p>
                 <p className="text-lg font-bold text-green-700">₸ {netAmount?.toLocaleString('ru')}</p>
               </div>
             </div>
           )}
           <div className="col-span-2">
-            <label className="text-xs font-medium text-gray-500 block mb-1">Ссылка на сделку в CRM</label>
+            <label className="text-xs font-medium text-gray-500 block mb-1">{t('cl.inwork.crmLink')}</label>
             <input type="url" className="input" value={form.crmLink} onChange={e => set('crmLink', e.target.value)} placeholder="https://..." />
           </div>
           <div className="col-span-2">
-            <label className="text-xs font-medium text-gray-500 block mb-1">Комментарий</label>
-            <textarea className="input resize-none h-16" value={form.closerComment} onChange={e => set('closerComment', e.target.value)} placeholder="Заметки по сделке..." />
+            <label className="text-xs font-medium text-gray-500 block mb-1">{t('cl.inwork.comment')}</label>
+            <textarea className="input resize-none h-16" value={form.closerComment} onChange={e => set('closerComment', e.target.value)} placeholder={t('cl.inwork.commentPlaceholder')} />
           </div>
         </div>
         {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg mt-3">{error}</p>}
         <div className="flex gap-3 mt-5">
-          <button onClick={onClose} className="flex-1 btn-outline">Отмена</button>
+          <button onClick={onClose} className="flex-1 btn-outline">{t('common.cancel')}</button>
           <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending} className="flex-1 btn-primary">
-            Сохранить
+            {t('common.save')}
           </button>
         </div>
       </div>
@@ -276,6 +283,7 @@ function EditLeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
 // ── Refund Button component ───────────────────────────────────────────────────
 function RefundButton({ lead }: { lead: Lead }) {
   const qc = useQueryClient()
+  const { t } = useT()
   const [show, setShow] = useState(false)
   const [comment, setComment] = useState('')
   const refundMut = useMutation({
@@ -285,20 +293,20 @@ function RefundButton({ lead }: { lead: Lead }) {
   if (!show) return (
     <button onClick={() => setShow(true)}
       className="flex items-center gap-1.5 text-sm text-orange-600 border border-orange-200 bg-orange-50 hover:bg-orange-100 px-3 py-2 rounded-lg font-medium transition-colors w-full justify-center">
-      <RotateCcw className="w-4 h-4" /> Оформить возврат
+      <RotateCcw className="w-4 h-4" /> {t('cl.refund.btn')}
     </button>
   )
   return (
     <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 space-y-2">
-      <p className="text-xs font-semibold text-orange-700">Причина возврата (необязательно):</p>
-      <input className="input text-sm" value={comment} onChange={e => setComment(e.target.value)} placeholder="Передумал, технические проблемы..." />
+      <p className="text-xs font-semibold text-orange-700">{t('cl.refund.reasonLabel')}</p>
+      <input className="input text-sm" value={comment} onChange={e => setComment(e.target.value)} placeholder={t('cl.refund.reasonPlaceholder')} />
       <div className="flex gap-2">
         <button onClick={() => refundMut.mutate()} disabled={refundMut.isPending}
           className="flex-1 bg-orange-500 text-white text-xs font-semibold py-2 rounded-lg hover:bg-orange-600 disabled:opacity-40 transition-colors">
-          Подтвердить возврат
+          {t('cl.refund.confirm')}
         </button>
         <button onClick={() => setShow(false)} className="px-3 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg">
-          Отмена
+          {t('common.cancel')}
         </button>
       </div>
     </div>
@@ -308,6 +316,7 @@ function RefundButton({ lead }: { lead: Lead }) {
 // ── In-Work Section (combined sell form + refuse + task) ──────────────────────
 function InWorkSection({ lead }: { lead: Lead }) {
   const qc = useQueryClient()
+  const { t } = useT()
   const { all: allGateways, active: activeGateways } = useGateways()
   const [form, setForm] = useState({
     amount: lead.amount ? String(lead.amount) : '',
@@ -323,6 +332,12 @@ function InWorkSection({ lead }: { lead: Lead }) {
   const [error, setError] = useState('')
   const [showTaskForm, setShowTaskForm] = useState(false)
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+
+  const paymentTypes = [
+    { value: 'new_sale',   label: t('cl.payType.new') },
+    { value: 'additional', label: t('cl.payType.additional') },
+    { value: 'refund',     label: t('cl.payType.refund') },
+  ]
 
   // Derived fee/netAmount display
   const selectedGateway = allGateways.find(g => g.value === form.paymentMethod)
@@ -361,7 +376,7 @@ function InWorkSection({ lead }: { lead: Lead }) {
       productId: productId || null,
     }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['closer-leads'] }),
-    onError: (e: any) => setError(e.response?.data?.error || 'Ошибка'),
+    onError: (e: any) => setError(e.response?.data?.error || t('common.error')),
   })
 
   const saveMut = useMutation({
@@ -371,7 +386,7 @@ function InWorkSection({ lead }: { lead: Lead }) {
       months: form.months ? Number(form.months) : null,
     }).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['closer-leads'] }); setError('') },
-    onError: (e: any) => setError(e.response?.data?.error || 'Ошибка'),
+    onError: (e: any) => setError(e.response?.data?.error || t('common.error')),
   })
 
   const refuseMut = useMutation({
@@ -380,25 +395,25 @@ function InWorkSection({ lead }: { lead: Lead }) {
       lossReasonId: lossReasonId || null,
     }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['closer-leads'] }),
-    onError: (e: any) => setError(e.response?.data?.error || 'Ошибка'),
+    onError: (e: any) => setError(e.response?.data?.error || t('common.error')),
   })
 
   return (
     <div className="space-y-3 pt-3 border-t border-gray-100">
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Данные сделки</p>
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t('cl.inwork.header')}</p>
       <div className="grid grid-cols-2 gap-3">
         {/* Product selector */}
         {products.length > 0 && (
           <div className="col-span-2">
             <label className="text-xs font-medium text-gray-500 block mb-1 flex items-center gap-1">
-              <Package className="w-3.5 h-3.5" /> Продукт
+              <Package className="w-3.5 h-3.5" /> {t('cl.inwork.product')}
             </label>
             <select
               className="input"
               value={productId}
               onChange={e => handleProductChange(e.target.value)}
             >
-              <option value="">— выберите продукт —</option>
+              <option value="">{t('cl.inwork.productPlaceholder')}</option>
               {products.map(p => (
                 <option key={p.id} value={p.id}>
                   {p.name} (₸ {p.price.toLocaleString('ru')})
@@ -410,23 +425,23 @@ function InWorkSection({ lead }: { lead: Lead }) {
 
         {/* Payment type */}
         <div>
-          <label className="text-xs font-medium text-gray-500 block mb-1">Тип оплаты</label>
+          <label className="text-xs font-medium text-gray-500 block mb-1">{t('cl.inwork.payType')}</label>
           <select className="input" value={form.paymentType} onChange={e => set('paymentType', e.target.value)}>
-            {PAYMENT_TYPE.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            {paymentTypes.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
         </div>
 
         {/* Amount */}
         <div>
-          <label className="text-xs font-medium text-gray-500 block mb-1">Сумма</label>
+          <label className="text-xs font-medium text-gray-500 block mb-1">{t('cl.inwork.amount')}</label>
           <input type="number" className="input" value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="0" />
         </div>
 
         {/* Gateway selector */}
         <div className="col-span-2">
-          <label className="text-xs font-medium text-gray-500 block mb-1">Платёжный шлюз</label>
+          <label className="text-xs font-medium text-gray-500 block mb-1">{t('cl.inwork.gateway')}</label>
           <select className="input" value={form.paymentMethod} onChange={e => set('paymentMethod', e.target.value)}>
-            <option value="">— выберите шлюз —</option>
+            <option value="">{t('cl.inwork.gatewayPlaceholder')}</option>
             {activeGateways.map(g => (
               <option key={g.value} value={g.value}>
                 {g.label} — {Math.round(g.fee * 1000) / 10}%
@@ -439,11 +454,11 @@ function InWorkSection({ lead }: { lead: Lead }) {
         {selectedGateway && numAmount > 0 && (
           <div className="col-span-2 grid grid-cols-2 gap-3">
             <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 text-center">
-              <p className="text-[11px] text-amber-600 font-semibold uppercase tracking-wide">% комиссии</p>
+              <p className="text-[11px] text-amber-600 font-semibold uppercase tracking-wide">{t('cl.inwork.feeLabel')}</p>
               <p className="text-xl font-bold text-amber-700">{feePercent}%</p>
             </div>
             <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2.5 text-center">
-              <p className="text-[11px] text-green-600 font-semibold uppercase tracking-wide">Бюджет сделки</p>
+              <p className="text-[11px] text-green-600 font-semibold uppercase tracking-wide">{t('cl.inwork.dealBudget')}</p>
               <p className="text-xl font-bold text-green-700">₸ {netAmount?.toLocaleString('ru')}</p>
             </div>
           </div>
@@ -452,16 +467,16 @@ function InWorkSection({ lead }: { lead: Lead }) {
         {/* CRM link */}
         <div className="col-span-2">
           <label className="text-xs font-medium text-gray-500 block mb-1">
-            Ссылка на сделку в CRM <span className="text-red-500">*</span>
-            <span className="text-gray-400 font-normal ml-1">(обязательна для отказа и продажи)</span>
+            {t('cl.inwork.crmLink')} <span className="text-red-500">*</span>
+            <span className="text-gray-400 font-normal ml-1">{t('cl.inwork.crmHint')}</span>
           </label>
           <input type="url" className="input" value={form.crmLink} onChange={e => set('crmLink', e.target.value)} placeholder="https://..." />
         </div>
 
         {/* Comment */}
         <div className="col-span-2">
-          <label className="text-xs font-medium text-gray-500 block mb-1">Комментарий</label>
-          <textarea className="input resize-none h-16" value={form.closerComment} onChange={e => set('closerComment', e.target.value)} placeholder="Заметки по сделке..." />
+          <label className="text-xs font-medium text-gray-500 block mb-1">{t('cl.inwork.comment')}</label>
+          <textarea className="input resize-none h-16" value={form.closerComment} onChange={e => set('closerComment', e.target.value)} placeholder={t('cl.inwork.commentPlaceholder')} />
         </div>
       </div>
 
@@ -471,17 +486,17 @@ function InWorkSection({ lead }: { lead: Lead }) {
       <div className="flex gap-2">
         <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending}
           className="flex-1 btn-outline text-sm py-2">
-          Сохранить черновик
+          {t('cl.inwork.saveDraft')}
         </button>
         <button onClick={() => {
           setError('')
-          if (!form.amount || !form.paymentMethod) return setError('Заполните сумму и шлюз')
-          if (!form.crmLink) return setError('Заполните CRM-ссылку')
-          if (products.length > 0 && !productId) return setError('Выберите продукт')
+          if (!form.amount || !form.paymentMethod) return setError(t('cl.inwork.errorAmount'))
+          if (!form.crmLink) return setError(t('cl.inwork.errorCrm'))
+          if (products.length > 0 && !productId) return setError(t('cl.inwork.errorProduct'))
           sellMut.mutate()
         }} disabled={sellMut.isPending}
           className="flex-1 text-sm py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-40">
-          <Check className="w-4 h-4 inline mr-1" />Закрыть как продажу
+          <Check className="w-4 h-4 inline mr-1" />{t('cl.inwork.closeSale')}
         </button>
       </div>
 
@@ -495,7 +510,7 @@ function InWorkSection({ lead }: { lead: Lead }) {
         <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-sm text-orange-700 font-medium flex items-center gap-2">
           <RotateCcw className="w-4 h-4 shrink-0" />
           <div>
-            <span>Возврат оформлен</span>
+            <span>{t('cl.card.refundDone')}</span>
             {lead.amount && <span className="ml-2 font-bold">₸ {lead.amount.toLocaleString('ru')}</span>}
             {lead.refundComment && <p className="text-xs text-orange-500 mt-0.5">{lead.refundComment}</p>}
           </div>
@@ -506,13 +521,13 @@ function InWorkSection({ lead }: { lead: Lead }) {
       <div className="space-y-2 border-t border-gray-100 pt-3">
         {lossReasons.length > 0 && (
           <div>
-            <label className="text-xs font-medium text-gray-500 block mb-1">Причина отказа</label>
+            <label className="text-xs font-medium text-gray-500 block mb-1">{t('cl.inwork.lossReason')}</label>
             <select
               className="input text-sm"
               value={lossReasonId}
               onChange={e => setLossReasonId(e.target.value)}
             >
-              <option value="">— не выбрана —</option>
+              <option value="">{t('cl.inwork.lossReasonPlaceholder')}</option>
               {lossReasons.map(r => (
                 <option key={r.id} value={r.id}>{r.name}</option>
               ))}
@@ -524,19 +539,19 @@ function InWorkSection({ lead }: { lead: Lead }) {
             onClick={() => setShowTaskForm(true)}
             className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 hover:bg-gray-50 px-3 py-2 rounded-lg transition-colors flex-1 justify-center"
           >
-            <Plus className="w-4 h-4" /> Оставить в работе
+            <Plus className="w-4 h-4" /> {t('cl.inwork.keepInWork')}
           </button>
           <button
             onClick={() => {
               setError('')
-              if (!form.crmLink) return setError('Заполните CRM-ссылку для отказа')
-              if (lossReasons.length > 0 && !lossReasonId) return setError('Выберите причину отказа')
+              if (!form.crmLink) return setError(t('cl.inwork.errorCrmRefuse'))
+              if (lossReasons.length > 0 && !lossReasonId) return setError(t('cl.inwork.errorLossReason'))
               refuseMut.mutate()
             }}
             disabled={refuseMut.isPending}
             className="flex items-center gap-1.5 text-sm text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-2 rounded-lg font-medium transition-colors disabled:opacity-40"
           >
-            <X className="w-4 h-4" /> Отказ
+            <X className="w-4 h-4" /> {t('cl.inwork.refuse')}
           </button>
         </div>
       </div>
@@ -550,6 +565,7 @@ function InWorkSection({ lead }: { lead: Lead }) {
 // ── Consultation Status Section ───────────────────────────────────────────────
 function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; compact?: boolean }) {
   const qc = useQueryClient()
+  const { t } = useT()
   const today = new Date().toISOString().slice(0, 10)
 
   const [showPostpone, setShowPostpone] = useState(false)
@@ -573,9 +589,9 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
   const hasStatus = !!lead.consultationStatus && lead.consultationStatus !== 'planned'
 
   const statusLabels: Record<string, { label: string; cls: string; Icon: React.ElementType }> = {
-    happened:     { label: 'Состоялась',    cls: 'bg-green-100 text-green-700 border-green-200',   Icon: CheckCircle2 },
-    not_happened: { label: 'Не состоялась', cls: 'bg-red-100 text-red-700 border-red-200',         Icon: XCircle },
-    postponed:    { label: 'Перенос',       cls: 'bg-orange-100 text-orange-700 border-orange-200', Icon: RefreshCw },
+    happened:     { label: t('cl.consult.happened'),    cls: 'bg-green-100 text-green-700 border-green-200',   Icon: CheckCircle2 },
+    not_happened: { label: t('cl.consult.notHappened'), cls: 'bg-red-100 text-red-700 border-red-200',         Icon: XCircle },
+    postponed:    { label: t('cl.consult.postponed'),   cls: 'bg-orange-100 text-orange-700 border-orange-200', Icon: RefreshCw },
   }
 
   // When there's an appointment date, compute overdue/today flags for styling
@@ -597,10 +613,10 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold text-gray-600 flex items-center gap-1">
             <Calendar className="w-3 h-3 shrink-0 text-blue-500" />
-            Встреча: {displayDate.split('-').reverse().join('.')}
+            {t('cl.consult.meetingPrefix')} {displayDate.split('-').reverse().join('.')}
             {displayTime && ` в ${displayTime}`}
             {lead.postponedDate && lead.postponedDate !== lead.appointmentDate && (
-              <span className="ml-1 text-orange-500 font-normal">(перенесено)</span>
+              <span className="ml-1 text-orange-500 font-normal">{t('cl.consult.postponedMark')}</span>
             )}
           </p>
           {hasStatus && (() => {
@@ -622,7 +638,7 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
         const SIcon = cfg?.Icon
         return (
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-gray-600">Консультация</p>
+            <p className="text-xs font-semibold text-gray-600">{t('cl.consult.header')}</p>
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full border flex items-center gap-1 ${cfg?.cls ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
               {SIcon && <SIcon className="w-3 h-3" />}
               {cfg?.label ?? lead.consultationStatus}
@@ -636,7 +652,7 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
         <div>
           <p className={`text-xs mb-2 flex items-center gap-1 ${isOverdueAppt ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
             {isOverdueAppt && <AlertTriangle className="w-3 h-3 shrink-0" />}
-            {isOverdueAppt ? 'Встреча просрочена — отметьте результат' : 'Отметьте результат встречи:'}
+            {isOverdueAppt ? t('cl.consult.overdue') : t('cl.consult.markResult')}
           </p>
           <div className="flex gap-2 flex-wrap">
             {(['happened', 'not_happened'] as const).map(s => {
@@ -666,7 +682,7 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
       {/* Postpone date picker */}
       {showPostpone && (
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 space-y-2">
-          <p className="text-xs font-semibold text-orange-700">Укажите новую дату консультации:</p>
+          <p className="text-xs font-semibold text-orange-700">{t('cl.consult.newDate')}</p>
           <div className="flex gap-2">
             <input type="date" value={pDate} min={today} onChange={e => setPDate(e.target.value)}
               className="flex-1 border border-orange-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white" />
@@ -678,10 +694,10 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
               onClick={() => statusMut.mutate({ consultationStatus: 'postponed', postponedDate: pDate, postponedTime: pTime || undefined })}
               disabled={!pDate || statusMut.isPending}
               className="flex-1 bg-orange-500 text-white text-xs font-semibold py-2 rounded-lg hover:bg-orange-600 disabled:opacity-40 transition-colors"
-            >Сохранить перенос</button>
+            >{t('cl.consult.savePostpone')}</button>
             <button onClick={() => setShowPostpone(false)}
               className="px-3 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg transition-colors"
-            >Отмена</button>
+            >{t('common.cancel')}</button>
           </div>
         </div>
       )}
@@ -689,7 +705,7 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
       {hasStatus && lead.consultationStatus !== 'postponed' && (
         <button onClick={() => statusMut.mutate({ consultationStatus: '' })} disabled={statusMut.isPending}
           className="text-xs text-gray-400 hover:text-gray-600 underline">
-          Сбросить статус
+          {t('cl.consult.reset')}
         </button>
       )}
     </div>
@@ -706,6 +722,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
   showRestore?: boolean
 }) {
   const qc = useQueryClient()
+  const { t } = useT()
   const { all: allGateways } = useGateways()
   const [open, setOpen] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -738,7 +755,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
     ? 'text-red-600 bg-red-50'
     : 'text-amber-600 bg-amber-50'
 
-  const statusLabel = lead.status === 'SOLD' ? 'Продажа' : lead.status === 'REFUSED' ? 'Отказ' : 'В работе'
+  const statusLabel = lead.status === 'SOLD' ? t('cl.card.statusSold') : lead.status === 'REFUSED' ? t('cl.card.statusRefused') : t('cl.card.statusInWork')
 
   // Display amount — prefer netAmount (бюджет сделки) when available
   const displayAmount = lead.netAmount ?? lead.amount
@@ -752,7 +769,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
     <div className={`rounded-xl border shadow-sm overflow-hidden ${highlightToday && isNew ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'}`}>
       {highlightToday && isNew && (
         <div className="bg-green-500 text-white text-[11px] font-bold px-3 py-0.5 text-center tracking-wide uppercase">
-          Новая заявка сегодня
+          {t('cl.card.newToday')}
         </div>
       )}
       {/* Header */}
@@ -760,8 +777,8 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-semibold text-gray-900">{lead.clientName}</p>
-            {lead.isQualified && <span className="text-[11px] font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Квал.</span>}
-            {lead.isScheduled && <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">Записан</span>}
+            {lead.isQualified && <span className="text-[11px] font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{t('cl.card.qual')}</span>}
+            {lead.isScheduled && <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{t('cl.card.scheduled')}</span>}
             {readonly && <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${statusColor}`}>{statusLabel}</span>}
             {totalTasks > 0 && (
               <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${completedTasks === totalTasks ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
@@ -783,7 +800,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
             {displayAmount != null && displayAmount > 0 && (
               <span className="flex items-center gap-1 text-green-600 font-medium">
                 <Banknote className="w-3 h-3" />₸ {Number(displayAmount).toLocaleString('ru')}
-                {lead.netAmount != null && <span className="text-[10px] text-green-400 ml-0.5">нетто</span>}
+                {lead.netAmount != null && <span className="text-[10px] text-green-400 ml-0.5">{t('cl.card.netto')}</span>}
               </span>
             )}
             {lead.paymentMethod && (
@@ -798,16 +815,16 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
               disabled={acceptMut.isPending}
               className="flex items-center gap-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 rounded-lg font-medium transition-colors"
             >
-              <Check className="w-4 h-4" /> Принять
+              <Check className="w-4 h-4" /> {t('cl.card.accept')}
             </button>
           )}
           {showWork && (
             <button
               onClick={e => { e.stopPropagation(); setShowTransferModal(true) }}
               className="flex items-center gap-1.5 text-sm text-purple-600 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-lg font-medium transition-colors"
-              title="Передать другому клоузеру"
+              title={t('cl.card.transfer')}
             >
-              <ArrowRightLeft className="w-4 h-4" /> Передать
+              <ArrowRightLeft className="w-4 h-4" /> {t('cl.card.transfer')}
             </button>
           )}
           {readonly && !showRestore && (
@@ -825,7 +842,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
               disabled={restoreMut.isPending}
               className="flex items-center gap-1.5 text-sm text-green-600 bg-green-50 hover:bg-green-100 border border-green-200 px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-40"
             >
-              <ArchiveRestore className="w-4 h-4" /> Восстановить
+              <ArchiveRestore className="w-4 h-4" /> {t('cl.card.restore')}
             </button>
           )}
           {showDelete && !showConfirmDelete && (
@@ -839,16 +856,16 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
           )}
           {showDelete && showConfirmDelete && (
             <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-              <span className="text-xs text-red-600 font-medium">Удалить?</span>
+              <span className="text-xs text-red-600 font-medium">{t('cl.card.deleteConfirm')}</span>
               <button
                 onClick={() => deleteMut.mutate()}
                 disabled={deleteMut.isPending}
                 className="text-xs px-2 py-1 bg-red-500 text-white rounded-md font-medium disabled:opacity-40"
-              >Да</button>
+              >{t('cl.card.yes')}</button>
               <button
                 onClick={() => setShowConfirmDelete(false)}
                 className="text-xs px-2 py-1 border border-gray-200 rounded-md text-gray-500 hover:bg-gray-50"
-              >Нет</button>
+              >{t('cl.card.no')}</button>
             </div>
           )}
           <div className="text-gray-300">
@@ -863,7 +880,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
           {/* Lead info from lider */}
           {lead.comment && (
             <p className="text-sm text-gray-600 bg-blue-50 px-3 py-2 rounded-lg border-l-2 border-blue-300">
-              <span className="text-xs font-semibold text-blue-600 block mb-0.5">Комментарий лидоруба</span>
+              <span className="text-xs font-semibold text-blue-600 block mb-0.5">{t('cl.card.liderComment')}</span>
               {lead.comment}
             </p>
           )}
@@ -871,12 +888,12 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
           {/* Sold details when readonly */}
           {readonly && lead.status === 'SOLD' && lead.paymentMethod && (
             <div className="bg-green-50 border border-green-100 rounded-lg px-3 py-2 text-sm">
-              <p className="text-xs font-semibold text-green-700 mb-1">Детали продажи</p>
+              <p className="text-xs font-semibold text-green-700 mb-1">{t('cl.card.saleDetails')}</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-green-800">
-                <span>Шлюз: <b>{gatewayLabel(lead.paymentMethod, allGateways)}</b></span>
-                {lead.amount && <span>Сумма: <b>₸ {lead.amount.toLocaleString('ru')}</b></span>}
-                {lead.netAmount && <span>Бюджет: <b>₸ {lead.netAmount.toLocaleString('ru')}</b></span>}
-                {lead.paymentType && <span>Тип: <b>{lead.paymentType === 'new_sale' ? 'Новая' : 'Доплата'}</b></span>}
+                <span>{t('cl.card.gateway')} <b>{gatewayLabel(lead.paymentMethod, allGateways)}</b></span>
+                {lead.amount && <span>{t('cl.card.amount')} <b>₸ {lead.amount.toLocaleString('ru')}</b></span>}
+                {lead.netAmount && <span>{t('cl.card.dealBudget')} <b>₸ {lead.netAmount.toLocaleString('ru')}</b></span>}
+                {lead.paymentType && <span>{t('cl.card.payType')} <b>{lead.paymentType === 'new_sale' ? t('cl.card.payNew') : t('cl.card.payAdditional')}</b></span>}
               </div>
             </div>
           )}
@@ -884,7 +901,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
           {/* Existing tasks */}
           {lead.tasks.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Задачи</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('cl.card.tasks')}</p>
               <div className="space-y-1.5">
                 {lead.tasks.map(task => {
                   const overdue = !task.completed && isOverdue(task.dueDate)
@@ -913,7 +930,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
           {!showWork && lead.crmLink && (
             <a href={lead.crmLink} target="_blank" rel="noreferrer"
               className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
-              <ExternalLink className="w-4 h-4" /> Открыть в CRM
+              <ExternalLink className="w-4 h-4" /> {t('cl.card.crmLink')}
             </a>
           )}
 
@@ -925,7 +942,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
             <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2 text-sm text-orange-700 flex items-center gap-2">
               <RotateCcw className="w-4 h-4 shrink-0" />
               <div>
-                <p className="font-semibold">Возврат оформлен{lead.amount ? ` — ₸ ${lead.amount.toLocaleString('ru')}` : ''}</p>
+                <p className="font-semibold">{t('cl.card.refundDone')}{lead.amount ? ` — ₸ ${lead.amount.toLocaleString('ru')}` : ''}</p>
                 {lead.refundComment && <p className="text-xs text-orange-500 mt-0.5">{lead.refundComment}</p>}
               </div>
             </div>
@@ -934,7 +951,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
           {/* Closer comment */}
           {readonly && lead.closerComment && (
             <p className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
-              <span className="text-xs font-semibold text-gray-500 block mb-0.5">Комментарий</span>
+              <span className="text-xs font-semibold text-gray-500 block mb-0.5">{t('cl.card.closerComment')}</span>
               {lead.closerComment}
             </p>
           )}
@@ -956,6 +973,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function CloserLeadsPage() {
+  const { t } = useT()
   const periodState = usePeriodStore()
   const params = buildPeriodParams(periodState)
   const [searchParams] = useSearchParams()
@@ -1001,12 +1019,12 @@ export default function CloserLeadsPage() {
   const soldWithRefunds = sold.filter(l => l.isRefund)
 
   const tabs = [
-    { key: 'incoming', label: 'Запланированные', count: incoming.length,  dot: 'bg-blue-500', urgent: incoming.length > 0 },
-    { key: 'inwork',   label: 'Дожим',           count: inwork.length,    dot: 'bg-amber-400' },
-    { key: 'refused',  label: 'Отказы',           count: refused.length,   dot: 'bg-red-400' },
-    { key: 'sold',     label: 'Продажи',          count: soldPure.length,  dot: 'bg-green-400' },
-    { key: 'refunds',  label: 'Возвраты',         count: refunds.length,   dot: 'bg-orange-400', urgent: refunds.length > 0 },
-    { key: 'trash',    label: 'Корзина',           count: trash.length,     dot: 'bg-gray-400' },
+    { key: 'incoming', label: t('cl.tab.incoming'), count: incoming.length,  dot: 'bg-blue-500', urgent: incoming.length > 0 },
+    { key: 'inwork',   label: t('cl.tab.inwork'),   count: inwork.length,    dot: 'bg-amber-400' },
+    { key: 'refused',  label: t('cl.tab.refused'),  count: refused.length,   dot: 'bg-red-400' },
+    { key: 'sold',     label: t('cl.tab.sold'),     count: soldPure.length,  dot: 'bg-green-400' },
+    { key: 'refunds',  label: t('cl.tab.refunds'),  count: refunds.length,   dot: 'bg-orange-400', urgent: refunds.length > 0 },
+    { key: 'trash',    label: t('cl.tab.trash'),    count: trash.length,     dot: 'bg-gray-400' },
   ] as const
 
   const currentLeads = tab === 'incoming' ? incoming : tab === 'inwork' ? inwork : tab === 'refused' ? refused : tab === 'sold' ? soldPure : tab === 'trash' ? trash : refunds
@@ -1021,8 +1039,8 @@ export default function CloserLeadsPage() {
   return (
     <div className="space-y-5 max-w-[1200px] mx-auto px-4 md:px-8 py-4 md:py-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Встречи</h1>
-        <p className="text-sm text-gray-400 mt-0.5">Лиды от лидорубов</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('cl.title')}</h1>
+        <p className="text-sm text-gray-400 mt-0.5">{t('cl.subtitle')}</p>
       </div>
 
       {/* Tabs */}
@@ -1048,13 +1066,13 @@ export default function CloserLeadsPage() {
         {tab === 'sold' && sold.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap ml-auto">
             <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-1.5 text-sm">
-              <span className="text-green-600 font-medium">Бюджет: </span>
+              <span className="text-green-600 font-medium">{t('cl.budget')} </span>
               <span className="text-green-700 font-bold">₸ {soldNetTotal.toLocaleString('ru')}</span>
             </div>
             {soldWithRefunds.length > 0 && (
               <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-1.5 text-sm flex items-center gap-1.5">
                 <RotateCcw className="w-3.5 h-3.5 text-orange-500" />
-                <span className="text-orange-600 font-medium">Возвраты: </span>
+                <span className="text-orange-600 font-medium">{t('cl.refunds.label')} </span>
                 <span className="text-orange-700 font-bold">{soldWithRefunds.length} шт. / ₸ {soldRefundTotal.toLocaleString('ru')} (полная сумма)</span>
               </div>
             )}
@@ -1065,7 +1083,7 @@ export default function CloserLeadsPage() {
           <div className="flex items-center gap-2 flex-wrap ml-auto">
             <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-1.5 text-sm flex items-center gap-1.5">
               <RotateCcw className="w-3.5 h-3.5 text-orange-500" />
-              <span className="text-orange-600 font-medium">Итого возвращено: </span>
+              <span className="text-orange-600 font-medium">{t('cl.refunds.total')} </span>
               <span className="text-orange-700 font-bold">{refunds.length} шт. / ₸ {refundsGrossTotal.toLocaleString('ru')}</span>
             </div>
           </div>
@@ -1074,7 +1092,7 @@ export default function CloserLeadsPage() {
 
       {/* Content */}
       {currentQ.isLoading && (
-        <div className="card text-center text-gray-400 py-12">Загрузка...</div>
+        <div className="card text-center text-gray-400 py-12">{t('common.loading')}</div>
       )}
 
       {!currentQ.isLoading && currentLeads.length === 0 && (
@@ -1083,13 +1101,13 @@ export default function CloserLeadsPage() {
             <User className="w-6 h-6 text-gray-300" />
           </div>
           <p className="text-gray-400 font-medium">
-            {tab === 'incoming' ? 'Нет новых встреч' :
-             tab === 'inwork' ? 'Нет встреч в работе' :
-             tab === 'refused' ? 'Нет отказов за период' :
-             tab === 'refunds' ? 'Нет возвратов за период' :
-             tab === 'trash' ? 'Корзина пуста' : 'Нет продаж за период'}
+            {tab === 'incoming' ? t('cl.empty.incoming') :
+             tab === 'inwork' ? t('cl.empty.inwork') :
+             tab === 'refused' ? t('cl.empty.refused') :
+             tab === 'refunds' ? t('cl.empty.refunds') :
+             tab === 'trash' ? t('cl.empty.trash') : t('cl.empty.sold')}
           </p>
-          {tab === 'incoming' && <p className="text-xs text-gray-300 mt-1">Лидорубы пришлют встречи сюда</p>}
+          {tab === 'incoming' && <p className="text-xs text-gray-300 mt-1">{t('cl.empty.incomingHint')}</p>}
         </div>
       )}
 
