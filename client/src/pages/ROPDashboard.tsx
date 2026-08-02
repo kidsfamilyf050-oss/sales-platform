@@ -55,6 +55,7 @@ function Funnel({ steps }: { steps: { label: string; value: number; color?: stri
 
 // Refunds drill-down modal
 function RefundsModal({ leads, onClose }: { leads: any[]; onClose: () => void }) {
+  const { t } = useT()
   const total = leads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
@@ -62,7 +63,7 @@ function RefundsModal({ leads, onClose }: { leads: any[]; onClose: () => void })
         <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-2">
             <RotateCcw className="w-4 h-4 text-red-500" />
-            <h3 className="font-bold text-gray-900">Возвраты за период</h3>
+            <h3 className="font-bold text-gray-900">{t('dash.rop.refundTitle')}</h3>
             <span className="text-sm text-red-600 font-semibold bg-red-50 px-2 py-0.5 rounded-full">
               {leads.length} шт. · −₸ {total.toLocaleString('ru')}
             </span>
@@ -264,14 +265,14 @@ function ManagerDetail({ m }: { m: any }) {
                       {/* Expanded detail */}
                       {isOpen && (
                         <div className={`border-t px-4 py-3 grid grid-cols-2 gap-x-8 gap-y-1.5 text-xs ${s.isRefund ? 'border-red-200 bg-red-50/50' : 'border-gray-100 bg-gray-50/50'}`}>
-                          <div className="flex justify-between"><span className="text-gray-500">Сумма продажи</span><span className="font-medium">₸ {fmt(grossAmt)}</span></div>
-                          <div className="flex justify-between"><span className="text-gray-500">Бюджет сделки</span><span className={`font-bold ${s.isRefund ? 'text-red-600' : 'text-green-700'}`}>₸ {fmt(netAmt)}</span></div>
-                          {hasDiscount && <div className="flex justify-between"><span className="text-gray-500">Комиссия</span><span className="font-medium text-orange-600">{Math.round((1 - netAmt / grossAmt) * 100)}%</span></div>}
-                          {s.productName && <div className="flex justify-between"><span className="text-gray-500">Продукт</span><span className="font-medium text-purple-700">📦 {s.productName}</span></div>}
-                          {s.paymentMethod && <div className="flex justify-between"><span className="text-gray-500">Шлюз</span><span className="font-medium">{PAYMENT_METHOD_LABEL[s.paymentMethod] || s.paymentMethod}</span></div>}
-                          {s.bank && <div className="flex justify-between"><span className="text-gray-500">Банк</span><span className="font-medium">{s.bank}</span></div>}
-                          {s.months && <div className="flex justify-between"><span className="text-gray-500">Срок</span><span className="font-medium">{s.months} мес.</span></div>}
-                          {s.comment && <div className="col-span-2 flex gap-2"><span className="text-gray-500">Комментарий</span><span className="text-gray-700 italic">{s.comment}</span></div>}
+                          <div className="flex justify-between"><span className="text-gray-500">{t('dash.sale.gross')}</span><span className="font-medium">₸ {fmt(grossAmt)}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-500">{t('dash.sale.netDeal')}</span><span className={`font-bold ${s.isRefund ? 'text-red-600' : 'text-green-700'}`}>₸ {fmt(netAmt)}</span></div>
+                          {hasDiscount && <div className="flex justify-between"><span className="text-gray-500">{t('dash.sale.fee')}</span><span className="font-medium text-orange-600">{Math.round((1 - netAmt / grossAmt) * 100)}%</span></div>}
+                          {s.productName && <div className="flex justify-between"><span className="text-gray-500">{t('dash.rop.productCol')}</span><span className="font-medium text-purple-700">📦 {s.productName}</span></div>}
+                          {s.paymentMethod && <div className="flex justify-between"><span className="text-gray-500">{t('dash.sale.gateway')}</span><span className="font-medium">{PAYMENT_METHOD_LABEL[s.paymentMethod] || s.paymentMethod}</span></div>}
+                          {s.bank && <div className="flex justify-between"><span className="text-gray-500">{t('dash.sale.bank')}</span><span className="font-medium">{s.bank}</span></div>}
+                          {s.months && <div className="flex justify-between"><span className="text-gray-500">{t('dash.sale.months')}</span><span className="font-medium">{s.months} мес.</span></div>}
+                          {s.comment && <div className="col-span-2 flex gap-2"><span className="text-gray-500">{t('dash.sale.comment')}</span><span className="text-gray-700 italic">{s.comment}</span></div>}
                         </div>
                       )}
                     </div>
@@ -644,15 +645,15 @@ export default function ROPDashboard() {
       {productStats.length > 0 && (
         <div className="card">
           <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            📦 Продуктовая линейка — что продаётся лучше
+            📦 {t('dash.rop.productsTable')}
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left py-2 text-xs text-gray-400 font-medium">Продукт</th>
-                  <th className="text-center py-2 text-xs text-gray-400 font-medium">Продаж</th>
-                  <th className="text-right py-2 text-xs text-gray-400 font-medium">Сумма</th>
+                  <th className="text-left py-2 text-xs text-gray-400 font-medium">{t('dash.rop.productCol')}</th>
+                  <th className="text-center py-2 text-xs text-gray-400 font-medium">{t('dash.rop.countCol')}</th>
+                  <th className="text-right py-2 text-xs text-gray-400 font-medium">{t('dash.rop.amountCol')}</th>
                   <th className="text-right py-2 text-xs text-gray-400 font-medium">Доля</th>
                 </tr>
               </thead>

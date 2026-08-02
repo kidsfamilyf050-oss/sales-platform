@@ -59,6 +59,7 @@ function FunnelStep({ label, value, sub, color }: {
 
 // Custom tooltip for chart
 function ChartTooltip({ active, payload, label }: any) {
+  const { t } = useT()
   if (!active || !payload?.length) return null
   const entry = payload[0]?.payload
   return (
@@ -66,7 +67,7 @@ function ChartTooltip({ active, payload, label }: any) {
       <p className="font-semibold text-gray-700 mb-1">{label}</p>
       <p className="text-blue-600 font-bold">₸ {fmt(payload[0]?.value || 0)}</p>
       {entry?.sales > 0 && (
-        <p className="text-gray-500 text-xs mt-0.5">{entry.sales} сделок</p>
+        <p className="text-gray-500 text-xs mt-0.5">{entry.sales} {t('dash.sale.dealsShort')}</p>
       )}
     </div>
   )
@@ -131,14 +132,14 @@ function ManagerSalesDetail({ m }: { m: any }) {
                     </div>
                     {isOpen && (
                       <div className="border-t border-gray-100 px-4 py-3 bg-gray-50/50 grid grid-cols-2 gap-x-8 gap-y-1.5 text-xs">
-                        <div className="flex justify-between"><span className="text-gray-500">Сумма продажи</span><span className="font-medium">₸ {fmt(grossAmt)}</span></div>
-                        <div className="flex justify-between"><span className="text-gray-500">Бюджет сделки</span><span className="font-bold text-green-700">₸ {fmt(netAmt)}</span></div>
-                        {hasDiscount && <div className="flex justify-between"><span className="text-gray-500">Комиссия</span><span className="font-medium text-orange-600">{Math.round((1 - netAmt / grossAmt) * 100)}%</span></div>}
-                        {s.productName && <div className="flex justify-between"><span className="text-gray-500">Продукт</span><span className="font-medium text-purple-700">📦 {s.productName}</span></div>}
-                        {s.paymentMethod && <div className="flex justify-between"><span className="text-gray-500">Шлюз</span><span className="font-medium">{PAYMENT_METHOD_LABEL[s.paymentMethod] || s.paymentMethod}</span></div>}
-                        {s.bank && <div className="flex justify-between"><span className="text-gray-500">Банк</span><span className="font-medium">{s.bank}</span></div>}
-                        {s.months && <div className="flex justify-between"><span className="text-gray-500">Срок</span><span className="font-medium">{s.months} мес.</span></div>}
-                        {s.comment && <div className="col-span-2 flex gap-2"><span className="text-gray-500">Комментарий</span><span className="text-gray-700 italic">{s.comment}</span></div>}
+                        <div className="flex justify-between"><span className="text-gray-500">{t('dash.sale.gross')}</span><span className="font-medium">₸ {fmt(grossAmt)}</span></div>
+                        <div className="flex justify-between"><span className="text-gray-500">{t('dash.sale.netDeal')}</span><span className="font-bold text-green-700">₸ {fmt(netAmt)}</span></div>
+                        {hasDiscount && <div className="flex justify-between"><span className="text-gray-500">{t('dash.sale.fee')}</span><span className="font-medium text-orange-600">{Math.round((1 - netAmt / grossAmt) * 100)}%</span></div>}
+                        {s.productName && <div className="flex justify-between"><span className="text-gray-500">{t('dash.owner.productCol')}</span><span className="font-medium text-purple-700">📦 {s.productName}</span></div>}
+                        {s.paymentMethod && <div className="flex justify-between"><span className="text-gray-500">{t('dash.sale.gateway')}</span><span className="font-medium">{PAYMENT_METHOD_LABEL[s.paymentMethod] || s.paymentMethod}</span></div>}
+                        {s.bank && <div className="flex justify-between"><span className="text-gray-500">{t('dash.sale.bank')}</span><span className="font-medium">{s.bank}</span></div>}
+                        {s.months && <div className="flex justify-between"><span className="text-gray-500">{t('dash.sale.months')}</span><span className="font-medium">{s.months} мес.</span></div>}
+                        {s.comment && <div className="col-span-2 flex gap-2"><span className="text-gray-500">{t('dash.sale.comment')}</span><span className="text-gray-700 italic">{s.comment}</span></div>}
                       </div>
                     )}
                   </div>
@@ -173,9 +174,9 @@ export default function OwnerDashboard() {
   const { summary, dailyChart, managerRating, liderRating, productStats = [], gatewayAnalytics = [] } = data as any
 
   const STATUS = {
-    green:  { dot: 'bg-green-400',  bg: '',             label: 'В норме' },
-    yellow: { dot: 'bg-yellow-400', bg: 'bg-yellow-50', label: 'Отстаёт' },
-    red:    { dot: 'bg-red-500',    bg: 'bg-red-50',    label: 'Нет продаж' },
+    green:  { dot: 'bg-green-400',  bg: '',             label: t('dash.status.ok') },
+    yellow: { dot: 'bg-yellow-400', bg: 'bg-yellow-50', label: t('dash.status.behind') },
+    red:    { dot: 'bg-red-500',    bg: 'bg-red-50',    label: t('dash.status.noSales') },
   }
 
   // Funnel conversions — using LIDER data as source of truth
@@ -481,15 +482,15 @@ export default function OwnerDashboard() {
       {productStats.length > 0 && (
         <div className="card">
           <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            📦 Продуктовая линейка — что продаётся лучше
+            📦 {t('dash.owner.productStats')}
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left py-2 text-xs text-gray-400 font-medium">Продукт</th>
-                  <th className="text-center py-2 text-xs text-gray-400 font-medium">Продаж</th>
-                  <th className="text-right py-2 text-xs text-gray-400 font-medium">Сумма</th>
+                  <th className="text-left py-2 text-xs text-gray-400 font-medium">{t('dash.owner.productCol')}</th>
+                  <th className="text-center py-2 text-xs text-gray-400 font-medium">{t('dash.owner.countCol')}</th>
+                  <th className="text-right py-2 text-xs text-gray-400 font-medium">{t('dash.owner.amountCol')}</th>
                   <th className="text-right py-2 text-xs text-gray-400 font-medium">Доля</th>
                 </tr>
               </thead>

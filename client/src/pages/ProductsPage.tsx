@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { Plus, Pencil, Trash2, Check, X, Package, Tag } from 'lucide-react'
+import { useT } from '../i18n'
 
 type Product = { id: string; name: string; price: number; active: boolean; createdAt: string }
 type LossReason = { id: string; name: string; createdAt: string }
@@ -12,6 +13,7 @@ function fmt(n: number) {
 
 // ── Product Row ───────────────────────────────────────────────────────────────
 function ProductRow({ product, onEdit, onDelete }: { product: Product; onEdit: (p: Product) => void; onDelete: (id: string) => void }) {
+  const { t } = useT()
   return (
     <div className="flex items-center gap-3 py-3 px-4 bg-white rounded-xl border border-gray-100 shadow-sm">
       <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center shrink-0">
@@ -19,7 +21,7 @@ function ProductRow({ product, onEdit, onDelete }: { product: Product; onEdit: (
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-gray-900">{product.name}</p>
-        <p className="text-xs text-gray-400">Цена по умолчанию: {fmt(product.price)}</p>
+        <p className="text-xs text-gray-400">{t('products.defaultPrice')} {fmt(product.price)}</p>
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
         <button onClick={() => onEdit(product)}
@@ -61,6 +63,7 @@ function ReasonRow({ reason, onEdit, onDelete }: { reason: LossReason; onEdit: (
 
 // ── Product Modal ─────────────────────────────────────────────────────────────
 function ProductModal({ product, onClose }: { product?: Product; onClose: () => void }) {
+  const { t } = useT()
   const qc = useQueryClient()
   const [name, setName] = useState(product?.name || '')
   const [price, setPrice] = useState(product?.price ? String(product.price) : '')
@@ -71,12 +74,12 @@ function ProductModal({ product, onClose }: { product?: Product; onClose: () => 
       ? api.put(`/products/${product.id}`, { name, price: Number(price) }).then(r => r.data)
       : api.post('/products', { name, price: Number(price) }).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); onClose() },
-    onError: (e: any) => setError(e.response?.data?.error || 'Ошибка'),
+    onError: (e: any) => setError(e.response?.data?.error || t('common.error')),
   })
 
   const handleSave = () => {
-    if (!name.trim()) return setError('Введите название продукта')
-    if (!price || isNaN(Number(price)) || Number(price) < 0) return setError('Введите корректную цену')
+    if (!name.trim()) return setError(t('products.nameRequired'))
+    if (!price || isNaN(Number(price)) || Number(price) < 0) return setError(t('products.priceInvalid'))
     setError('')
     saveMut.mutate()
   }
@@ -84,31 +87,31 @@ function ProductModal({ product, onClose }: { product?: Product; onClose: () => 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
-        <h3 className="font-bold text-gray-900 mb-4">{product ? 'Редактировать продукт' : 'Новый продукт'}</h3>
+        <h3 className="font-bold text-gray-900 mb-4">{product ? t('products.modalEditTitle') : t('products.modalTitle')}</h3>
         <div className="space-y-3">
           <div>
-            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Название продукта *</label>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">{t('products.nameLabel')}</label>
             <input
               value={name} onChange={e => setName(e.target.value)}
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Например: Базовый курс" autoFocus
+              placeholder={t('products.namePlaceholder')} autoFocus
             />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-600 block mb-1.5">Цена по умолчанию (₸) *</label>
+            <label className="text-xs font-semibold text-gray-600 block mb-1.5">{t('products.priceLabel')}</label>
             <input
               type="number" value={price} onChange={e => setPrice(e.target.value)}
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="0"
             />
-            <p className="text-xs text-gray-400 mt-1">Клоузер сможет изменить при оформлении продажи</p>
+            <p className="text-xs text-gray-400 mt-1">{t('products.priceNote')}</p>
           </div>
           {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
         </div>
         <div className="flex gap-3 mt-5">
-          <button onClick={onClose} className="flex-1 btn-outline">Отмена</button>
+          <button onClick={onClose} className="flex-1 btn-outline">{t('common.cancel')}</button>
           <button onClick={handleSave} disabled={saveMut.isPending} className="flex-1 btn-primary">
-            {saveMut.isPending ? 'Сохранение...' : 'Сохранить'}
+            {saveMut.isPending ? t('products.saving') : t('common.save')}
           </button>
         </div>
       </div>
@@ -118,6 +121,7 @@ function ProductModal({ product, onClose }: { product?: Product; onClose: () => 
 
 // ── Loss Reason Modal ─────────────────────────────────────────────────────────
 function ReasonModal({ reason, onClose }: { reason?: LossReason; onClose: () => void }) {
+  const { t } = useT()
   const qc = useQueryClient()
   const [name, setName] = useState(reason?.name || '')
   const [error, setError] = useState('')
@@ -127,29 +131,29 @@ function ReasonModal({ reason, onClose }: { reason?: LossReason; onClose: () => 
       ? api.put(`/loss-reasons/${reason.id}`, { name }).then(r => r.data)
       : api.post('/loss-reasons', { name }).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['loss-reasons'] }); onClose() },
-    onError: (e: any) => setError(e.response?.data?.error || 'Ошибка'),
+    onError: (e: any) => setError(e.response?.data?.error || t('common.error')),
   })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
-        <h3 className="font-bold text-gray-900 mb-4">{reason ? 'Редактировать причину' : 'Новая причина отказа'}</h3>
+        <h3 className="font-bold text-gray-900 mb-4">{reason ? t('products.reasonModalEditTitle') : t('products.reasonModalTitle')}</h3>
         <div>
-          <label className="text-xs font-semibold text-gray-600 block mb-1.5">Причина *</label>
+          <label className="text-xs font-semibold text-gray-600 block mb-1.5">{t('products.reasonLabel')}</label>
           <input
             value={name} onChange={e => setName(e.target.value)}
             className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Например: Дорого" autoFocus
+            placeholder={t('products.reasonPlaceholder')} autoFocus
             onKeyDown={e => e.key === 'Enter' && name.trim() && saveMut.mutate()}
           />
-          <p className="text-xs text-gray-400 mt-1">Клоузер выберет причину при отказе лида</p>
+          <p className="text-xs text-gray-400 mt-1">{t('products.reasonNote')}</p>
           {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg mt-2">{error}</p>}
         </div>
         <div className="flex gap-3 mt-5">
-          <button onClick={onClose} className="flex-1 btn-outline">Отмена</button>
+          <button onClick={onClose} className="flex-1 btn-outline">{t('common.cancel')}</button>
           <button onClick={() => { if (!name.trim()) return; saveMut.mutate() }}
             disabled={saveMut.isPending} className="flex-1 btn-primary">
-            {saveMut.isPending ? 'Сохранение...' : 'Сохранить'}
+            {saveMut.isPending ? t('products.saving') : t('common.save')}
           </button>
         </div>
       </div>
@@ -159,6 +163,7 @@ function ReasonModal({ reason, onClose }: { reason?: LossReason; onClose: () => 
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ProductsPage() {
+  const { t } = useT()
   const qc = useQueryClient()
   const [productModal, setProductModal] = useState<{ open: boolean; product?: Product }>({ open: false })
   const [reasonModal, setReasonModal] = useState<{ open: boolean; reason?: LossReason }>({ open: false })
@@ -186,8 +191,8 @@ export default function ProductsPage() {
   return (
     <div className="space-y-8 max-w-2xl mx-auto px-4 md:px-8 py-4 md:py-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Продуктовая линейка</h1>
-        <p className="text-sm text-gray-400 mt-0.5">Управление продуктами и причинами отказов</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('products.title')}</h1>
+        <p className="text-sm text-gray-400 mt-0.5">{t('products.subtitle')}</p>
       </div>
 
       {/* ── Products ── */}
@@ -195,32 +200,32 @@ export default function ProductsPage() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <Package className="w-4 h-4 text-blue-600" /> Продукты
+              <Package className="w-4 h-4 text-blue-600" /> {t('products.sectionTitle')}
             </h2>
-            <p className="text-xs text-gray-400 mt-0.5">Клоузер выбирает продукт при оформлении продажи</p>
+            <p className="text-xs text-gray-400 mt-0.5">{t('products.sectionSubtitle')}</p>
           </div>
           <button
             onClick={() => setProductModal({ open: true })}
             className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors"
           >
-            <Plus className="w-4 h-4" /> Добавить
+            <Plus className="w-4 h-4" /> {t('common.add')}
           </button>
         </div>
 
         {loadingProducts ? (
-          <div className="text-center py-8 text-gray-400 text-sm">Загрузка...</div>
+          <div className="text-center py-8 text-gray-400 text-sm">{t('common.loading')}</div>
         ) : products.length === 0 ? (
           <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-gray-200">
             <div className="w-12 h-12 bg-blue-50 rounded-xl mx-auto flex items-center justify-center mb-3">
               <Package className="w-6 h-6 text-blue-400" />
             </div>
-            <p className="text-sm font-medium text-gray-500">Нет продуктов</p>
-            <p className="text-xs text-gray-400 mt-1">Добавьте продукты, чтобы клоузеры выбирали их при продаже</p>
+            <p className="text-sm font-medium text-gray-500">{t('products.empty')}</p>
+            <p className="text-xs text-gray-400 mt-1">{t('products.emptyNote')}</p>
             <button
               onClick={() => setProductModal({ open: true })}
               className="mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors"
             >
-              + Добавить первый продукт
+              {t('products.addFirst')}
             </button>
           </div>
         ) : (
@@ -229,7 +234,7 @@ export default function ProductsPage() {
               <ProductRow
                 key={p.id} product={p}
                 onEdit={prod => setProductModal({ open: true, product: prod })}
-                onDelete={id => { if (confirm('Удалить продукт?')) deleteProductMut.mutate(id) }}
+                onDelete={id => { if (confirm(t('products.deleteConfirm'))) deleteProductMut.mutate(id) }}
               />
             ))}
           </div>
@@ -241,32 +246,32 @@ export default function ProductsPage() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <Tag className="w-4 h-4 text-red-500" /> Причины отказов
+              <Tag className="w-4 h-4 text-red-500" /> {t('products.reasonsTitle')}
             </h2>
-            <p className="text-xs text-gray-400 mt-0.5">Клоузер выбирает причину при пометке лида как «Отказ»</p>
+            <p className="text-xs text-gray-400 mt-0.5">{t('products.reasonsSubtitle')}</p>
           </div>
           <button
             onClick={() => setReasonModal({ open: true })}
             className="flex items-center gap-1.5 px-3 py-2 bg-red-500 text-white text-sm font-medium rounded-xl hover:bg-red-600 transition-colors"
           >
-            <Plus className="w-4 h-4" /> Добавить
+            <Plus className="w-4 h-4" /> {t('common.add')}
           </button>
         </div>
 
         {loadingReasons ? (
-          <div className="text-center py-8 text-gray-400 text-sm">Загрузка...</div>
+          <div className="text-center py-8 text-gray-400 text-sm">{t('common.loading')}</div>
         ) : reasons.length === 0 ? (
           <div className="text-center py-10 bg-white rounded-2xl border border-dashed border-gray-200">
             <div className="w-12 h-12 bg-red-50 rounded-xl mx-auto flex items-center justify-center mb-3">
               <Tag className="w-6 h-6 text-red-400" />
             </div>
-            <p className="text-sm font-medium text-gray-500">Нет причин отказов</p>
-            <p className="text-xs text-gray-400 mt-1">Добавьте причины — например: «Дорого», «Не интересно», «Уже купил»</p>
+            <p className="text-sm font-medium text-gray-500">{t('products.reasonsEmpty')}</p>
+            <p className="text-xs text-gray-400 mt-1">{t('products.reasonsEmptyNote')}</p>
             <button
               onClick={() => setReasonModal({ open: true })}
               className="mt-4 px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-xl hover:bg-red-600 transition-colors"
             >
-              + Добавить причину
+              {t('products.addReason')}
             </button>
           </div>
         ) : (
@@ -275,7 +280,7 @@ export default function ProductsPage() {
               <ReasonRow
                 key={r.id} reason={r}
                 onEdit={reason => setReasonModal({ open: true, reason })}
-                onDelete={id => { if (confirm('Удалить причину?')) deleteReasonMut.mutate(id) }}
+                onDelete={id => { if (confirm(t('products.reasonDeleteConfirm'))) deleteReasonMut.mutate(id) }}
               />
             ))}
           </div>

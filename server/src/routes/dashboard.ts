@@ -139,8 +139,8 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const budgetPlan = plans.find(p => !p.userId && !p.departmentId && p.type === 'BUDGET')?.value || 0
 
     const avgCheck = totalSalesCount > 0 ? totalSalesAmount / totalSalesCount : 0
-    // Конверсия: встречи → продажи (из Lead model)
-    const conversion = totalConsultations > 0 ? Math.round((totalSalesCount / totalConsultations) * 1000) / 10 : 0
+    // Конверсия: встречи → продажи (из Lead model), целое % как у ROP
+    const conversion = totalConsultations > 0 ? Math.round((totalSalesCount / totalConsultations) * 100) : 0
     const conversionLabel = 'встречи → продажи'
     const effectiveBudget = totalBudget > 0 ? totalBudget : budgetPlan
     const leadCost = totalLiderLeads > 0 ? effectiveBudget / totalLiderLeads : 0
@@ -150,7 +150,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     for (const s of periodSales) {
       if (!dailySalesMap[s.date]) dailySalesMap[s.date] = { sales: 0, amount: 0 }
       dailySalesMap[s.date].sales++
-      dailySalesMap[s.date].amount += s.amount
+      dailySalesMap[s.date].amount += s.netAmount ?? s.amount
     }
 
     // ── Sales per user (Sale model) — use netAmount where available ─────────
@@ -160,14 +160,20 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       salesByUser[s.userId].salesCount++
       salesByUser[s.userId].salesAmount += s.netAmount ?? s.amount
     }
+    // clientsByUser, consultationsByUser, refusalsByUser — from Lead model (consistent with ROP)
     const clientsByUser: Record<string, number> = {}
     const consultationsByUser: Record<string, number> = {}
     const refusalsByUser: Record<string, number> = {}
-    for (const r of closerReports) {
-      const uid = r.user.id
-      clientsByUser[uid] = (clientsByUser[uid] || 0) + (Number((r.data as any).clientsReceived) || 0)
-      consultationsByUser[uid] = (consultationsByUser[uid] || 0) + (Number((r.data as any).consultations) || 0)
-      refusalsByUser[uid] = (refusalsByUser[uid] || 0) + (Number((r.data as any).refusals) || 0)
+    for (const l of allLiderLeads) {
+      if (!l.assignedToId) continue
+      const uid = l.assignedToId
+      clientsByUser[uid] = (clientsByUser[uid] || 0) + 1 // transferred = client received
+      if (l.consultationStatus === 'happened' || l.status === 'SOLD') {
+        consultationsByUser[uid] = (consultationsByUser[uid] || 0) + 1
+      }
+      if (l.status === 'REFUSED') {
+        refusalsByUser[uid] = (refusalsByUser[uid] || 0) + 1
+      }
     }
 
     // ── Manager (closer) rating ────────────────────────────────────────────
@@ -243,7 +249,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
           productStatsMap[s.productId] = { productId: s.productId, productName: s.product.name, count: 0, totalAmount: 0 }
         }
         productStatsMap[s.productId].count++
-        productStatsMap[s.productId].totalAmount += s.amount
+        productStatsMap[s.productId].totalAmount += s.netAmount ?? s.amount
       }
     }
     const productStats = Object.values(productStatsMap).sort((a, b) => b.totalAmount - a.totalAmount)
@@ -252,7 +258,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       summary: {
         salesPlan, totalSalesAmount, totalSalesCount, avgCheck: Math.round(avgCheck),
         totalRefundCount, totalRefundAmount, totalNetSales,
-        conversion: Math.round(conversion * 10) / 10,
+        conversion,
         conversionLabel,
         planCompletion: salesPlan > 0 ? Math.round((totalNetSales / salesPlan) * 1000) / 10 : 0,
         totalConsultations, totalRefusals, totalInWork,

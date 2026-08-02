@@ -210,7 +210,7 @@ export default function ManagerDashboard() {
             title="Скачать отчёт Excel"
           >
             <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Экспорт</span>
+            <span className="hidden sm:inline">{t('dash.closer.exportBtn')}</span>
           </button>
           {/* Closer/Lider no longer fill daily reports */}
         </div>
@@ -222,7 +222,7 @@ export default function ManagerDashboard() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
             <StatCard label={t('dash.manager.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
             <StatCard label={t('dash.manager.salesPeriod')} value={`₸ ${fmt(summary.netSalesAmount ?? summary.salesAmount)}`} color="blue"
-              sub={summary.refundCount > 0 ? `−₸ ${fmt(summary.refundTotal)} возвраты` : undefined} />
+              sub={summary.refundCount > 0 ? `−₸ ${fmt(summary.refundTotal)} ${t('dash.closer.refundsSuffix')}` : undefined} />
             <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
             <StatCard label={t('dash.manager.deals')} value={summary.salesCount} />
             <StatCard label={t('dash.conversion')} value={`${summary.leadConversion ?? summary.conversion}%`} />
@@ -232,24 +232,24 @@ export default function ManagerDashboard() {
           {/* Lead-based stats for closer */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div onClick={() => navigate('/closer/leads')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-blue-200 hover:bg-blue-50/40 border border-transparent">
-              <p className="text-xs font-medium text-gray-400 group-hover:text-blue-500 transition-colors uppercase tracking-wide mb-1">Входящих</p>
+              <p className="text-xs font-medium text-gray-400 group-hover:text-blue-500 transition-colors uppercase tracking-wide mb-1">{t('dash.closer.incoming')}</p>
               <p className="text-2xl font-bold text-blue-600">{summary.pendingLeadsCount ?? 0}</p>
-              <p className="text-xs text-gray-300 group-hover:text-blue-400 mt-1 transition-colors">новые заявки</p>
+              <p className="text-xs text-gray-300 group-hover:text-blue-400 mt-1 transition-colors">{t('dash.closer.newApps')}</p>
             </div>
             <div onClick={() => navigate('/closer/leads?tab=inwork')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-amber-200 hover:bg-amber-50/40 border border-transparent">
-              <p className="text-xs font-medium text-gray-400 group-hover:text-amber-500 transition-colors uppercase tracking-wide mb-1">Дожим</p>
+              <p className="text-xs font-medium text-gray-400 group-hover:text-amber-500 transition-colors uppercase tracking-wide mb-1">{t('dash.inWork')}</p>
               <p className="text-2xl font-bold text-amber-500">{summary.inWorkLeadsCount ?? 0}</p>
-              <p className="text-xs text-gray-300 group-hover:text-amber-400 mt-1 transition-colors">активных</p>
+              <p className="text-xs text-gray-300 group-hover:text-amber-400 mt-1 transition-colors">{t('dash.closer.activeLabel')}</p>
             </div>
             <div onClick={() => navigate('/closer/leads?tab=refused')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-red-100 hover:bg-red-50/30 border border-transparent">
-              <p className="text-xs font-medium text-gray-400 group-hover:text-red-500 transition-colors uppercase tracking-wide mb-1">Отказы</p>
+              <p className="text-xs font-medium text-gray-400 group-hover:text-red-500 transition-colors uppercase tracking-wide mb-1">{t('dash.refusals')}</p>
               <p className="text-2xl font-bold text-red-500">{summary.leadRefusedCount ?? 0}</p>
-              <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">за период</p>
+              <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">{t('dash.closer.forPeriod')}</p>
             </div>
             <div onClick={() => navigate('/closer/leads?tab=refunds')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-red-200 hover:bg-red-50/40 border border-transparent">
-              <p className="text-xs font-medium text-gray-400 group-hover:text-red-500 transition-colors uppercase tracking-wide mb-1">Возвраты</p>
+              <p className="text-xs font-medium text-gray-400 group-hover:text-red-500 transition-colors uppercase tracking-wide mb-1">{t('dash.closer.refunds')}</p>
               <p className="text-2xl font-bold text-red-500">{summary.refundCount ?? 0}</p>
-              <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">{summary.refundCount > 0 ? `−₸ ${fmt(summary.refundTotal ?? 0)}` : 'нет за период'}</p>
+              <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">{summary.refundCount > 0 ? `−₸ ${fmt(summary.refundTotal ?? 0)}` : t('dash.closer.noPeriod')}</p>
             </div>
           </div>
 
@@ -257,8 +257,8 @@ export default function ManagerDashboard() {
           {closerRankingData?.ranking?.length > 0 && (
             <div className="card">
               <div className="mb-3">
-                <h3 className="font-semibold text-gray-900">Рейтинг клоузеров</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Соревнуйся с коллегами — твоё место в команде</p>
+                <h3 className="font-semibold text-gray-900">{t('dash.closer.ratingTitle')}</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{t('dash.closer.ratingNote')}</p>
               </div>
               <div className="space-y-1.5">
                 {closerRankingData.ranking.map((r: any, idx: number) => {
@@ -274,7 +274,7 @@ export default function ManagerDashboard() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className={`text-sm font-semibold truncate ${isMe ? 'text-blue-800' : 'text-gray-800'}`}>{r.name}</span>
-                          {isMe && <span className="text-xs font-bold text-blue-600 shrink-0">← Ты здесь</span>}
+                          {isMe && <span className="text-xs font-bold text-blue-600 shrink-0">{t('dash.lider.rankMe')}</span>}
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           <div className="flex-1 relative h-4 bg-gray-100 rounded-full overflow-hidden">
@@ -320,7 +320,7 @@ export default function ManagerDashboard() {
                   <div key={s.id} className={`flex items-start justify-between p-3 rounded-xl border ${s.isRefund ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100'}`}>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        {s.isRefund && <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-200 text-red-700">Возврат</span>}
+                        {s.isRefund && <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-200 text-red-700">{t('dash.closer.refundBadge')}</span>}
                         {s.leadId ? (
                           <>
                             <span className="text-xs text-gray-400 shrink-0">Заявка: {new Date(s.date + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
@@ -346,7 +346,7 @@ export default function ManagerDashboard() {
                           </span>
                         )}
                         <span className="text-xs text-gray-500">{gatewayLabel(s.paymentMethod)}</span>
-                        {!s.isRefund && s.netAmount && <span className="text-xs text-green-600 font-medium">Бюджет: {s.netAmount.toLocaleString('ru')} ₸</span>}
+                        {!s.isRefund && s.netAmount && <span className="text-xs text-green-600 font-medium">{t('dash.closer.budgetLabel')} {s.netAmount.toLocaleString('ru')} ₸</span>}
                         {s.months && showMonths(s.paymentMethod) && <span className="text-xs text-gray-400">{s.months} мес.</span>}
                       </div>
                       {s.crmLink && (
@@ -363,7 +363,7 @@ export default function ManagerDashboard() {
                         className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={() => { if (confirm('Удалить продажу?')) deleteSale.mutate(s.id) }}
+                      <button onClick={() => { if (confirm(t('dash.closer.deleteSale'))) deleteSale.mutate(s.id) }}
                         className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -379,7 +379,7 @@ export default function ManagerDashboard() {
             <div className="card border-l-4 border-l-red-400">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h3 className="font-semibold text-red-600">Возвраты за период</h3>
+                  <h3 className="font-semibold text-red-600">{t('dash.closer.refundsTitle')}</h3>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {(refundLeads as any[]).length} шт. · −₸ {fmt((refundLeads as any[]).reduce((s: number, l: any) => s + (l.netAmount ?? l.amount ?? 0), 0))}
                   </p>
@@ -390,7 +390,7 @@ export default function ManagerDashboard() {
                   <div key={l.id} className="flex items-start justify-between p-3 bg-red-50 rounded-xl border border-red-100">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-200 text-red-700">Возврат</span>
+                        <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-200 text-red-700">{t('dash.closer.refundBadge')}</span>
                         <span className="font-bold text-red-600">−₸ {fmt(l.netAmount ?? l.amount ?? 0)}</span>
                         <span className="text-xs text-gray-400">
                           {new Date((l.refundedAt ?? l.date + 'T12:00:00')).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}
@@ -410,7 +410,7 @@ export default function ManagerDashboard() {
             <div className="flex items-start justify-between gap-2 mb-4 flex-wrap">
               <div>
                 <h3 className="font-semibold text-gray-900">
-                  {t('report.closer.sales')} {isToday ? 'сегодня' : new Date(salesDate + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}
+                  {t('report.closer.sales')} {isToday ? t('period.today').toLowerCase() : new Date(salesDate + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}
                 </h3>
                 {(todaySales as any[]).length > 0 && (
                   <p className="text-xs text-gray-400 mt-0.5">{(todaySales as any[]).length} сд. · ₸ {fmt(totalToday)}</p>
@@ -473,7 +473,7 @@ export default function ManagerDashboard() {
                   </div>
                 ))}
                 <div className="flex justify-between items-center pt-1 border-t border-gray-100 text-sm">
-                  <span className="text-gray-500">{t('report.closer.total')}: {(todaySales as any[]).length} сделок</span>
+                  <span className="text-gray-500">{t('report.closer.total')}: {(todaySales as any[]).length} {t('dash.closer.dealsCount')}</span>
                   <span className="font-bold text-gray-900">₸ {fmt(totalToday)}</span>
                 </div>
               </div>
@@ -506,7 +506,7 @@ export default function ManagerDashboard() {
                     </select>
                   </div>
                   <div className="col-span-2">
-                    <label className="label">Способ оплаты (шлюз)</label>
+                    <label className="label">{t('dash.closer.gatewayLabel')}</label>
                     <select className="input" value={saleForm.paymentMethod}
                       onChange={e => {
                         const m = e.target.value
@@ -523,11 +523,11 @@ export default function ManagerDashboard() {
                       return (
                         <div className="flex gap-2 mt-2">
                           <span className="text-xs px-2 py-1 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 font-medium">
-                            Комиссия: {(fee * 100).toFixed(1)}%
+                            {t('dash.closer.feeLabel')} {(fee * 100).toFixed(1)}%
                           </span>
                           {net !== null && (
                             <span className="text-xs px-2 py-1 bg-green-50 border border-green-200 rounded-lg text-green-700 font-medium">
-                              Бюджет сделки: {net.toLocaleString('ru')} ₸
+                              {t('dash.closer.dealBudget')} {net.toLocaleString('ru')} ₸
                             </span>
                           )}
                         </div>
@@ -562,7 +562,7 @@ export default function ManagerDashboard() {
 
                 <div>
                   <label className="label">{t('report.closer.comment')}</label>
-                  <textarea className="input" rows={2} placeholder="Заметки по сделке..."
+                  <textarea className="input" rows={2} placeholder={t('dash.closer.saleNotesPlaceholder')}
                     value={saleForm.comment}
                     onChange={e => setSaleForm(f => f ? { ...f, comment: e.target.value } : f)} />
                 </div>
@@ -570,11 +570,11 @@ export default function ManagerDashboard() {
                 <div className="flex gap-2 pt-1">
                   <button onClick={() => { setSaleForm(null); setEditingId(null) }}
                     className="btn-secondary flex items-center gap-1.5 flex-1 justify-center py-2">
-                    <X className="w-3.5 h-3.5" /> Отмена
+                    <X className="w-3.5 h-3.5" /> {t('common.cancel')}
                   </button>
                   <button onClick={saveSale} disabled={!saleForm.amount || !saleForm.crmLink || createSale.isPending || updateSale.isPending}
-                    className="btn-primary flex items-center gap-1.5 flex-1 justify-center py-2 disabled:opacity-40" title={!saleForm?.crmLink ? 'Заполните ссылку CRM' : ''}>
-                    <Check className="w-3.5 h-3.5" /> Сохранить
+                    className="btn-primary flex items-center gap-1.5 flex-1 justify-center py-2 disabled:opacity-40" title={!saleForm?.crmLink ? t('dash.closer.saveSaleHint') : ''}>
+                    <Check className="w-3.5 h-3.5" /> {t('common.save')}
                   </button>
                 </div>
               </div>
@@ -588,12 +588,12 @@ export default function ManagerDashboard() {
           <div onClick={() => navigate('/lider/leads')}
             className="card cursor-pointer group transition-all hover:shadow-md hover:border-blue-200 hover:bg-blue-50/30 border border-transparent flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-gray-700 group-hover:text-blue-700 transition-colors">Перейти к лидам</p>
+              <p className="text-sm font-semibold text-gray-700 group-hover:text-blue-700 transition-colors">{t('dash.closer.toLeads')}</p>
               <p className="text-xs text-gray-400 mt-0.5">
-                {summary.newCount > 0 && <span className="text-blue-600 font-medium mr-2">{summary.newCount} активных</span>}
-                {summary.assignedCount > 0 && <span className="text-purple-600 font-medium mr-2">{summary.assignedCount} передано</span>}
-                {summary.unqualifiedCount > 0 && <span className="text-gray-500 font-medium">{summary.unqualifiedCount} неквал.</span>}
-                {!summary.newCount && !summary.assignedCount && !summary.unqualifiedCount && 'Нет активных лидов'}
+                {summary.newCount > 0 && <span className="text-blue-600 font-medium mr-2">{summary.newCount} {t('dash.closer.activeLabel')}</span>}
+                {summary.assignedCount > 0 && <span className="text-purple-600 font-medium mr-2">{summary.assignedCount} {t('dash.closer.transferredLabel')}</span>}
+                {summary.unqualifiedCount > 0 && <span className="text-gray-500 font-medium">{summary.unqualifiedCount} {t('dash.closer.unqualLabel')}</span>}
+                {!summary.newCount && !summary.assignedCount && !summary.unqualifiedCount && t('dash.noSalesPeriod')}
               </p>
             </div>
             <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-blue-400 transition-colors shrink-0" />
@@ -605,7 +605,7 @@ export default function ManagerDashboard() {
             <StatCard label={t('dash.manager.qualified')} value={summary.qualifiedLeads} sub={`${summary.qualRate}% квал.`} />
             <StatCard label={t('dash.manager.meetings')} value={summary.meetingsScheduled} />
             <StatCard label={t('dash.manager.attended')} value={summary.meetingsAttended} color="blue" />
-            <StatCard label="Конверсия запись→конс." value={summary.meetingsScheduled > 0 ? `${Math.round(summary.meetingsAttended / summary.meetingsScheduled * 100)}%` : '—'} color="yellow" />
+            <StatCard label={t('dash.manager.schedToAtt')} value={summary.meetingsScheduled > 0 ? `${Math.round(summary.meetingsAttended / summary.meetingsScheduled * 100)}%` : '—'} color="yellow" />
             <StatCard label={t('dash.manager.meetingsPlan')} value={summary.meetingsScheduledPlan} sub={summary.planCompletion > 0 ? `${summary.planCompletion}% выполн.` : undefined} />
           </div>
 
