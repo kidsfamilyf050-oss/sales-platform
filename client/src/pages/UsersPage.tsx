@@ -178,15 +178,17 @@ export default function UsersPage() {
                 </select>
               </div>
             )}
-            <div className="col-span-2 flex items-center gap-2 py-1">
-              <input type="checkbox" id="showInPlans-create" checked={form.showInPlans}
-                onChange={e => setForm(f => ({ ...f, showInPlans: e.target.checked }))}
-                className="w-4 h-4 rounded accent-blue-600" />
-              <label htmlFor="showInPlans-create" className="text-sm text-gray-700 cursor-pointer select-none">
-                Отображать в планах
-              </label>
-            </div>
-            {form.role === 'ROP' && (
+            {form.role !== 'ROP' && (
+              <div className="col-span-2 flex items-center gap-2 py-1">
+                <input type="checkbox" id="showInPlans-create" checked={form.showInPlans}
+                  onChange={e => setForm(f => ({ ...f, showInPlans: e.target.checked }))}
+                  className="w-4 h-4 rounded accent-blue-600" />
+                <label htmlFor="showInPlans-create" className="text-sm text-gray-700 cursor-pointer select-none">
+                  Отображать в планах
+                </label>
+              </div>
+            )}
+            {form.role === 'ROP' && currentUser?.role === 'OWNER' && (
               <div className="col-span-2 flex items-center gap-2 py-1">
                 <input type="checkbox" id="canManageGateways-create" checked={form.canManageGateways}
                   onChange={e => setForm(f => ({ ...f, canManageGateways: e.target.checked }))}
@@ -333,15 +335,17 @@ export default function UsersPage() {
                             </select>
                           </div>
                         )}
-                        <div className="col-span-2 flex items-center gap-2 py-1">
-                          <input type="checkbox" id={`showInPlans-${u.id}`} checked={editForm.showInPlans !== false}
-                            onChange={e => setEditForm((f: any) => ({ ...f, showInPlans: e.target.checked }))}
-                            className="w-4 h-4 rounded accent-blue-600" />
-                          <label htmlFor={`showInPlans-${u.id}`} className="text-sm text-gray-700 cursor-pointer select-none">
-                            Отображать в планах
-                          </label>
-                        </div>
-                        {(editForm.role || u.role) === 'ROP' && (
+                        {(editForm.role || u.role) !== 'ROP' && (
+                          <div className="col-span-2 flex items-center gap-2 py-1">
+                            <input type="checkbox" id={`showInPlans-${u.id}`} checked={editForm.showInPlans !== false}
+                              onChange={e => setEditForm((f: any) => ({ ...f, showInPlans: e.target.checked }))}
+                              className="w-4 h-4 rounded accent-blue-600" />
+                            <label htmlFor={`showInPlans-${u.id}`} className="text-sm text-gray-700 cursor-pointer select-none">
+                              Отображать в планах
+                            </label>
+                          </div>
+                        )}
+                        {(editForm.role || u.role) === 'ROP' && currentUser?.role === 'OWNER' && (
                           <div className="col-span-2 flex items-center gap-2 py-1">
                             <input type="checkbox" id={`canManageGateways-${u.id}`} checked={editForm.canManageGateways === true}
                               onChange={e => setEditForm((f: any) => ({ ...f, canManageGateways: e.target.checked }))}

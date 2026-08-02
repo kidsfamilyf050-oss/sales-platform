@@ -1253,14 +1253,14 @@ export default function LiderLeadsPage() {
           </div>
         )}
 
-        {/* ── Leads recorded today (by createdAt server timestamp) ── */}
+        {/* ── Leads with meeting scheduled for today ── */}
         <div className="bg-white rounded-2xl border border-blue-100 mb-4 overflow-hidden">
           <button
             className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50/40 transition-colors"
             onClick={() => setShowAllToday(v => !v)}>
             <span className="flex items-center gap-2 text-sm font-bold text-gray-900">
               <Clock className="w-4 h-4 text-blue-500" />
-              Записаны сегодня
+              Записаны на сегодня
               {todayLeads.length > 0 && (
                 <span className="bg-blue-600 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-1">{todayLeads.length}</span>
               )}
@@ -1271,7 +1271,7 @@ export default function LiderLeadsPage() {
             todayLeads.length === 0 ? (
               <div className="px-4 pb-4 text-center py-6 text-gray-400">
                 <Calendar className="w-8 h-8 mx-auto mb-2 text-gray-200" />
-                <p className="text-sm">Сегодня лиды не записывались</p>
+                <p className="text-sm">На сегодня встреч не запланировано</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 px-4 pb-4">

@@ -101,22 +101,21 @@ router.get('/unqualified', authenticate, async (req: AuthRequest, res: Response)
   }
 })
 
-// ── GET /api/leads/today-appointments — lider: leads CREATED today (by server timestamp) ──
-// Uses createdAt (not the manually-entered date field), so a lead entered today
-// but with yesterday's date still appears. Ignores the period filter.
+// ── GET /api/leads/today-appointments — lider: leads with meeting SCHEDULED for today ──
+// Shows leads where appointmentDate = today OR postponedDate = today (i.e. meeting is today).
 router.get('/today-appointments', authenticate, async (req: AuthRequest, res: Response) => {
   const today = getKzToday() // KZ UTC+5 date string YYYY-MM-DD
   try {
-    // Start/end of today in KZ time, expressed as UTC for Prisma createdAt query
-    const startUtc = new Date(`${today}T00:00:00+05:00`)
-    const endUtc   = new Date(`${today}T23:59:59+05:00`)
     const leads = await prisma.lead.findMany({
       where: {
         createdById: req.user!.id,
-        createdAt: { gte: startUtc, lte: endUtc },
+        OR: [
+          { appointmentDate: today },
+          { postponedDate: today },
+        ],
       },
       include: INCLUDE_FULL,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { appointmentDate: 'asc' },
     })
     res.json(leads)
   } catch (e) {
