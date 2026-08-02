@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Menu, Calendar, AlertCircle, Clock, CalendarCheck } from 'lucide-react'
+import { Bell, Menu, Calendar, AlertCircle, Clock, CalendarCheck, ChevronRight } from 'lucide-react'
 import { api } from '../../api/client'
 import PeriodSelector from '../ui/PeriodSelector'
 import LanguageSwitcher from '../ui/LanguageSwitcher'
@@ -101,7 +101,7 @@ export default function Header({ onMenuClick }: Props) {
                       <a key={alert.type}
                         href={alert.url}
                         onClick={(e) => { e.preventDefault(); setOpen(false); navigate(alert.url) }}
-                        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer"
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer group"
                       >
                         <div className={`w-8 h-8 rounded-xl ${cfg.bg} flex items-center justify-center shrink-0`}>
                           <Icon className={`w-4 h-4 ${cfg.text}`} />
@@ -110,6 +110,7 @@ export default function Header({ onMenuClick }: Props) {
                         <span className={`text-sm font-bold ${cfg.text} ${cfg.bg} px-2.5 py-1 rounded-xl shrink-0`}>
                           {alert.count}
                         </span>
+                        <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 shrink-0 transition-colors" />
                       </a>
                     )
                   })}

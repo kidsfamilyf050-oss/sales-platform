@@ -87,48 +87,48 @@ const tomorrowDateStr = () => {
 }
 
 function KtsBadge({ lead }: { lead: Lead }) {
+  const { t } = useT()
   if (!lead.isQualified || lead.status === 'UNQUALIFIED')
-    return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Не квал</span>
-  // "В работе КЦ" — manual subStatus set by lider
+    return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">{t('lider.badge.unqual')}</span>
   if (lead.subStatus === 'in_work_kc')
-    return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">В работе КЦ</span>
-  // "В работе КЦ" only when closer has actually accepted (IN_WORK)
+    return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">{t('lider.badge.inwork')}</span>
   if (lead.status === 'IN_WORK')
-    return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">В работе КЦ</span>
-  // ASSIGNED with closer → show "Квал" + small indicator that it's awaiting closer
+    return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{t('lider.badge.inwork')}</span>
   if (lead.assignedToId && lead.status === 'ASSIGNED')
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-        Квал <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" title="Ожидает принятия клоузером" />
+        {t('lider.badge.qual')} <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
       </span>
     )
-  return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Квал</span>
+  return <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">{t('lider.badge.qual')}</span>
 }
 
 function SubStatusBadge({ value }: { value?: string | null }) {
+  const { t } = useT()
   if (!value) return <span className="text-gray-300 text-xs">—</span>
-  const map: Record<string, { label: string; cls: string }> = {
-    scheduled:   { label: 'Записан',      cls: 'bg-green-100 text-green-700' },
-    refused:     { label: 'Отказ',        cls: 'bg-red-100 text-red-700' },
-    thinking:    { label: 'Думает',       cls: 'bg-orange-100 text-orange-700' },
-    in_work_kc:  { label: 'В работе КЦ', cls: 'bg-purple-100 text-purple-700' },
+  const map: Record<string, { labelKey: string; cls: string }> = {
+    scheduled:   { labelKey: 'lider.sub.scheduled', cls: 'bg-green-100 text-green-700' },
+    refused:     { labelKey: 'lider.sub.refused',   cls: 'bg-red-100 text-red-700' },
+    thinking:    { labelKey: 'lider.sub.thinking',  cls: 'bg-orange-100 text-orange-700' },
+    in_work_kc:  { labelKey: 'lider.sub.inwork',    cls: 'bg-purple-100 text-purple-700' },
   }
   const s = map[value]
   if (!s) return <span className="text-gray-400 text-xs">{value}</span>
-  return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${s.cls}`}>{s.label}</span>
+  return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${s.cls}`}>{t(s.labelKey as any)}</span>
 }
 
 function ConsultationBadge({ value }: { value?: string | null }) {
+  const { t } = useT()
   if (!value) return <span className="text-gray-300 text-xs">—</span>
-  const map: Record<string, { label: string; cls: string }> = {
-    happened:     { label: 'Состоялась',    cls: 'bg-green-100 text-green-700' },
-    not_happened: { label: 'Не состоялась', cls: 'bg-red-100 text-red-700' },
-    postponed:    { label: 'Перенос',       cls: 'bg-orange-100 text-orange-700' },
-    planned:      { label: 'Запланировано', cls: 'bg-cyan-100 text-cyan-700' },
+  const map: Record<string, { labelKey: string; cls: string }> = {
+    happened:     { labelKey: 'lider.consult.happened',    cls: 'bg-green-100 text-green-700' },
+    not_happened: { labelKey: 'lider.consult.notHappened', cls: 'bg-red-100 text-red-700' },
+    postponed:    { labelKey: 'lider.consult.postponed',   cls: 'bg-orange-100 text-orange-700' },
+    planned:      { labelKey: 'lider.consult.planned',     cls: 'bg-cyan-100 text-cyan-700' },
   }
   const s = map[value]
   if (!s) return <span className="text-gray-400 text-xs">{value}</span>
-  return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${s.cls}`}>{s.label}</span>
+  return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${s.cls}`}>{t(s.labelKey as any)}</span>
 }
 
 // ── Row Menu (portal — fixes overflow clipping) ───────────────────────────────
@@ -285,19 +285,19 @@ function AddLeadModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900">Добавить лид</h2>
+          <h2 className="text-lg font-bold text-gray-900">{t('lider.btn.addLead')}</h2>
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Имя клиента *</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('lider.field.clientNameRequired')}</label>
               <input value={clientName} onChange={e => setClientName(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Иван Иванов" required />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Телефон *</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('lider.field.phone')}</label>
               <input value={phone} onChange={e => setPhone(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="+7 999 000 00 00" required />
@@ -305,12 +305,12 @@ function AddLeadModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Дата поступления</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('lider.field.arrivalDate')}</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Рекламный канал</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('lider.field.channel')}</label>
               <select value={salesChannelId} onChange={e => setSalesChannelId(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">— не выбран —</option>
@@ -319,25 +319,25 @@ function AddLeadModal({
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Ссылка на лид в рекламном кабинете</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('lider.field.leadLink')}</label>
             <input value={leadLink} onChange={e => setLeadLink(e.target.value)}
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="https://..." />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-2">Квалификация</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-2">{t('lider.col.qual')}</label>
             <div className="grid grid-cols-3 gap-2">
               {(['qual', 'unqual', 'inwork'] as const).map(mode => {
                 const cfg = {
-                  qual:   { label: 'Квал',        on: 'bg-green-600 text-white shadow-sm' },
-                  unqual: { label: 'Не квал',      on: 'bg-red-500 text-white shadow-sm' },
-                  inwork: { label: 'В работе КЦ',  on: 'bg-blue-600 text-white shadow-sm' },
+                  qual:   { labelKey: 'lider.badge.qual',   on: 'bg-green-600 text-white shadow-sm' },
+                  unqual: { labelKey: 'lider.badge.unqual', on: 'bg-red-500 text-white shadow-sm' },
+                  inwork: { labelKey: 'lider.badge.inwork', on: 'bg-blue-600 text-white shadow-sm' },
                 }[mode]
                 return (
                   <button key={mode} type="button" onClick={() => handleKtsModeChange(mode)}
                     className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${ktsMode === mode ? cfg.on : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                    {cfg.label}
+                    {t(cfg.labelKey as any)}
                   </button>
                 )
               })}
@@ -346,17 +346,17 @@ function AddLeadModal({
 
           {ktsMode !== 'unqual' && (
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-2">Статус: Записан / Отказ / Думает / В работе КЦ</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-2">{t('lider.subStatusFilter')}</label>
               <div className="grid grid-cols-2 gap-2">
-                {[
-                  ['scheduled',  'Записан',      'bg-green-600 text-white'],
-                  ['refused',    'Отказ',         'bg-red-500 text-white'],
-                  ['thinking',   'Думает',        'bg-orange-500 text-white'],
-                  ['in_work_kc', 'В работе КЦ',  'bg-purple-600 text-white'],
-                ].map(([val, label, cls]) => (
+                {([
+                  ['scheduled',  'lider.sub.scheduled', 'bg-green-600 text-white'],
+                  ['refused',    'lider.sub.refused',   'bg-red-500 text-white'],
+                  ['thinking',   'lider.sub.thinking',  'bg-orange-500 text-white'],
+                  ['in_work_kc', 'lider.sub.inwork',    'bg-purple-600 text-white'],
+                ] as const).map(([val, labelKey, cls]) => (
                   <button key={val} type="button" onClick={() => handleSubStatusChange(subStatus === val ? '' : val)}
                     className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${subStatus === val ? cls : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                    {label}
+                    {t(labelKey)}
                   </button>
                 ))}
               </div>
@@ -365,7 +365,7 @@ function AddLeadModal({
 
           {ktsMode !== 'unqual' && subStatus === 'scheduled' && (
             <div className="p-3.5 bg-green-50 border border-green-100 rounded-xl space-y-3">
-              <p className="text-xs font-semibold text-green-700">Дата и время консультации</p>
+              <p className="text-xs font-semibold text-green-700">{t('lider.field.consultDatetime')}</p>
               <div className="grid grid-cols-2 gap-3">
                 {/* п.4: min=date prevents scheduling before lead arrival; п.5: auto-set planned status */}
                 <input type="date" value={appointmentDate}
@@ -384,7 +384,7 @@ function AddLeadModal({
           {/* Closer dropdown — visible for qual and inwork; selecting a closer auto-switches to inwork */}
           {ktsMode !== 'unqual' && (
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Клоузер</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('lider.field.closer')}</label>
               <select
                 value={assignedToId}
                 onChange={e => setAssignedToId(e.target.value)}
@@ -396,7 +396,7 @@ function AddLeadModal({
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Комментарий</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('lider.field.comment')}</label>
             <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2}
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               placeholder="Необязательно" />
@@ -405,23 +405,23 @@ function AddLeadModal({
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose}
               className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
-              Отмена
+              {t('common.cancel')}
             </button>
             {/* п.8: channel required */}
             <button type="submit" disabled={mutation.isPending || !salesChannelId}
               className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">
-              {mutation.isPending ? 'Сохранение...' : 'Добавить лид'}
+              {mutation.isPending ? t('common.saving') : t('lider.btn.addLead')}
             </button>
           </div>
-          {!salesChannelId && <p className="text-xs text-orange-600 text-center">Выберите рекламный канал</p>}
+          {!salesChannelId && <p className="text-xs text-orange-600 text-center">{t('lider.field.noChannel')}</p>}
           {addError && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-3">
               <p className="text-xs text-red-700 font-semibold mb-1">⚠ Ошибка</p>
               <p className="text-xs text-red-600 whitespace-pre-line">{addError}</p>
-              <button type="button" onClick={() => setAddError(null)} className="mt-2 text-xs text-red-500 underline">Закрыть</button>
+              <button type="button" onClick={() => setAddError(null)} className="mt-2 text-xs text-red-500 underline">{t('lider.field.errorClose')}</button>
             </div>
           )}
-          {mutation.isError && <p className="text-xs text-red-600 text-center">Ошибка при сохранении</p>}
+          {mutation.isError && <p className="text-xs text-red-600 text-center">{t('lider.field.saveError')}</p>}
         </form>
       </div>
     </div>
@@ -513,25 +513,25 @@ function EditLeadModal({
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Редактировать лид</h2>
+            <h2 className="text-lg font-bold text-gray-900">{t('lider.field.editLead')}</h2>
             <p className="text-xs text-gray-400 mt-0.5">{lead.clientName} · {lead.phone}</p>
           </div>
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Имя клиента</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('lider.field.clientName')}</label>
             <input value={clientName} onChange={e => setClientName(e.target.value)}
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Дата поступления</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('lider.field.arrivalDate')}</label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Рекламный канал</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('lider.field.channel')}</label>
               <select value={salesChannelId} onChange={e => setSalesChannelId(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">— не выбран —</option>
@@ -540,7 +540,7 @@ function EditLeadModal({
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Ссылка на лид</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('lider.field.leadLinkShort')}</label>
             <input value={leadLink} onChange={e => setLeadLink(e.target.value)}
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="https://..." />
@@ -586,7 +586,7 @@ function EditLeadModal({
 
           {ktsMode !== 'unqual' && subStatus === 'scheduled' && (
             <div className="p-3.5 bg-green-50 border border-green-100 rounded-xl space-y-3">
-              <p className="text-xs font-semibold text-green-700">Дата и время консультации</p>
+              <p className="text-xs font-semibold text-green-700">{t('lider.field.consultDatetime')}</p>
               <div className="grid grid-cols-2 gap-3">
                 {/* п.4: min=date prevents scheduling before lead arrival */}
                 <input type="date" value={appointmentDate}
@@ -606,7 +606,7 @@ function EditLeadModal({
           {/* Closer dropdown — visible for qual and inwork; selecting a closer auto-switches to inwork */}
           {ktsMode !== 'unqual' && (
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Клоузер</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('lider.field.closer')}</label>
               <select
                 value={assignedToId}
                 onChange={e => setAssignedToId(e.target.value)}
@@ -622,12 +622,12 @@ function EditLeadModal({
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-2">{t('lider.col.consultation')}</label>
               <div className="grid grid-cols-2 gap-2">
-                {[
-                  ['planned',      'Запланировано', 'bg-cyan-600 text-white'],
-                  ['happened',     'Состоялась',    'bg-green-600 text-white'],
-                  ['not_happened', 'Не состоялась', 'bg-red-500 text-white'],
-                  ['postponed',    'Перенос',       'bg-orange-500 text-white'],
-                ].map(([val, label, cls]) => (
+                {([
+                  ['planned',      'lider.consult.planned',     'bg-cyan-600 text-white'],
+                  ['happened',     'lider.consult.happened',    'bg-green-600 text-white'],
+                  ['not_happened', 'lider.consult.notHappened', 'bg-red-500 text-white'],
+                  ['postponed',    'lider.consult.postponed',   'bg-orange-500 text-white'],
+                ] as const).map(([val, labelKey, cls]) => (
                   <button key={val} type="button"
                     onClick={() => {
                       const newVal = consultationStatus === val ? '' : val
@@ -636,7 +636,7 @@ function EditLeadModal({
                       if (newVal === 'postponed' && !postponedDate) setPostponedDate(tomorrowDateStr())
                     }}
                     className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${consultationStatus === val ? cls : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                    {label}
+                    {t(labelKey)}
                   </button>
                 ))}
               </div>
@@ -656,7 +656,7 @@ function EditLeadModal({
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Комментарий</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('lider.field.comment')}</label>
             <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2}
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none" />
           </div>
@@ -664,23 +664,23 @@ function EditLeadModal({
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose}
               className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
-              Отмена
+              {t('common.cancel')}
             </button>
             {/* п.8: channel required */}
             <button type="submit" disabled={mutation.isPending || !salesChannelId}
               className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors">
-              {mutation.isPending ? 'Сохранение...' : 'Сохранить изменения'}
+              {mutation.isPending ? t('common.saving') : t('common.save')}
             </button>
           </div>
-          {!salesChannelId && <p className="text-xs text-orange-600 text-center">Выберите рекламный канал</p>}
+          {!salesChannelId && <p className="text-xs text-orange-600 text-center">{t('lider.field.noChannel')}</p>}
           {editError && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-3">
               <p className="text-xs text-red-700 font-semibold mb-1">⚠ Ошибка</p>
               <p className="text-xs text-red-600 whitespace-pre-line">{editError}</p>
-              <button type="button" onClick={() => setEditError(null)} className="mt-2 text-xs text-red-500 underline">Закрыть</button>
+              <button type="button" onClick={() => setEditError(null)} className="mt-2 text-xs text-red-500 underline">{t('lider.field.errorClose')}</button>
             </div>
           )}
-          {mutation.isError && <p className="text-xs text-red-600 text-center">Ошибка при сохранении</p>}
+          {mutation.isError && <p className="text-xs text-red-600 text-center">{t('lider.field.saveError')}</p>}
         </form>
       </div>
     </div>
@@ -725,25 +725,24 @@ function QuickStatusModal({ lead, onClose }: { lead: Lead; onClose: () => void }
           )}
         </div>
         <div className="space-y-2 mb-4">
-          {[
-            ['planned',      'Запланировано', 'border-cyan-500 bg-cyan-50 text-cyan-800'],
-            ['happened',     'Состоялась',    'border-green-500 bg-green-50 text-green-800'],
-            ['not_happened', 'Не состоялась', 'border-red-500 bg-red-50 text-red-800'],
-            ['postponed',    'Перенос',       'border-orange-500 bg-orange-50 text-orange-800'],
-          ].map(([val, label, cls]) => (
+          {([
+            ['planned',      'lider.consult.planned',     'border-cyan-500 bg-cyan-50 text-cyan-800'],
+            ['happened',     'lider.consult.happened',    'border-green-500 bg-green-50 text-green-800'],
+            ['not_happened', 'lider.consult.notHappened', 'border-red-500 bg-red-50 text-red-800'],
+            ['postponed',    'lider.consult.postponed',   'border-orange-500 bg-orange-50 text-orange-800'],
+          ] as const).map(([val, labelKey, cls]) => (
             <button key={val} onClick={() => {
               setStatus(val)
-              // Auto-fill postponedDate with tomorrow when selecting 'postponed'
               if (val === 'postponed' && !pDate) setPDate(tomorrowDateStr())
             }}
               className={`w-full py-3 rounded-xl text-sm font-semibold border-2 transition-all ${status === val ? cls : 'border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50'}`}>
-              {label}
+              {t(labelKey)}
             </button>
           ))}
         </div>
         {status === 'postponed' && (
           <div className="p-3.5 bg-orange-50 border border-orange-100 rounded-xl mb-4 space-y-2">
-            <p className="text-xs font-semibold text-orange-700">Перенесено на</p>
+            <p className="text-xs font-semibold text-orange-700">{t('lider.consult.postponed')}</p>
             <div className="grid grid-cols-2 gap-2">
               <input type="date" value={pDate} onChange={e => setPDate(e.target.value)}
                 className="w-full border border-orange-200 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
@@ -755,7 +754,7 @@ function QuickStatusModal({ lead, onClose }: { lead: Lead; onClose: () => void }
         <div className="flex gap-2">
           <button onClick={onClose}
             className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50">
-            Отмена
+            {t('common.cancel')}
           </button>
           <button onClick={() => mutation.mutate({
             consultationStatus: status || null,
@@ -763,7 +762,7 @@ function QuickStatusModal({ lead, onClose }: { lead: Lead; onClose: () => void }
             postponedTime: status === 'postponed' ? pTime || null : null,
           })} disabled={!status || mutation.isPending}
             className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold disabled:opacity-50">
-            {mutation.isPending ? '...' : 'Сохранить'}
+            {mutation.isPending ? '...' : t('common.save')}
           </button>
         </div>
       </div>
@@ -1185,25 +1184,25 @@ export default function LiderLeadsPage() {
             <select value={pendingKtsStatus} onChange={e => setPendingKtsStatus(e.target.value)}
               className={`py-2 px-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${pendingKtsStatus ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-600'}`}>
               <option value="">{t('lider.qualFilter')}</option>
-              <option value="qualified">Квал</option>
-              <option value="unqualified">Не квал</option>
-              <option value="in_work">В работе КЦ</option>
+              <option value="qualified">{t('lider.badge.qual')}</option>
+              <option value="unqualified">{t('lider.badge.unqual')}</option>
+              <option value="in_work">{t('lider.badge.inwork')}</option>
             </select>
             <select value={pendingSubStatus} onChange={e => setPendingSubStatus(e.target.value)}
               className={`py-2 px-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${pendingSubStatus ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-600'}`}>
               <option value="">{t('lider.subStatusFilter')}</option>
-              <option value="scheduled">Записан</option>
-              <option value="refused">Отказ</option>
-              <option value="thinking">Думает</option>
-              <option value="in_work_kc">В работе КЦ</option>
+              <option value="scheduled">{t('lider.sub.scheduled')}</option>
+              <option value="refused">{t('lider.sub.refused')}</option>
+              <option value="thinking">{t('lider.sub.thinking')}</option>
+              <option value="in_work_kc">{t('lider.sub.inwork')}</option>
             </select>
             <select value={pendingConsultation} onChange={e => setPendingConsultation(e.target.value)}
               className={`py-2 px-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${pendingConsultation ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-600'}`}>
               <option value="">{t('lider.consultFilter')}</option>
-              <option value="planned">Запланировано</option>
-              <option value="happened">Состоялась</option>
-              <option value="not_happened">Не состоялась</option>
-              <option value="postponed">Перенос</option>
+              <option value="planned">{t('lider.consult.planned')}</option>
+              <option value="happened">{t('lider.consult.happened')}</option>
+              <option value="not_happened">{t('lider.consult.notHappened')}</option>
+              <option value="postponed">{t('lider.consult.postponed')}</option>
             </select>
             <div className="flex items-center gap-1.5 border border-gray-200 rounded-xl px-3 py-2">
               <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
@@ -1229,7 +1228,7 @@ export default function LiderLeadsPage() {
             <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-gray-100">
               <span className="text-xs text-gray-400">{t('lider.filterLabel')}</span>
               {search && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">«{search}»</span>}
-              {channelId && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">Канал</span>}
+              {channelId && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">{t('lider.field.channelChip')}</span>}
               {ktsStatus && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">{ktsStatus}</span>}
               {subStatusFilter && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">{subStatusFilter}</span>}
               {consultationFilter && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">{consultationFilter}</span>}
@@ -1298,7 +1297,7 @@ export default function LiderLeadsPage() {
                   const apptTime = lead.postponedDate ? lead.postponedTime : lead.appointmentTime
                   const cs = lead.consultationStatus
                   const csColor = cs === 'happened' ? 'text-green-600' : cs === 'cancelled' ? 'text-red-500' : cs === 'postponed' ? 'text-orange-500' : 'text-blue-600'
-                  const csLabel = cs === 'happened' ? 'Состоялась' : cs === 'cancelled' ? 'Не состоялась' : cs === 'postponed' ? 'Перенесена' : cs === 'planned' ? 'Запланирована' : 'Записан'
+                  const csLabel = cs === 'happened' ? t('lider.consult.happened') : cs === 'cancelled' ? t('lider.consult.notHappened') : cs === 'postponed' ? t('lider.consult.postponed') : cs === 'planned' ? t('lider.consult.planned') : t('lider.sub.scheduled')
                   return (
                     <div key={lead.id} className="p-3 rounded-xl border bg-green-50 border-green-100">
                       <p className="text-xs font-bold text-gray-900 truncate">{lead.clientName}</p>
@@ -1395,7 +1394,7 @@ export default function LiderLeadsPage() {
                           onClick={() => setStatusLead(lead)}
                           className="text-xs text-red-600 hover:text-red-800 font-semibold whitespace-nowrap shrink-0"
                         >
-                          Отметить
+                          {t('lider.btn.mark')}
                         </button>
                       </div>
                     </div>
@@ -1460,10 +1459,10 @@ export default function LiderLeadsPage() {
                           <td className="px-2 py-3 min-w-[140px]">
                             <div className="space-y-1.5">
                               <input value={inlineLeadLink} onChange={e => setInlineLeadLink(e.target.value)}
-                                placeholder="Ссылка на лид..."
+                                placeholder={t('lider.field.leadLinkPlaceholder')}
                                 className="w-full text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white" />
                               <input value={inlineName} onChange={e => setInlineName(e.target.value)}
-                                placeholder="Имя клиента *"
+                                placeholder={t('lider.field.clientNamePlaceholder')}
                                 autoFocus
                                 className="w-full text-xs border border-blue-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white font-medium" />
                             </div>
@@ -1497,7 +1496,7 @@ export default function LiderLeadsPage() {
                                         : 'bg-purple-600 text-white'
                                       : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                                   }`}>
-                                  {mode === 'qual' ? 'Квал' : mode === 'unqual' ? 'Не квал' : 'В работе КЦ'}
+                                  {mode === 'qual' ? t('lider.badge.qual') : mode === 'unqual' ? t('lider.badge.unqual') : t('lider.badge.inwork')}
                                 </button>
                               ))}
                             </div>
@@ -1510,11 +1509,11 @@ export default function LiderLeadsPage() {
                               className={`text-xs border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white w-28 ${
                                 inlineKtsMode === 'unqual' ? 'opacity-40 cursor-not-allowed border-gray-200' : 'border-gray-300'
                               }`}>
-                              <option value="">— статус —</option>
-                              <option value="scheduled">Записан</option>
-                              <option value="refused">Отказ</option>
-                              <option value="thinking">Думает</option>
-                              <option value="in_work_kc">В работе КЦ</option>
+                              <option value="">{t('lider.sub.placeholder')}</option>
+                              <option value="scheduled">{t('lider.sub.scheduled')}</option>
+                              <option value="refused">{t('lider.sub.refused')}</option>
+                              <option value="thinking">{t('lider.sub.thinking')}</option>
+                              <option value="in_work_kc">{t('lider.sub.inwork')}</option>
                             </select>
                           </td>
                           {/* Appointment date + time — min=inlineDate prevents booking before lead arrival */}
@@ -1539,7 +1538,7 @@ export default function LiderLeadsPage() {
                           <td className="px-2 py-3">
                             <select value={inlineCloserId} onChange={e => setInlineCloserId(e.target.value)}
                               className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white w-28">
-                              <option value="">— клоузер —</option>
+                              <option value="">{t('lider.closer.placeholder')}</option>
                               {closers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
                           </td>
@@ -1548,11 +1547,11 @@ export default function LiderLeadsPage() {
                             {inlineSubStatus === 'scheduled' ? (
                               <select value={inlineConsultationStatus} onChange={e => setInlineConsultationStatus(e.target.value)}
                                 className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white w-32">
-                                <option value="">— статус —</option>
-                                <option value="planned">Запланировано</option>
-                                <option value="happened">Состоялась</option>
-                                <option value="not_happened">Не состоялась</option>
-                                <option value="postponed">Перенос</option>
+                                <option value="">{t('lider.consult.placeholder')}</option>
+                                <option value="planned">{t('lider.consult.planned')}</option>
+                                <option value="happened">{t('lider.consult.happened')}</option>
+                                <option value="not_happened">{t('lider.consult.notHappened')}</option>
+                                <option value="postponed">{t('lider.consult.postponed')}</option>
                               </select>
                             ) : (
                               <span className="text-xs text-gray-300">—</span>
@@ -1567,13 +1566,13 @@ export default function LiderLeadsPage() {
                             <div className="flex flex-col gap-1.5">
                               <button onClick={saveInlineLead}
                                 disabled={!inlineName.trim() || !inlineChannelId || createMutation.isPending}
-                                title={!inlineChannelId ? 'Выберите рекламный канал' : undefined}
+                                title={!inlineChannelId ? t('lider.field.noChannel') : undefined}
                                 className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg disabled:opacity-40 transition-colors whitespace-nowrap">
-                                <Check className="w-3 h-3" /> Сохранить
+                                <Check className="w-3 h-3" /> {t('common.save')}
                               </button>
                               <button onClick={resetInlineForm}
                                 className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-100 transition-colors whitespace-nowrap">
-                                <X className="w-3 h-3" /> Отмена
+                                <X className="w-3 h-3" /> {t('common.cancel')}
                               </button>
                             </div>
                           </td>
