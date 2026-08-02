@@ -613,7 +613,7 @@ export default function ManagerDashboard() {
           <div className="card">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-blue-500" /> Консультации сегодня
+                <Calendar className="w-4 h-4 text-blue-500" /> {t('dash.lider.consultToday')}
               </h3>
               <span className={`text-xs font-bold rounded-full px-2.5 py-1 ${todayAppointments.length > 0 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
                 {todayAppointments.length}

@@ -138,6 +138,7 @@ function RowMenu({ lead, onEdit, onStatus, onDelete }: {
   onStatus: () => void
   onDelete: () => void
 }) {
+  const { t } = useT()
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -188,7 +189,7 @@ function RowMenu({ lead, onEdit, onStatus, onDelete }: {
           {canSetStatus && (
             <button onClick={() => { setOpen(false); onStatus() }}
               className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-              📋 Статус встречи
+              📋 {t('lider.col.consultation')}
             </button>
           )}
           <div className="border-t border-gray-100 my-1" />
@@ -437,6 +438,7 @@ function EditLeadModal({
   closers: { id: string; name: string }[]
 }) {
   const qc = useQueryClient()
+  const { t } = useT()
   const [clientName, setClientName] = useState(lead.clientName)
   const [phone, setPhone] = useState(lead.phone)
   const [date, setDate] = useState(lead.date)
@@ -618,7 +620,7 @@ function EditLeadModal({
           {/* п.3: hide meeting status for Не квал */}
           {hasAppointment && ktsMode !== 'unqual' && (
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-2">Статус встречи</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-2">{t('lider.col.consultation')}</label>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   ['planned',      'Запланировано', 'bg-cyan-600 text-white'],
@@ -688,6 +690,7 @@ function EditLeadModal({
 // ── QuickStatusModal ──────────────────────────────────────────────────────────
 function QuickStatusModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const qc = useQueryClient()
+  const { t } = useT()
   const [status, setStatus] = useState(lead.consultationStatus || '')
   const [pDate, setPDate] = useState(lead.postponedDate || '')
   const [pTime, setPTime] = useState(lead.postponedTime || '')
@@ -707,7 +710,7 @@ function QuickStatusModal({ lead, onClose }: { lead: Lead; onClose: () => void }
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-bold text-gray-900">Статус встречи</h3>
+          <h3 className="text-base font-bold text-gray-900">{t('lider.col.consultation')}</h3>
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"><X className="w-5 h-5" /></button>
         </div>
         <div className="mb-4 p-3 bg-gray-50 rounded-xl">
@@ -1029,7 +1032,7 @@ export default function LiderLeadsPage() {
           <div className="flex-1" />
           <button onClick={exportExcel}
             className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors">
-            <Download className="w-4 h-4" /> Экспорт Excel
+            <Download className="w-4 h-4" /> {t('lider.export')}
           </button>
           <button onClick={() => refetch()}
             className="p-2 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors" title="Обновить">
@@ -1088,10 +1091,10 @@ export default function LiderLeadsPage() {
             <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-5">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Выполнение плана по встречам</p>
+                  <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">{t('lider.planTitle')}</p>
                   <div className="flex items-end gap-2 mt-0.5">
                     <p className={`text-3xl font-black ${color}`}>{pct}%</p>
-                    <p className="text-sm text-gray-400 mb-0.5 font-medium">{stats.totalHappened} из {stats.meetingsAttendedPlan} встреч</p>
+                    <p className="text-sm text-gray-400 mb-0.5 font-medium">{stats.totalHappened} из {stats.meetingsAttendedPlan} {t('lider.meetings')}</p>
                   </div>
                 </div>
                 <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center ${glow}`}>
@@ -1170,25 +1173,25 @@ export default function LiderLeadsPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input value={pendingSearch} onChange={e => setPendingSearch(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && applyFilters()}
-                placeholder="Поиск по имени, телефону, ссылке..."
+                placeholder={t('lider.search')}
                 className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             </div>
             {/* ✅ Fix #2/#7: channel filter with pending state */}
             <select value={pendingChannelId} onChange={e => setPendingChannelId(e.target.value)}
               className={`py-2 px-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${pendingChannelId ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-600'}`}>
-              <option value="">Все каналы</option>
+              <option value="">{t('lider.allChannels')}</option>
               {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <select value={pendingKtsStatus} onChange={e => setPendingKtsStatus(e.target.value)}
               className={`py-2 px-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${pendingKtsStatus ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-600'}`}>
-              <option value="">Квал/Не квал</option>
+              <option value="">{t('lider.qualFilter')}</option>
               <option value="qualified">Квал</option>
               <option value="unqualified">Не квал</option>
               <option value="in_work">В работе КЦ</option>
             </select>
             <select value={pendingSubStatus} onChange={e => setPendingSubStatus(e.target.value)}
               className={`py-2 px-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${pendingSubStatus ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-600'}`}>
-              <option value="">Статус записи</option>
+              <option value="">{t('lider.subStatusFilter')}</option>
               <option value="scheduled">Записан</option>
               <option value="refused">Отказ</option>
               <option value="thinking">Думает</option>
@@ -1196,7 +1199,7 @@ export default function LiderLeadsPage() {
             </select>
             <select value={pendingConsultation} onChange={e => setPendingConsultation(e.target.value)}
               className={`py-2 px-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${pendingConsultation ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-600'}`}>
-              <option value="">Статус встречи</option>
+              <option value="">{t('lider.consultFilter')}</option>
               <option value="planned">Запланировано</option>
               <option value="happened">Состоялась</option>
               <option value="not_happened">Не состоялась</option>
@@ -1224,13 +1227,13 @@ export default function LiderLeadsPage() {
           </div>
           {filtersActive && (
             <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-gray-100">
-              <span className="text-xs text-gray-400">Фильтры:</span>
+              <span className="text-xs text-gray-400">{t('lider.filterLabel')}</span>
               {search && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">«{search}»</span>}
               {channelId && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">Канал</span>}
               {ktsStatus && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">{ktsStatus}</span>}
               {subStatusFilter && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">{subStatusFilter}</span>}
               {consultationFilter && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">{consultationFilter}</span>}
-              {dateFilter && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">Дата: {fmtDate(dateFilter)}</span>}
+              {dateFilter && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">{t('lider.filterDate')} {fmtDate(dateFilter)}</span>}
             </div>
           )}
         </div>
@@ -1272,13 +1275,13 @@ export default function LiderLeadsPage() {
             onClick={() => setShowScheduledToday(v => !v)}>
             <span className="flex items-center gap-2 text-sm font-bold text-gray-900">
               <Check className="w-4 h-4 text-green-500" />
-              Записаны сегодня
+              {t('lider.section.scheduledToday')}
               {scheduledTodayLeads.length > 0 && (
                 <span className="bg-green-600 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-1">{scheduledTodayLeads.length}</span>
               )}
             </span>
             <span className="flex items-center gap-2">
-              <span className="text-xs text-gray-400">Сегодняшние лиды, которых записали на встречу</span>
+              <span className="text-xs text-gray-400">{t('lider.section.scheduledTodayHint')}</span>
               <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showScheduledToday ? 'rotate-180' : ''}`} />
             </span>
           </button>
@@ -1286,7 +1289,7 @@ export default function LiderLeadsPage() {
             scheduledTodayLeads.length === 0 ? (
               <div className="px-4 pb-4 text-center py-6 text-gray-400">
                 <Calendar className="w-8 h-8 mx-auto mb-2 text-gray-200" />
-                <p className="text-sm">Сегодня ни одного лида не записали на встречу</p>
+                <p className="text-sm">{t('lider.section.noScheduledToday')}</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 px-4 pb-4">
@@ -1299,7 +1302,7 @@ export default function LiderLeadsPage() {
                   return (
                     <div key={lead.id} className="p-3 rounded-xl border bg-green-50 border-green-100">
                       <p className="text-xs font-bold text-gray-900 truncate">{lead.clientName}</p>
-                      <p className="text-xs text-gray-500 truncate mt-0.5">{lead.assignedTo?.name || 'Без клоузера'}</p>
+                      <p className="text-xs text-gray-500 truncate mt-0.5">{lead.assignedTo?.name || t('lider.noCloser')}</p>
                       {apptDate && (
                         <p className="text-xs text-gray-700 mt-1 flex items-center gap-1">
                           <Calendar className="w-3 h-3 shrink-0 text-green-600" />
@@ -1322,7 +1325,7 @@ export default function LiderLeadsPage() {
             onClick={() => setShowAllToday(v => !v)}>
             <span className="flex items-center gap-2 text-sm font-bold text-gray-900">
               <Clock className="w-4 h-4 text-blue-500" />
-              Записаны на сегодня
+              {t('lider.section.scheduledForToday')}
               {todayLeads.length > 0 && (
                 <span className="bg-blue-600 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-1">{todayLeads.length}</span>
               )}
@@ -1333,7 +1336,7 @@ export default function LiderLeadsPage() {
             todayLeads.length === 0 ? (
               <div className="px-4 pb-4 text-center py-6 text-gray-400">
                 <Calendar className="w-8 h-8 mx-auto mb-2 text-gray-200" />
-                <p className="text-sm">На сегодня встреч не запланировано</p>
+                <p className="text-sm">{t('lider.section.noScheduledForToday')}</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 px-4 pb-4">
@@ -1343,7 +1346,7 @@ export default function LiderLeadsPage() {
                   return (
                     <div key={lead.id} className="p-3 rounded-xl border bg-blue-50 border-blue-100">
                       <p className="text-xs font-bold text-gray-900 truncate">{lead.clientName}</p>
-                      <p className="text-xs text-gray-500 truncate mt-0.5">{lead.assignedTo?.name || 'Без клоузера'}</p>
+                      <p className="text-xs text-gray-500 truncate mt-0.5">{lead.assignedTo?.name || t('lider.noCloser')}</p>
                       {apptDate && (
                         <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
                           <Calendar className="w-3 h-3 shrink-0" />
@@ -1367,7 +1370,7 @@ export default function LiderLeadsPage() {
               onClick={() => setShowOverdue(v => !v)}>
               <span className="flex items-center gap-2 text-sm font-bold text-red-700">
                 <AlertCircle className="w-4 h-4 text-red-500" />
-                Просроченные встречи
+                {t('lider.section.overdue')}
                 <span className="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5 ml-1">{overdueLeads.length}</span>
               </span>
               <ChevronDown className={`w-4 h-4 text-red-400 transition-transform ${showOverdue ? 'rotate-180' : ''}`} />
@@ -1386,7 +1389,7 @@ export default function LiderLeadsPage() {
                             {isPostponed && <span className="text-orange-500 text-[10px] font-medium">(перенос)</span>}
                           </p>
                           <p className="text-xs text-gray-700 font-semibold truncate mt-0.5">{lead.clientName}</p>
-                          <p className="text-xs text-gray-500 truncate">{lead.assignedTo?.name || 'Без клоузера'}</p>
+                          <p className="text-xs text-gray-500 truncate">{lead.assignedTo?.name || t('lider.noCloser')}</p>
                         </div>
                         <button
                           onClick={() => setStatusLead(lead)}
@@ -1417,15 +1420,15 @@ export default function LiderLeadsPage() {
                     <thead className="bg-gray-50/80 border-b border-gray-100">
                       <tr>
                         {[
-                          { label: 'Дата поступления', field: 'createdAt', sort: true },
-                          { label: 'Ссылка / Клиент', field: null, sort: false },
-                          { label: 'Канал', field: 'channel', sort: true },
-                          { label: 'Квал / Не квал', field: null, sort: false },
-                          { label: 'Записан / Отказ', field: 'subStatus', sort: true },
-                          { label: 'Дата записи', field: null, sort: false },
-                          { label: 'Клоузер', field: null, sort: false },
-                          { label: 'Статус встречи', field: 'consultationStatus', sort: true },
-                          { label: 'Перенос на', field: null, sort: false },
+                          { label: t('lider.col.date'), field: 'createdAt', sort: true },
+                          { label: t('lider.col.link'), field: null, sort: false },
+                          { label: t('lider.col.channel'), field: 'channel', sort: true },
+                          { label: t('lider.col.qual'), field: null, sort: false },
+                          { label: t('lider.col.substatus'), field: 'subStatus', sort: true },
+                          { label: t('lider.col.apptDate'), field: null, sort: false },
+                          { label: t('lider.col.closer'), field: null, sort: false },
+                          { label: t('lider.col.consultation'), field: 'consultationStatus', sort: true },
+                          { label: t('lider.col.postpone'), field: null, sort: false },
                         ].map(col => (
                           <th key={col.label}
                             onClick={col.sort && col.field ? () => handleSort(col.field!) : undefined}
@@ -1581,9 +1584,9 @@ export default function LiderLeadsPage() {
                         <tr>
                           <td colSpan={10} className="py-14 text-center">
                             <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-2xl mx-auto mb-2">📋</div>
-                            <p className="font-semibold text-gray-600">Лидов не найдено</p>
+                            <p className="font-semibold text-gray-600">{t('lider.noLeads')}</p>
                             <p className="text-sm text-gray-400 mt-1">
-                              {filtersActive ? 'Попробуйте сбросить фильтры' : 'Нажмите «+» в заголовке таблицы чтобы добавить'}
+                              {filtersActive ? t('lider.noLeadsFiltered') : t('lider.noLeadsAdd')}
                             </p>
                           </td>
                         </tr>
@@ -1670,7 +1673,7 @@ export default function LiderLeadsPage() {
               <p className="text-xs text-gray-500 shrink-0">
                 {sortedLeads.length > 0
                   ? `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, sortedLeads.length)} из ${sortedLeads.length}`
-                  : '0 лидов'}
+                  : t('lider.zeroLeads')}
               </p>
               <div className="flex items-center gap-1 flex-1 justify-center">
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
@@ -1696,7 +1699,7 @@ export default function LiderLeadsPage() {
                 </button>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <span className="text-xs text-gray-400">На стр.:</span>
+                <span className="text-xs text-gray-400">{t('lider.pageSize')}</span>
                 {[15, 30, 50, 100].map(n => (
                   <button key={n} onClick={() => { setPageSize(n); resetPage() }}
                     className={`px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${pageSize === n ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100 border border-gray-200'}`}>

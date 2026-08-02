@@ -97,7 +97,7 @@ export default function AIInsights({ data, managerRating, liderRating, funnel, p
           </div>
           <div>
             <h3 className="font-semibold text-gray-900 text-sm">{t('ai.title')}</h3>
-            <p className="text-xs text-gray-400">Персональный анализ на основе ваших данных</p>
+            <p className="text-xs text-gray-400">{t('ai.subtitle')}</p>
           </div>
         </div>
         <button
@@ -106,7 +106,7 @@ export default function AIInsights({ data, managerRating, liderRating, funnel, p
           className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          {loading ? 'Анализирую...' : 'Обновить'}
+          {loading ? t('ai.analyzing') : t('ai.update')}
         </button>
       </div>
 
@@ -115,14 +115,14 @@ export default function AIInsights({ data, managerRating, liderRating, funnel, p
           {[80, 60, 90, 70].map((w, i) => (
             <div key={i} className="h-3 bg-blue-100 rounded-full" style={{ width: `${w}%` }} />
           ))}
-          <p className="text-xs text-blue-400 mt-3">Анализирую ваши показатели...</p>
+          <p className="text-xs text-blue-400 mt-3">{t('ai.updatingLabel')}</p>
         </div>
       )}
 
       {!loading && !insights && (
         <div className="text-center py-4">
           <Sparkles className="w-8 h-8 text-blue-200 mx-auto mb-2" />
-          <p className="text-sm text-gray-400">Нажмите «Обновить» для получения анализа</p>
+          <p className="text-sm text-gray-400">{t('ai.hintRefresh')}</p>
         </div>
       )}
 
@@ -141,7 +141,7 @@ export default function AIInsights({ data, managerRating, liderRating, funnel, p
             </div>
           ))}
           {loading && (
-            <p className="text-xs text-blue-400 animate-pulse">Обновляю анализ...</p>
+            <p className="text-xs text-blue-400 animate-pulse">{t('ai.updatingShort')}</p>
           )}
         </div>
       )}

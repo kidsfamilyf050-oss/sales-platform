@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
+import { useT } from '../i18n'
 import { CheckSquare, Circle, Phone, AlertCircle, Clock, Plus, X, Check, ChevronDown, ChevronUp, MessageSquare, CalendarClock, Trash2 } from 'lucide-react'
 
 type LeadTask = {
@@ -29,19 +30,20 @@ function isOverdue(dueDate: string) {
   return dueDate < localDate()
 }
 
-function fmtDate(s: string) {
+function fmtDate(s: string, fmtToday: string, fmtTomorrow: string) {
   if (!s) return ''
   const d = new Date(s + 'T12:00:00')
   const today = localDate()
   const tomorrowD = new Date(); tomorrowD.setDate(tomorrowD.getDate() + 1)
   const tomorrow = `${tomorrowD.getFullYear()}-${String(tomorrowD.getMonth() + 1).padStart(2, '0')}-${String(tomorrowD.getDate()).padStart(2, '0')}`
-  if (s === today) return 'Сегодня'
-  if (s === tomorrow) return 'Завтра'
+  if (s === today) return fmtToday
+  if (s === tomorrow) return fmtTomorrow
   return d.toLocaleDateString('ru', { day: 'numeric', month: 'short' })
 }
 
 function CreateTaskModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
+  const { t } = useT()
   const [title, setTitle] = useState('')
   const [dueDate, setDueDate] = useState(localDate())
 
@@ -59,26 +61,26 @@ function CreateTaskModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Новая задача</h3>
+          <h3 className="text-lg font-semibold text-gray-900">{t('tasks.modal.newTitle')}</h3>
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div>
-          <label className="label">Задача <span className="text-red-500">*</span></label>
+          <label className="label">{t('tasks.modal.taskLabel')} <span className="text-red-500">*</span></label>
           <textarea
             autoFocus
             className="input"
             rows={3}
-            placeholder="Опишите задачу..."
+            placeholder={t('tasks.modal.taskPlaceholder')}
             value={title}
             onChange={e => setTitle(e.target.value)}
           />
         </div>
 
         <div>
-          <label className="label">Срок выполнения <span className="text-red-500">*</span></label>
+          <label className="label">{t('tasks.modal.dueDateLabel')} <span className="text-red-500">*</span></label>
           <input
             type="date"
             className="input"
@@ -90,14 +92,14 @@ function CreateTaskModal({ onClose }: { onClose: () => void }) {
 
         <div className="flex gap-2 pt-1">
           <button onClick={onClose} className="btn-secondary flex-1 flex items-center justify-center gap-1.5">
-            <X className="w-3.5 h-3.5" /> Отмена
+            <X className="w-3.5 h-3.5" /> {t('common.cancel')}
           </button>
           <button
             onClick={save}
             disabled={!title.trim() || !dueDate || createMut.isPending}
             className="btn-primary flex-1 flex items-center justify-center gap-1.5 disabled:opacity-40"
           >
-            <Check className="w-3.5 h-3.5" /> Создать
+            <Check className="w-3.5 h-3.5" /> {t('tasks.modal.create')}
           </button>
         </div>
       </div>
@@ -107,6 +109,7 @@ function CreateTaskModal({ onClose }: { onClose: () => void }) {
 
 function TaskExpanded({ task, onClose }: { task: LeadTask; onClose: () => void }) {
   const qc = useQueryClient()
+  const { t } = useT()
   const [comment, setComment] = useState(task.comment || '')
   const [postponeDate, setPostponeDate] = useState('')
   const [showPostpone, setShowPostpone] = useState(false)
@@ -134,14 +137,14 @@ function TaskExpanded({ task, onClose }: { task: LeadTask; onClose: () => void }
     <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
       <div>
         <label className="text-xs font-semibold text-gray-500 mb-1 flex items-center gap-1">
-          <MessageSquare className="w-3 h-3" /> Комментарий
+          <MessageSquare className="w-3 h-3" /> {t('tasks.expanded.comment')}
         </label>
         <textarea
           rows={2}
           value={comment}
           onChange={e => setComment(e.target.value)}
           onBlur={saveComment}
-          placeholder="Напишите комментарий или заметку..."
+          placeholder={t('tasks.expanded.commentPlaceholder')}
           className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none text-gray-700 placeholder-gray-400"
         />
       </div>
@@ -150,29 +153,29 @@ function TaskExpanded({ task, onClose }: { task: LeadTask; onClose: () => void }
           <>
             <button onClick={markClosed} disabled={updateMut.isPending}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50">
-              <Check className="w-3 h-3" /> Закрыть задачу
+              <Check className="w-3 h-3" /> {t('tasks.expanded.close')}
             </button>
             <button onClick={() => setShowPostpone(p => !p)}
               className="flex items-center gap-1.5 px-3 py-1.5 border border-orange-300 text-orange-700 hover:bg-orange-50 text-xs font-semibold rounded-lg transition-colors">
-              <CalendarClock className="w-3 h-3" /> Перенести
+              <CalendarClock className="w-3 h-3" /> {t('tasks.expanded.postpone')}
             </button>
           </>
         )}
-        <button onClick={() => { if (confirm('Удалить задачу?')) deleteMut.mutate() }} disabled={deleteMut.isPending}
+        <button onClick={() => { if (confirm(t('tasks.deleteConfirm'))) deleteMut.mutate() }} disabled={deleteMut.isPending}
           className="flex items-center gap-1.5 px-3 py-1.5 border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold rounded-lg transition-colors ml-auto disabled:opacity-50">
-          <Trash2 className="w-3 h-3" /> Удалить
+          <Trash2 className="w-3 h-3" /> {t('tasks.expanded.delete')}
         </button>
       </div>
       {showPostpone && (
         <div className="flex items-center gap-2 p-3 bg-orange-50 rounded-xl border border-orange-100">
           <CalendarClock className="w-4 h-4 text-orange-500 shrink-0" />
-          <span className="text-xs text-orange-700 font-medium shrink-0">Новый срок:</span>
+          <span className="text-xs text-orange-700 font-medium shrink-0">{t('tasks.expanded.newDate')}</span>
           <input type="date" value={postponeDate} min={localDate()}
             onChange={e => setPostponeDate(e.target.value)}
             className="text-sm border border-orange-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white" />
           <button onClick={markPostponed} disabled={!postponeDate || updateMut.isPending}
             className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold rounded-lg disabled:opacity-40 transition-colors">
-            Перенести
+            {t('tasks.expanded.postpone')}
           </button>
         </div>
       )}
@@ -182,6 +185,7 @@ function TaskExpanded({ task, onClose }: { task: LeadTask; onClose: () => void }
 
 export default function CloserTasksPage() {
   const qc = useQueryClient()
+  const { t } = useT()
   const [tab, setTab] = useState<'active' | 'done'>('active')
   const [showCreate, setShowCreate] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -207,11 +211,11 @@ export default function CloserTasksPage() {
 
   const sections = tab === 'active'
     ? [
-        { label: 'Просрочено', tasks: overdueTasks, color: 'text-red-600', bgColor: 'border-red-200 bg-red-50/40', icon: AlertCircle },
-        { label: 'Сегодня', tasks: todayTasks, color: 'text-blue-600', bgColor: 'border-blue-200 bg-blue-50/40', icon: Clock },
-        { label: 'Предстоящие', tasks: upcomingTasks, color: 'text-gray-600', bgColor: 'border-gray-200', icon: CheckSquare },
+        { label: t('tasks.sectionOverdue'), tasks: overdueTasks, color: 'text-red-600', bgColor: 'border-red-200 bg-red-50/40', icon: AlertCircle },
+        { label: t('tasks.sectionToday'), tasks: todayTasks, color: 'text-blue-600', bgColor: 'border-blue-200 bg-blue-50/40', icon: Clock },
+        { label: t('tasks.sectionUpcoming'), tasks: upcomingTasks, color: 'text-gray-600', bgColor: 'border-gray-200', icon: CheckSquare },
       ].filter(s => s.tasks.length > 0)
-    : [{ label: 'Выполненные', tasks, color: 'text-gray-400', bgColor: 'border-gray-100', icon: CheckSquare }]
+    : [{ label: t('tasks.sectionDone'), tasks, color: 'text-gray-400', bgColor: 'border-gray-100', icon: CheckSquare }]
 
   return (
     <div className="space-y-5 px-4 md:px-6 py-2 md:py-4">
@@ -219,14 +223,14 @@ export default function CloserTasksPage() {
 
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Задачи</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Напоминания по заявкам</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('tasks.title')}</h1>
+          <p className="text-sm text-gray-400 mt-0.5">{t('tasks.subtitle.closer')}</p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
         >
-          <Plus className="w-4 h-4" /> Создать задачу
+          <Plus className="w-4 h-4" /> {t('tasks.createBtn')}
         </button>
       </div>
 
@@ -234,15 +238,15 @@ export default function CloserTasksPage() {
       <div className="grid grid-cols-3 gap-3">
         <div className="card py-3 text-center">
           <p className="text-2xl font-bold text-red-500">{overdueTasks.length}</p>
-          <p className="text-xs text-gray-400 mt-0.5">Просрочено</p>
+          <p className="text-xs text-gray-400 mt-0.5">{t('tasks.overdue')}</p>
         </div>
         <div className="card py-3 text-center">
           <p className="text-2xl font-bold text-blue-600">{todayTasks.length}</p>
-          <p className="text-xs text-gray-400 mt-0.5">На сегодня</p>
+          <p className="text-xs text-gray-400 mt-0.5">{t('tasks.today')}</p>
         </div>
         <div className="card py-3 text-center">
           <p className="text-2xl font-bold text-gray-600">{upcomingTasks.length}</p>
-          <p className="text-xs text-gray-400 mt-0.5">Предстоит</p>
+          <p className="text-xs text-gray-400 mt-0.5">{t('tasks.upcoming')}</p>
         </div>
       </div>
 
@@ -253,7 +257,7 @@ export default function CloserTasksPage() {
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'active' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
         >
           <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
-          Активные
+          {t('tasks.tabActive')}
           {(overdueTasks.length + todayTasks.length) > 0 && (
             <span className="text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded-full font-bold">
               {overdueTasks.length + todayTasks.length}
@@ -265,25 +269,25 @@ export default function CloserTasksPage() {
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'done' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
         >
           <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
-          Выполненные
+          {t('tasks.tabDone')}
         </button>
       </div>
 
       {/* Content */}
-      {tasksQ.isLoading && <div className="card text-center text-gray-400 py-12">Загрузка...</div>}
+      {tasksQ.isLoading && <div className="card text-center text-gray-400 py-12">{t('common.loading')}</div>}
 
       {!tasksQ.isLoading && tasks.length === 0 && (
         <div className="card text-center py-14">
           <CheckSquare className="w-10 h-10 text-gray-200 mx-auto mb-3" />
           <p className="text-gray-400 font-medium">
-            {tab === 'active' ? 'Нет активных задач' : 'Нет выполненных задач'}
+            {tab === 'active' ? t('tasks.emptyActive') : t('tasks.emptyDone')}
           </p>
           {tab === 'active' && (
             <button
               onClick={() => setShowCreate(true)}
               className="mt-3 text-sm text-blue-500 hover:underline"
             >
-              + Создать задачу
+              {t('tasks.createLink')}
             </button>
           )}
         </div>
@@ -328,7 +332,7 @@ export default function CloserTasksPage() {
                               {task.lead.salesChannel && <span>{task.lead.salesChannel.name}</span>}
                             </div>
                           ) : task.createdBy ? (
-                            <p className="text-xs text-gray-400 mt-1">От: {task.createdBy.name}</p>
+                            <p className="text-xs text-gray-400 mt-1">{t('tasks.expanded.from')} {task.createdBy.name}</p>
                           ) : null}
                           {task.comment && !isOpen && (
                             <p className="text-xs text-gray-500 mt-1.5 italic line-clamp-1">
@@ -338,13 +342,15 @@ export default function CloserTasksPage() {
                         </div>
                         <div className="shrink-0 text-right flex flex-col items-end gap-1.5">
                           <p className={`text-xs font-semibold ${overdue && !task.completed ? 'text-red-500' : 'text-gray-400'}`}>
-                            {fmtDate(task.dueDate)}
+                            {fmtDate(task.dueDate, t('tasks.fmtToday'), t('tasks.fmtTomorrow'))}
                           </p>
                           <button
                             onClick={() => setExpandedId(isOpen ? null : task.id)}
                             className={`flex items-center gap-1 text-xs font-medium transition-colors px-2 py-0.5 rounded-lg ${isOpen ? 'bg-blue-100 text-blue-700' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}`}
                           >
-                            {isOpen ? <><ChevronUp className="w-3.5 h-3.5" /> Свернуть</> : <><ChevronDown className="w-3.5 h-3.5" /> Редактировать</>}
+                            {isOpen
+                              ? <><ChevronUp className="w-3.5 h-3.5" /> {t('tasks.expanded.collapse')}</>
+                              : <><ChevronDown className="w-3.5 h-3.5" /> {t('tasks.expanded.edit')}</>}
                           </button>
                         </div>
                       </div>
