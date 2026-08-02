@@ -329,17 +329,25 @@ function generateFallbackInsights(data: DashboardData): string {
 
   // ── Plan status ──
   if (completion >= 100) {
-    lines.push(`✅ План выполнен на ${fmtPct(completion)} — отличный результат! Сумма продаж: ₸${fmtNum(s.totalSalesAmount ?? s.salesAmount)}.`)
+    lines.push(isKk
+      ? `✅ Жоспар ${fmtPct(completion)} орындалды — тамаша нәтиже! Сату сомасы: ₸${fmtNum(s.totalSalesAmount ?? s.salesAmount)}.`
+      : `✅ План выполнен на ${fmtPct(completion)} — отличный результат! Сумма продаж: ₸${fmtNum(s.totalSalesAmount ?? s.salesAmount)}.`)
   } else if (completion >= 75) {
     const remaining = Number(s.salesPlan || 0) - Number(s.totalSalesAmount ?? s.salesAmount ?? 0)
     const needed = daysLeft > 0 ? Math.round(remaining / daysLeft) : remaining
-    lines.push(`📊 План выполнен на ${fmtPct(completion)}. Осталось ₸${fmtNum(remaining)} — нужно ₸${fmtNum(needed)}/день до конца месяца.`)
+    lines.push(isKk
+      ? `📊 Жоспар ${fmtPct(completion)} орындалды. Қалды ₸${fmtNum(remaining)} — айдың соңына дейін күніне ₸${fmtNum(needed)} қажет.`
+      : `📊 План выполнен на ${fmtPct(completion)}. Осталось ₸${fmtNum(remaining)} — нужно ₸${fmtNum(needed)}/день до конца месяца.`)
   } else if (completion >= 40) {
     const remaining = Number(s.salesPlan || 0) - Number(s.totalSalesAmount ?? s.salesAmount ?? 0)
     const needed = daysLeft > 0 ? Math.round(remaining / daysLeft) : remaining
-    lines.push(`⚠️ План выполнен лишь на ${fmtPct(completion)}. Критическое отставание! Нужно ₸${fmtNum(needed)}/день — ускорьте темп немедленно.`)
+    lines.push(isKk
+      ? `⚠️ Жоспар тек ${fmtPct(completion)} орындалды. Критикалық артта қалу! Күніне ₸${fmtNum(needed)} қажет — қарқынды дереу жеделдетіңіз.`
+      : `⚠️ План выполнен лишь на ${fmtPct(completion)}. Критическое отставание! Нужно ₸${fmtNum(needed)}/день — ускорьте темп немедленно.`)
   } else if (completion > 0) {
-    lines.push(`🔴 Критическая ситуация: план выполнен только на ${fmtPct(completion)}. Немедленно требуется вмешательство и разбор причин отставания.`)
+    lines.push(isKk
+      ? `🔴 Критикалық жағдай: жоспар тек ${fmtPct(completion)} орындалды. Дереу араласу және артта қалу себептерін талдау қажет.`
+      : `🔴 Критическая ситуация: план выполнен только на ${fmtPct(completion)}. Немедленно требуется вмешательство и разбор причин отставания.`)
   }
 
   // ── Conversion analysis ──
@@ -348,11 +356,17 @@ function generateFallbackInsights(data: DashboardData): string {
     const salesCount = Number(s.totalSalesCount ?? s.salesCount ?? 0)
     const refusals = Number(s.totalRefusals || s.refusals || 0)
     if (conversion >= 40) {
-      lines.push(`📈 Конверсия ${fmtPct(conversion)} — отличный показатель. Из ${consultations} консультаций ${salesCount} продаж, ${refusals} отказов.`)
+      lines.push(isKk
+        ? `📈 Конверсия ${fmtPct(conversion)} — тамаша көрсеткіш. ${consultations} кеңесулерден ${salesCount} сату, ${refusals} бас тарту.`
+        : `📈 Конверсия ${fmtPct(conversion)} — отличный показатель. Из ${consultations} консультаций ${salesCount} продаж, ${refusals} отказов.`)
     } else if (conversion >= 20) {
-      lines.push(`📉 Конверсия ${fmtPct(conversion)} — есть резервы роста. Из ${consultations} консультаций только ${salesCount} продаж. Разберите причины ${refusals} отказов.`)
+      lines.push(isKk
+        ? `📉 Конверсия ${fmtPct(conversion)} — өсу резервтері бар. ${consultations} кеңесулерден тек ${salesCount} сату. ${refusals} бас тартудың себептерін талдаңыз.`
+        : `📉 Конверсия ${fmtPct(conversion)} — есть резервы роста. Из ${consultations} консультаций только ${salesCount} продаж. Разберите причины ${refusals} отказов.`)
     } else if (conversion > 0) {
-      lines.push(`🔴 Конверсия ${fmtPct(conversion)} — критически низкая! Из ${consultations} консультаций лишь ${salesCount} продаж. Срочно проведите разбор звонков.`)
+      lines.push(isKk
+        ? `🔴 Конверсия ${fmtPct(conversion)} — критикалық төмен! ${consultations} кеңесулерден тек ${salesCount} сату. Қоңыраулар талдауын дереу жүргізіңіз.`
+        : `🔴 Конверсия ${fmtPct(conversion)} — критически низкая! Из ${consultations} консультаций лишь ${salesCount} продаж. Срочно проведите разбор звонков.`)
     }
   }
 
@@ -363,15 +377,26 @@ function generateFallbackInsights(data: DashboardData): string {
     const attendRate = funnel.meetingsScheduled > 0 ? Math.round((funnel.meetingsAttended / funnel.meetingsScheduled) * 100) : 0
     const closeRate = funnel.meetingsAttended > 0 ? Math.round((funnel.salesCount / funnel.meetingsAttended) * 100) : 0
 
-    const bottleneck = [
-      { stage: 'квалификация', rate: qualRate },
-      { stage: 'запись на встречу', rate: scheduleRate },
-      { stage: 'доходимость на встречу', rate: attendRate },
-      { stage: 'закрытие в продажу', rate: closeRate },
-    ].reduce((min, cur) => cur.rate < min.rate && cur.rate > 0 ? cur : min, { stage: '', rate: 100 })
+    const bottleneckStages = isKk
+      ? [
+          { stage: 'біліктіліктендіру', rate: qualRate },
+          { stage: 'кездесуге жазылу', rate: scheduleRate },
+          { stage: 'кездесуге келу', rate: attendRate },
+          { stage: 'сатуға жабу', rate: closeRate },
+        ]
+      : [
+          { stage: 'квалификация', rate: qualRate },
+          { stage: 'запись на встречу', rate: scheduleRate },
+          { stage: 'доходимость на встречу', rate: attendRate },
+          { stage: 'закрытие в продажу', rate: closeRate },
+        ]
+
+    const bottleneck = bottleneckStages.reduce((min, cur) => cur.rate < min.rate && cur.rate > 0 ? cur : min, { stage: '', rate: 100 })
 
     if (bottleneck.stage) {
-      lines.push(`🔍 Воронка: ${funnel.leadsReceived} лидов → ${funnel.qualifiedLeads} квал (${qualRate}%) → ${funnel.meetingsScheduled} записано (${scheduleRate}%) → ${funnel.meetingsAttended} состоялось (${attendRate}%) → ${funnel.salesCount} продаж (${closeRate}%). Узкое место: ${bottleneck.stage} (${bottleneck.rate}%).`)
+      lines.push(isKk
+        ? `🔍 Воронка: ${funnel.leadsReceived} лид → ${funnel.qualifiedLeads} біліктілендірілген (${qualRate}%) → ${funnel.meetingsScheduled} жазылды (${scheduleRate}%) → ${funnel.meetingsAttended} болды (${attendRate}%) → ${funnel.salesCount} сату (${closeRate}%). Тар жер: ${bottleneck.stage} (${bottleneck.rate}%).`
+        : `🔍 Воронка: ${funnel.leadsReceived} лидов → ${funnel.qualifiedLeads} квал (${qualRate}%) → ${funnel.meetingsScheduled} записано (${scheduleRate}%) → ${funnel.meetingsAttended} состоялось (${attendRate}%) → ${funnel.salesCount} продаж (${closeRate}%). Узкое место: ${bottleneck.stage} (${bottleneck.rate}%).`)
     }
   }
 
@@ -382,13 +407,19 @@ function generateFallbackInsights(data: DashboardData): string {
     const bottom = [...managerRating].reverse().find((m: any) => m.completion < 30)
 
     if (top) {
-      lines.push(`🏆 Лидер: ${top.name} — выполнение ${fmtPct(top.completion)}, ${top.salesCount} продаж на ₸${fmtNum(top.salesAmount)}, конверсия ${fmtPct(top.conversion)}.`)
+      lines.push(isKk
+        ? `🏆 Көшбасшы: ${top.name} — орындалуы ${fmtPct(top.completion)}, ${top.salesCount} сату ₸${fmtNum(top.salesAmount)}, конверсия ${fmtPct(top.conversion)}.`
+        : `🏆 Лидер: ${top.name} — выполнение ${fmtPct(top.completion)}, ${top.salesCount} продаж на ₸${fmtNum(top.salesAmount)}, конверсия ${fmtPct(top.conversion)}.`)
     }
     if (bottom && bottom.name !== top?.name) {
-      lines.push(`⚠️ Нуждается в поддержке: ${bottom.name} — только ${fmtPct(bottom.completion)} плана, конверсия ${fmtPct(bottom.conversion)}. Запланируйте разбор сделок.`)
+      lines.push(isKk
+        ? `⚠️ Қолдау қажет: ${bottom.name} — тек ${fmtPct(bottom.completion)} жоспар, конверсия ${fmtPct(bottom.conversion)}. Мәмілелер талдауын жоспарлаңыз.`
+        : `⚠️ Нуждается в поддержке: ${bottom.name} — только ${fmtPct(bottom.completion)} плана, конверсия ${fmtPct(bottom.conversion)}. Запланируйте разбор сделок.`)
     }
     if (redManagers.length > 0) {
-      lines.push(`🔴 Нет продаж: ${redManagers.map((m: any) => m.name).join(', ')} (${redManagers.length} чел.). Проведите разбор и помогите с первыми сделками.`)
+      lines.push(isKk
+        ? `🔴 Сату жоқ: ${redManagers.map((m: any) => m.name).join(', ')} (${redManagers.length} адам). Талдау жүргізіңіз және алғашқы мәмілелерде көмектесіңіз.`
+        : `🔴 Нет продаж: ${redManagers.map((m: any) => m.name).join(', ')} (${redManagers.length} чел.). Проведите разбор и помогите с первыми сделками.`)
     }
   }
 
@@ -397,7 +428,9 @@ function generateFallbackInsights(data: DashboardData): string {
     const totalLeads = liderRating.reduce((s: number, m: any) => s + (m.leads || 0), 0)
     const totalQual = liderRating.reduce((s: number, m: any) => s + (m.qualifiedLeads || 0), 0)
     const avgQualRate = totalLeads > 0 ? Math.round((totalQual / totalLeads) * 100) : 0
-    lines.push(`👥 Лидорубы: ${totalLeads} лидов, ${totalQual} квалифицировано (${avgQualRate}% квалификации). ${liderRating.map((m: any) => `${m.name}: ${m.leads} лидов`).join(', ')}.`)
+    lines.push(isKk
+      ? `👥 Лидорубтар: ${totalLeads} лид, ${totalQual} біліктілендірілген (${avgQualRate}% біліктіліктендіру). ${liderRating.map((m: any) => `${m.name}: ${m.leads} лид`).join(', ')}.`
+      : `👥 Лидорубы: ${totalLeads} лидов, ${totalQual} квалифицировано (${avgQualRate}% квалификации). ${liderRating.map((m: any) => `${m.name}: ${m.leads} лидов`).join(', ')}.`)
   }
 
   // ── Lead cost / marketing ──
@@ -405,9 +438,13 @@ function generateFallbackInsights(data: DashboardData): string {
     const leadsplan = Number(s.leadsplan || 0)
     const marketingLeads = Number(s.marketingLeads || 0)
     if (leadsplan > 0 && marketingLeads < leadsplan) {
-      lines.push(`💰 Маркетинг: ${marketingLeads} лидов из ${leadsplan} плана (${Math.round(marketingLeads/leadsplan*100)}%). Стоимость лида: ₸${fmtNum(s.leadCost)}. Необходимо усилить каналы привлечения.`)
+      lines.push(isKk
+        ? `💰 Маркетинг: ${marketingLeads} лид ${leadsplan} жоспардан (${Math.round(marketingLeads/leadsplan*100)}%). Лид бағасы: ₸${fmtNum(s.leadCost)}. Тарту арналарын күшейту қажет.`
+        : `💰 Маркетинг: ${marketingLeads} лидов из ${leadsplan} плана (${Math.round(marketingLeads/leadsplan*100)}%). Стоимость лида: ₸${fmtNum(s.leadCost)}. Необходимо усилить каналы привлечения.`)
     } else {
-      lines.push(`💰 Стоимость лида: ₸${fmtNum(s.leadCost)}. Лидов факт: ${fmtNum(s.marketingLeads)}.`)
+      lines.push(isKk
+        ? `💰 Лид бағасы: ₸${fmtNum(s.leadCost)}. Лид факт: ${fmtNum(s.marketingLeads)}.`
+        : `💰 Стоимость лида: ₸${fmtNum(s.leadCost)}. Лидов факт: ${fmtNum(s.marketingLeads)}.`)
     }
   }
 
@@ -418,16 +455,24 @@ function generateFallbackInsights(data: DashboardData): string {
     const projected = Number(s.projectedLeads || 0)
     const plan = Number(s.leadsplan || 0)
     lines.length = 0 // reset for marketer
-    lines.push(`📊 Маркетинг: план ${fmtNum(plan)} лидов, факт ${fmtNum(s.totalLeads)}, выполнение ${fmtPct(completion)}.`)
-    if (cpl > 0) lines.push(`💰 CPL: ₸${fmtNum(cpl)}, CPQL: ₸${fmtNum(cpql)}. ${cpql > cpl * 3 ? 'Качество лидов низкое — много неквалифицированных.' : 'Качество лидов в норме.'}`)
+    lines.push(isKk
+      ? `📊 Маркетинг: жоспар ${fmtNum(plan)} лид, факт ${fmtNum(s.totalLeads)}, орындалуы ${fmtPct(completion)}.`
+      : `📊 Маркетинг: план ${fmtNum(plan)} лидов, факт ${fmtNum(s.totalLeads)}, выполнение ${fmtPct(completion)}.`)
+    if (cpl > 0) lines.push(isKk
+      ? `💰 CPL: ₸${fmtNum(cpl)}, CPQL: ₸${fmtNum(cpql)}. ${cpql > cpl * 3 ? 'Лид сапасы төмен — біліктіленбегендер көп.' : 'Лид сапасы қалыпты.'}`
+      : `💰 CPL: ₸${fmtNum(cpl)}, CPQL: ₸${fmtNum(cpql)}. ${cpql > cpl * 3 ? 'Качество лидов низкое — много неквалифицированных.' : 'Качество лидов в норме.'}`)
     if (projected > 0 && plan > 0) {
       lines.push(projected >= plan
-        ? `📈 Прогноз: ${fmtNum(projected)} лидов — план будет выполнен.`
-        : `⚠️ Прогноз: ${fmtNum(projected)} лидов — план под угрозой. Нужно увеличить интенсивность на ${Math.round((plan - projected) / Math.max(1, 30 - today))} лидов/день.`
+        ? (isKk ? `📈 Болжам: ${fmtNum(projected)} лид — жоспар орындалады.` : `📈 Прогноз: ${fmtNum(projected)} лидов — план будет выполнен.`)
+        : (isKk
+            ? `⚠️ Болжам: ${fmtNum(projected)} лид — жоспар қауіп астында. Күніне ${Math.round((plan - projected) / Math.max(1, 30 - today))} лид арттыру қажет.`
+            : `⚠️ Прогноз: ${fmtNum(projected)} лидов — план под угрозой. Нужно увеличить интенсивность на ${Math.round((plan - projected) / Math.max(1, 30 - today))} лидов/день.`)
       )
     }
     if (!lines.some(l => l.includes('💡'))) {
-      lines.push(`💡 Фокус: улучшить качество трафика и снизить стоимость квалифицированного лида.`)
+      lines.push(isKk
+        ? `💡 Фокус: трафик сапасын жақсарту және біліктіленген лид бағасын төмендету.`
+        : `💡 Фокус: улучшить качество трафика и снизить стоимость квалифицированного лида.`)
     }
   }
 
@@ -440,12 +485,23 @@ function generateFallbackInsights(data: DashboardData): string {
     const avgCheck = Number(s.avgCheck || 0)
     const remaining = Math.max(0, Number(s.salesPlan || 0) - Number(s.salesAmount || 0))
     const needDeals = avgCheck > 0 ? Math.ceil(remaining / avgCheck) : '?'
+    const emoji = completion >= 75 ? '📊' : completion >= 40 ? '⚠️' : '🔴'
 
-    lines.push(`${completion >= 75 ? '📊' : completion >= 40 ? '⚠️' : '🔴'} Результат: ₸${fmtNum(s.salesAmount)} — ${fmtPct(completion)} плана. ${salesCount} продаж.`)
-    if (inWork > 0) lines.push(`📋 В работе ${inWork} клиентов — проработайте каждого. При конверсии ${fmtPct(conversion)} можно закрыть ещё ${Math.round(inWork * conversion / 100)} сделок.`)
-    if (refusals > 0) lines.push(`📉 Отказов: ${refusals}. Разберите причины — возможно, нужна работа с возражениями.`)
-    if (remaining > 0) lines.push(`🎯 До плана осталось ₸${fmtNum(remaining)} — нужно ещё ~${needDeals} сделок по среднему чеку ₸${fmtNum(avgCheck)}.`)
-    lines.push(`⚡ Фокус: закрывайте клиентов "в работе", запрашивайте обратную связь по отказам, работайте с возражениями.`)
+    lines.push(isKk
+      ? `${emoji} Нәтиже: ₸${fmtNum(s.salesAmount)} — ${fmtPct(completion)} жоспар. ${salesCount} сату.`
+      : `${emoji} Результат: ₸${fmtNum(s.salesAmount)} — ${fmtPct(completion)} плана. ${salesCount} продаж.`)
+    if (inWork > 0) lines.push(isKk
+      ? `📋 Жұмыста ${inWork} клиент — әрқайсысын өңдеңіз. ${fmtPct(conversion)} конверсиямен тағы ${Math.round(inWork * conversion / 100)} мәміле жасауға болады.`
+      : `📋 В работе ${inWork} клиентов — проработайте каждого. При конверсии ${fmtPct(conversion)} можно закрыть ещё ${Math.round(inWork * conversion / 100)} сделок.`)
+    if (refusals > 0) lines.push(isKk
+      ? `📉 Бас тарту: ${refusals}. Себептерін талдаңыз — қарсылықтармен жұмыс жасау қажет шығар.`
+      : `📉 Отказов: ${refusals}. Разберите причины — возможно, нужна работа с возражениями.`)
+    if (remaining > 0) lines.push(isKk
+      ? `🎯 Жоспарға дейін ₸${fmtNum(remaining)} — орташа чек ₸${fmtNum(avgCheck)} бойынша тағы ~${needDeals} мәміле қажет.`
+      : `🎯 До плана осталось ₸${fmtNum(remaining)} — нужно ещё ~${needDeals} сделок по среднему чеку ₸${fmtNum(avgCheck)}.`)
+    lines.push(isKk
+      ? `⚡ Фокус: "жұмыстағы" клиенттерді жабыңыз, бас тарту бойынша кері байланыс сұраңыз, қарсылықтармен жұмыс жасаңыз.`
+      : `⚡ Фокус: закрывайте клиентов "в работе", запрашивайте обратную связь по отказам, работайте с возражениями.`)
   }
 
   // ── Lider self-view ──
@@ -456,17 +512,29 @@ function generateFallbackInsights(data: DashboardData): string {
     const scheduled = Number(s.meetingsScheduled || 0)
     const attended = Number(s.meetingsAttended || 0)
 
-    lines.push(`📊 Воронка: ${leads} лидов → ${qual} квал (${leads > 0 ? Math.round(qual/leads*100) : 0}%) → ${scheduled} записано → ${attended} состоялось.`)
+    lines.push(isKk
+      ? `📊 Воронка: ${leads} лид → ${qual} біліктілендірілген (${leads > 0 ? Math.round(qual/leads*100) : 0}%) → ${scheduled} жазылды → ${attended} болды.`
+      : `📊 Воронка: ${leads} лидов → ${qual} квал (${leads > 0 ? Math.round(qual/leads*100) : 0}%) → ${scheduled} записано → ${attended} состоялось.`)
     const dropSchedule = qual > 0 ? Math.round((1 - scheduled/qual) * 100) : 0
     const dropAttend = scheduled > 0 ? Math.round((1 - attended/scheduled) * 100) : 0
-    if (dropSchedule > 30) lines.push(`⚠️ Из ${qual} квалифицированных не записано ${qual - scheduled} (${dropSchedule}%) — проверьте работу с клиентами после квалификации.`)
-    if (dropAttend > 30) lines.push(`⚠️ Из ${scheduled} записанных не пришли ${scheduled - attended} (${dropAttend}%) — усильте подтверждение встреч накануне.`)
-    if (completion > 0) lines.push(`🎯 Выполнение плана встреч: ${fmtPct(completion)}.`)
-    lines.push(`⚡ Фокус: качество квалификации и доходимость клиентов на встречи.`)
+    if (dropSchedule > 30) lines.push(isKk
+      ? `⚠️ ${qual} біліктіленгеннен ${qual - scheduled} жазылмаған (${dropSchedule}%) — біліктіліктен кейін клиенттермен жұмысты тексеріңіз.`
+      : `⚠️ Из ${qual} квалифицированных не записано ${qual - scheduled} (${dropSchedule}%) — проверьте работу с клиентами после квалификации.`)
+    if (dropAttend > 30) lines.push(isKk
+      ? `⚠️ ${scheduled} жазылғаннан ${scheduled - attended} келмеген (${dropAttend}%) — алдын ала кездесуді растауды күшейтіңіз.`
+      : `⚠️ Из ${scheduled} записанных не пришли ${scheduled - attended} (${dropAttend}%) — усильте подтверждение встреч накануне.`)
+    if (completion > 0) lines.push(isKk
+      ? `🎯 Кездесу жоспарының орындалуы: ${fmtPct(completion)}.`
+      : `🎯 Выполнение плана встреч: ${fmtPct(completion)}.`)
+    lines.push(isKk
+      ? `⚡ Фокус: біліктіліктің сапасы және клиенттердің кездесуге доходимостьы.`
+      : `⚡ Фокус: качество квалификации и доходимость клиентов на встречи.`)
   }
 
   if (lines.length === 0) {
-    lines.push(`📊 Нет достаточно данных для анализа за период. Убедитесь, что менеджеры фиксируют результаты.`)
+    lines.push(isKk
+      ? `📊 Кезең үшін талдауға жеткілікті деректер жоқ. Менеджерлер нәтижелерді тіркейтінін тексеріңіз.`
+      : `📊 Нет достаточно данных для анализа за период. Убедитесь, что менеджеры фиксируют результаты.`)
   }
 
   return lines.join('\n\n')

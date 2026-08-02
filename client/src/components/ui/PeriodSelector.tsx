@@ -24,15 +24,16 @@ function firstOfMonth() {
 }
 
 const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
+const MONTHS_KK = ['Қаңтар','Ақпан','Наурыз','Сәуір','Мамыр','Маусым','Шілде','Тамыз','Қыркүйек','Қазан','Қараша','Желтоқсан']
 
-function getOffsetMonthDates(offset: number): { from: string; to: string; label: string } {
+function getOffsetMonthDates(offset: number, months = MONTHS_RU): { from: string; to: string; label: string } {
   const now = new Date()
   const d = new Date(now.getFullYear(), now.getMonth() + offset, 1)
   const from = localDateStr(d)
   const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0)
   const today = new Date()
   const to = lastDay > today ? localDateStr(today) : localDateStr(lastDay)
-  const label = `${MONTHS_RU[d.getMonth()]} ${d.getFullYear()}`
+  const label = `${months[d.getMonth()]} ${d.getFullYear()}`
   return { from, to, label }
 }
 
@@ -64,7 +65,7 @@ export function buildPeriodParams(state: PeriodState): string {
 
 export default function PeriodSelector() {
   const { period, customFrom, customTo, monthOffset, setPeriod, setCustomRange, setMonthOffset } = usePeriodStore()
-  const { t } = useT()
+  const { t, lang } = useT()
 
   const presets: { value: Exclude<Period, 'custom'>; labelKey: string }[] = [
     { value: 'today',     labelKey: 'period.today' },
@@ -72,7 +73,8 @@ export default function PeriodSelector() {
     { value: 'month',     labelKey: 'period.month' },
   ]
 
-  const { label: monthLabel } = getOffsetMonthDates(monthOffset)
+  const months = lang === 'kk' ? MONTHS_KK : MONTHS_RU
+  const { label: monthLabel } = getOffsetMonthDates(monthOffset, months)
 
   // When custom period is active — show inline date pickers (no popup, works in all browsers)
   if (period === 'custom') {

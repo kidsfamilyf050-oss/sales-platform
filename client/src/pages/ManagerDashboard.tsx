@@ -620,7 +620,7 @@ export default function ManagerDashboard() {
               </span>
             </div>
             {todayAppointments.length === 0 ? (
-              <p className="text-xs text-gray-400 text-center py-4">На сегодня записей нет</p>
+              <p className="text-xs text-gray-400 text-center py-4">{t('dash.noAppointments')}</p>
             ) : (
               <div className="space-y-2">
                 {todayAppointments.map((lead: any) => {

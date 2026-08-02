@@ -5,6 +5,7 @@ import { Bell, Menu, Calendar, AlertCircle, Clock, CalendarCheck } from 'lucide-
 import { api } from '../../api/client'
 import PeriodSelector from '../ui/PeriodSelector'
 import LanguageSwitcher from '../ui/LanguageSwitcher'
+import { useT } from '../../i18n'
 
 interface Alert { type: string; title: string; count: number; url: string; color: string }
 interface AlertsData { alerts: Alert[]; total: number }
@@ -21,12 +22,13 @@ interface Props { onMenuClick?: () => void }
 
 export default function Header({ onMenuClick }: Props) {
   const navigate = useNavigate()
+  const { t, lang } = useT()
   const [open, setOpen] = useState(false)
   const dropRef = useRef<HTMLDivElement>(null)
 
   const { data } = useQuery<AlertsData>({
-    queryKey: ['smart-alerts'],
-    queryFn: () => api.get('/notifications/alerts').then(r => r.data),
+    queryKey: ['smart-alerts', lang],
+    queryFn: () => api.get(`/notifications/alerts?lang=${lang}`).then(r => r.data),
     refetchInterval: 60_000,
   })
 
@@ -61,7 +63,7 @@ export default function Header({ onMenuClick }: Props) {
           <button
             onClick={() => setOpen(o => !o)}
             className={`relative p-2 rounded-lg transition-colors ${open ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
-            aria-label="Оповещения"
+            aria-label={t('notif.title')}
           >
             <Bell className="w-5 h-5" />
             {total > 0 && (
@@ -74,10 +76,10 @@ export default function Header({ onMenuClick }: Props) {
           {open && (
             <div className="absolute top-full mt-2 right-0 z-50 w-72 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                <p className="text-sm font-bold text-gray-800">Оповещения</p>
+                <p className="text-sm font-bold text-gray-800">{t('notif.title')}</p>
                 {total > 0 && (
                   <span className="text-xs text-red-500 font-semibold bg-red-50 px-2 py-0.5 rounded-full">
-                    {total} требует внимания
+                    {total} {t('notif.attention')}
                   </span>
                 )}
               </div>
@@ -87,8 +89,8 @@ export default function Header({ onMenuClick }: Props) {
                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                     <Bell className="w-6 h-6 text-green-500" />
                   </div>
-                  <p className="text-sm font-semibold text-gray-700">Всё под контролем!</p>
-                  <p className="text-xs text-gray-400 mt-1">Нет срочных задач</p>
+                  <p className="text-sm font-semibold text-gray-700">{t('notif.allGood')}</p>
+                  <p className="text-xs text-gray-400 mt-1">{t('notif.noTasks')}</p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-50">
@@ -115,7 +117,7 @@ export default function Header({ onMenuClick }: Props) {
               )}
 
               <div className="px-4 py-2 border-t border-gray-100 bg-gray-50/50">
-                <p className="text-[11px] text-gray-400 text-center">Обновляется каждую минуту</p>
+                <p className="text-[11px] text-gray-400 text-center">{t('notif.updatesMin')}</p>
               </div>
             </div>
           )}

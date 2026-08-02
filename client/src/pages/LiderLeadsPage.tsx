@@ -1261,7 +1261,7 @@ export default function LiderLeadsPage() {
               <button onClick={() => applyQuickFilter({ subStatus: '', consultationStatus: 'postponed' })}
                 className="flex items-center gap-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-xl hover:border-yellow-400 transition-colors text-left">
                 <Calendar className="w-3.5 h-3.5 text-yellow-600 shrink-0" />
-                <span className="text-xs font-medium text-gray-800">Перенос без новой даты</span>
+                <span className="text-xs font-medium text-gray-800">{t('lider.postponeNoDate')}</span>
                 <span className="text-xs font-bold text-yellow-700 bg-yellow-100 rounded-full px-2 py-0.5">{reminders.postponedNoDate}</span>
               </button>
             )}
@@ -1386,7 +1386,7 @@ export default function LiderLeadsPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold text-red-800 flex items-center gap-1">
                             <Calendar className="w-3 h-3 shrink-0" />{fmtDate(overdueDate!)}
-                            {isPostponed && <span className="text-orange-500 text-[10px] font-medium">(перенос)</span>}
+                            {isPostponed && <span className="text-orange-500 text-[10px] font-medium">{t('lider.postponeTag')}</span>}
                           </p>
                           <p className="text-xs text-gray-700 font-semibold truncate mt-0.5">{lead.clientName}</p>
                           <p className="text-xs text-gray-500 truncate">{lead.assignedTo?.name || t('lider.noCloser')}</p>
@@ -1442,7 +1442,7 @@ export default function LiderLeadsPage() {
                             onClick={() => setShowInlineAdd(a => !a)}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${showInlineAdd ? 'bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
                             <Plus className="w-3.5 h-3.5" />
-                            Добавить
+                            {t('common.add')}
                           </button>
                         </th>
                       </tr>

@@ -49,10 +49,37 @@ router.get('/unread-count', authenticate, async (req: AuthRequest, res: Response
   }
 })
 
+const ALERT_TITLES: Record<string, Record<string, string>> = {
+  ru: {
+    lider_today:    'Встреч сегодня',
+    lider_overdue:  'Нужно отметить статус',
+    lider_thinking: 'Думают слишком долго',
+    lider_nodate:   'Перенос без новой даты',
+    closer_today:   'Консультаций сегодня',
+    closer_overdue: 'Не отмечены встречи',
+    closer_tasks:   'Задач к выполнению',
+    rop_today:      'Встреч команды сегодня',
+    rop_overdue:    'Встреч без статуса',
+  },
+  kk: {
+    lider_today:    'Бүгін кездесулер',
+    lider_overdue:  'Мәртебені белгілеу керек',
+    lider_thinking: 'Тым ұзақ ойлауда',
+    lider_nodate:   'Жаңа күнсіз ауыстыру',
+    closer_today:   'Бүгін кеңесулер',
+    closer_overdue: 'Кездесулер белгіленбеген',
+    closer_tasks:   'Орындауға тапсырмалар',
+    rop_today:      'Бүгін команда кездесулері',
+    rop_overdue:    'Мәртебесіз кездесулер',
+  },
+}
+
 // Smart alerts — role-based live alerts from real data
 router.get('/alerts', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const user = req.user!
+    const lang = (req.query.lang as string) === 'kk' ? 'kk' : 'ru'
+    const T = ALERT_TITLES[lang]
     const nowKz = new Date(Date.now() + 5 * 60 * 60 * 1000)
     const pad = (n: number) => String(n).padStart(2, '0')
     const today = `${nowKz.getUTCFullYear()}-${pad(nowKz.getUTCMonth() + 1)}-${pad(nowKz.getUTCDate())}`
@@ -89,10 +116,10 @@ router.get('/alerts', authenticate, async (req: AuthRequest, res: Response) => {
         l.appointmentDate === today || l.postponedDate === today
       ).length
 
-      if (todayMeetings > 0) alerts.push({ type: 'today', title: 'Встреч сегодня', count: todayMeetings, url: '/lider/leads', color: 'blue' })
-      if (overdueCount > 0) alerts.push({ type: 'overdue', title: 'Нужно отметить статус', count: overdueCount, url: '/lider/leads', color: 'red' })
-      if (thinkingCount > 0) alerts.push({ type: 'thinking', title: 'Думают слишком долго', count: thinkingCount, url: '/lider/leads', color: 'orange' })
-      if (postponedNoDate > 0) alerts.push({ type: 'nodate', title: 'Перенос без новой даты', count: postponedNoDate, url: '/lider/leads', color: 'yellow' })
+      if (todayMeetings > 0) alerts.push({ type: 'today', title: T.lider_today, count: todayMeetings, url: '/lider/leads', color: 'blue' })
+      if (overdueCount > 0) alerts.push({ type: 'overdue', title: T.lider_overdue, count: overdueCount, url: '/lider/leads', color: 'red' })
+      if (thinkingCount > 0) alerts.push({ type: 'thinking', title: T.lider_thinking, count: thinkingCount, url: '/lider/leads', color: 'orange' })
+      if (postponedNoDate > 0) alerts.push({ type: 'nodate', title: T.lider_nodate, count: postponedNoDate, url: '/lider/leads', color: 'yellow' })
 
     } else if (user.role === 'MANAGER' && user.managerType === 'CLOSER') {
       // Closer: due tasks + today's meetings
@@ -115,9 +142,9 @@ router.get('/alerts', authenticate, async (req: AuthRequest, res: Response) => {
         return apptDate && apptDate < today && !l.consultationStatus
       }).length
 
-      if (todayMeetings > 0) alerts.push({ type: 'today', title: 'Консультаций сегодня', count: todayMeetings, url: '/closer/leads', color: 'blue' })
-      if (overdueUnmarked > 0) alerts.push({ type: 'overdue', title: 'Не отмечены встречи', count: overdueUnmarked, url: '/closer/leads', color: 'red' })
-      if (dueTasks > 0) alerts.push({ type: 'tasks', title: 'Задач к выполнению', count: dueTasks, url: '/closer/tasks', color: 'orange' })
+      if (todayMeetings > 0) alerts.push({ type: 'today', title: T.closer_today, count: todayMeetings, url: '/closer/leads', color: 'blue' })
+      if (overdueUnmarked > 0) alerts.push({ type: 'overdue', title: T.closer_overdue, count: overdueUnmarked, url: '/closer/leads', color: 'red' })
+      if (dueTasks > 0) alerts.push({ type: 'tasks', title: T.closer_tasks, count: dueTasks, url: '/closer/tasks', color: 'orange' })
 
     } else if (user.role === 'ROP') {
       // ROP: overdue leads needing action across their team
@@ -137,8 +164,8 @@ router.get('/alerts', authenticate, async (req: AuthRequest, res: Response) => {
         l.appointmentDate === today || l.postponedDate === today
       ).length
 
-      if (todayCount > 0) alerts.push({ type: 'today', title: 'Встреч команды сегодня', count: todayCount, url: '/dashboard/rop', color: 'blue' })
-      if (overdueCount > 0) alerts.push({ type: 'overdue', title: 'Встреч без статуса', count: overdueCount, url: '/dashboard/rop', color: 'red' })
+      if (todayCount > 0) alerts.push({ type: 'today', title: T.rop_today, count: todayCount, url: '/dashboard/rop', color: 'blue' })
+      if (overdueCount > 0) alerts.push({ type: 'overdue', title: T.rop_overdue, count: overdueCount, url: '/dashboard/rop', color: 'red' })
     }
 
     res.json({ alerts, total: alerts.reduce((s, a) => s + a.count, 0) })

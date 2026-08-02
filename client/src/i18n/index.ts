@@ -15,6 +15,26 @@ const ru = {
   'nav.myOffice': 'Мой кабинет',
   'nav.fillReport': 'Заполнить отчёт',
   'nav.logout': 'Выйти',
+  'nav.leads': 'Лиды',
+  'nav.tasks': 'Задачи',
+  'nav.meetings': 'Встречи',
+  'nav.archive': 'Архив',
+  'nav.products': 'Продукты',
+  'nav.gateways': 'Шлюзы',
+
+  // Notifications bell
+  'notif.title': 'Оповещения',
+  'notif.attention': 'требует внимания',
+  'notif.allGood': 'Всё под контролем!',
+  'notif.noTasks': 'Нет срочных задач',
+  'notif.updatesMin': 'Обновляется каждую минуту',
+
+  // Dashboard today
+  'dash.noAppointments': 'На сегодня записей нет',
+
+  // Lider leads inline tags
+  'lider.postponeTag': '(перенос)',
+  'lider.postponeNoDate': 'Перенос без новой даты',
 
   // Period
   'period.today': 'Сегодня',
@@ -964,6 +984,26 @@ const kk: typeof ru = {
   'nav.myOffice': 'Менің кабинетім',
   'nav.fillReport': 'Есеп толтыру',
   'nav.logout': 'Шығу',
+  'nav.leads': 'Лидтер',
+  'nav.tasks': 'Тапсырмалар',
+  'nav.meetings': 'Кездесулер',
+  'nav.archive': 'Мұрағат',
+  'nav.products': 'Өнімдер',
+  'nav.gateways': 'Шлюздар',
+
+  // Notifications bell
+  'notif.title': 'Хабарламалар',
+  'notif.attention': 'назар аудару қажет',
+  'notif.allGood': 'Бәрі бақылауда!',
+  'notif.noTasks': 'Шұғыл тапсырмалар жоқ',
+  'notif.updatesMin': 'Әр минут сайын жаңартылады',
+
+  // Dashboard today
+  'dash.noAppointments': 'Бүгінге жазылымдар жоқ',
+
+  // Lider leads inline tags
+  'lider.postponeTag': '(ауысым)',
+  'lider.postponeNoDate': 'Жаңа күнсіз ауыстыру',
 
   // Period
   'period.today': 'Бүгін',
