@@ -623,6 +623,32 @@ router.put('/:id/accept', authenticate, async (req: AuthRequest, res: Response) 
   }
 })
 
+// ── PUT /api/leads/:id/consult-result — mark consultation outcome and transition lead ─
+// 'happened'     → status → IN_WORK  + consultationStatus = 'happened'
+// 'not_happened' → status → REFUSED  + consultationStatus = 'not_happened' (no CRM link required)
+router.put('/:id/consult-result', authenticate, async (req: AuthRequest, res: Response) => {
+  const { result } = req.body as { result: 'happened' | 'not_happened' }
+  if (result !== 'happened' && result !== 'not_happened') {
+    return res.status(400).json({ error: 'result must be happened or not_happened' })
+  }
+  try {
+    const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
+    if (!lead) return res.status(404).json({ error: 'Not found' })
+    if (lead.assignedToId !== req.user!.id) return res.status(403).json({ error: 'Forbidden' })
+    const updated = await prisma.lead.update({
+      where: { id: req.params.id },
+      data: {
+        status: result === 'happened' ? 'IN_WORK' : 'REFUSED',
+        consultationStatus: result,
+      },
+      include: INCLUDE_FULL,
+    })
+    res.json(updated)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ── PUT /api/leads/:id/refuse — closer refuses (requires CRM link) ───────────
 router.put('/:id/refuse', authenticate, async (req: AuthRequest, res: Response) => {
   const { crmLink, lossReasonId } = req.body

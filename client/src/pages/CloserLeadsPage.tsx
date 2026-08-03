@@ -588,6 +588,7 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
   const [pDate, setPDate] = useState(tomorrowStr())
   const [pTime, setPTime] = useState('')
 
+  // For postpone — just updates fields, no status change
   const statusMut = useMutation({
     mutationFn: (payload: { consultationStatus: string; postponedDate?: string; postponedTime?: string }) =>
       api.put(`/leads/${lead.id}`, payload).then(r => r.data),
@@ -595,6 +596,13 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
       qc.invalidateQueries({ queryKey: ['closer-leads'] })
       setShowPostpone(false)
     },
+  })
+
+  // For happened/not_happened — transitions lead status (happened→IN_WORK, not_happened→REFUSED)
+  const consultResultMut = useMutation({
+    mutationFn: (result: 'happened' | 'not_happened') =>
+      api.put(`/leads/${lead.id}/consult-result`, { result }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['closer-leads'] }),
   })
 
   // 'planned' is not a real outcome — treat as no status so buttons always show
@@ -681,8 +689,8 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
               return (
                 <button
                   key={s}
-                  onClick={() => statusMut.mutate({ consultationStatus: s })}
-                  disabled={statusMut.isPending}
+                  onClick={() => consultResultMut.mutate(s)}
+                  disabled={consultResultMut.isPending}
                   className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors hover:opacity-80 disabled:opacity-40 flex items-center gap-1 ${statusLabels[s].cls}`}
                 >
                   <BIcon className="w-3 h-3" />{statusLabels[s].label}
@@ -840,7 +848,7 @@ function LeadCard({ lead, showAccept = false, showConsult = false, showWork = fa
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {showAccept && (
+          {showAccept && !showConsult && (
             <button
               onClick={e => { e.stopPropagation(); acceptMut.mutate() }}
               disabled={acceptMut.isPending}
