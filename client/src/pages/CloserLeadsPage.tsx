@@ -1193,7 +1193,7 @@ export default function CloserLeadsPage() {
                   </>
                 )}
                 {otherLeads.map(lead => (
-                  <LeadCard key={lead.id} lead={lead} showAccept showWork={false}
+                  <LeadCard key={lead.id} lead={lead} showAccept={lead.status === 'ASSIGNED'} showConsult
                     readonly={false} highlightToday showDelete showRestore={false} />
                 ))}
               </>
