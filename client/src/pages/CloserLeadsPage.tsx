@@ -733,9 +733,10 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
   )
 }
 
-function LeadCard({ lead, showAccept = false, showWork = false, readonly = false, highlightToday = false, showDelete = false, showRestore = false }: {
+function LeadCard({ lead, showAccept = false, showConsult = false, showWork = false, readonly = false, highlightToday = false, showDelete = false, showRestore = false }: {
   lead: Lead
   showAccept?: boolean
+  showConsult?: boolean
   showWork?: boolean
   readonly?: boolean
   highlightToday?: boolean
@@ -781,9 +782,8 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
   // Display amount — prefer netAmount (бюджет сделки) when available
   const displayAmount = lead.netAmount ?? lead.amount
 
-  // Show consultation section inline for ALL inwork leads without a final outcome
-  // No appointmentDate required — buttons show regardless
-  const showInlineConsult = showWork
+  // Show consultation section inline — only in Запланированные tab (showConsult=true)
+  const showInlineConsult = showConsult
     && (!lead.consultationStatus || lead.consultationStatus === 'postponed' || lead.consultationStatus === 'planned')
 
   return (
@@ -951,8 +951,8 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
             </div>
           )}
 
-          {/* Consultation status marking */}
-          <ConsultationStatusSection lead={lead} />
+          {/* Consultation status marking — only in Запланированные tab */}
+          {showConsult && <ConsultationStatusSection lead={lead} />}
 
           {/* IN_WORK: sell/refuse/task section */}
           {showWork && <InWorkSection lead={lead} />}
@@ -1172,7 +1172,7 @@ export default function CloserLeadsPage() {
                       <div className="h-px flex-1 bg-blue-200" />
                     </div>
                     {todayConsults.map(lead => (
-                      <LeadCard key={lead.id} lead={lead} showAccept={lead.status === 'ASSIGNED'} showWork={lead.status === 'IN_WORK'}
+                      <LeadCard key={lead.id} lead={lead} showAccept={lead.status === 'ASSIGNED'} showConsult
                         readonly={false} highlightToday showDelete showRestore={false} />
                     ))}
                     {otherLeads.length > 0 && (
