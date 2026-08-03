@@ -329,18 +329,22 @@ router.get('/incoming', authenticate, async (req: AuthRequest, res: Response) =>
 
 // ── GET /api/leads/in-work — closer: IN_WORK leads ───────────────────────────
 router.get('/in-work', authenticate, async (req: AuthRequest, res: Response) => {
-  const { from, to, period = 'month' } = req.query
-  const { fromStr, toStr } = getPeriodStr(period as string, from as string, to as string)
+  const { from, to, period = 'month', all } = req.query
   try {
+    const where: any = {
+      assignedToId: req.user!.id,
+      status: 'IN_WORK',
+      deletedAt: null,
+    }
+    // When all=true — return ALL in-work leads regardless of period
+    if (all !== 'true') {
+      const { fromStr, toStr } = getPeriodStr(period as string, from as string, to as string)
+      where.date = { gte: fromStr, lte: toStr }
+    }
     const leads = await prisma.lead.findMany({
-      where: {
-        assignedToId: req.user!.id,
-        status: 'IN_WORK',
-        date: { gte: fromStr, lte: toStr },
-        deletedAt: null,
-      },
+      where,
       include: INCLUDE_FULL,
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { date: 'desc' },
     })
     res.json(leads)
   } catch (e) {

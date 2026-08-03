@@ -806,6 +806,16 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
                 <CheckSquare className="w-3 h-3 inline mr-0.5" />{completedTasks}/{totalTasks}
               </span>
             )}
+            {showWork && (() => {
+              const days = Math.floor((Date.now() - new Date(lead.date + 'T12:00:00').getTime()) / 86400000)
+              if (days <= 0) return null
+              const monthName = new Date(lead.date + 'T12:00:00').toLocaleDateString('ru', { month: 'long' })
+              return (
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                  {monthName} · {days} дн. в работе
+                </span>
+              )
+            })()}
           </div>
           <div className="flex items-center gap-3 mt-1 text-xs text-gray-400 flex-wrap">
             <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{lead.phone}</span>
@@ -1007,22 +1017,10 @@ export default function CloserLeadsPage() {
     queryFn: () => api.get('/leads/incoming').then(r => r.data),
     refetchInterval: 30000,
   })
+  // all=true → no date filter, returns ALL in-work leads regardless of period (sorted newest first)
   const inworkQ = useQuery({
-    queryKey: ['closer-leads', 'inwork', params],
-    queryFn: () => api.get(`/leads/in-work?${params}`).then(r => r.data),
-  })
-
-  // Previous month in-work — to catch leads with 1-2 week sales cycles that spill over
-  const prevMonthParams = (() => {
-    const now = new Date()
-    const prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    const prevEnd = new Date(now.getFullYear(), now.getMonth(), 0)
-    const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-    return `from=${fmt(prevStart)}&to=${fmt(prevEnd)}`
-  })()
-  const prevInworkQ = useQuery({
-    queryKey: ['closer-leads', 'inwork-prev', prevMonthParams],
-    queryFn: () => api.get(`/leads/in-work?${prevMonthParams}`).then(r => r.data),
+    queryKey: ['closer-leads', 'inwork-all'],
+    queryFn: () => api.get('/leads/in-work?all=true').then(r => r.data),
   })
   const refusedQ = useQuery({
     queryKey: ['closer-leads', 'refused', params],
@@ -1043,10 +1041,6 @@ export default function CloserLeadsPage() {
 
   const incoming: Lead[] = incomingQ.data || []
   const inwork: Lead[] = inworkQ.data || []
-  const prevInwork: Lead[] = prevInworkQ.data || []
-  // Carryover = prev month leads NOT already in current period inwork
-  const carryoverInwork = prevInwork.filter(l => !inwork.some(i => i.id === l.id))
-  const allInwork = [...inwork, ...carryoverInwork]
   const refused: Lead[] = refusedQ.data || []
   const sold: Lead[] = soldQ.data || []
   const refunds: Lead[] = refundsQ.data || []
@@ -1058,14 +1052,14 @@ export default function CloserLeadsPage() {
 
   const tabs = [
     { key: 'incoming', label: t('cl.tab.incoming'), count: incoming.length,  dot: 'bg-blue-500', urgent: incoming.length > 0 },
-    { key: 'inwork',   label: t('cl.tab.inwork'),   count: allInwork.length, dot: 'bg-amber-400' },
+    { key: 'inwork',   label: t('cl.tab.inwork'),   count: inwork.length,    dot: 'bg-amber-400' },
     { key: 'refused',  label: t('cl.tab.refused'),  count: refused.length,   dot: 'bg-red-400' },
     { key: 'sold',     label: t('cl.tab.sold'),     count: soldPure.length,  dot: 'bg-green-400' },
     { key: 'refunds',  label: t('cl.tab.refunds'),  count: refunds.length,   dot: 'bg-orange-400', urgent: refunds.length > 0 },
     { key: 'trash',    label: t('cl.tab.trash'),    count: trash.length,     dot: 'bg-gray-400' },
   ] as const
 
-  const currentLeads = tab === 'incoming' ? incoming : tab === 'inwork' ? allInwork : tab === 'refused' ? refused : tab === 'sold' ? soldPure : tab === 'trash' ? trash : refunds
+  const currentLeads = tab === 'incoming' ? incoming : tab === 'inwork' ? inwork : tab === 'refused' ? refused : tab === 'sold' ? soldPure : tab === 'trash' ? trash : refunds
   const currentQ = tab === 'incoming' ? incomingQ : tab === 'inwork' ? inworkQ : tab === 'refused' ? refusedQ : tab === 'sold' ? soldQ : tab === 'trash' ? trashQ : refundsQ
 
   // Net revenue + refund stats (use amount = gross for refund display)
@@ -1199,23 +1193,8 @@ export default function CloserLeadsPage() {
             <>
               {inwork.map((lead: Lead) => (
                 <LeadCard key={lead.id} lead={lead} showAccept={false} showWork
-                  readonly={false} highlightToday showDelete showRestore={false} />
+                  readonly={false} highlightToday={false} showDelete showRestore={false} />
               ))}
-              {carryoverInwork.length > 0 && (
-                <>
-                  <div className="flex items-center gap-2 pt-2">
-                    <div className="h-px flex-1 bg-amber-200" />
-                    <span className="text-xs font-bold text-amber-600 uppercase tracking-wide flex items-center gap-1">
-                      ← {t('cl.inwork.prevMonth')} — {carryoverInwork.length}
-                    </span>
-                    <div className="h-px flex-1 bg-amber-200" />
-                  </div>
-                  {carryoverInwork.map((lead: Lead) => (
-                    <LeadCard key={lead.id} lead={lead} showAccept={false} showWork
-                      readonly={false} highlightToday={false} showDelete showRestore={false} />
-                  ))}
-                </>
-              )}
             </>
           ) : (
             currentLeads.map((lead: Lead) => (
