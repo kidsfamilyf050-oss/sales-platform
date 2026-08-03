@@ -1039,8 +1039,9 @@ export default function CloserLeadsPage() {
     queryFn: () => api.get('/leads/trash').then(r => r.data),
   })
 
-  const incoming: Lead[] = incomingQ.data || []
-  const inwork: Lead[] = inworkQ.data || []
+  const notHappened: Lead[] = (inworkQ.data || []).filter((l: Lead) => l.consultationStatus === 'not_happened')
+  const incoming: Lead[] = [...(incomingQ.data || []), ...notHappened]
+  const inwork: Lead[] = (inworkQ.data || []).filter((l: Lead) => l.consultationStatus !== 'not_happened')
   const refused: Lead[] = refusedQ.data || []
   const sold: Lead[] = soldQ.data || []
   const refunds: Lead[] = refundsQ.data || []
@@ -1171,7 +1172,7 @@ export default function CloserLeadsPage() {
                       <div className="h-px flex-1 bg-blue-200" />
                     </div>
                     {todayConsults.map(lead => (
-                      <LeadCard key={lead.id} lead={lead} showAccept showWork={false}
+                      <LeadCard key={lead.id} lead={lead} showAccept={lead.status === 'ASSIGNED'} showWork={lead.status === 'IN_WORK'}
                         readonly={false} highlightToday showDelete showRestore={false} />
                     ))}
                     {otherLeads.length > 0 && (
