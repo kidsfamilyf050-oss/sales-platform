@@ -582,7 +582,7 @@ export default function MarketingPage() {
             </div>
 
             {/* Daily expenses history */}
-            <DailyExpensesHistory channels={channels} />
+            <DailyExpensesHistory channels={channels} fromParam={fromParam} toParam={toParam} />
           </div>
         )}
 
@@ -649,15 +649,16 @@ function HistoryCell({
 }
 
 // ─── Daily Expenses History ───────────────────────────────────────────────────
-function DailyExpensesHistory({ channels: activeChannels }: { channels: { id: string; name: string }[] }) {
+function DailyExpensesHistory({ channels: activeChannels, fromParam, toParam }: {
+  channels: { id: string; name: string }[]
+  fromParam: string
+  toParam: string
+}) {
   const qc = useQueryClient()
-  const today = localDateStr(new Date())
-  const d30 = new Date(); d30.setDate(d30.getDate() - 29)
-  const from30 = localDateStr(d30)
 
   const histQ = useQuery({
-    queryKey: ['channel-budgets-history', from30, today],
-    queryFn: () => api.get(`/channel-budgets?from=${from30}&to=${today}`).then(r =>
+    queryKey: ['channel-budgets-history', fromParam, toParam],
+    queryFn: () => api.get(`/channel-budgets?from=${fromParam}&to=${toParam}`).then(r =>
       r.data as { date: string; channelId: string; channel: { id: string; name: string }; spend: number }[]
     ),
   })
@@ -703,7 +704,7 @@ function DailyExpensesHistory({ channels: activeChannels }: { channels: { id: st
       <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
         <div>
           <h2 className="font-bold text-gray-900">История расходов по дням</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Последние 30 дней · нажмите на ячейку для редактирования</p>
+          <p className="text-xs text-gray-400 mt-0.5">{fromParam} — {toParam} · нажмите на ячейку для редактирования</p>
         </div>
         {histQ.isLoading && <RefreshCw className="w-4 h-4 text-gray-300 animate-spin" />}
       </div>
@@ -711,7 +712,7 @@ function DailyExpensesHistory({ channels: activeChannels }: { channels: { id: st
       {byDate.length === 0 && !histQ.isLoading ? (
         <div className="text-center py-10 text-gray-400">
           <BarChart2 className="w-8 h-8 mx-auto mb-2 text-gray-200" />
-          <p className="text-sm">Нет данных за последние 30 дней</p>
+          <p className="text-sm">Нет данных за выбранный период</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
