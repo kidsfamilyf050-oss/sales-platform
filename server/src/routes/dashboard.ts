@@ -334,6 +334,16 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const totalSalesAmount = periodSales.reduce((s, x) => s + (x.netAmount ?? x.amount), 0)
     const totalSalesCount = periodSales.length
 
+    // Carryover: sold in this period from leads created before period start
+    const ropSaleLeadIds = periodSales.map((s: any) => s.leadId).filter(Boolean) as string[]
+    const ropCarryoverLeadSet = ropSaleLeadIds.length > 0
+      ? await prisma.lead.findMany({ where: { id: { in: ropSaleLeadIds }, date: { lt: fromStr } }, select: { id: true } })
+          .then(ls => new Set(ls.map(l => l.id)))
+      : new Set<string>()
+    const ropCarryoverSales = periodSales.filter((s: any) => s.leadId && ropCarryoverLeadSet.has(s.leadId))
+    const ropCarryoverCount = ropCarryoverSales.length
+    const ropCarryoverRevenue = ropCarryoverSales.reduce((sum: number, x: any) => sum + (x.netAmount ?? x.amount), 0)
+
     // Refunds from Lead model — include full detail for ROP drill-down
     const ropRefundedLeads = await prisma.lead.findMany({
       where: { createdBy: { companyId: req.user!.companyId }, status: 'SOLD', isRefund: true, date: { gte: fromStr, lte: toStr } },
@@ -503,6 +513,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       },
       funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount: totalSalesCount },
       marketing: { leadsplan, totalLeads, totalBudget, leadCost: totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0, qualifiedLeads },
+      carryover: { count: ropCarryoverCount, revenue: ropCarryoverRevenue },
       managerRating,
       liderRating,
       productStats,
@@ -548,6 +559,15 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       // Sales come from Sale model (live, per-entry)
       const salesAmount = periodSales.reduce((s, x) => s + (x.netAmount ?? x.amount), 0)
       const salesCount = periodSales.length
+      // Carryover: sold in this period from leads created before period start
+      const mgrSaleLeadIds = periodSales.map((s: any) => s.leadId).filter(Boolean) as string[]
+      const mgrCarryoverLeadSet = mgrSaleLeadIds.length > 0
+        ? await prisma.lead.findMany({ where: { id: { in: mgrSaleLeadIds }, date: { lt: fromStr } }, select: { id: true } })
+            .then(ls => new Set(ls.map(l => l.id)))
+        : new Set<string>()
+      const mgrCarryoverSales = periodSales.filter((s: any) => s.leadId && mgrCarryoverLeadSet.has(s.leadId))
+      const mgrCarryoverCount = mgrCarryoverSales.length
+      const mgrCarryoverRevenue = mgrCarryoverSales.reduce((sum: number, x: any) => sum + (x.netAmount ?? x.amount), 0)
       // Clients received from daily reports
       const clientsReceived = sumReportField(reports, 'clientsReceived')
       const consultations = sumReportField(reports, 'consultations')
@@ -589,6 +609,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           consultations, refusals, inWork,
           pendingLeadsCount, inWorkLeadsCount, pendingTasksCount,
           leadRefusedCount, leadSoldCount, leadTotal, leadConversion,
+          carryover: { count: mgrCarryoverCount, revenue: mgrCarryoverRevenue },
         },
         periodSales: periodSales.map(s => ({
           id: s.id, date: s.date, amount: s.amount, netAmount: s.netAmount,

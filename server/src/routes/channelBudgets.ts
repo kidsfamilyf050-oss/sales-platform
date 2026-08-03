@@ -89,7 +89,7 @@ router.get('/dashboard', authenticate, async (req: AuthRequest, res: Response) =
     const [sales, refundedLeadsForRevenue] = await Promise.all([
       prisma.sale.findMany({
         where: { companyId, date: { gte: fromStr, lte: toStr } },
-        select: { id: true, amount: true },
+        select: { id: true, amount: true, leadId: true },
       }),
       prisma.lead.findMany({
         where: { companyId, status: 'SOLD', isRefund: true, date: { gte: fromStr, lte: toStr } },
@@ -127,6 +127,16 @@ router.get('/dashboard', authenticate, async (req: AuthRequest, res: Response) =
     const cpql  = qualLeads > 0 && totalSpend > 0 ? Math.round(totalSpend / qualLeads) : 0
     const cac   = totalSalesCount > 0 && totalSpend > 0 ? Math.round(totalSpend / totalSalesCount) : 0
     const drr   = totalRevenue > 0 ? pct(totalSpend, totalRevenue) : 0
+
+    // Carryover sales: sold in period from leads created before period start
+    const saleLeadIds = sales.map(s => s.leadId).filter(Boolean) as string[]
+    const carryoverLeadSet = saleLeadIds.length > 0
+      ? await prisma.lead.findMany({ where: { id: { in: saleLeadIds }, date: { lt: fromStr } }, select: { id: true } })
+          .then(ls => new Set(ls.map(l => l.id)))
+      : new Set<string>()
+    const carryoverSales = sales.filter(s => s.leadId && carryoverLeadSet.has(s.leadId))
+    const carryoverCount = carryoverSales.length
+    const carryoverRevenue = carryoverSales.reduce((sum: number, s: any) => sum + Number(s.amount), 0)
 
     // ── Per-channel aggregation ───────────────────────────────────────────────
     const spendByChannel: Record<string, number> = {}
@@ -210,6 +220,7 @@ router.get('/dashboard', authenticate, async (req: AuthRequest, res: Response) =
       lossReasons,
       totalLost,
       plans: { planLeads, planQual, planBudget },
+      carryover: { count: carryoverCount, revenue: carryoverRevenue },
     })
   } catch (e) {
     console.error(e); res.status(500).json({ error: 'Server error' })
