@@ -1031,8 +1031,8 @@ export default function CloserLeadsPage() {
     queryFn: () => api.get('/leads/in-work?all=true').then(r => r.data),
   })
   const refusedQ = useQuery({
-    queryKey: ['closer-leads', 'refused', params],
-    queryFn: () => api.get(`/leads/refused?${params}`).then(r => r.data),
+    queryKey: ['closer-leads', 'refused-all'],
+    queryFn: () => api.get('/leads/refused?all=true').then(r => r.data),
   })
   const soldQ = useQuery({
     queryKey: ['closer-leads', 'sold', params],

@@ -354,16 +354,19 @@ router.get('/in-work', authenticate, async (req: AuthRequest, res: Response) => 
 
 // ── GET /api/leads/refused — closer: REFUSED leads ───────────────────────────
 router.get('/refused', authenticate, async (req: AuthRequest, res: Response) => {
-  const { from, to, period = 'month' } = req.query
-  const { fromStr, toStr } = getPeriodStr(period as string, from as string, to as string)
+  const { from, to, period = 'month', all } = req.query
   try {
+    const where: any = {
+      assignedToId: req.user!.id,
+      status: 'REFUSED',
+      deletedAt: null,
+    }
+    if (all !== 'true') {
+      const { fromStr, toStr } = getPeriodStr(period as string, from as string, to as string)
+      where.date = { gte: fromStr, lte: toStr }
+    }
     const leads = await prisma.lead.findMany({
-      where: {
-        assignedToId: req.user!.id,
-        status: 'REFUSED',
-        date: { gte: fromStr, lte: toStr },
-        deletedAt: null,
-      },
+      where,
       include: INCLUDE_FULL,
       orderBy: { updatedAt: 'desc' },
     })
