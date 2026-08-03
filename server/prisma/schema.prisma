@@ -343,6 +343,7 @@ model Lead {
   isRefund       Boolean       @default(false)
   refundedAt     DateTime?
   refundComment  String?
+  refundAmount   Float?
 
   // Soft delete — lead stays in DB but shows in archive as "Удалено"
   deletedAt      DateTime?

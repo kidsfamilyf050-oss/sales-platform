@@ -36,6 +36,7 @@ type Lead = {
   closerComment: string | null
   isRefund: boolean
   refundComment: string | null
+  refundAmount: number | null
   deletedAt: string | null
 }
 
@@ -286,8 +287,12 @@ function RefundButton({ lead }: { lead: Lead }) {
   const { t } = useT()
   const [show, setShow] = useState(false)
   const [comment, setComment] = useState('')
+  const [refundAmount, setRefundAmount] = useState(lead.amount ? String(lead.amount) : '')
   const refundMut = useMutation({
-    mutationFn: () => api.put(`/leads/${lead.id}/refund`, { refundComment: comment }).then(r => r.data),
+    mutationFn: () => api.put(`/leads/${lead.id}/refund`, {
+      refundComment: comment,
+      refundAmount: refundAmount ? Number(refundAmount) : null,
+    }).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['closer-leads'] }); setShow(false) },
   })
   if (!show) return (
@@ -298,8 +303,15 @@ function RefundButton({ lead }: { lead: Lead }) {
   )
   return (
     <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 space-y-2">
-      <p className="text-xs font-semibold text-orange-700">{t('cl.refund.reasonLabel')}</p>
-      <input className="input text-sm" value={comment} onChange={e => setComment(e.target.value)} placeholder={t('cl.refund.reasonPlaceholder')} />
+      <div>
+        <p className="text-xs font-semibold text-orange-700 mb-1">{t('cl.refund.amountLabel')}</p>
+        <input type="number" className="input text-sm" value={refundAmount}
+          onChange={e => setRefundAmount(e.target.value)} placeholder="0" />
+      </div>
+      <div>
+        <p className="text-xs font-semibold text-orange-700 mb-1">{t('cl.refund.reasonLabel')}</p>
+        <input className="input text-sm" value={comment} onChange={e => setComment(e.target.value)} placeholder={t('cl.refund.reasonPlaceholder')} />
+      </div>
       <div className="flex gap-2">
         <button onClick={() => refundMut.mutate()} disabled={refundMut.isPending}
           className="flex-1 bg-orange-500 text-white text-xs font-semibold py-2 rounded-lg hover:bg-orange-600 disabled:opacity-40 transition-colors">
@@ -599,6 +611,7 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
   const displayTime = lead.postponedTime || lead.appointmentTime || null
   const isOverdueAppt = !!displayDate && displayDate < today
   const isTodayAppt = !!displayDate && displayDate === today
+  const isFutureAppt = !!displayDate && displayDate > today
 
   const bgCls = isOverdueAppt && !hasStatus
     ? 'bg-red-50 border-red-200'
@@ -650,12 +663,20 @@ function ConsultationStatusSection({ lead, compact = false }: { lead: Lead; comp
       {/* Action buttons — always shown when no final outcome yet */}
       {(!hasStatus || lead.consultationStatus === 'postponed') && !showPostpone && (
         <div>
-          <p className={`text-xs mb-2 flex items-center gap-1 ${isOverdueAppt ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
-            {isOverdueAppt && <AlertTriangle className="w-3 h-3 shrink-0" />}
-            {isOverdueAppt ? t('cl.consult.overdue') : t('cl.consult.markResult')}
-          </p>
+          {isFutureAppt ? (
+            <p className="text-xs mb-2 flex items-center gap-1 text-blue-500 font-medium">
+              <Calendar className="w-3 h-3 shrink-0" />
+              {t('cl.consult.future')}
+            </p>
+          ) : (
+            <p className={`text-xs mb-2 flex items-center gap-1 ${isOverdueAppt ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
+              {isOverdueAppt && <AlertTriangle className="w-3 h-3 shrink-0" />}
+              {isOverdueAppt ? t('cl.consult.overdue') : t('cl.consult.markResult')}
+            </p>
+          )}
           <div className="flex gap-2 flex-wrap">
-            {(['happened', 'not_happened'] as const).map(s => {
+            {/* happened/not_happened only allowed on or after the consultation date */}
+            {!isFutureAppt && (['happened', 'not_happened'] as const).map(s => {
               const BIcon = statusLabels[s].Icon
               return (
                 <button
@@ -942,7 +963,7 @@ function LeadCard({ lead, showAccept = false, showWork = false, readonly = false
             <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2 text-sm text-orange-700 flex items-center gap-2">
               <RotateCcw className="w-4 h-4 shrink-0" />
               <div>
-                <p className="font-semibold">{t('cl.card.refundDone')}{lead.amount ? ` — ₸ ${lead.amount.toLocaleString('ru')}` : ''}</p>
+                <p className="font-semibold">{t('cl.card.refundDone')}{(lead.refundAmount ?? lead.amount) ? ` — ₸ ${(lead.refundAmount ?? lead.amount)!.toLocaleString('ru')}` : ''}</p>
                 {lead.refundComment && <p className="text-xs text-orange-500 mt-0.5">{lead.refundComment}</p>}
               </div>
             </div>
@@ -990,6 +1011,19 @@ export default function CloserLeadsPage() {
     queryKey: ['closer-leads', 'inwork', params],
     queryFn: () => api.get(`/leads/in-work?${params}`).then(r => r.data),
   })
+
+  // Previous month in-work — to catch leads with 1-2 week sales cycles that spill over
+  const prevMonthParams = (() => {
+    const now = new Date()
+    const prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const prevEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+    const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    return `from=${fmt(prevStart)}&to=${fmt(prevEnd)}`
+  })()
+  const prevInworkQ = useQuery({
+    queryKey: ['closer-leads', 'inwork-prev', prevMonthParams],
+    queryFn: () => api.get(`/leads/in-work?${prevMonthParams}`).then(r => r.data),
+  })
   const refusedQ = useQuery({
     queryKey: ['closer-leads', 'refused', params],
     queryFn: () => api.get(`/leads/refused?${params}`).then(r => r.data),
@@ -1009,6 +1043,10 @@ export default function CloserLeadsPage() {
 
   const incoming: Lead[] = incomingQ.data || []
   const inwork: Lead[] = inworkQ.data || []
+  const prevInwork: Lead[] = prevInworkQ.data || []
+  // Carryover = prev month leads NOT already in current period inwork
+  const carryoverInwork = prevInwork.filter(l => !inwork.some(i => i.id === l.id))
+  const allInwork = [...inwork, ...carryoverInwork]
   const refused: Lead[] = refusedQ.data || []
   const sold: Lead[] = soldQ.data || []
   const refunds: Lead[] = refundsQ.data || []
@@ -1020,14 +1058,14 @@ export default function CloserLeadsPage() {
 
   const tabs = [
     { key: 'incoming', label: t('cl.tab.incoming'), count: incoming.length,  dot: 'bg-blue-500', urgent: incoming.length > 0 },
-    { key: 'inwork',   label: t('cl.tab.inwork'),   count: inwork.length,    dot: 'bg-amber-400' },
+    { key: 'inwork',   label: t('cl.tab.inwork'),   count: allInwork.length, dot: 'bg-amber-400' },
     { key: 'refused',  label: t('cl.tab.refused'),  count: refused.length,   dot: 'bg-red-400' },
     { key: 'sold',     label: t('cl.tab.sold'),     count: soldPure.length,  dot: 'bg-green-400' },
     { key: 'refunds',  label: t('cl.tab.refunds'),  count: refunds.length,   dot: 'bg-orange-400', urgent: refunds.length > 0 },
     { key: 'trash',    label: t('cl.tab.trash'),    count: trash.length,     dot: 'bg-gray-400' },
   ] as const
 
-  const currentLeads = tab === 'incoming' ? incoming : tab === 'inwork' ? inwork : tab === 'refused' ? refused : tab === 'sold' ? soldPure : tab === 'trash' ? trash : refunds
+  const currentLeads = tab === 'incoming' ? incoming : tab === 'inwork' ? allInwork : tab === 'refused' ? refused : tab === 'sold' ? soldPure : tab === 'trash' ? trash : refunds
   const currentQ = tab === 'incoming' ? incomingQ : tab === 'inwork' ? inworkQ : tab === 'refused' ? refusedQ : tab === 'sold' ? soldQ : tab === 'trash' ? trashQ : refundsQ
 
   // Net revenue + refund stats (use amount = gross for refund display)
@@ -1113,18 +1151,86 @@ export default function CloserLeadsPage() {
 
       {!currentQ.isLoading && currentLeads.length > 0 && (
         <div className="space-y-3">
-          {currentLeads.map((lead: Lead) => (
-            <LeadCard
-              key={lead.id}
-              lead={lead}
-              showAccept={tab === 'incoming'}
-              showWork={tab === 'inwork'}
-              readonly={tab === 'refused' || tab === 'sold' || tab === 'refunds' || tab === 'trash'}
-              highlightToday={tab === 'incoming' || tab === 'inwork'}
-              showDelete={tab !== 'trash'}
-              showRestore={tab === 'trash'}
-            />
-          ))}
+          {tab === 'incoming' ? (() => {
+            // Sort: today's consultation first, then by appointmentDate asc, then no-date
+            const todayConsults = incoming.filter(l => {
+              const appt = l.postponedDate || l.appointmentDate
+              return appt === todayStr
+            })
+            const otherLeads = incoming.filter(l => {
+              const appt = l.postponedDate || l.appointmentDate
+              return appt !== todayStr
+            }).sort((a, b) => {
+              const da = a.postponedDate || a.appointmentDate || '9999'
+              const db = b.postponedDate || b.appointmentDate || '9999'
+              return da.localeCompare(db)
+            })
+            return (
+              <>
+                {todayConsults.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <div className="h-px flex-1 bg-blue-200" />
+                      <span className="text-xs font-bold text-blue-600 uppercase tracking-wide flex items-center gap-1">
+                        <Calendar className="w-3 h-3" /> {t('cl.incoming.todayBadge')} — {todayConsults.length}
+                      </span>
+                      <div className="h-px flex-1 bg-blue-200" />
+                    </div>
+                    {todayConsults.map(lead => (
+                      <LeadCard key={lead.id} lead={lead} showAccept showWork={false}
+                        readonly={false} highlightToday showDelete showRestore={false} />
+                    ))}
+                    {otherLeads.length > 0 && (
+                      <div className="flex items-center gap-2 pt-1">
+                        <div className="h-px flex-1 bg-gray-200" />
+                        <span className="text-xs text-gray-400 uppercase tracking-wide">Остальные</span>
+                        <div className="h-px flex-1 bg-gray-200" />
+                      </div>
+                    )}
+                  </>
+                )}
+                {otherLeads.map(lead => (
+                  <LeadCard key={lead.id} lead={lead} showAccept showWork={false}
+                    readonly={false} highlightToday showDelete showRestore={false} />
+                ))}
+              </>
+            )
+          })() : tab === 'inwork' ? (
+            <>
+              {inwork.map((lead: Lead) => (
+                <LeadCard key={lead.id} lead={lead} showAccept={false} showWork
+                  readonly={false} highlightToday showDelete showRestore={false} />
+              ))}
+              {carryoverInwork.length > 0 && (
+                <>
+                  <div className="flex items-center gap-2 pt-2">
+                    <div className="h-px flex-1 bg-amber-200" />
+                    <span className="text-xs font-bold text-amber-600 uppercase tracking-wide flex items-center gap-1">
+                      ← {t('cl.inwork.prevMonth')} — {carryoverInwork.length}
+                    </span>
+                    <div className="h-px flex-1 bg-amber-200" />
+                  </div>
+                  {carryoverInwork.map((lead: Lead) => (
+                    <LeadCard key={lead.id} lead={lead} showAccept={false} showWork
+                      readonly={false} highlightToday={false} showDelete showRestore={false} />
+                  ))}
+                </>
+              )}
+            </>
+          ) : (
+            currentLeads.map((lead: Lead) => (
+              <LeadCard
+                key={lead.id}
+                lead={lead}
+                showAccept={false}
+                showWork={false}
+                readonly={tab === 'refused' || tab === 'sold' || tab === 'refunds' || tab === 'trash'}
+                highlightToday={false}
+                showDelete={tab !== 'trash'}
+                showRestore={tab === 'trash'}
+              />
+            ))
+          )}
         </div>
       )}
     </div>

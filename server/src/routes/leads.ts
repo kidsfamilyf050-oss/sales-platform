@@ -811,6 +811,7 @@ router.put('/:id/refund', authenticate, async (req: AuthRequest, res: Response) 
         isRefund: true,
         refundedAt: new Date(),
         refundComment: req.body.refundComment || null,
+        refundAmount: req.body.refundAmount != null ? Number(req.body.refundAmount) : null,
       },
     })
     res.json(updated)

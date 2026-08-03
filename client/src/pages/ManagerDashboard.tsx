@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
-import { Plus, Pencil, Trash2, ExternalLink, X, Check, Download, ChevronRight, Archive, Calendar, Clock } from 'lucide-react'
+import { Plus, Pencil, Trash2, ExternalLink, X, Check, Download, ChevronRight, Archive, Calendar, Clock, ChevronDown } from 'lucide-react'
 import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useT } from '../i18n'
@@ -77,6 +78,70 @@ async function downloadExport(endpoint: string, params: string) {
   a.download = filename
   document.body.appendChild(a); a.click(); document.body.removeChild(a)
   URL.revokeObjectURL(a.href)
+}
+
+// ── Portal-based custom dropdown (avoids overflow clipping) ─────────────────
+function SelectDropdown({
+  value, onChange, options,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: { value: string; label: string }[]
+}) {
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 })
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+
+  const handleOpen = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 200) })
+    }
+    setOpen(p => !p)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    const onOut = (e: MouseEvent) => {
+      if (
+        listRef.current && !listRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) setOpen(false)
+    }
+    const onScroll = () => setOpen(false)
+    document.addEventListener('mousedown', onOut)
+    document.addEventListener('scroll', onScroll, true)
+    return () => {
+      document.removeEventListener('mousedown', onOut)
+      document.removeEventListener('scroll', onScroll, true)
+    }
+  }, [open])
+
+  const selected = options.find(o => o.value === value)
+
+  return (
+    <>
+      <button ref={btnRef} type="button" onClick={handleOpen}
+        className="input flex items-center justify-between gap-2 text-left">
+        <span className="truncate">{selected?.label ?? value}</span>
+        <ChevronDown className={`w-3.5 h-3.5 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && createPortal(
+        <div ref={listRef}
+          style={{ position: 'fixed', top: pos.top, left: pos.left, minWidth: pos.width, zIndex: 9999 }}
+          className="bg-white rounded-xl shadow-2xl border border-gray-100 py-1 overflow-hidden max-h-72 overflow-y-auto">
+          {options.map(opt => (
+            <button key={opt.value} type="button" onClick={() => { onChange(opt.value); setOpen(false) }}
+              className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${value === opt.value ? 'font-semibold text-blue-700 bg-blue-50' : 'text-gray-700 hover:bg-gray-50'}`}>
+              {opt.label}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+    </>
+  )
 }
 
 export default function ManagerDashboard() {
@@ -499,23 +564,22 @@ export default function ManagerDashboard() {
                   </div>
                   <div>
                     <label className="label">{t('report.closer.saleType')}</label>
-                    <select className="input" value={saleForm.paymentType}
-                      onChange={e => setSaleForm(f => f ? { ...f, paymentType: e.target.value as any } : f)}>
-                      <option value="new_sale">{t('report.closer.newSale')}</option>
-                      <option value="additional">{t('report.closer.additional')}</option>
-                    </select>
+                    <SelectDropdown
+                      value={saleForm.paymentType}
+                      onChange={v => setSaleForm(f => f ? { ...f, paymentType: v as any } : f)}
+                      options={[
+                        { value: 'new_sale',   label: t('report.closer.newSale') },
+                        { value: 'additional', label: t('report.closer.additional') },
+                      ]}
+                    />
                   </div>
                   <div className="col-span-2">
                     <label className="label">{t('dash.closer.gatewayLabel')}</label>
-                    <select className="input" value={saleForm.paymentMethod}
-                      onChange={e => {
-                        const m = e.target.value
-                        setSaleForm(f => f ? { ...f, paymentMethod: m, months: showMonths(m) ? (f.months || '12') : '' } : f)
-                      }}>
-                      {PAYMENT_GATEWAYS.map(g => (
-                        <option key={g.value} value={g.value}>{g.label}</option>
-                      ))}
-                    </select>
+                    <SelectDropdown
+                      value={saleForm.paymentMethod}
+                      onChange={m => setSaleForm(f => f ? { ...f, paymentMethod: m, months: showMonths(m) ? (f.months || '12') : '' } : f)}
+                      options={PAYMENT_GATEWAYS.map(g => ({ value: g.value, label: g.label }))}
+                    />
                     {(() => {
                       const fee = GATEWAY_FEE_MAP[saleForm.paymentMethod] ?? 0.03
                       const numAmt = Number(saleForm.amount)
