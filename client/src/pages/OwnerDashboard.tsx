@@ -171,7 +171,7 @@ export default function OwnerDashboard() {
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
   if (!data) return null
 
-  const { summary, dailyChart, managerRating, liderRating, productStats = [], gatewayAnalytics = [] } = data as any
+  const { summary, dailyChart, managerRating, liderRating, productStats = [], gatewayAnalytics = [], carryover } = data as any
 
   const STATUS = {
     green:  { dot: 'bg-green-400',  bg: '',             label: t('dash.status.ok') },
@@ -226,6 +226,24 @@ export default function OwnerDashboard() {
       </div>
 
       <ProgressBar value={summary.planCompletion} label={t('dash.planCompletion')} />
+
+      {/* Carryover sales (дожим) */}
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4">
+        <div>
+          <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-0.5">Продажи (дожим)</p>
+          <p className="text-sm text-amber-600">Лиды из прошлых периодов, закрытые в этом</p>
+        </div>
+        <div className="ml-auto flex items-center gap-6 shrink-0">
+          <div className="text-right">
+            <p className="text-2xl font-bold text-amber-800">{carryover?.count ?? 0}</p>
+            <p className="text-xs text-amber-500">сделок</p>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-bold text-amber-800">₸ {fmt(carryover?.revenue ?? 0)}</p>
+            <p className="text-xs text-amber-500">выручка</p>
+          </div>
+        </div>
+      </div>
 
       {/* ── Block 2: Funnel + Marketing ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

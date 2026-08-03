@@ -101,6 +101,16 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const totalSalesCount    = periodSales.length
     // NOTE: totalConsultations/Refusals/InWork computed below from Lead model (after allLiderLeads query)
 
+    // Carryover: sold in this period from leads created before period start
+    const ownerSaleLeadIds = periodSales.map((s: any) => s.leadId).filter(Boolean) as string[]
+    const ownerCarryoverLeadSet = ownerSaleLeadIds.length > 0
+      ? await prisma.lead.findMany({ where: { id: { in: ownerSaleLeadIds }, date: { lt: fromStr } }, select: { id: true } })
+          .then(ls => new Set(ls.map(l => l.id)))
+      : new Set<string>()
+    const ownerCarryoverSales = periodSales.filter((s: any) => s.leadId && ownerCarryoverLeadSet.has(s.leadId))
+    const ownerCarryoverCount = ownerCarryoverSales.length
+    const ownerCarryoverRevenue = ownerCarryoverSales.reduce((sum: number, x: any) => sum + (x.netAmount ?? x.amount), 0)
+
     // ── Marketing metrics — budget from MARKETER reports; leads from Lead model ──
     const totalBudget    = marketerReports.reduce((s, r) => s + (Number((r.data as any).adBudget) || Number((r.data as any).budget) || 0), 0)
 
@@ -276,6 +286,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       liderRating,
       productStats,
       gatewayAnalytics: buildGatewayAnalytics(periodSales),
+      carryover: { count: ownerCarryoverCount, revenue: ownerCarryoverRevenue },
     })
   } catch (e) {
     console.error(e)
