@@ -38,6 +38,7 @@ type Lead = {
   refundComment: string | null
   refundAmount: number | null
   deletedAt: string | null
+  updatedAt: string
 }
 
 // Payment type options — built inside components using t()
@@ -836,6 +837,12 @@ function LeadCard({ lead, showAccept = false, showConsult = false, showWork = fa
             )}
             {lead.salesChannel && <span>{lead.salesChannel.name}</span>}
             <span className="flex items-center gap-1"><User className="w-3 h-3" />{lead.createdBy.name}</span>
+            {lead.status === 'REFUSED' && readonly && (
+              <span className="flex items-center gap-1 text-red-400">
+                <X className="w-3 h-3" />
+                {t('cl.card.refusedAt')} {new Date(lead.updatedAt).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}
+              </span>
+            )}
             {displayAmount != null && displayAmount > 0 && (
               <span className="flex items-center gap-1 text-green-600 font-medium">
                 <Banknote className="w-3 h-3" />₸ {Number(displayAmount).toLocaleString('ru')}

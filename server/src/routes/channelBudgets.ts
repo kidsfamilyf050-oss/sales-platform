@@ -113,8 +113,11 @@ router.get('/dashboard', authenticate, async (req: AuthRequest, res: Response) =
     const totalLeads     = leads.length
     const qualLeads      = leads.filter(l => l.isQualified).length
     const scheduled      = leads.filter(l => l.subStatus === 'scheduled').length
-    const happened       = leads.filter(l => l.consultationStatus === 'happened').length
-    const totalSalesCount = sales.length
+    // happened = consultationStatus='happened' OR SOLD (SOLD implies consultation happened)
+    // Use leads-based count so happened and soldFromLeads share the same date filter
+    const happened        = leads.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length
+    const soldFromLeads   = leads.filter(l => l.status === 'SOLD').length
+    const totalSalesCount = sales.length  // Sale-table count used for revenue/CAC only
     const grossRevenue   = sales.reduce((s, sale) => s + Number(sale.amount), 0)
     const totalRefundAmt = refundedLeadsForRevenue.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
     const totalRevenue   = grossRevenue - totalRefundAmt
@@ -200,7 +203,7 @@ router.get('/dashboard', authenticate, async (req: AuthRequest, res: Response) =
         convLidToQual: pct(qualLeads, totalLeads),
         convQualToScheduled: pct(scheduled, qualLeads),
         convScheduledToHappened: pct(happened, scheduled),
-        convHappenedToSale: pct(totalSalesCount, happened),
+        convHappenedToSale: pct(soldFromLeads, happened),
         convOverall: pct(totalSalesCount, totalLeads),
       },
       channels: channelRows,
