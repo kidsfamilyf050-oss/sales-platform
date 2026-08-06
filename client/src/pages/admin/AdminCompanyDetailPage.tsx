@@ -1,7 +1,38 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { adminApi } from '../../api/adminClient'
-import { ArrowLeft, CheckCircle, XCircle, Clock, User, Shield, Pencil, X, Check, KeyRound, Eye, EyeOff, Wifi } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, Clock, User, Shield, Pencil, X, Check, KeyRound, Eye, EyeOff, Wifi, Infinity, CalendarPlus } from 'lucide-react'
+
+// Quick access presets
+const ACCESS_PRESETS = [
+  { label: '1 мес', months: 1 },
+  { label: '3 мес', months: 3 },
+  { label: '6 мес', months: 6 },
+  { label: '1 год', months: 12 },
+]
+
+function addMonths(date: Date, months: number): Date {
+  const d = new Date(date)
+  d.setMonth(d.getMonth() + months)
+  return d
+}
+
+function toDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function getSubscriptionStatus(trialEndsAt: string, isActive: boolean): { label: string; color: string } {
+  if (!isActive) return { label: 'Заблокирована', color: 'text-red-400' }
+  if (!trialEndsAt) return { label: 'Бессрочный доступ', color: 'text-emerald-400' }
+  const end = new Date(trialEndsAt)
+  const now = new Date()
+  if (end < now) {
+    const days = Math.floor((now.getTime() - end.getTime()) / 86400000)
+    return { label: `Просрочен ${days} дн. назад`, color: 'text-red-400' }
+  }
+  const days = Math.ceil((end.getTime() - now.getTime()) / 86400000)
+  return { label: `Активен · ${days} дн. осталось`, color: days <= 7 ? 'text-amber-400' : 'text-green-400' }
+}
 
 const ROLE_LABELS: Record<string, string> = {
   OWNER: 'Собственник', ROP: 'РОП', MANAGER: 'Менеджер', MARKETER: 'Маркетолог',
@@ -53,6 +84,29 @@ export default function AdminCompanyDetailPage() {
       ...fields,
       trialEndsAt: fields.trialEndsAt || null,
     })
+    setSaving(false)
+    load()
+  }
+
+  // Extend access: if current date is in future, extend from it; else extend from today
+  const grantAccess = async (months: number) => {
+    const base = fields.trialEndsAt && new Date(fields.trialEndsAt) > new Date()
+      ? new Date(fields.trialEndsAt)
+      : new Date()
+    const newDate = toDateStr(addMonths(base, months))
+    const updated = { ...fields, subscriptionPlan: 'pro', trialEndsAt: newDate }
+    setFields(updated)
+    setSaving(true)
+    await adminApi.patch(`/api/admin/companies/${id}`, { ...updated, trialEndsAt: newDate })
+    setSaving(false)
+    load()
+  }
+
+  const grantUnlimited = async () => {
+    const updated = { ...fields, subscriptionPlan: 'pro', trialEndsAt: '' }
+    setFields(updated)
+    setSaving(true)
+    await adminApi.patch(`/api/admin/companies/${id}`, { ...updated, trialEndsAt: null })
     setSaving(false)
     load()
   }
@@ -158,8 +212,41 @@ export default function AdminCompanyDetailPage() {
               <option value="pro">Pro</option>
             </select>
           </div>
+          {/* Subscription status badge */}
+          {company && (
+            <div className={`text-sm font-semibold ${getSubscriptionStatus(fields.trialEndsAt, company.isActive).color}`}>
+              {getSubscriptionStatus(fields.trialEndsAt, company.isActive).label}
+            </div>
+          )}
+
+          {/* Quick access buttons */}
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Доступ до</label>
+            <label className="block text-xs text-gray-500 mb-2 flex items-center gap-1">
+              <CalendarPlus className="w-3 h-3" /> Выдать/продлить доступ
+            </label>
+            <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+              {ACCESS_PRESETS.map(p => (
+                <button
+                  key={p.months}
+                  onClick={() => grantAccess(p.months)}
+                  disabled={saving}
+                  className="bg-blue-900/40 hover:bg-blue-800/60 border border-blue-700/50 text-blue-300 text-xs py-1.5 rounded-lg font-medium transition-colors disabled:opacity-40"
+                >
+                  + {p.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={grantUnlimited}
+              disabled={saving}
+              className="w-full bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-700/50 text-emerald-300 text-xs py-1.5 rounded-lg font-medium transition-colors disabled:opacity-40 flex items-center justify-center gap-1"
+            >
+              <Infinity className="w-3 h-3" /> Бессрочно
+            </button>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Доступ до (вручную)</label>
             <input
               type="date"
               className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none"
