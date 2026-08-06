@@ -221,7 +221,8 @@ export default function OwnerDashboard() {
         <StatCard label={t('dash.salesCount')} value={summary.totalSalesCount} />
         <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck)}`} />
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
-        <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red" />
+        <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red"
+          sub={summary.totalRefusalsAmount > 0 ? `−₸ ${fmt(summary.totalRefusalsAmount)}` : undefined} />
         <StatCard label={t('dash.inWork')} value={summary.totalInWork ?? 0} color="yellow" />
       </div>
 

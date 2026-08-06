@@ -125,7 +125,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const [allLiderLeads, companyRefundedLeads] = await Promise.all([
       prisma.lead.findMany({
         where: { createdBy: { companyId: req.user!.companyId }, date: { gte: fromStr, lte: toStr } },
-        select: { isQualified: true, assignedToId: true, status: true, consultationStatus: true },
+        select: { isQualified: true, assignedToId: true, status: true, consultationStatus: true, amount: true, netAmount: true },
       }),
       prisma.lead.findMany({
         where: { createdBy: { companyId: req.user!.companyId }, status: 'SOLD', isRefund: true, date: { gte: fromStr, lte: toStr } },
@@ -153,6 +153,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     // Lead model is source of truth for consultations/refusals/inWork
     const totalConsultations = allLiderLeads.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length
     const totalRefusals      = allLiderLeads.filter(l => l.status === 'REFUSED').length
+    const totalRefusalsAmount = allLiderLeads.filter(l => l.status === 'REFUSED').reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
     const totalInWork        = allLiderLeads.filter(l => l.status === 'IN_WORK').length
 
     // ── Plans ─────────────────────────────────────────────────────────────
@@ -293,7 +294,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         conversion,
         conversionLabel,
         planCompletion: salesPlan > 0 ? Math.round((totalNetSales / salesPlan) * 1000) / 10 : 0,
-        totalConsultations, totalRefusals, totalInWork,
+        totalConsultations, totalRefusals, totalRefusalsAmount, totalInWork,
         // Marketing block — leads from Lead model, budget from MARKETER reports
         marketingLeads: totalLiderLeads, leadsplan, totalBudget, budgetPlan, leadCost: Math.round(leadCost),
         // Lider funnel (from LIDER reports)
@@ -345,7 +346,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       // All company leads for consultation/refusal/inWork stats (Lead model = source of truth)
       prisma.lead.findMany({
         where: { createdBy: { companyId: req.user!.companyId }, date: { gte: fromStr, lte: toStr } },
-        select: { status: true, consultationStatus: true },
+        select: { status: true, consultationStatus: true, amount: true, netAmount: true },
       }),
       // Closer-assigned leads for per-manager metrics (Lead model = source of truth)
       prisma.lead.findMany({
@@ -450,6 +451,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     // totalConsultations uses same source+filter as funnel.meetingsAttended so both cards show identical numbers
     const totalConsultations = meetingsAttended
     const totalRefusals = allCompanyLeads.filter(l => l.status === 'REFUSED').length
+    const totalRefusalsAmount = allCompanyLeads.filter(l => l.status === 'REFUSED').reduce((s, l) => s + ((l as any).netAmount ?? (l as any).amount ?? 0), 0)
     const totalInWork = allCompanyLeads.filter(l => l.status === 'IN_WORK').length
 
     // Per-manager refunds map for ROP (using ropRefundedLeads fetched above)
@@ -566,7 +568,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         conversion: totalConsultations > 0 ? Math.round((Math.max(0, totalSalesCount - ropRefundCount) / totalConsultations) * 100) : 0,
         avgCheck: Math.max(0, totalSalesCount - ropRefundCount) > 0 ? Math.round(ropNetSales / Math.max(0, totalSalesCount - ropRefundCount)) : 0,
         planCompletion: salesPlan > 0 ? Math.round((ropNetSales / salesPlan) * 1000) / 10 : 0,
-        totalConsultations, totalRefusals, totalInWork,
+        totalConsultations, totalRefusals, totalRefusalsAmount, totalInWork,
       },
       funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount: Math.max(0, totalSalesCount - ropRefundCount) },
       marketing: { leadsplan, totalLeads, totalBudget, leadCost: totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0, qualifiedLeads },

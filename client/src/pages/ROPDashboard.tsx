@@ -443,6 +443,9 @@ export default function ROPDashboard() {
           <div className="card transition-all duration-150 group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent">
             <p className="text-xs text-gray-400 group-hover:text-red-500 transition-colors font-medium uppercase tracking-wide mb-1">{t('dash.refusals')}</p>
             <p className="text-2xl font-bold text-red-500">{summary.totalRefusals ?? 0}</p>
+            {summary.totalRefusalsAmount > 0 && (
+              <p className="text-xs text-red-400 font-medium mt-0.5">−₸ {summary.totalRefusalsAmount.toLocaleString('ru')}</p>
+            )}
             <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">нажмите → CRM-ссылки</p>
           </div>
         </div>
