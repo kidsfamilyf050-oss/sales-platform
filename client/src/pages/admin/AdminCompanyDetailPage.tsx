@@ -51,6 +51,7 @@ export default function AdminCompanyDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [company, setCompany] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [saving, setSaving] = useState(false)
   const [fields, setFields] = useState({ notes: '', subscriptionPlan: 'trial', trialEndsAt: '', name: '' })
 
@@ -62,6 +63,7 @@ export default function AdminCompanyDetailPage() {
   const [showPwd, setShowPwd] = useState(false)
 
   const load = () => {
+    setLoadError('')
     adminApi.get(`/api/admin/companies/${id}`)
       .then(r => {
         setCompany(r.data)
@@ -72,7 +74,10 @@ export default function AdminCompanyDetailPage() {
           name: r.data.name,
         })
       })
-      .catch(console.error)
+      .catch(e => {
+        console.error(e)
+        setLoadError(e.response?.data?.error || `Ошибка ${e.response?.status || ''}: ${e.message}`)
+      })
       .finally(() => setLoading(false))
   }
 
@@ -152,6 +157,18 @@ export default function AdminCompanyDetailPage() {
     <div className="p-8 text-gray-500 flex items-center gap-2">
       <div className="w-4 h-4 border-2 border-gray-600 border-t-red-500 rounded-full animate-spin" />
       Загрузка...
+    </div>
+  )
+
+  if (loadError) return (
+    <div className="p-8">
+      <Link to="/admin/companies" className="text-gray-500 hover:text-white flex items-center gap-2 mb-4">
+        <ArrowLeft className="w-4 h-4" /> Назад
+      </Link>
+      <div className="bg-red-900/20 border border-red-800 rounded-xl p-4 text-red-400 text-sm">
+        ⚠ {loadError}
+        <button onClick={load} className="ml-3 underline hover:no-underline">Повторить</button>
+      </div>
     </div>
   )
 
