@@ -204,7 +204,7 @@ function ChannelBudgetRow({
 export default function MarketingPage() {
   const qc = useQueryClient()
   const { user } = useAuthStore()
-  const canManagePlans = user?.role === 'OWNER' || user?.role === 'MARKETER'
+  const canManagePlans = user?.role === 'MARKETER'
   const periodState = usePeriodStore()
   const [activeTab, setActiveTab] = useState<'dashboard' | 'entry' | 'channels'>('dashboard')
   const [editingPlans, setEditingPlans] = useState(false)
@@ -291,10 +291,10 @@ export default function MarketingPage() {
           </div>
         </div>
 
-        {/* ── Tabs — ROP sees only Dashboard; MARKETER/OWNER see all tabs ── */}
+        {/* ── Tabs — only MARKETER sees entry + channels tabs ── */}
         <div className="flex gap-1 bg-white border border-gray-100 rounded-xl p-1 w-fit shadow-sm">
           {([['dashboard', 'Дашборд', BarChart2], ['entry', 'Ввод расходов', DollarSign], ['channels', 'Каналы', Settings]] as const)
-            .filter(([id]) => user?.role === 'ROP' ? id === 'dashboard' : true)
+            .filter(([id]) => user?.role === 'MARKETER' ? true : id === 'dashboard')
             .map(([id, label, Icon]) => (
             <button key={id} onClick={() => setActiveTab(id as any)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === id ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
@@ -533,6 +533,11 @@ export default function MarketingPage() {
                   <MetricChip label="Кол-во клиентов (продаж)" value={String(o.totalSalesCount ?? 0)} color="text-blue-700" />
                   <MetricChip label="CAC (стоимость клиента)" value={kpi.cac ? fmtMoney(kpi.cac) : '—'} color="text-purple-700" />
                 </div>
+
+                {/* ── Daily expenses history (visible to OWNER/ROP — read-only table) ── */}
+                {user?.role !== 'MARKETER' && (
+                  <DailyExpensesHistory channels={channels} fromParam={fromParam} toParam={toParam} />
+                )}
               </>
             )}
           </>
