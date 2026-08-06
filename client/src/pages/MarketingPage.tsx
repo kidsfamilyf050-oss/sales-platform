@@ -291,17 +291,18 @@ export default function MarketingPage() {
           </div>
         </div>
 
-        {/* ── Tabs — only MARKETER sees entry + channels tabs ── */}
-        <div className="flex gap-1 bg-white border border-gray-100 rounded-xl p-1 w-fit shadow-sm">
-          {([['dashboard', 'Дашборд', BarChart2], ['entry', 'Ввод расходов', DollarSign], ['channels', 'Каналы', Settings]] as const)
-            .filter(([id]) => user?.role === 'MARKETER' ? true : id === 'dashboard')
-            .map(([id, label, Icon]) => (
-            <button key={id} onClick={() => setActiveTab(id as any)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === id ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
-              <Icon className="w-4 h-4" /> {label}
-            </button>
-          ))}
-        </div>
+        {/* ── Tabs — only MARKETER sees the tab bar ── */}
+        {user?.role === 'MARKETER' && (
+          <div className="flex gap-1 bg-white border border-gray-100 rounded-xl p-1 w-fit shadow-sm">
+            {([['dashboard', 'Дашборд', BarChart2], ['entry', 'Ввод расходов', DollarSign], ['channels', 'Каналы', Settings]] as const)
+              .map(([id, label, Icon]) => (
+              <button key={id} onClick={() => setActiveTab(id as any)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === id ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
+                <Icon className="w-4 h-4" /> {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* ═══════════ DASHBOARD TAB ═══════════ */}
         {activeTab === 'dashboard' && (
