@@ -8,6 +8,7 @@ import {
   Settings, RefreshCw, Send, Calendar,
 } from 'lucide-react'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
+import { useT } from '../i18n'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 function localDateStr(d: Date) {
@@ -202,6 +203,7 @@ function ChannelBudgetRow({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function MarketingPage() {
+  const { t } = useT()
   const qc = useQueryClient()
   const { user } = useAuthStore()
   const canManagePlans = user?.role === 'MARKETER'
@@ -277,7 +279,7 @@ export default function MarketingPage() {
         {/* ── Header ── */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Дашборд маркетолога</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('mkt.page.title')}</h1>
             <p className="text-sm text-gray-400 mt-0.5">{fromParam} — {toParam}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -286,7 +288,7 @@ export default function MarketingPage() {
             </button>
             <button onClick={() => downloadExport('marketer', apiParams)}
               className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-              <Download className="w-4 h-4" /> Экспорт
+              <Download className="w-4 h-4" /> {t('mkt.page.export')}
             </button>
           </div>
         </div>
@@ -294,7 +296,7 @@ export default function MarketingPage() {
         {/* ── Tabs — only MARKETER sees the tab bar ── */}
         {user?.role === 'MARKETER' && (
           <div className="flex gap-1 bg-white border border-gray-100 rounded-xl p-1 w-fit shadow-sm">
-            {([['dashboard', 'Дашборд', BarChart2], ['entry', 'Ввод расходов', DollarSign], ['channels', 'Каналы', Settings]] as const)
+            {([['dashboard', t('mkt.tab.dashboard'), BarChart2], ['entry', t('mkt.tab.entry'), DollarSign], ['channels', t('mkt.tab.channels'), Settings]] as const)
               .map(([id, label, Icon]) => (
               <button key={id} onClick={() => setActiveTab(id as any)}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === id ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
@@ -308,23 +310,23 @@ export default function MarketingPage() {
         {activeTab === 'dashboard' && (
           <>
             {!dash && isLoading ? (
-              <div className="text-center py-20 text-gray-400">Загрузка данных...</div>
+              <div className="text-center py-20 text-gray-400">{t('mkt.page.loading')}</div>
             ) : (
               <>
                 {/* ── Plan KPI row ── */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                  <KpiCard label="План по лидам" value={plans.planLeads || '—'} color="text-gray-800"
+                  <KpiCard label={t('mkt.kpi.planLeads')} value={plans.planLeads || '—'} color="text-gray-800"
                     planVal={plans.planLeads} factVal={o.totalLeads} pctVal={leadsFactPct} />
-                  <KpiCard label="План по квал лидам" value={plans.planQual || '—'} color="text-gray-800"
+                  <KpiCard label={t('mkt.kpi.planQualLeads')} value={plans.planQual || '—'} color="text-gray-800"
                     planVal={plans.planQual} factVal={o.qualLeads} pctVal={qualFactPct} />
-                  <KpiCard label="Бюджет (заложено)" value={plans.planBudget ? fmtMoney(plans.planBudget) : '—'} color="text-gray-800"
+                  <KpiCard label={t('mkt.kpi.planBudget')} value={plans.planBudget ? fmtMoney(plans.planBudget) : '—'} color="text-gray-800"
                     planVal={plans.planBudget} factVal={o.totalSpend} pctVal={budgetFactPct} />
-                  <KpiCard label="Факт лидов" value={o.totalLeads ?? 0} color="text-blue-600"
-                    sub={leadsFactPct != null ? `${leadsFactPct}% от плана` : 'Лидов за период'} />
-                  <KpiCard label="Факт квал лидов" value={o.qualLeads ?? 0} color="text-green-600"
-                    sub={qualFactPct != null ? `${qualFactPct}% от плана` : `${kpi.convLidToQual ?? 0}% от всех лидов`} />
-                  <KpiCard label="Расходы на маркетинг" value={fmtMoney(o.totalSpend)} color="text-orange-600"
-                    sub={budgetFactPct != null ? `${budgetFactPct}% от плана` : 'потрачено за период'} />
+                  <KpiCard label={t('mkt.kpi.factLeads')} value={o.totalLeads ?? 0} color="text-blue-600"
+                    sub={leadsFactPct != null ? t('mkt.kpi.pctPlan').replace('{{pct}}', String(leadsFactPct)) : t('mkt.kpi.leadsPeriod')} />
+                  <KpiCard label={t('mkt.kpi.factQualLeads')} value={o.qualLeads ?? 0} color="text-green-600"
+                    sub={qualFactPct != null ? t('mkt.kpi.pctPlan').replace('{{pct}}', String(qualFactPct)) : t('mkt.kpi.pctAllLeads').replace('{{pct}}', String(kpi.convLidToQual ?? 0))} />
+                  <KpiCard label={t('mkt.kpi.spend')} value={fmtMoney(o.totalSpend)} color="text-orange-600"
+                    sub={budgetFactPct != null ? t('mkt.kpi.pctPlan').replace('{{pct}}', String(budgetFactPct)) : t('mkt.kpi.spent')} />
                 </div>
 
                 {/* ── Edit plans (OWNER/ROP only) ── */}
@@ -333,22 +335,22 @@ export default function MarketingPage() {
                     <button onClick={openPlanEdit}
                       className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors">
                       <Pencil className="w-3.5 h-3.5" />
-                      {plans.planLeads || plans.planQual || plans.planBudget ? 'Изменить планы' : '+ Установить планы на период'}
+                      {plans.planLeads || plans.planQual || plans.planBudget ? t('mkt.plans.change') : t('mkt.plans.set')}
                     </button>
                   ) : (
                     <div className="flex items-center gap-3 flex-wrap bg-white rounded-xl border border-gray-200 p-4">
                       <div>
-                        <label className="text-xs text-gray-500 block mb-1">План лидов</label>
+                        <label className="text-xs text-gray-500 block mb-1">{t('mkt.plans.leads')}</label>
                         <input type="number" value={planLeadsVal} onChange={e => setPlanLeadsVal(e.target.value)}
                           placeholder="0" className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-28 focus:ring-2 focus:ring-blue-500 outline-none" />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500 block mb-1">План квал лидов</label>
+                        <label className="text-xs text-gray-500 block mb-1">{t('mkt.plans.qualLeads')}</label>
                         <input type="number" value={planQualVal} onChange={e => setPlanQualVal(e.target.value)}
                           placeholder="0" className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-28 focus:ring-2 focus:ring-blue-500 outline-none" />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-500 block mb-1">Бюджет маркетинга ₸</label>
+                        <label className="text-xs text-gray-500 block mb-1">{t('mkt.plans.budget')}</label>
                         <input type="number" value={planBudgetVal} onChange={e => setPlanBudgetVal(e.target.value)}
                           placeholder="0" className="border border-gray-200 rounded-lg px-3 py-2 text-sm w-40 focus:ring-2 focus:ring-blue-500 outline-none" />
                       </div>
@@ -365,45 +367,45 @@ export default function MarketingPage() {
 
                 {/* ── KPI metrics row (CPL, CPQL, CAC, ДРР, конверсии) ── */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                  <MetricChip label="CPL — стоимость лида" value={kpi.cpl ? fmtMoney(kpi.cpl) : '—'} color="text-indigo-700"
-                    sub={o.totalLeads > 0 ? `${o.totalLeads} лидов` : undefined} />
-                  <MetricChip label="CPQL — стоимость квал лида" value={kpi.cpql ? fmtMoney(kpi.cpql) : '—'} color="text-purple-700"
-                    sub={o.qualLeads > 0 ? `${o.qualLeads} квал` : undefined} />
-                  <MetricChip label="CAC — стоимость клиента" value={kpi.cac ? fmtMoney(kpi.cac) : '—'} color="text-blue-700"
-                    sub={o.totalSalesCount > 0 ? `${o.totalSalesCount} продаж` : undefined} />
-                  <MetricChip label="ДРР — доля рекламных расх." value={kpi.drr != null ? `${kpi.drr}%` : '—'} color={kpi.drr > 30 ? 'text-red-600' : 'text-green-600'}
-                    sub={o.totalRevenue > 0 ? `Выручка ${fmtMoney(o.totalRevenue)}` : undefined} />
-                  <MetricChip label="Конверсия Лид→Продажа" value={kpi.convOverall != null ? `${kpi.convOverall}%` : '—'} color={colorPct(kpi.convOverall ?? 0, 15, 7)}
+                  <MetricChip label={t('mkt.kpi.cpl')} value={kpi.cpl ? fmtMoney(kpi.cpl) : '—'} color="text-indigo-700"
+                    sub={o.totalLeads > 0 ? t('mkt.kpi.leadsN').replace('{{n}}', String(o.totalLeads)) : undefined} />
+                  <MetricChip label={t('mkt.kpi.cpql')} value={kpi.cpql ? fmtMoney(kpi.cpql) : '—'} color="text-purple-700"
+                    sub={o.qualLeads > 0 ? t('mkt.kpi.qualN').replace('{{n}}', String(o.qualLeads)) : undefined} />
+                  <MetricChip label={t('mkt.kpi.cac')} value={kpi.cac ? fmtMoney(kpi.cac) : '—'} color="text-blue-700"
+                    sub={o.totalSalesCount > 0 ? t('mkt.kpi.salesN').replace('{{n}}', String(o.totalSalesCount)) : undefined} />
+                  <MetricChip label={t('mkt.kpi.drr')} value={kpi.drr != null ? `${kpi.drr}%` : '—'} color={kpi.drr > 30 ? 'text-red-600' : 'text-green-600'}
+                    sub={o.totalRevenue > 0 ? t('mkt.kpi.revenueN').replace('{{r}}', fmtMoney(o.totalRevenue)) : undefined} />
+                  <MetricChip label={t('mkt.kpi.convLeadSale')} value={kpi.convOverall != null ? `${kpi.convOverall}%` : '—'} color={colorPct(kpi.convOverall ?? 0, 15, 7)}
                     sub={o.totalSalesCount > 0 ? `${o.totalSalesCount} из ${o.totalLeads}` : undefined} />
                 </div>
 
                 {/* ── Carryover sales (дожим) ── */}
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4">
                   <div>
-                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-0.5">Продажи (дожим)</p>
-                    <p className="text-sm text-amber-600">Лиды из прошлых периодов, закрытые в этом</p>
+                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-0.5">{t('mkt.carryover.title')}</p>
+                    <p className="text-sm text-amber-600">{t('mkt.carryover.sub')}</p>
                   </div>
                   <div className="ml-auto flex items-center gap-6 shrink-0">
                     <div className="text-right">
                       <p className="text-2xl font-bold text-amber-800">{dash?.carryover?.count ?? 0}</p>
-                      <p className="text-xs text-amber-500">сделок</p>
+                      <p className="text-xs text-amber-500">{t('mkt.carryover.deals')}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-amber-800">{fmtMoney(dash?.carryover?.revenue ?? 0)}</p>
-                      <p className="text-xs text-amber-500">выручка</p>
+                      <p className="text-xs text-amber-500">{t('mkt.carryover.revenue')}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* ── Conversion chain ── */}
                 <div className="bg-white rounded-2xl border border-gray-100 p-4">
-                  <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wide">Воронка конверсий</p>
+                  <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wide">{t('mkt.convChain.title')}</p>
                   <div className="flex items-center gap-2 flex-wrap">
                     {[
-                      { label: 'Лид → Квал',          value: kpi.convLidToQual },
-                      { label: 'Квал → Запись',        value: kpi.convQualToScheduled },
-                      { label: 'Запись → Консультация',value: kpi.convScheduledToHappened },
-                      { label: 'Консультация → Продажа',value: kpi.convHappenedToSale },
+                      { label: t('mkt.convChain.leadQual'),    value: kpi.convLidToQual },
+                      { label: t('mkt.convChain.qualSched'),   value: kpi.convQualToScheduled },
+                      { label: t('mkt.convChain.schedHapp'),   value: kpi.convScheduledToHappened },
+                      { label: t('mkt.convChain.happSale'),    value: kpi.convHappenedToSale },
                     ].map((step, i, arr) => (
                       <div key={step.label} className="flex items-center gap-2">
                         <div className="text-center">
@@ -421,28 +423,28 @@ export default function MarketingPage() {
                 {/* ── Per-channel table ── */}
                 <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                   <div className="px-5 py-4 border-b border-gray-50">
-                    <h2 className="font-bold text-gray-900">Ежедневный отчёт по рекламным каналам</h2>
-                    <p className="text-xs text-gray-400 mt-0.5">Расходы вводятся во вкладке «Ввод расходов»</p>
+                    <h2 className="font-bold text-gray-900">{t('mkt.table.title')}</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">{t('mkt.table.hint')}</p>
                   </div>
                   {channels.length === 0 ? (
                     <div className="text-center py-12 text-gray-400">
                       <TrendingUp className="w-10 h-10 mx-auto mb-3 text-gray-200" />
-                      <p className="font-medium">Нет рекламных каналов</p>
-                      <p className="text-sm mt-1">Создайте каналы во вкладке «Каналы»</p>
+                      <p className="font-medium">{t('mkt.table.noChannels')}</p>
+                      <p className="text-sm mt-1">{t('mkt.table.noChannelsSub')}</p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="bg-gray-50 text-xs font-semibold text-gray-500">
-                            <th className="text-left px-5 py-3">Рекламный канал</th>
-                            <th className="text-center px-4 py-3">Потрачено</th>
-                            <th className="text-center px-4 py-3">Лидов</th>
-                            <th className="text-center px-4 py-3">Квал лидов</th>
-                            <th className="text-center px-4 py-3">Не квал</th>
+                            <th className="text-left px-5 py-3">{t('mkt.table.channel')}</th>
+                            <th className="text-center px-4 py-3">{t('mkt.table.spent')}</th>
+                            <th className="text-center px-4 py-3">{t('mkt.table.leads')}</th>
+                            <th className="text-center px-4 py-3">{t('mkt.table.qualLeads')}</th>
+                            <th className="text-center px-4 py-3">{t('mkt.table.notQual')}</th>
                             <th className="text-center px-4 py-3">CPL</th>
                             <th className="text-center px-4 py-3">CPQL</th>
-                            <th className="text-center px-4 py-3">Конв Лид→Квал</th>
+                            <th className="text-center px-4 py-3">{t('mkt.table.convLQ')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -462,7 +464,7 @@ export default function MarketingPage() {
                           ))}
                           {/* Total row */}
                           <tr className="border-t-2 border-gray-200 bg-gray-50 font-semibold">
-                            <td className="px-5 py-3 text-gray-900">Итого</td>
+                            <td className="px-5 py-3 text-gray-900">{t('mkt.table.total')}</td>
                             <td className="px-4 py-3 text-center text-gray-900">{fmtMoney(o.totalSpend)}</td>
                             <td className="px-4 py-3 text-center text-gray-900">{o.totalLeads ?? 0}</td>
                             <td className="px-4 py-3 text-center text-green-700">{o.qualLeads ?? 0}</td>
@@ -483,26 +485,26 @@ export default function MarketingPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                   {/* Funnel */}
                   <div className="bg-white rounded-2xl border border-gray-100 p-5">
-                    <h2 className="font-bold text-gray-900 mb-4">Воронка продаж <span className="text-xs font-normal text-gray-400">(суммарно по всем лидорубам)</span></h2>
+                    <h2 className="font-bold text-gray-900 mb-4">{t('mkt.funnel.title')} <span className="text-xs font-normal text-gray-400">{t('mkt.funnel.sub')}</span></h2>
                     <div className="space-y-2">
-                      <FunnelRow label="Лиды (всего)" value={o.totalLeads ?? 0} max={funnelMax} color="bg-blue-500" />
-                      <FunnelRow label="Квал лиды" value={o.qualLeads ?? 0} max={funnelMax} color="bg-indigo-500"
+                      <FunnelRow label={t('mkt.funnel.leads')} value={o.totalLeads ?? 0} max={funnelMax} color="bg-blue-500" />
+                      <FunnelRow label={t('mkt.funnel.qualLeads')} value={o.qualLeads ?? 0} max={funnelMax} color="bg-indigo-500"
                         conv={kpi.convLidToQual} />
-                      <FunnelRow label="Записаны на консультацию" value={o.scheduled ?? 0} max={funnelMax} color="bg-purple-400"
+                      <FunnelRow label={t('mkt.funnel.scheduled')} value={o.scheduled ?? 0} max={funnelMax} color="bg-purple-400"
                         conv={kpi.convQualToScheduled} />
-                      <FunnelRow label="Состоялись консультации" value={o.happened ?? 0} max={funnelMax} color="bg-amber-400"
+                      <FunnelRow label={t('mkt.funnel.happened')} value={o.happened ?? 0} max={funnelMax} color="bg-amber-400"
                         conv={kpi.convScheduledToHappened} />
-                      <FunnelRow label="Продажи" value={o.totalSalesCount ?? 0} max={funnelMax} color="bg-green-500"
+                      <FunnelRow label={t('mkt.funnel.sales')} value={o.totalSalesCount ?? 0} max={funnelMax} color="bg-green-500"
                         conv={kpi.convHappenedToSale} />
                     </div>
                   </div>
 
                   {/* Loss reasons */}
                   <div className="bg-white rounded-2xl border border-gray-100 p-5">
-                    <h2 className="font-bold text-gray-900 mb-4">Причины потери лидов</h2>
+                    <h2 className="font-bold text-gray-900 mb-4">{t('mkt.loss.title')}</h2>
                     {lossSegs.length === 0 ? (
                       <div className="text-center py-8 text-gray-400">
-                        <p className="font-medium">Нет данных о потерях</p>
+                        <p className="font-medium">{t('mkt.loss.noData')}</p>
                       </div>
                     ) : (
                       <div className="flex gap-6 items-start">
@@ -528,11 +530,11 @@ export default function MarketingPage() {
 
                 {/* ── Bottom revenue + CAC ── */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                  <MetricChip label="Выручка за период" value={fmtMoney(o.totalRevenue)} color="text-emerald-700" />
-                  <MetricChip label="Расходы на маркетинг" value={fmtMoney(o.totalSpend)} color="text-orange-700" />
-                  <MetricChip label="ДРР (доля рекл расходов)" value={kpi.drr != null ? `${kpi.drr}%` : '—'} color={kpi.drr > 30 ? 'text-red-600' : 'text-green-600'} />
-                  <MetricChip label="Кол-во клиентов (продаж)" value={String(o.totalSalesCount ?? 0)} color="text-blue-700" />
-                  <MetricChip label="CAC (стоимость клиента)" value={kpi.cac ? fmtMoney(kpi.cac) : '—'} color="text-purple-700" />
+                  <MetricChip label={t('mkt.bottom.revenue')} value={fmtMoney(o.totalRevenue)} color="text-emerald-700" />
+                  <MetricChip label={t('mkt.bottom.spend')} value={fmtMoney(o.totalSpend)} color="text-orange-700" />
+                  <MetricChip label={t('mkt.bottom.drr')} value={kpi.drr != null ? `${kpi.drr}%` : '—'} color={kpi.drr > 30 ? 'text-red-600' : 'text-green-600'} />
+                  <MetricChip label={t('mkt.bottom.salesCount')} value={String(o.totalSalesCount ?? 0)} color="text-blue-700" />
+                  <MetricChip label={t('mkt.bottom.cac')} value={kpi.cac ? fmtMoney(kpi.cac) : '—'} color="text-purple-700" />
                 </div>
 
                 {/* ── Daily expenses history (visible to OWNER/ROP — read-only table) ── */}
@@ -551,8 +553,8 @@ export default function MarketingPage() {
 
               <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
                 <div>
-                  <h2 className="font-bold text-gray-900">Ввод расходов по каналам</h2>
-                  <p className="text-sm text-gray-400 mt-0.5">Выберите день и введите бюджет по каждому каналу.</p>
+                  <h2 className="font-bold text-gray-900">{t('mkt.entry.title')}</h2>
+                  <p className="text-sm text-gray-400 mt-0.5">{t('mkt.entry.sub')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-gray-400" />
@@ -569,7 +571,7 @@ export default function MarketingPage() {
               {channels.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                   <TrendingUp className="w-10 h-10 mx-auto mb-3 text-gray-200" />
-                  <p>Сначала создайте каналы во вкладке «Каналы»</p>
+                  <p>{t('mkt.entry.noChannels')}</p>
                 </div>
               ) : (
                 <>
@@ -578,7 +580,7 @@ export default function MarketingPage() {
                       <div key={ch.id} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
                         <span className="text-sm font-semibold text-gray-800 w-40">{ch.name}</span>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-400">Потрачено ₸:</span>
+                          <span className="text-xs text-gray-400">{t('mkt.entry.spent')}</span>
                           <ChannelBudgetRow channel={ch} dateFrom={entryDate} dateTo={entryDate} />
                         </div>
                       </div>
@@ -589,7 +591,7 @@ export default function MarketingPage() {
                     {reportSent ? (
                       <div className="flex items-center gap-2 text-green-600 font-medium text-sm">
                         <CheckCircle className="w-4 h-4" />
-                        Отчёт за {entryDate} сохранён
+                        {t('mkt.entry.saved').replace('{{date}}', entryDate)}
                       </div>
                     ) : (
                       <button
@@ -597,7 +599,7 @@ export default function MarketingPage() {
                         className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors"
                       >
                         <Send className="w-4 h-4" />
-                        Отправить отчёт за {entryDate}
+                        {t('mkt.entry.send').replace('{{date}}', entryDate)}
                       </button>
                     )}
                   </div>
@@ -678,6 +680,7 @@ function DailyExpensesHistory({ channels: activeChannels, fromParam, toParam }: 
   fromParam: string
   toParam: string
 }) {
+  const { t } = useT()
   const qc = useQueryClient()
 
   const histQ = useQuery({
@@ -727,8 +730,8 @@ function DailyExpensesHistory({ channels: activeChannels, fromParam, toParam }: 
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
       <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
         <div>
-          <h2 className="font-bold text-gray-900">История расходов по дням</h2>
-          <p className="text-xs text-gray-400 mt-0.5">{fromParam} — {toParam} · нажмите на ячейку для редактирования</p>
+          <h2 className="font-bold text-gray-900">{t('mkt.history.title')}</h2>
+          <p className="text-xs text-gray-400 mt-0.5">{fromParam} — {toParam} · {t('mkt.history.hint')}</p>
         </div>
         {histQ.isLoading && <RefreshCw className="w-4 h-4 text-gray-300 animate-spin" />}
       </div>
@@ -736,21 +739,21 @@ function DailyExpensesHistory({ channels: activeChannels, fromParam, toParam }: 
       {byDate.length === 0 && !histQ.isLoading ? (
         <div className="text-center py-10 text-gray-400">
           <BarChart2 className="w-8 h-8 mx-auto mb-2 text-gray-200" />
-          <p className="text-sm">Нет данных за выбранный период</p>
+          <p className="text-sm">{t('mkt.history.noData')}</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">Дата</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 whitespace-nowrap">{t('mkt.history.date')}</th>
                 {allChannels.map(ch => (
                   <th key={ch.id} className="text-right px-3 py-3 text-xs font-semibold whitespace-nowrap">
                     <span className={ch.archived ? 'text-gray-300 line-through' : 'text-gray-500'}>{ch.name}</span>
                     {ch.archived && <span className="ml-1 text-gray-300 text-[10px] font-normal no-underline" style={{ textDecoration: 'none' }}>(архив)</span>}
                   </th>
                 ))}
-                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-700 whitespace-nowrap">Итого ₸</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-700 whitespace-nowrap">{t('mkt.history.total')}</th>
               </tr>
             </thead>
             <tbody>
@@ -786,6 +789,7 @@ function DailyExpensesHistory({ channels: activeChannels, fromParam, toParam }: 
 
 // ─── Sales Channels Management ────────────────────────────────────────────────
 function SalesChannelsSection() {
+  const { t } = useT()
   const qc = useQueryClient()
   const [newName, setNewName] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -829,9 +833,9 @@ function SalesChannelsSection() {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-5">
       <div>
-        <h2 className="font-bold text-gray-900 mb-0.5">Управление рекламными каналами</h2>
+        <h2 className="font-bold text-gray-900 mb-0.5">{t('mkt.ch.title')}</h2>
         <p className="text-sm text-gray-400">
-          Каналы доступны во всех выпадающих списках. Архивирование скрывает канал из выборки лидоруба, но сохраняет историю.
+          {t('mkt.ch.sub')}
         </p>
       </div>
 
@@ -839,7 +843,7 @@ function SalesChannelsSection() {
       <div className="flex items-center gap-2">
         <input value={newName} onChange={e => setNewName(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && newName.trim() && createMut.mutate()}
-          placeholder="Название канала (Instagram, TikTok...)"
+          placeholder={t('mkt.ch.placeholder')}
           className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         <button onClick={() => createMut.mutate()} disabled={!newName.trim() || createMut.isPending}
           className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors">
@@ -851,7 +855,7 @@ function SalesChannelsSection() {
       {channels.length === 0 && !channelsQ.isLoading && (
         <div className="text-center py-10 text-gray-400">
           <TrendingUp className="w-8 h-8 mx-auto mb-2 text-gray-200" />
-          <p className="text-sm">Нет активных каналов. Добавьте первый канал выше.</p>
+          <p className="text-sm">{t('mkt.ch.noActive')}</p>
         </div>
       )}
       <div className="space-y-2">
@@ -876,7 +880,7 @@ function SalesChannelsSection() {
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
                 <button
-                  onClick={() => { if (window.confirm(`Архивировать канал "${ch.name}"?\n\nКанал исчезнет из списков при добавлении лидов, но история расходов и лидов сохранится.`)) archiveMut.mutate(ch.id) }}
+                  onClick={() => { if (window.confirm(t('mkt.ch.archiveConfirm').replace('{{name}}', ch.name))) archiveMut.mutate(ch.id) }}
                   disabled={archiveMut.isPending}
                   className="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors" title="Архивировать">
                   <Trash2 className="w-3.5 h-3.5" />
@@ -892,13 +896,13 @@ function SalesChannelsSection() {
         <button onClick={() => setShowArchived(s => !s)}
           className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-600 transition-colors">
           <RefreshCw className={`w-3.5 h-3.5 transition-transform ${showArchived ? 'rotate-180' : ''}`} />
-          {showArchived ? 'Скрыть архив' : `Показать архив ${archived.length > 0 ? `(${archived.length})` : ''}`}
+          {showArchived ? t('mkt.ch.hideArchive') : `${t('mkt.ch.showArchive')} ${archived.length > 0 ? `(${archived.length})` : ''}`}
         </button>
         {showArchived && (
           <div className="mt-3 space-y-2">
             {archivedQ.isLoading && <p className="text-xs text-gray-400 py-2">Загрузка...</p>}
             {!archivedQ.isLoading && archived.length === 0 && (
-              <p className="text-xs text-gray-400 py-2">Архив пуст</p>
+              <p className="text-xs text-gray-400 py-2">{t('mkt.ch.archiveEmpty')}</p>
             )}
             {archived.map(ch => (
               <div key={ch.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0 opacity-60">
@@ -906,7 +910,7 @@ function SalesChannelsSection() {
                 <span className="flex-1 text-sm text-gray-500 line-through">{ch.name}</span>
                 <button onClick={() => restoreMut.mutate(ch.id)} disabled={restoreMut.isPending}
                   className="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-1 rounded-lg hover:bg-blue-50 transition-colors">
-                  Восстановить
+                  {t('mkt.ch.restore')}
                 </button>
               </div>
             ))}

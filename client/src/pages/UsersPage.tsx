@@ -241,7 +241,7 @@ export default function UsersPage() {
                     {isInvitePending(u) && (
                       <span className={`inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-xs font-medium ${isInviteExpired(u) ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-700'}`}>
                         <Clock className="w-3 h-3" />
-                        {isInviteExpired(u) ? 'Ссылка истекла' : `Ожидает · ${inviteExpiresIn(u)}`}
+                        {isInviteExpired(u) ? t('users.inviteExpired') : `Ожидает · ${inviteExpiresIn(u)}`}
                       </span>
                     )}
                   </td>

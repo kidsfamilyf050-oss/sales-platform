@@ -1,3 +1,5 @@
+import { useT } from '../../i18n'
+
 interface GatewayRow {
   method: string
   count: number
@@ -35,9 +37,11 @@ interface Props {
 }
 
 export default function GatewayAnalytics({ data, compact = false }: Props) {
+  const { t } = useT()
+
   if (!data || data.length === 0) {
     return (
-      <div className="text-center py-6 text-gray-400 text-sm">Нет данных о продажах</div>
+      <div className="text-center py-6 text-gray-400 text-sm">{t('dash.gateway.noData')}</div>
     )
   }
 
@@ -64,7 +68,7 @@ export default function GatewayAnalytics({ data, compact = false }: Props) {
                 )}
               </div>
               <div className="flex items-center gap-3 shrink-0 text-right">
-                <span className="text-xs text-gray-400">{g.count} сд.</span>
+                <span className="text-xs text-gray-400">{g.count} {t('dash.gateway.dealsShort')}</span>
                 <div className="text-right">
                   <span className="text-sm font-bold text-gray-900">₸ {fmt(Math.round(g.netAmount))}</span>
                   {!compact && g.grossAmount !== g.netAmount && (
@@ -83,7 +87,7 @@ export default function GatewayAnalytics({ data, compact = false }: Props) {
             </div>
             {!compact && lost > 0 && (
               <div className="text-xs text-gray-400 mt-0.5 text-right">
-                комиссия: ₸ {fmt(Math.round(lost))}
+                {t('dash.gateway.commission')} ₸ {fmt(Math.round(lost))}
               </div>
             )}
           </div>

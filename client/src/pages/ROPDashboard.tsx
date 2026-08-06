@@ -327,7 +327,7 @@ function LiderDetail({ m }: { m: any }) {
             <span className="text-gray-500">{t('dash.funnel.leadsReceived')}: <span className="font-bold text-gray-900">{report.leadsReceived || report.leads || 0}</span></span>
             <span className="text-gray-500">{t('dash.rop.funnelStepQual')}: <span className="font-bold text-gray-900">{report.qualifiedLeads || 0}</span></span>
             <span className="text-gray-500">{t('dash.funnel.scheduled')}: <span className="font-bold text-gray-900">{report.meetingsScheduled || 0}</span></span>
-            <span className="text-gray-500">{t('dash.funnel.attended')} <span className="text-gray-400 font-normal text-[10px]">(проведено консультаций)</span>: <span className="font-bold text-gray-900">{report.meetingsAttended || 0}</span></span>
+            <span className="text-gray-500">{t('dash.funnel.attended')} <span className="text-gray-400 font-normal text-[10px]">{t('dash.funnel.attendedNote')}</span>: <span className="font-bold text-gray-900">{report.meetingsAttended || 0}</span></span>
             {report.comment && <span className="text-gray-400 italic">💬 {report.comment}</span>}
           </div>
         </div>
@@ -464,17 +464,17 @@ export default function ROPDashboard() {
       {/* Carryover sales (дожим) */}
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4">
         <div>
-          <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-0.5">Продажи (дожим)</p>
-          <p className="text-sm text-amber-600">Лиды из прошлых периодов, закрытые в этом</p>
+          <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-0.5">{t('dash.carryover.title')}</p>
+          <p className="text-sm text-amber-600">{t('dash.carryover.subtitle')}</p>
         </div>
         <div className="ml-auto flex items-center gap-6 shrink-0">
           <div className="text-right">
             <p className="text-2xl font-bold text-amber-800">{carryover?.count ?? 0}</p>
-            <p className="text-xs text-amber-500">сделок</p>
+            <p className="text-xs text-amber-500">{t('dash.carryover.deals')}</p>
           </div>
           <div className="text-right">
             <p className="text-2xl font-bold text-amber-800">₸ {fmt(carryover?.revenue ?? 0)}</p>
-            <p className="text-xs text-amber-500">выручка</p>
+            <p className="text-xs text-amber-500">{t('dash.carryover.revenue')}</p>
           </div>
         </div>
       </div>
@@ -709,7 +709,7 @@ export default function ROPDashboard() {
       {/* ── GATEWAY ANALYTICS ── */}
       <div className="card">
         <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          Аналитика платёжных методов
+          {t('dash.gateway.title')}
         </h3>
         <GatewayAnalytics data={gatewayAnalytics} />
       </div>
