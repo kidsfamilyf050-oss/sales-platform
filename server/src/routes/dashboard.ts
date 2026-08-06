@@ -129,6 +129,16 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const totalRefundCount  = companyRefundedLeads.length
     const totalRefundAmount = companyRefundedLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
     const totalNetSales     = totalSalesAmount - totalRefundAmount
+
+    // Per-manager refunds map (for net amounts in manager table)
+    const ownerRefundsByUser: Record<string, { count: number; amount: number }> = {}
+    for (const l of companyRefundedLeads) {
+      if (l.assignedToId) {
+        if (!ownerRefundsByUser[l.assignedToId]) ownerRefundsByUser[l.assignedToId] = { count: 0, amount: 0 }
+        ownerRefundsByUser[l.assignedToId].count++
+        ownerRefundsByUser[l.assignedToId].amount += l.amount ?? l.netAmount ?? 0
+      }
+    }
     const totalLiderLeads        = allLiderLeads.length
     const totalQualifiedLeads    = allLiderLeads.filter(l => l.isQualified).length
     const totalMeetingsScheduled = allLiderLeads.filter(l => l.assignedToId != null).length // "Передано клоузеру"
@@ -148,7 +158,8 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const leadsplan  = plans.find(p => !p.userId && !p.departmentId && p.type === 'LEADS')?.value  || 0
     const budgetPlan = plans.find(p => !p.userId && !p.departmentId && p.type === 'BUDGET')?.value || 0
 
-    const avgCheck = totalSalesCount > 0 ? totalSalesAmount / totalSalesCount : 0
+    const netSalesCountOwner = Math.max(0, totalSalesCount - totalRefundCount)
+    const avgCheck = netSalesCountOwner > 0 ? totalNetSales / netSalesCountOwner : 0
     // Конверсия: встречи → продажи (из Lead model), целое % как у ROP
     const conversion = totalConsultations > 0 ? Math.round((totalSalesCount / totalConsultations) * 100) : 0
     const conversionLabel = 'встречи → продажи'
@@ -191,12 +202,15 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const managerRating = closerUsers
       .map(u => {
         const stats = salesByUser[u.id] || { salesCount: 0, salesAmount: 0 }
+        const userRefunds = ownerRefundsByUser[u.id] || { count: 0, amount: 0 }
+        const netSalesAmount = stats.salesAmount - userRefunds.amount
+        const netSalesCount = Math.max(0, stats.salesCount - userRefunds.count)
         const clients = clientsByUser[u.id] || 0
         const consultations = consultationsByUser[u.id] || 0
         const refusals = refusalsByUser[u.id] || 0
         const inWork = Math.max(0, consultations - stats.salesCount - refusals)
         const plan = plans.find(p => p.userId === u.id && p.type === 'SALES_AMOUNT')?.value || 0
-        const completion = plan > 0 ? Math.round((stats.salesAmount / plan) * 1000) / 10 : 0
+        const completion = plan > 0 ? Math.round((netSalesAmount / plan) * 1000) / 10 : 0
         let status: 'red' | 'yellow' | 'green' = 'green'
         if (completion === 0) status = 'red'
         else if (completion < 75) status = 'yellow'
@@ -204,10 +218,10 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
           .map(s => ({ id: s.id, amount: s.amount, netAmount: s.netAmount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date, productName: s.product?.name || null }))
         return {
           id: u.id, name: u.name, type: 'CLOSER', plan,
-          salesCount: stats.salesCount, salesAmount: stats.salesAmount, completion,
+          salesCount: netSalesCount, salesAmount: netSalesAmount, completion,
           consultations, refusals, inWork,
           conversion: consultations > 0 ? Math.round((stats.salesCount / consultations) * 1000) / 10 : 0,
-          avgCheck: stats.salesCount > 0 ? Math.round(stats.salesAmount / stats.salesCount) : 0,
+          avgCheck: netSalesCount > 0 ? Math.round(netSalesAmount / netSalesCount) : 0,
           sales: userSales, status,
         }
       })
@@ -423,23 +437,37 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const totalRefusals = allCompanyLeads.filter(l => l.status === 'REFUSED').length
     const totalInWork = allCompanyLeads.filter(l => l.status === 'IN_WORK').length
 
+    // Per-manager refunds map for ROP (using ropRefundedLeads fetched above)
+    const ropRefundsByUser: Record<string, { count: number; amount: number }> = {}
+    for (const l of ropRefundedLeads) {
+      const uid = l.assignedTo?.id
+      if (uid) {
+        if (!ropRefundsByUser[uid]) ropRefundsByUser[uid] = { count: 0, amount: 0 }
+        ropRefundsByUser[uid].count++
+        ropRefundsByUser[uid].amount += l.amount ?? l.netAmount ?? 0
+      }
+    }
+
     const closers = managers.filter(m => m.managerType !== 'LIDER')
     const managerRating = closers.map(m => {
       const stats = salesByUser[m.id] || { salesCount: 0, salesAmount: 0 }
+      const userRopRefunds = ropRefundsByUser[m.id] || { count: 0, amount: 0 }
+      const mgrNetAmount = stats.salesAmount - userRopRefunds.amount
+      const mgrNetCount = Math.max(0, stats.salesCount - userRopRefunds.count)
       const consultations = consultationsByManager[m.id] || 0
       const refusals = refusalsByManager[m.id] || 0
       const inWork = inWorkByManager[m.id] || 0
       const managerPlan = plans.find(p => p.userId === m.id && p.type === 'SALES_AMOUNT')?.value || 0
-      const completion = managerPlan > 0 ? Math.round((stats.salesAmount / managerPlan) * 1000) / 10 : 0
+      const completion = managerPlan > 0 ? Math.round((mgrNetAmount / managerPlan) * 1000) / 10 : 0
       const reportedToday = todayReportedIds.has(m.id)
       let status: 'red' | 'yellow' | 'green' = 'green'
       if (completion === 0) status = 'red'
       else if (completion < 75) status = 'yellow'
       return {
         id: m.id, name: m.name, managerType: m.managerType,
-        plan: managerPlan, salesAmount: stats.salesAmount, salesCount: stats.salesCount,
+        plan: managerPlan, salesAmount: mgrNetAmount, salesCount: mgrNetCount,
         completion, conversion: consultations > 0 ? Math.round((stats.salesCount / consultations) * 1000) / 10 : 0,
-        avgCheck: stats.salesCount > 0 ? Math.round(stats.salesAmount / stats.salesCount) : 0,
+        avgCheck: mgrNetCount > 0 ? Math.round(mgrNetAmount / mgrNetCount) : 0,
         consultations, refusals, inWork,
         status, reportedToday,
         // Period sales for expanded view (matches selected date range)
@@ -518,7 +546,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         refundCount: ropRefundCount, refundTotal: ropRefundTotal, netSalesAmount: ropNetSales,
         // Use Math.round(x * 100) = whole percent — matches funnel step-to-step display
         conversion: totalConsultations > 0 ? Math.round((totalSalesCount / totalConsultations) * 100) : 0,
-        avgCheck: totalSalesCount > 0 ? Math.round(ropNetSales / totalSalesCount) : 0,
+        avgCheck: Math.max(0, totalSalesCount - ropRefundCount) > 0 ? Math.round(ropNetSales / Math.max(0, totalSalesCount - ropRefundCount)) : 0,
         planCompletion: salesPlan > 0 ? Math.round((ropNetSales / salesPlan) * 1000) / 10 : 0,
         totalConsultations, totalRefusals, totalInWork,
       },
@@ -616,7 +644,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           refundCount, refundTotal, netSalesAmount,
           planCompletion: salesPlan > 0 ? Math.round((netSalesAmount / salesPlan) * 1000) / 10 : 0,
           conversion,
-          avgCheck: salesCount > 0 ? Math.round(netSalesAmount / salesCount) : 0,
+          avgCheck: Math.max(0, salesCount - refundCount) > 0 ? Math.round(netSalesAmount / Math.max(0, salesCount - refundCount)) : 0,
           consultations, refusals, inWork,
           pendingLeadsCount, inWorkLeadsCount, pendingTasksCount,
           leadRefusedCount, leadSoldCount, leadTotal, leadConversion,
