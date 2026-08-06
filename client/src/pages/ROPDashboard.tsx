@@ -528,6 +528,7 @@ export default function ROPDashboard() {
                   <th className="pb-2 font-medium text-center">{t('dash.table.fact')}</th>
                   <th className="pb-2 font-medium text-center">{t('dash.table.completion')}</th>
                   <th className="pb-2 font-medium text-center">{t('dash.table.deals')}</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.carryover.title')}</th>
                   <th className="pb-2 font-medium text-center">{t('dash.table.avgCheck')}</th>
                   <th className="pb-2 font-medium text-center">{t('dash.table.conversion')}</th>
                   <th className="pb-2 font-medium text-center">{t('dash.consultations')}</th>
@@ -565,6 +566,9 @@ export default function ROPDashboard() {
                           </span>
                         </td>
                         <td className="py-2.5 text-center">{m.salesCount}</td>
+                        <td className="py-2.5 text-center text-amber-700 font-medium">
+                          {m.carryover?.count > 0 ? m.carryover.count : '—'}
+                        </td>
                         <td className="py-2.5 text-center text-gray-500">{m.avgCheck > 0 ? `₸ ${fmt(m.avgCheck)}` : '—'}</td>
                         <td className="py-2.5 text-center">{m.conversion}%</td>
                         <td className="py-2.5 text-center">{m.consultations ?? 0}</td>

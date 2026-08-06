@@ -101,15 +101,22 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const totalSalesCount    = periodSales.length
     // NOTE: totalConsultations/Refusals/InWork computed below from Lead model (after allLiderLeads query)
 
-    // Carryover: sold in this period from leads created before period start
+    // Carryover: sold in this period from leads created before period start (use createdAt — system timestamp, always reliable)
     const ownerSaleLeadIds = periodSales.map((s: any) => s.leadId).filter(Boolean) as string[]
     const ownerCarryoverLeadSet = ownerSaleLeadIds.length > 0
-      ? await prisma.lead.findMany({ where: { id: { in: ownerSaleLeadIds }, date: { lt: fromStr } }, select: { id: true } })
+      ? await prisma.lead.findMany({ where: { id: { in: ownerSaleLeadIds }, createdAt: { lt: start } }, select: { id: true } })
           .then(ls => new Set(ls.map(l => l.id)))
       : new Set<string>()
     const ownerCarryoverSales = periodSales.filter((s: any) => s.leadId && ownerCarryoverLeadSet.has(s.leadId))
     const ownerCarryoverCount = ownerCarryoverSales.length
     const ownerCarryoverRevenue = ownerCarryoverSales.reduce((sum: number, x: any) => sum + (x.netAmount ?? x.amount), 0)
+    // Per-manager carryover map (for manager rating table)
+    const ownerCarryoverByUser: Record<string, { count: number; revenue: number }> = {}
+    for (const s of ownerCarryoverSales) {
+      if (!ownerCarryoverByUser[s.userId]) ownerCarryoverByUser[s.userId] = { count: 0, revenue: 0 }
+      ownerCarryoverByUser[s.userId].count++
+      ownerCarryoverByUser[s.userId].revenue += s.netAmount ?? s.amount
+    }
 
     // ── Marketing metrics — budget from MARKETER reports; leads from Lead model ──
     const totalBudget    = marketerReports.reduce((s, r) => s + (Number((r.data as any).adBudget) || Number((r.data as any).budget) || 0), 0)
@@ -223,6 +230,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
           conversion: consultations > 0 ? Math.round((stats.salesCount / consultations) * 1000) / 10 : 0,
           avgCheck: netSalesCount > 0 ? Math.round(netSalesAmount / netSalesCount) : 0,
           sales: userSales, status,
+          carryover: ownerCarryoverByUser[u.id] || { count: 0, revenue: 0 },
         }
       })
       .sort((a, b) => b.completion - a.completion || b.salesAmount - a.salesAmount)
@@ -280,7 +288,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
 
     res.json({
       summary: {
-        salesPlan, totalSalesAmount, totalSalesCount, avgCheck: Math.round(avgCheck),
+        salesPlan, totalSalesAmount, totalSalesCount: netSalesCountOwner, totalSalesCountGross: totalSalesCount, avgCheck: Math.round(avgCheck),
         totalRefundCount, totalRefundAmount, totalNetSales,
         conversion,
         conversionLabel,
@@ -359,15 +367,22 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const totalSalesAmount = periodSales.reduce((s, x) => s + (x.netAmount ?? x.amount), 0)
     const totalSalesCount = periodSales.length
 
-    // Carryover: sold in this period from leads created before period start
+    // Carryover: sold in this period from leads created before period start (use createdAt — system timestamp, always reliable)
     const ropSaleLeadIds = periodSales.map((s: any) => s.leadId).filter(Boolean) as string[]
     const ropCarryoverLeadSet = ropSaleLeadIds.length > 0
-      ? await prisma.lead.findMany({ where: { id: { in: ropSaleLeadIds }, date: { lt: fromStr } }, select: { id: true } })
+      ? await prisma.lead.findMany({ where: { id: { in: ropSaleLeadIds }, createdAt: { lt: start } }, select: { id: true } })
           .then(ls => new Set(ls.map(l => l.id)))
       : new Set<string>()
     const ropCarryoverSales = periodSales.filter((s: any) => s.leadId && ropCarryoverLeadSet.has(s.leadId))
     const ropCarryoverCount = ropCarryoverSales.length
     const ropCarryoverRevenue = ropCarryoverSales.reduce((sum: number, x: any) => sum + (x.netAmount ?? x.amount), 0)
+    // Per-manager carryover map (for manager rating table)
+    const ropCarryoverByUser: Record<string, { count: number; revenue: number }> = {}
+    for (const s of ropCarryoverSales) {
+      if (!ropCarryoverByUser[s.userId]) ropCarryoverByUser[s.userId] = { count: 0, revenue: 0 }
+      ropCarryoverByUser[s.userId].count++
+      ropCarryoverByUser[s.userId].revenue += s.netAmount ?? s.amount
+    }
 
     // Refunds from Lead model — include full detail for ROP drill-down
     const ropRefundedLeads = await prisma.lead.findMany({
@@ -470,6 +485,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         avgCheck: mgrNetCount > 0 ? Math.round(mgrNetAmount / mgrNetCount) : 0,
         consultations, refusals, inWork,
         status, reportedToday,
+        carryover: ropCarryoverByUser[m.id] || { count: 0, revenue: 0 },
         // Period sales for expanded view (matches selected date range)
         sales: periodSalesByManager[m.id] || [],
         // Today's detail for status tracking
@@ -542,15 +558,17 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
 
     res.json({
       summary: {
-        salesPlan, salesAmount: totalSalesAmount, salesCount: totalSalesCount,
+        salesPlan, salesAmount: totalSalesAmount,
+        salesCount: Math.max(0, totalSalesCount - ropRefundCount),
+        salesCountGross: totalSalesCount,
         refundCount: ropRefundCount, refundTotal: ropRefundTotal, netSalesAmount: ropNetSales,
-        // Use Math.round(x * 100) = whole percent — matches funnel step-to-step display
-        conversion: totalConsultations > 0 ? Math.round((totalSalesCount / totalConsultations) * 100) : 0,
+        // Use net count for conversion (refunded deals shouldn't count as successful conversions)
+        conversion: totalConsultations > 0 ? Math.round((Math.max(0, totalSalesCount - ropRefundCount) / totalConsultations) * 100) : 0,
         avgCheck: Math.max(0, totalSalesCount - ropRefundCount) > 0 ? Math.round(ropNetSales / Math.max(0, totalSalesCount - ropRefundCount)) : 0,
         planCompletion: salesPlan > 0 ? Math.round((ropNetSales / salesPlan) * 1000) / 10 : 0,
         totalConsultations, totalRefusals, totalInWork,
       },
-      funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount: totalSalesCount },
+      funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount: Math.max(0, totalSalesCount - ropRefundCount) },
       marketing: { leadsplan, totalLeads, totalBudget, leadCost: totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0, qualifiedLeads },
       carryover: { count: ropCarryoverCount, revenue: ropCarryoverRevenue },
       managerRating,

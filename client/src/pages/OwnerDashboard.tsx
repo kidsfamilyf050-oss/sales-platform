@@ -389,6 +389,7 @@ export default function OwnerDashboard() {
                   <th className="pb-2 font-medium text-right">{t('dash.table.fact')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.completion')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.deals')}</th>
+                  <th className="pb-2 font-medium text-right">{t('dash.carryover.title')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.avgCheck')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.conversion')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.consultations')}</th>
@@ -419,6 +420,9 @@ export default function OwnerDashboard() {
                           </span>
                         </td>
                         <td className="py-2.5 text-right font-medium">{m.salesCount}</td>
+                        <td className="py-2.5 text-right text-amber-700 font-medium">
+                          {m.carryover?.count > 0 ? m.carryover.count : '—'}
+                        </td>
                         <td className="py-2.5 text-right font-medium">{m.avgCheck > 0 ? `₸ ${fmt(m.avgCheck)}` : '—'}</td>
                         <td className="py-2.5 text-right text-gray-500">{m.conversion > 0 ? `${m.conversion}%` : '—'}</td>
                         <td className="py-2.5 text-right">{m.consultations ?? 0}</td>
