@@ -127,7 +127,7 @@ router.get('/companies/:id', requireSuperAdmin, async (req: AdminRequest, res: R
           },
         },
         departments: true,
-        _count: { select: { reports: true, plans: true } },
+        _count: { select: { plans: true, leads: true } },
       },
     })
     if (!company) return res.status(404).json({ error: 'Not found' })

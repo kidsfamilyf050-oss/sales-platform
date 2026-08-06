@@ -289,8 +289,8 @@ export default function AdminCompanyDetailPage() {
           </button>
 
           <div className="pt-2 border-t border-gray-800 space-y-1 text-sm text-gray-500">
-            <div className="flex justify-between"><span>Отчётов</span><span className="text-gray-300">{company._count.reports}</span></div>
             <div className="flex justify-between"><span>Планов</span><span className="text-gray-300">{company._count.plans}</span></div>
+            <div className="flex justify-between"><span>Лидов</span><span className="text-gray-300">{company._count.leads}</span></div>
             <div className="flex justify-between"><span>Создана</span><span className="text-gray-300">{new Date(company.createdAt).toLocaleDateString('ru')}</span></div>
           </div>
         </div>
