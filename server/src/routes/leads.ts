@@ -419,7 +419,7 @@ router.get('/sold', authenticate, async (req: AuthRequest, res: Response) => {
   }
 })
 
-// ── GET /api/leads/all — ROP/OWNER: all leads in company ─────────────────────
+/// ── GET /api/leads/all — ROP/OWNER: all leads in company ─────────────────────
 router.get('/all', authenticate, async (req: AuthRequest, res: Response) => {
   const { from, to, period = 'month', status } = req.query
   const { fromStr, toStr } = getPeriodStr(period as string, from as string, to as string)
@@ -428,10 +428,14 @@ router.get('/all', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const where: any = {
       companyId: req.user!.companyId,
-      date: { gte: fromStr, lte: toStr },
+      deletedAt: null,
     }
     if (status) where.status = status
-    where.deletedAt = null
+    // IN_WORK (дожим) leads can be from ANY period — don't filter by creation date.
+    // For all other statuses, filter by lead creation date (current period).
+    if (status !== 'IN_WORK') {
+      where.date = { gte: fromStr, lte: toStr }
+    }
     const leads = await prisma.lead.findMany({
       where,
       include: INCLUDE_FULL,
