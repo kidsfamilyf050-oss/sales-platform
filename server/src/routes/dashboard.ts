@@ -131,14 +131,20 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         select: { isQualified: true, assignedToId: true, status: true, consultationStatus: true, amount: true, netAmount: true },
       }),
       prisma.lead.findMany({
-        where: { createdBy: { companyId: req.user!.companyId }, status: 'SOLD', isRefund: true, date: { gte: fromStr, lte: toStr } },
-        select: { netAmount: true, amount: true, assignedToId: true },
+        // Use updatedAt so dojim refunds (lead.date in prev period) are captured
+        where: { createdBy: { companyId: req.user!.companyId }, status: 'SOLD', isRefund: true, updatedAt: { gte: periodStart, lte: periodEnd } },
+        select: { id: true, netAmount: true, amount: true, assignedToId: true },
       }),
     ])
 
     const totalRefundCount  = companyRefundedLeads.length
     const totalRefundAmount = companyRefundedLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
     const totalNetSales     = totalSalesAmount - totalRefundAmount
+    // Split refunds: dojim (lead from prev period) vs fact (lead from this period)
+    const ownerDojimRefundLeads = companyRefundedLeads.filter(l => ownerCarryoverLeadSet.has(l.id))
+    const ownerFactRefundLeads  = companyRefundedLeads.filter(l => !ownerCarryoverLeadSet.has(l.id))
+    const ownerDojimRefundTotal = ownerDojimRefundLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
+    const ownerFactRefundTotal  = ownerFactRefundLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
 
     // Per-manager refunds map (for net amounts in manager table)
     const ownerRefundsByUser: Record<string, { count: number; amount: number }> = {}
@@ -288,11 +294,12 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const productStats = Object.values(productStatsMap).sort((a, b) => b.totalAmount - a.totalAmount)
 
     // Fact = total sales minus dojim (carryover) — leads created THIS period
-    const factSalesAmount = totalSalesAmount - ownerCarryoverRevenue
-    const factSalesCount  = Math.max(0, totalSalesCount - ownerCarryoverCount)
-    const factNetSales    = factSalesAmount - totalRefundAmount
-    const factAvgCheck    = factSalesCount > 0 ? Math.round(factNetSales / factSalesCount) : 0
-    const dojimAvgCheck   = ownerCarryoverCount > 0 ? Math.round(ownerCarryoverRevenue / ownerCarryoverCount) : 0
+    const factSalesAmount    = totalSalesAmount - ownerCarryoverRevenue
+    const factSalesCount     = Math.max(0, totalSalesCount - ownerCarryoverCount)
+    const factNetSales       = factSalesAmount - ownerFactRefundTotal   // only fact refunds reduce fact
+    const ownerDojimNetRevenue = ownerCarryoverRevenue - ownerDojimRefundTotal  // dojim refunds reduce dojim
+    const factAvgCheck       = factSalesCount > 0 ? Math.round(factNetSales / factSalesCount) : 0
+    const dojimAvgCheck      = ownerCarryoverCount > 0 ? Math.round(ownerDojimNetRevenue / ownerCarryoverCount) : 0
     // conversion uses factSalesCount — dojim sales don't count as conversions
     const conversion = totalConsultations > 0 ? Math.round((factSalesCount / totalConsultations) * 100) : 0
     const conversionLabel = 'встречи → продажи'
@@ -322,7 +329,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       liderRating,
       productStats,
       gatewayAnalytics: buildGatewayAnalytics(periodSales),
-      carryover: { count: ownerCarryoverCount, revenue: ownerCarryoverRevenue, avgCheck: dojimAvgCheck },
+      carryover: { count: ownerCarryoverCount, revenue: ownerDojimNetRevenue, avgCheck: dojimAvgCheck },
     })
   } catch (e) {
     console.error(e)
@@ -403,9 +410,9 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       ropCarryoverByUser[s.userId].revenue += s.netAmount ?? s.amount
     }
 
-    // Refunds from Lead model — include full detail for ROP drill-down
+    // Refunds from Lead model — use updatedAt so dojim refunds (lead.date in prev period) are found
     const ropRefundedLeads = await prisma.lead.findMany({
-      where: { createdBy: { companyId: req.user!.companyId }, status: 'SOLD', isRefund: true, date: { gte: fromStr, lte: toStr } },
+      where: { createdBy: { companyId: req.user!.companyId }, status: 'SOLD', isRefund: true, updatedAt: { gte: periodStart, lte: periodEnd } },
       include: {
         assignedTo: { select: { id: true, name: true } },
         salesChannel: { select: { id: true, name: true } },
@@ -416,6 +423,11 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const ropRefundTotal  = ropRefundedLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
     const ropNetSales     = totalSalesAmount - ropRefundTotal
     const ropRefundedLeadIds = new Set(ropRefundedLeads.map(l => l.id))
+    // Split refunds: dojim (lead from prev period) vs fact (lead from this period)
+    const ropDojimRefundLeads = ropRefundedLeads.filter(l => ropCarryoverLeadSet.has(l.id))
+    const ropFactRefundLeads  = ropRefundedLeads.filter(l => !ropCarryoverLeadSet.has(l.id))
+    const ropDojimRefundTotal = ropDojimRefundLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
+    const ropFactRefundTotal  = ropFactRefundLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
 
     // Clients/consultations from closer reports
     const clientsReceived = sumReportField(closerReports, 'clientsReceived')
@@ -448,7 +460,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const periodSalesByManager: Record<string, any[]> = {}
     for (const s of periodSales) {
       if (!periodSalesByManager[s.userId]) periodSalesByManager[s.userId] = []
-      periodSalesByManager[s.userId].push({ id: s.id, amount: s.amount, netAmount: s.netAmount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date, productName: s.product?.name || null, leadId: s.leadId ?? null, isRefund: !!(s.leadId && ropRefundedLeadIds.has(s.leadId)) })
+      periodSalesByManager[s.userId].push({ id: s.id, amount: s.amount, netAmount: s.netAmount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date, productName: s.product?.name || null, leadId: s.leadId ?? null, isRefund: !!(s.leadId && ropRefundedLeadIds.has(s.leadId)), isDojim: !!(s.leadId && ropCarryoverLeadSet.has(s.leadId)) })
     }
 
     // Per-manager metrics from Lead model (source of truth — no manual reports needed)
@@ -578,10 +590,11 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
 
     // Fact = total sales minus dojim (carryover) — leads created THIS period
     const ropFactSalesAmount = totalSalesAmount - ropCarryoverRevenue
-    const ropFactSalesCount  = Math.max(0, totalSalesCount - ropCarryoverCount - ropRefundCount)
-    const ropFactNetSales    = ropFactSalesAmount - ropRefundTotal
+    const ropFactSalesCount  = Math.max(0, totalSalesCount - ropCarryoverCount - ropFactRefundLeads.length)
+    const ropFactNetSales    = ropFactSalesAmount - ropFactRefundTotal   // only fact refunds reduce fact
+    const ropDojimNetRevenue = ropCarryoverRevenue - ropDojimRefundTotal  // dojim refunds reduce dojim
     const ropFactAvgCheck    = ropFactSalesCount > 0 ? Math.round(ropFactNetSales / ropFactSalesCount) : 0
-    const ropDojimAvgCheck   = ropCarryoverCount > 0 ? Math.round(ropCarryoverRevenue / ropCarryoverCount) : 0
+    const ropDojimAvgCheck   = ropCarryoverCount > 0 ? Math.round(ropDojimNetRevenue / ropCarryoverCount) : 0
 
     res.json({
       summary: {
@@ -600,7 +613,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       },
       funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount: Math.max(0, totalSalesCount - ropRefundCount) },
       marketing: { leadsplan, totalLeads, totalBudget, leadCost: totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0, qualifiedLeads },
-      carryover: { count: ropCarryoverCount, revenue: ropCarryoverRevenue, avgCheck: ropDojimAvgCheck },
+      carryover: { count: ropCarryoverCount, revenue: ropDojimNetRevenue, avgCheck: ropDojimAvgCheck },
       managerRating,
       liderRating,
       productStats,
@@ -694,17 +707,23 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         }),
       ])
 
-      const refundCount = refundedLeads.length
-      const refundTotal = refundedLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
-      const netSalesAmount = salesAmount - refundTotal
       const refundedLeadIds = new Set(refundedLeads.map(l => l.id))
+      // Split refunds: dojim refunds (lead from prev period) vs fact refunds (lead from this period)
+      const mgrDojimRefundLeads = refundedLeads.filter(l => mgrCarryoverLeadSet.has(l.id))
+      const mgrFactRefundLeads  = refundedLeads.filter(l => !mgrCarryoverLeadSet.has(l.id))
+      const mgrDojimRefundTotal = mgrDojimRefundLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
+      const mgrFactRefundTotal  = mgrFactRefundLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
+      const refundCount = refundedLeads.length
+      const refundTotal = mgrDojimRefundTotal + mgrFactRefundTotal
+      const netSalesAmount = salesAmount - refundTotal
 
       // Fact = new-period leads sold this period (excludes dojim carryover)
       const factSalesAmount = salesAmount - mgrCarryoverRevenue
       const factSalesCount  = Math.max(0, salesCount - mgrCarryoverCount)
-      const factNetSales    = factSalesAmount - refundTotal
+      const factNetSales    = factSalesAmount - mgrFactRefundTotal   // only fact refunds reduce fact
+      const dojimNetRevenue = mgrCarryoverRevenue - mgrDojimRefundTotal  // dojim refunds reduce dojim
       const factAvgCheck    = factSalesCount > 0 ? Math.round(factNetSales / factSalesCount) : 0
-      const dojimAvgCheck   = mgrCarryoverCount > 0 ? Math.round(mgrCarryoverRevenue / mgrCarryoverCount) : 0
+      const dojimAvgCheck   = mgrCarryoverCount > 0 ? Math.round(dojimNetRevenue / mgrCarryoverCount) : 0
       // conversion uses factSalesCount — dojim sales don't count as conversions
       const conversion = consultations > 0 ? Math.round((factSalesCount / consultations) * 1000) / 10 : 0
 
@@ -726,7 +745,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           consultations, refusals, inWork,
           pendingLeadsCount, inWorkLeadsCount, pendingTasksCount,
           leadRefusedCount, leadSoldCount, leadTotal, leadConversion,
-          carryover: { count: mgrCarryoverCount, revenue: mgrCarryoverRevenue, avgCheck: dojimAvgCheck },
+          carryover: { count: mgrCarryoverCount, revenue: dojimNetRevenue, avgCheck: dojimAvgCheck },
         },
         periodSales: periodSales.map(s => ({
           id: s.id, date: s.date, amount: s.amount, netAmount: s.netAmount,
@@ -734,6 +753,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment,
           leadId: s.leadId, createdAt: s.createdAt,
           isRefund: !!(s.leadId && refundedLeadIds.has(s.leadId)),
+          isDojim: !!(s.leadId && mgrCarryoverLeadSet.has(s.leadId)),
         })),
         todayReport,
         recentReports: reports.slice(0, 7),

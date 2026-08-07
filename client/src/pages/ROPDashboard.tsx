@@ -215,14 +215,15 @@ function ManagerDetail({ m }: { m: any }) {
                   const hasDiscount = s.netAmount && s.netAmount !== s.amount
                   const isOpen = expandedSales.has(s.id)
                   return (
-                    <div key={s.id} className={`rounded-lg border overflow-hidden ${s.isRefund ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100'}`}>
+                    <div key={s.id} className={`rounded-lg border overflow-hidden ${s.isRefund ? 'bg-red-50 border-red-200' : s.isDojim ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100'}`}>
                       {/* Collapsed row — clickable */}
                       <div
-                        className={`flex items-center gap-3 text-xs px-3 py-2 cursor-pointer transition-colors ${s.isRefund ? 'hover:bg-red-100' : 'hover:bg-gray-50'}`}
+                        className={`flex items-center gap-3 text-xs px-3 py-2 cursor-pointer transition-colors ${s.isRefund ? 'hover:bg-red-100' : s.isDojim ? 'hover:bg-amber-100' : 'hover:bg-gray-50'}`}
                         onClick={() => toggleSale(s.id)}
                       >
                         <ChevronRight className={`w-3 h-3 text-gray-400 shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
                         {s.isRefund && <span className="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-red-200 text-red-700 shrink-0">Возврат</span>}
+                        {s.isDojim && <span className="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-200 text-amber-700 shrink-0">ДОЖИМ</span>}
                         {/* Amount: for refund show gross (full paid amount), for normal show net */}
                         {s.isRefund ? (
                           <>

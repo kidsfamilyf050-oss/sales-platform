@@ -406,10 +406,11 @@ export default function ManagerDashboard() {
             ) : (
               <div className="space-y-2">
                 {(periodSalesData as any[]).map((s: any) => (
-                  <div key={s.id} className={`flex items-start justify-between p-3 rounded-xl border ${s.isRefund ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100'}`}>
+                  <div key={s.id} className={`flex items-start justify-between p-3 rounded-xl border ${s.isRefund ? 'bg-red-50 border-red-200' : s.isDojim ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-100'}`}>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         {s.isRefund && <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-200 text-red-700">{t('dash.closer.refundBadge')}</span>}
+                        {s.isDojim && <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-200 text-amber-700">ДОЖИМ</span>}
                         {s.leadId ? (
                           <>
                             <span className="text-xs text-gray-400 shrink-0">Заявка: {new Date(s.date + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
