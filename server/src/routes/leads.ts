@@ -243,6 +243,7 @@ router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response
     const totalCancelled = allLeads.filter(l => l.consultationStatus === 'not_happened').length
     const totalPostponed = allLeads.filter(l => l.consultationStatus === 'postponed').length
     const totalScheduled = allLeads.filter(l => l.subStatus === 'scheduled').length
+    const totalRefused = allLeads.filter(l => l.subStatus === 'refused').length
     const conversionToScheduled = totalLeads > 0 ? Math.round(totalScheduled / totalLeads * 100) : 0
 
     // п.6: needStatusUpdate — only planned or no-status past appointments (not already resolved)
@@ -294,6 +295,7 @@ router.get('/lider-report', authenticate, async (req: AuthRequest, res: Response
         totalCancelled,
         totalPostponed,
         totalScheduled,
+        totalRefused,
         conversionToScheduled,
         meetingsAttendedPlan,
         planCompletion,
@@ -359,6 +361,7 @@ router.get('/refused', authenticate, async (req: AuthRequest, res: Response) => 
     const where: any = {
       assignedToId: req.user!.id,
       status: 'REFUSED',
+      consultationStatus: { not: 'not_happened' }, // exclude not_happened — those belong to lider
       deletedAt: null,
     }
     if (all !== 'true') {
@@ -377,17 +380,19 @@ router.get('/refused', authenticate, async (req: AuthRequest, res: Response) => 
 })
 
 // ── GET /api/leads/sold — closer: SOLD leads ─────────────────────────────────
+// Uses Sale.date (actual sale date) so dojim leads (created in prev period but sold now) appear correctly.
 router.get('/sold', authenticate, async (req: AuthRequest, res: Response) => {
   const { from, to, period = 'month' } = req.query
   const { fromStr, toStr } = getPeriodStr(period as string, from as string, to as string)
   try {
+    const sales = await prisma.sale.findMany({
+      where: { userId: req.user!.id, date: { gte: fromStr, lte: toStr } },
+      select: { leadId: true },
+    })
+    const leadIds = sales.map(s => s.leadId).filter(Boolean) as string[]
+    if (leadIds.length === 0) return res.json([])
     const leads = await prisma.lead.findMany({
-      where: {
-        assignedToId: req.user!.id,
-        status: 'SOLD',
-        date: { gte: fromStr, lte: toStr },
-        deletedAt: null,
-      },
+      where: { id: { in: leadIds }, deletedAt: null },
       include: INCLUDE_FULL,
       orderBy: { updatedAt: 'desc' },
     })
@@ -716,7 +721,7 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
         create: {
           userId: req.user!.id,
           companyId: req.user!.companyId,
-          date: lead.date,
+          date: new Date().toISOString().slice(0, 10), // actual sale date (not lead creation date)
           amount: numAmount,
           netAmount,
           paymentType, paymentMethod,
@@ -728,7 +733,7 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
           productId: productId || null,
         },
         update: {
-          date: lead.date,
+          date: new Date().toISOString().slice(0, 10), // keep sale date current on re-save
           amount: numAmount,
           netAmount,
           paymentType, paymentMethod,

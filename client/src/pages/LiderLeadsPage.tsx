@@ -40,6 +40,7 @@ interface Stats {
   totalCancelled: number
   totalPostponed: number
   totalScheduled: number
+  totalRefused: number
   conversionToScheduled: number
   meetingsAttendedPlan: number
   planCompletion: number
@@ -1130,7 +1131,7 @@ export default function LiderLeadsPage() {
             { label: t('lider.stats.happened'), value: stats?.totalHappened,       sub: stats?.totalScheduled ? `${pct(stats.totalHappened, stats.totalScheduled)}% ${t('lider.stats.fromScheduled')}` : '', color: 'text-green-600', filter: { consultation: 'happened' } },
             { label: t('lider.stats.cancelled'),value: stats?.totalCancelled,      sub: stats?.totalScheduled ? `${pct(stats.totalCancelled, stats.totalScheduled)}% ${t('lider.stats.fromScheduled')}` : '', color: 'text-red-500', filter: { consultation: 'not_happened' } },
             { label: t('lider.stats.postponed'),value: stats?.totalPostponed,      sub: stats?.totalScheduled ? `${pct(stats.totalPostponed, stats.totalScheduled)}% ${t('lider.stats.fromScheduled')}` : '', color: 'text-orange-500', filter: { consultation: 'postponed' } },
-            { label: t('lider.stats.refusal'),  value: (data?.leads ? undefined : undefined), sub: null, color: 'text-red-400', filter: { subStatus: 'refused' } },
+            { label: t('lider.stats.refusal'),  value: stats?.totalRefused, sub: null, color: 'text-red-400', filter: { subStatus: 'refused' } },
             { label: t('lider.stats.convLead'), value: `${stats?.conversionToScheduled ?? '—'}%`, sub: stats ? `${stats.totalScheduled} из ${stats.totalLeads}` : '', color: 'text-purple-600', filter: null },
             { label: t('lider.stats.convMeet'), value: stats?.totalScheduled ? `${pct(stats.totalHappened, stats.totalScheduled)}%` : '—', sub: stats ? `${stats.totalHappened} из ${stats.totalScheduled}` : '', color: 'text-blue-600', filter: null },
           ].map((card, i) => (
