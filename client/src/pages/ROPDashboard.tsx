@@ -431,7 +431,7 @@ export default function ROPDashboard() {
           </div>
         </div>
         <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
-        <StatCard label={t('dash.rop.deals')} value={summary.salesCount} />
+        <StatCard label={t('dash.rop.deals')} value={summary.factSalesCount ?? summary.salesCount} />
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} sub={t('dash.rop.conversionSub')} />
         <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.factAvgCheck ?? summary.avgCheck)}`} />
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
