@@ -219,7 +219,7 @@ export default function OwnerDashboard() {
           sub={summary.totalMeetingsAttended > 0 ? t('dash.owner.conversionSubMeetings') : t('dash.owner.conversionSubClients')}
           color={summary.conversion >= 20 ? 'green' : summary.conversion >= 10 ? 'yellow' : 'red'} />
         <StatCard label={t('dash.salesCount')} value={summary.totalSalesCount} />
-        <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck)}`} />
+        <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.factAvgCheck ?? summary.avgCheck)}`} />
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red"
           sub={summary.totalRefusalsAmount > 0 ? `−₸ ${fmt(summary.totalRefusalsAmount)}` : undefined} />
@@ -235,6 +235,12 @@ export default function OwnerDashboard() {
           <p className="text-sm text-amber-600">{t('dash.carryover.subtitle')}</p>
         </div>
         <div className="ml-auto flex items-center gap-6 shrink-0">
+          {(carryover?.avgCheck ?? 0) > 0 && (
+            <div className="text-right">
+              <p className="text-2xl font-bold text-amber-800">₸ {fmt(carryover?.avgCheck ?? 0)}</p>
+              <p className="text-xs text-amber-500">средний чек</p>
+            </div>
+          )}
           <div className="text-right">
             <p className="text-2xl font-bold text-amber-800">{carryover?.count ?? 0}</p>
             <p className="text-xs text-amber-500">{t('dash.carryover.deals')}</p>
@@ -424,7 +430,7 @@ export default function OwnerDashboard() {
                         <td className="py-2.5 text-right text-amber-700 font-medium">
                           {m.carryover?.count > 0 ? m.carryover.count : '—'}
                         </td>
-                        <td className="py-2.5 text-right font-medium">{m.avgCheck > 0 ? `₸ ${fmt(m.avgCheck)}` : '—'}</td>
+                        <td className="py-2.5 text-right font-medium">{(() => { const factCnt = Math.max(0, m.salesCount - (m.carryover?.count ?? 0)); const factAmt = Math.max(0, m.salesAmount - (m.carryover?.revenue ?? 0)); return factCnt > 0 ? `₸ ${fmt(Math.round(factAmt / factCnt))}` : '—' })()}</td>
                         <td className="py-2.5 text-right text-gray-500">{m.conversion > 0 ? `${m.conversion}%` : '—'}</td>
                         <td className="py-2.5 text-right">{m.consultations ?? 0}</td>
                         <td className="py-2.5 text-right text-red-500">{m.refusals ?? 0}</td>

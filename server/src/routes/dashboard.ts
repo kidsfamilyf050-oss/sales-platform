@@ -294,10 +294,13 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const factSalesAmount = totalSalesAmount - ownerCarryoverRevenue
     const factSalesCount  = Math.max(0, totalSalesCount - ownerCarryoverCount)
     const factNetSales    = factSalesAmount - totalRefundAmount
+    const factAvgCheck    = factSalesCount > 0 ? Math.round(factNetSales / factSalesCount) : 0
+    const dojimAvgCheck   = ownerCarryoverCount > 0 ? Math.round(ownerCarryoverRevenue / ownerCarryoverCount) : 0
 
     res.json({
       summary: {
-        salesPlan, totalSalesAmount, totalSalesCount: netSalesCountOwner, totalSalesCountGross: totalSalesCount, avgCheck: Math.round(avgCheck),
+        salesPlan, totalSalesAmount, totalSalesCount: netSalesCountOwner, totalSalesCountGross: totalSalesCount,
+        avgCheck: Math.round(avgCheck), factAvgCheck,
         totalRefundCount, totalRefundAmount, totalNetSales,
         // Fact = new-period leads sold this period (excludes dojim carryover)
         factSalesAmount, factSalesCount, factNetSales,
@@ -319,7 +322,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       liderRating,
       productStats,
       gatewayAnalytics: buildGatewayAnalytics(periodSales),
-      carryover: { count: ownerCarryoverCount, revenue: ownerCarryoverRevenue },
+      carryover: { count: ownerCarryoverCount, revenue: ownerCarryoverRevenue, avgCheck: dojimAvgCheck },
     })
   } catch (e) {
     console.error(e)
@@ -577,6 +580,8 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const ropFactSalesAmount = totalSalesAmount - ropCarryoverRevenue
     const ropFactSalesCount  = Math.max(0, totalSalesCount - ropCarryoverCount - ropRefundCount)
     const ropFactNetSales    = ropFactSalesAmount - ropRefundTotal
+    const ropFactAvgCheck    = ropFactSalesCount > 0 ? Math.round(ropFactNetSales / ropFactSalesCount) : 0
+    const ropDojimAvgCheck   = ropCarryoverCount > 0 ? Math.round(ropCarryoverRevenue / ropCarryoverCount) : 0
 
     res.json({
       summary: {
@@ -589,12 +594,13 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         // Use net count for conversion (refunded deals shouldn't count as successful conversions)
         conversion: totalConsultations > 0 ? Math.round((Math.max(0, totalSalesCount - ropRefundCount) / totalConsultations) * 100) : 0,
         avgCheck: Math.max(0, totalSalesCount - ropRefundCount) > 0 ? Math.round(ropNetSales / Math.max(0, totalSalesCount - ropRefundCount)) : 0,
+        factAvgCheck: ropFactAvgCheck,
         planCompletion: salesPlan > 0 ? Math.round((ropNetSales / salesPlan) * 1000) / 10 : 0,
         totalConsultations, totalRefusals, totalRefusalsAmount, totalInWork,
       },
       funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount: Math.max(0, totalSalesCount - ropRefundCount) },
       marketing: { leadsplan, totalLeads, totalBudget, leadCost: totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0, qualifiedLeads },
-      carryover: { count: ropCarryoverCount, revenue: ropCarryoverRevenue },
+      carryover: { count: ropCarryoverCount, revenue: ropCarryoverRevenue, avgCheck: ropDojimAvgCheck },
       managerRating,
       liderRating,
       productStats,
@@ -698,6 +704,8 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const factSalesAmount = salesAmount - mgrCarryoverRevenue
       const factSalesCount  = Math.max(0, salesCount - mgrCarryoverCount)
       const factNetSales    = factSalesAmount - refundTotal
+      const factAvgCheck    = factSalesCount > 0 ? Math.round(factNetSales / factSalesCount) : 0
+      const dojimAvgCheck   = mgrCarryoverCount > 0 ? Math.round(mgrCarryoverRevenue / mgrCarryoverCount) : 0
 
       // Lead-based totals for period stats display
       const leadTotal = inWorkLeadsCount + leadRefusedCount + leadSoldCount
@@ -713,10 +721,11 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           planCompletion: salesPlan > 0 ? Math.round((netSalesAmount / salesPlan) * 1000) / 10 : 0,
           conversion,
           avgCheck: Math.max(0, salesCount - refundCount) > 0 ? Math.round(netSalesAmount / Math.max(0, salesCount - refundCount)) : 0,
+          factAvgCheck,
           consultations, refusals, inWork,
           pendingLeadsCount, inWorkLeadsCount, pendingTasksCount,
           leadRefusedCount, leadSoldCount, leadTotal, leadConversion,
-          carryover: { count: mgrCarryoverCount, revenue: mgrCarryoverRevenue },
+          carryover: { count: mgrCarryoverCount, revenue: mgrCarryoverRevenue, avgCheck: dojimAvgCheck },
         },
         periodSales: periodSales.map(s => ({
           id: s.id, date: s.date, amount: s.amount, netAmount: s.netAmount,

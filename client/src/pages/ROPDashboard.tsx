@@ -433,7 +433,7 @@ export default function ROPDashboard() {
         <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
         <StatCard label={t('dash.rop.deals')} value={summary.salesCount} />
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} sub={t('dash.rop.conversionSub')} />
-        <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck)}`} />
+        <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.factAvgCheck ?? summary.avgCheck)}`} />
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         <div
           onClick={() => navigate('/rop/links?tab=REFUSAL')}
@@ -471,6 +471,12 @@ export default function ROPDashboard() {
           <p className="text-sm text-amber-600">{t('dash.carryover.subtitle')}</p>
         </div>
         <div className="ml-auto flex items-center gap-6 shrink-0">
+          {(carryover?.avgCheck ?? 0) > 0 && (
+            <div className="text-right">
+              <p className="text-2xl font-bold text-amber-800">₸ {fmt(carryover?.avgCheck ?? 0)}</p>
+              <p className="text-xs text-amber-500">средний чек</p>
+            </div>
+          )}
           <div className="text-right">
             <p className="text-2xl font-bold text-amber-800">{carryover?.count ?? 0}</p>
             <p className="text-xs text-amber-500">{t('dash.carryover.deals')}</p>
@@ -572,7 +578,7 @@ export default function ROPDashboard() {
                         <td className="py-2.5 text-center text-amber-700 font-medium">
                           {m.carryover?.count > 0 ? m.carryover.count : '—'}
                         </td>
-                        <td className="py-2.5 text-center text-gray-500">{m.avgCheck > 0 ? `₸ ${fmt(m.avgCheck)}` : '—'}</td>
+                        <td className="py-2.5 text-center text-gray-500">{(() => { const factCnt = Math.max(0, m.salesCount - (m.carryover?.count ?? 0)); const factAmt = Math.max(0, m.salesAmount - (m.carryover?.revenue ?? 0)); return factCnt > 0 ? `₸ ${fmt(Math.round(factAmt / factCnt))}` : '—' })()}</td>
                         <td className="py-2.5 text-center">{m.conversion}%</td>
                         <td className="py-2.5 text-center">{m.consultations ?? 0}</td>
                         <td className="py-2.5 text-center">
