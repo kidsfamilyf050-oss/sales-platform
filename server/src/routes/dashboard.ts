@@ -172,7 +172,8 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const totalConsultations = allLiderLeads.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length
     const totalRefusals      = allLiderLeads.filter(l => l.status === 'REFUSED' && l.consultationStatus !== 'not_happened').length
     const totalRefusalsAmount = allLiderLeads.filter(l => l.status === 'REFUSED' && l.consultationStatus !== 'not_happened').reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
-    const totalInWork        = allLiderLeads.filter(l => l.status === 'IN_WORK').length
+    // IN_WORK (дожим) leads — NO date filter: these come from any previous period
+    const totalInWork = await prisma.lead.count({ where: { createdBy: { companyId: req.user!.companyId }, status: 'IN_WORK' } })
 
     // ── Plans ─────────────────────────────────────────────────────────────
     // Sum department-level SALES_AMOUNT plans; fall back to company-wide plan only if no dept plans exist.
@@ -220,6 +221,16 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // IN_WORK per manager — NO date filter: дожим leads from any previous period
+    const ownerInWorkLeads = await prisma.lead.findMany({
+      where: { assignedTo: { companyId: req.user!.companyId }, status: 'IN_WORK' },
+      select: { assignedToId: true },
+    })
+    const inWorkByUser: Record<string, number> = {}
+    for (const l of ownerInWorkLeads) {
+      if (l.assignedToId) inWorkByUser[l.assignedToId] = (inWorkByUser[l.assignedToId] || 0) + 1
+    }
+
     // ── Manager (closer) rating ────────────────────────────────────────────
     const closerUsers = allUsers.filter(u => u.managerType !== 'LIDER')
     const managerRating = closerUsers
@@ -231,7 +242,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         const clients = clientsByUser[u.id] || 0
         const consultations = consultationsByUser[u.id] || 0
         const refusals = refusalsByUser[u.id] || 0
-        const inWork = Math.max(0, consultations - stats.salesCount - refusals)
+        const inWork = inWorkByUser[u.id] || 0
         const plan = plans.find(p => p.userId === u.id && p.type === 'SALES_AMOUNT')?.value || 0
         const completion = plan > 0 ? Math.round((netSalesAmount / plan) * 1000) / 10 : 0
         let status: 'red' | 'yellow' | 'green' = 'green'
@@ -490,15 +501,22 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     // Per-manager metrics from Lead model (source of truth — no manual reports needed)
     const consultationsByManager: Record<string, number> = {}
     const refusalsByManager: Record<string, number> = {}
-    const inWorkByManager: Record<string, number> = {}
     for (const l of closerLeads) {
       if (!l.assignedToId) continue
       if (l.consultationStatus === 'happened' || l.status === 'SOLD')
         consultationsByManager[l.assignedToId] = (consultationsByManager[l.assignedToId] || 0) + 1
       if (l.status === 'REFUSED' && l.consultationStatus !== 'not_happened')
         refusalsByManager[l.assignedToId] = (refusalsByManager[l.assignedToId] || 0) + 1
-      if (l.status === 'IN_WORK')
-        inWorkByManager[l.assignedToId] = (inWorkByManager[l.assignedToId] || 0) + 1
+    }
+
+    // IN_WORK (дожим) leads — NO date filter: these are from any previous period
+    const inWorkLeads = await prisma.lead.findMany({
+      where: { assignedTo: { companyId: req.user!.companyId, departmentId: deptId || undefined }, status: 'IN_WORK' },
+      select: { assignedToId: true },
+    })
+    const inWorkByManager: Record<string, number> = {}
+    for (const l of inWorkLeads) {
+      if (l.assignedToId) inWorkByManager[l.assignedToId] = (inWorkByManager[l.assignedToId] || 0) + 1
     }
 
     // Company-level totals from Lead model
@@ -506,7 +524,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const totalConsultations = meetingsAttended
     const totalRefusals = allCompanyLeads.filter(l => l.status === 'REFUSED' && (l as any).consultationStatus !== 'not_happened').length
     const totalRefusalsAmount = allCompanyLeads.filter(l => l.status === 'REFUSED' && (l as any).consultationStatus !== 'not_happened').reduce((s, l) => s + ((l as any).netAmount ?? (l as any).amount ?? 0), 0)
-    const totalInWork = allCompanyLeads.filter(l => l.status === 'IN_WORK').length
+    const totalInWork = inWorkLeads.length
 
     // Per-manager refunds map for ROP (using ropRefundedLeads fetched above)
     const ropRefundsByUser: Record<string, { count: number; amount: number }> = {}
