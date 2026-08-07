@@ -21,11 +21,26 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   const date = req.query.date as string
   if (!date) return res.status(400).json({ error: 'date required' })
   try {
-    const sales = await prisma.sale.findMany({
+    // Primary: Sales with matching Sale.date
+    const salesByDate = await prisma.sale.findMany({
       where: { userId: req.user!.id, date },
       orderBy: { createdAt: 'asc' },
     })
-    res.json(sales)
+    // Fallback: lead-linked Sales where the lead was SOLD on this date (covers old records with wrong date)
+    const dayStart = new Date(date + 'T00:00:00+05:00') // KZ timezone
+    const dayEnd   = new Date(date + 'T23:59:59+05:00')
+    const soldLeadsToday = await prisma.lead.findMany({
+      where: { assignedToId: req.user!.id, status: 'SOLD', updatedAt: { gte: dayStart, lte: dayEnd } },
+      select: { id: true },
+    })
+    const soldLeadIds = soldLeadsToday.map(l => l.id)
+    const salesByUpdatedAt = soldLeadIds.length > 0
+      ? await prisma.sale.findMany({ where: { leadId: { in: soldLeadIds } }, orderBy: { createdAt: 'asc' } })
+      : []
+    // Merge, deduplicate by sale id
+    const saleMap = new Map<string, any>()
+    for (const s of [...salesByDate, ...salesByUpdatedAt]) saleMap.set(s.id, s)
+    res.json(Array.from(saleMap.values()))
   } catch (e) {
     res.status(500).json({ error: 'Server error' })
   }
