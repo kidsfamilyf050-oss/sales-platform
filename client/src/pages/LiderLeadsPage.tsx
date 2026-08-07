@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 import { useT } from '../i18n'
+import { useAuthStore } from '../store/auth'
 import {
   Plus, Search, X, ExternalLink, ChevronUp, ChevronDown,
   ChevronLeft, ChevronRight, MoreVertical, Bell, Clock,
@@ -858,7 +859,7 @@ function QuickStatusModal({ lead, onClose }: { lead: Lead; onClose: () => void }
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function LiderLeadsPage() {
   const qc = useQueryClient()
-  const { t } = useT()
+  const { t, lang } = useT()
 
   // Global period (from header PeriodSelector)
   const periodStore = usePeriodStore()
@@ -1088,15 +1089,22 @@ export default function LiderLeadsPage() {
 
   const exportExcel = async () => {
     try {
-      const res = await api.get(`/export/lider-full?${buildParams()}`, { responseType: 'blob' })
-      const blob = new Blob([res.data as any], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      const token = useAuthStore.getState().token
+      const baseUrl = import.meta.env.VITE_API_URL || '/api'
+      const params = buildParams()
+      const res = await fetch(`${baseUrl}/export/lider-full?${params}&lang=${lang}`, {
+        headers: { Authorization: `Bearer ${token}` },
       })
-      const url = URL.createObjectURL(blob)
+      if (!res.ok) { alert(t('lider.exportError')); return }
+      const blob = await res.blob()
+      const cd = res.headers.get('Content-Disposition') || ''
+      const nameMatch = cd.match(/filename\*=UTF-8''(.+)/)
+      const filename = nameMatch ? decodeURIComponent(nameMatch[1]) : 'lider-report.xlsx'
       const a = document.createElement('a')
-      a.href = url; a.download = `lider-report-${new Date().toISOString().slice(0, 10)}.xlsx`
-      document.body.appendChild(a); a.click()
-      document.body.removeChild(a); URL.revokeObjectURL(url)
+      a.href = URL.createObjectURL(blob)
+      a.download = filename
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      URL.revokeObjectURL(a.href)
     } catch { alert(t('lider.exportError')) }
   }
 

@@ -356,7 +356,7 @@ async function downloadExport(endpoint: string, params: string) {
 }
 
 export default function ROPDashboard() {
-  const { t } = useT()
+  const { t, lang } = useT()
   const navigate = useNavigate()
   const periodState = usePeriodStore()
   const { period } = periodState
@@ -402,7 +402,7 @@ export default function ROPDashboard() {
           <p className="text-gray-500 text-sm mt-0.5">{t('dash.rop.subtitle')}</p>
         </div>
         <button
-          onClick={() => downloadExport('rop', params)}
+          onClick={() => downloadExport('rop', `${params}&lang=${lang}`)}
           className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
           title="Скачать отчёт Excel"
         >

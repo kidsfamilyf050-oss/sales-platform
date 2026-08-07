@@ -6,6 +6,311 @@ import ExcelJS from 'exceljs'
 const router = Router()
 const prisma = new PrismaClient()
 
+// ── Translation dictionary ─────────────────────────────────────────────────
+
+const LABELS = {
+  ru: {
+    period: {
+      today: 'Сегодня', yesterday: 'Вчера',
+      week: 'Последние 7 дней', month: 'Текущий месяц',
+    },
+    months: ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'],
+    total: 'ИТОГО',
+    days: 'дней',
+    deals: 'сделок',
+    // Sheet names
+    sheet: {
+      summary:      'Сводка',
+      daily:        'Отчёты по дням',
+      sales:        'Продажи',
+      allSales:     'Все продажи',
+      closers:      'Клоузеры',
+      liders:       'Лидорубы',
+      monthly:      'По месяцам',
+      channels:     'По каналам',
+      leads:        'Все лиды',
+      dailyReports: 'Ежедневные отчёты',
+      data:         'Данные по дням',
+    },
+    // Column headers
+    col: {
+      date:        'Дата',
+      leads:       'Лидов',
+      qual:        'Квалиф.',
+      scheduled:   'Записано на встречу',
+      attended:    'Пришло на встречу',
+      comment:     'Комментарий',
+      clients:     'Клиентов',
+      consults:    'Консультаций',
+      refusals:    'Отказов',
+      amount:      'Сумма',
+      amountRub:   'Сумма (₸)',
+      type:        'Тип',
+      method:      'Способ оплаты',
+      bank:        'Банк',
+      months:      'Месяцев',
+      manager:     'Менеджер',
+      plan:        'План (₸)',
+      completion:  'Выполнение %',
+      conversion:  'Конверсия %',
+      avgCheck:    'Средний чек (₸)',
+      inWork:      'В работе',
+      lider:       'Лидоруб',
+      attendedFact:'Пришло (факт)',
+      meetingPlan: 'План встреч',
+      qualPct:     '% квал.',
+      receivedAt:  'Дата поступления',
+      clientName:  'Клиент',
+      phone:       'Телефон',
+      link:        'Ссылка',
+      channel:     'Рекламный канал',
+      kts:         'Квал / Не квал',
+      sub:         'Записан / Отказ',
+      apptDate:    'Дата записи',
+      apptTime:    'Время',
+      closer:      'Клоузер',
+      consultStatus:'Статус встречи',
+      postponed:   'Перенос на',
+      budget:      'Рекл. бюджет (₸)',
+      leadCost:    'Стоим. лида (₸)',
+      share:       'Доля от всех',
+      happenedPct: '% пришло от записанных',
+      planExecCol: 'Вып. плана встреч',
+      qualPctCol:  '% квал',
+      month:       'Месяц',
+    },
+    // Section sub-headers
+    hdr: {
+      closerStats: 'Показатели продаж',
+      liderStats:  'Показатели лидоруба',
+      salesHdr:    'Продажи',
+      clientFlow:  'Клиентский поток',
+      liderFunnel: 'Воронка лидорубов',
+      leadFunnel:  'Воронка лидов',
+      planExec:    'Выполнение планов',
+      topChannels: 'Топ каналов по лидам',
+      leadsHdr:    'Лиды',
+      budgetHdr:   'Бюджет',
+    },
+    // Summary row labels
+    sum: {
+      salesAmount:     'Продажи (сумма)',
+      dealsCount:      'Кол-во сделок',
+      salesPlan:       'План продаж',
+      planCompletion:  'Выполнение плана',
+      conversion:      'Конверсия (клиенты → сделки)',
+      avgCheck:        'Средний чек',
+      clientsReceived: 'Клиентов получено',
+      consultations:   'Консультаций',
+      refusals:        'Отказов',
+      inWork:          'В работе',
+      meetingsHappened:'Проведено встреч (пришло)',
+      meetingsPlan:    'План встреч',
+      meetingsScheduled:'Записано на встречу',
+      leadsReceived:   'Лидов получено',
+      leadsplan:       'План по лидам',
+      qualified:       'Квалифицировано',
+      qualPct:         '% квалификации',
+      salesVolume:     'Объём продаж',
+      totalLeads:      'Лидов получено',
+      adBudgetFact:    'Рекламный бюджет (факт)',
+      budgetPlan:      'Бюджетный план',
+      leadCost:        'Стоимость лида',
+      qualLeadCost:    'Стоимость квал. лида',
+    },
+    // Title strings
+    title: {
+      manager:  (name: string) => `Отчёт — ${name}`,
+      rop:      'Отчёт РОПа — Сводные показатели',
+      marketer: (name: string) => `Отчёт маркетолога — ${name}`,
+      lider:    (name: string) => `📊 Отчёт лидоруба — ${name}`,
+    },
+    // Role labels
+    role: { closer: 'Клоузер', lider: 'Лидоруб' },
+    // Payment
+    payType:   { new_sale: 'Новая продажа', additional: 'Доплата' },
+    payMethod: { cash: 'Наличные', card: 'Безналичный', credit: 'Кредит', installment: 'Рассрочка' },
+    // Lead status
+    status: {
+      scheduled: 'Записан', refused: 'Отказ', thinking: 'Думает',
+      in_work_kc: 'В работе КЦ', happened: 'Состоялась',
+      not_happened: 'Не состоялась', postponed: 'Перенос',
+    },
+    kts: { qual: 'Квал', qualCloser: 'Квал (клоузер)', unqual: 'Не квал', inWork: 'В работе КЦ' },
+    // Misc
+    misc: {
+      period:       'Период',
+      role:         'Роль',
+      filters:      'Применены фильтры',
+      plan:         'план',
+      fact:         'факт',
+      fromScheduled:'% от записанных',
+      fromQual:     '% от квал',
+      fromLeads:    '% от лидов',
+      noChannel:    '— без канала —',
+      leadsTotal:   (n: number) => `Итого: ${n} лидов`,
+      qualTotal:    (n: number) => `Квал: ${n}`,
+      scheduledTotal:(n: number) => `Записано: ${n}`,
+      happenedTotal: (n: number) => `Пришло: ${n}`,
+      meetPlanLbl:  'Выполнение плана по встречам',
+      leadPlanLbl:  'Выполнение плана по лидам',
+      factMeetings: '  Факт встреч',
+      planMeetings: '  План встреч',
+      factLeads:    '  Факт лидов',
+      planLeads:    '  План по лидам',
+      dealsTotal:   (n: number) => `${n} сделок`,
+    },
+  },
+  kk: {
+    period: {
+      today: 'Бүгін', yesterday: 'Кеше',
+      week: 'Соңғы 7 күн', month: 'Ағымдағы ай',
+    },
+    months: ['Қаңтар','Ақпан','Наурыз','Сәуір','Мамыр','Маусым','Шілде','Тамыз','Қыркүйек','Қазан','Қараша','Желтоқсан'],
+    total: 'БАРЛЫҒЫ',
+    days: 'күн',
+    deals: 'мәміле',
+    sheet: {
+      summary:      'Қорытынды',
+      daily:        'Күнделікті есептер',
+      sales:        'Сатылымдар',
+      allSales:     'Барлық сатылымдар',
+      closers:      'Клоузерлер',
+      liders:       'Лидорубтар',
+      monthly:      'Айлар бойынша',
+      channels:     'Каналдар бойынша',
+      leads:        'Барлық лидтер',
+      dailyReports: 'Күнделікті есептер',
+      data:         'Күнделікті деректер',
+    },
+    col: {
+      date:        'Күн',
+      leads:       'Лидтер',
+      qual:        'Саралды.',
+      scheduled:   'Жазылды (кездесу)',
+      attended:    'Кездесуге келді',
+      comment:     'Пікір',
+      clients:     'Клиенттер',
+      consults:    'Кеңестер',
+      refusals:    'Бас тарту',
+      amount:      'Сома',
+      amountRub:   'Сома (₸)',
+      type:        'Түрі',
+      method:      'Төлем тәсілі',
+      bank:        'Банк',
+      months:      'Айлар',
+      manager:     'Менеджер',
+      plan:        'Жоспар (₸)',
+      completion:  'Орындалуы %',
+      conversion:  'Конверсия %',
+      avgCheck:    'Орт. чек (₸)',
+      inWork:      'Жұмыста',
+      lider:       'Лидоруб',
+      attendedFact:'Келді (нақты)',
+      meetingPlan: 'Кездесу жоспары',
+      qualPct:     '% сарал.',
+      receivedAt:  'Келіп түскен күн',
+      clientName:  'Клиент',
+      phone:       'Телефон',
+      link:        'Сілтеме',
+      channel:     'Жарнама каналы',
+      kts:         'Сарал / Сараланбаған',
+      sub:         'Жазылды / Бас тарту',
+      apptDate:    'Жазылу күні',
+      apptTime:    'Уақыты',
+      closer:      'Клоузер',
+      consultStatus:'Кездесу мәртебесі',
+      postponed:   'Ауыстырылды',
+      budget:      'Жарн. бюджет (₸)',
+      leadCost:    'Лид бағасы (₸)',
+      share:       'Үлесі',
+      happenedPct: '% жазылғандардан',
+      planExecCol: 'Жоспар орынд.',
+      qualPctCol:  '% сарал',
+      month:       'Ай',
+    },
+    hdr: {
+      closerStats: 'Сату көрсеткіштері',
+      liderStats:  'Лидоруб көрсеткіштері',
+      salesHdr:    'Сатылымдар',
+      clientFlow:  'Клиент ағыны',
+      liderFunnel: 'Лидорубтар воронкасы',
+      leadFunnel:  'Лидтер воронкасы',
+      planExec:    'Жоспарды орындау',
+      topChannels: 'Лидтер бойынша үздік каналдар',
+      leadsHdr:    'Лидтер',
+      budgetHdr:   'Бюджет',
+    },
+    sum: {
+      salesAmount:     'Сатылым (сома)',
+      dealsCount:      'Мәмілелер саны',
+      salesPlan:       'Сату жоспары',
+      planCompletion:  'Жоспарды орындау',
+      conversion:      'Конверсия (клиенттер → мәмілелер)',
+      avgCheck:        'Орташа чек',
+      clientsReceived: 'Клиенттер алынды',
+      consultations:   'Кеңестер',
+      refusals:        'Бас тартулар',
+      inWork:          'Жұмыста',
+      meetingsHappened:'Өткен кездесулер (келді)',
+      meetingsPlan:    'Кездесу жоспары',
+      meetingsScheduled:'Кездесуге жазылды',
+      leadsReceived:   'Лидтер алынды',
+      leadsplan:       'Лидтер жоспары',
+      qualified:       'Сараланды',
+      qualPct:         '% сараланды',
+      salesVolume:     'Сату көлемі',
+      totalLeads:      'Лидтер алынды',
+      adBudgetFact:    'Жарнама бюджеті (нақты)',
+      budgetPlan:      'Бюджет жоспары',
+      leadCost:        'Лид бағасы',
+      qualLeadCost:    'Сараланған лид бағасы',
+    },
+    title: {
+      manager:  (name: string) => `Есеп — ${name}`,
+      rop:      'РОП есебі — Жалпы көрсеткіштер',
+      marketer: (name: string) => `Маркетолог есебі — ${name}`,
+      lider:    (name: string) => `📊 Лидоруб есебі — ${name}`,
+    },
+    role: { closer: 'Клоузер', lider: 'Лидоруб' },
+    payType:   { new_sale: 'Жаңа сатылым', additional: 'Қосымша' },
+    payMethod: { cash: 'Қолма-қол', card: 'Қолма-қолсыз', credit: 'Кредит', installment: 'Бөліп төлеу' },
+    status: {
+      scheduled: 'Жазылды', refused: 'Бас тарту', thinking: 'Ойлануда',
+      in_work_kc: 'КЦ жұмысында', happened: 'Өтті',
+      not_happened: 'Өтпеді', postponed: 'Ауыстыру',
+    },
+    kts: { qual: 'Сараланды', qualCloser: 'Сараланды (клоузер)', unqual: 'Сараланбады', inWork: 'КЦ жұмысында' },
+    misc: {
+      period:       'Кезең',
+      role:         'Рөлі',
+      filters:      'Сүзгілер қолданылды',
+      plan:         'жоспар',
+      fact:         'нақты',
+      fromScheduled:'% жазылғандардан',
+      fromQual:     '% сараланғандардан',
+      fromLeads:    '% лидтерден',
+      noChannel:    '— канал жоқ —',
+      leadsTotal:   (n: number) => `Барлығы: ${n} лид`,
+      qualTotal:    (n: number) => `Сарал: ${n}`,
+      scheduledTotal:(n: number) => `Жазылды: ${n}`,
+      happenedTotal: (n: number) => `Келді: ${n}`,
+      meetPlanLbl:  'Кездесулер жоспарын орындау',
+      leadPlanLbl:  'Лидтер жоспарын орындау',
+      factMeetings: '  Нақты кездесулер',
+      planMeetings: '  Жоспар бойынша кездесу',
+      factLeads:    '  Нақты лидтер',
+      planLeads:    '  Лидтер жоспары',
+      dealsTotal:   (n: number) => `${n} мәміле`,
+    },
+  },
+} as const
+
+type LabelSet = typeof LABELS.ru
+function getL(lang?: string): LabelSet {
+  return lang === 'kk' ? (LABELS.kk as unknown as LabelSet) : LABELS.ru
+}
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function getPeriodDates(period: string, from?: string, to?: string) {
@@ -61,21 +366,18 @@ function fmtMoney(n: number) {
   return `₸ ${n.toLocaleString('ru-RU')}`
 }
 
-function periodLabel(period: string, from?: string, to?: string) {
+function periodLabel(period: string, L: LabelSet, from?: string, to?: string) {
   if (from && to) return `${fmtDate(from)} – ${fmtDate(to)}`
-  const map: Record<string, string> = {
-    today: 'Сегодня', yesterday: 'Вчера', week: 'Последние 7 дней', month: 'Текущий месяц'
-  }
-  return map[period] || period
+  return (L.period as any)[period] || period
 }
 
 // ── Excel style constants ──────────────────────────────────────────────────
 
-const C_BLUE_DARK   = 'FF1E40AF'  // dark blue header
-const C_BLUE_MID    = 'FF2563EB'  // mid blue accent
-const C_BLUE_LIGHT  = 'FFDBEAFE'  // light blue alt row
+const C_BLUE_DARK   = 'FF1E40AF'
+const C_BLUE_MID    = 'FF2563EB'
+const C_BLUE_LIGHT  = 'FFDBEAFE'
 const C_WHITE       = 'FFFFFFFF'
-const C_GRAY_HDR    = 'FFF1F5F9'  // section sub-header
+const C_GRAY_HDR    = 'FFF1F5F9'
 const C_GREEN_LIGHT = 'FFD1FAE5'
 const C_RED_LIGHT   = 'FFFEE2E2'
 const C_AMBER_LIGHT = 'FFFEF3C7'
@@ -160,9 +462,8 @@ function addSummaryBlock(ws: WS, startRow: number, items: { label: string; value
 }
 
 function completionColor(pct: number) {
-  if (pct >= 100) return C_GREEN_LIGHT
-  if (pct >= 75)  return C_GREEN_LIGHT
-  if (pct >= 50)  return C_AMBER_LIGHT
+  if (pct >= 75) return C_GREEN_LIGHT
+  if (pct >= 50) return C_AMBER_LIGHT
   return C_RED_LIGHT
 }
 
@@ -175,13 +476,14 @@ function completionTextColor(pct: number) {
 // ── MANAGER export (Lider or Closer) ──────────────────────────────────────
 
 router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => {
-  const { period = 'month', from, to } = req.query
+  const { period = 'month', from, to, lang } = req.query
+  const L = getL(lang as string)
   const { start, end } = getPeriodDates(period as string, from as string, to as string)
   const periodKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
   const userId = req.user!.id
   const fromStr = dateToStr(start)
   const toStr = dateToStr(end)
-  const pLabel = periodLabel(period as string, from as string, to as string)
+  const pLabel = periodLabel(period as string, L, from as string, to as string)
 
   try {
     const [user, reports, plans, periodSales] = await Promise.all([
@@ -197,25 +499,19 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
     wb.created = new Date()
 
     // ── SHEET 1: Summary ────────────────────────────────────────────────────
-    const wsSummary = wb.addWorksheet('Сводка', { properties: { tabColor: { argb: C_BLUE_MID } } })
-    wsSummary.columns = [
-      { key: 'label', width: 30 },
-      { key: 'value', width: 30 },
-    ]
+    const wsSummary = wb.addWorksheet(L.sheet.summary, { properties: { tabColor: { argb: C_BLUE_MID } } })
+    wsSummary.columns = [{ key: 'label', width: 30 }, { key: 'value', width: 30 }]
 
-    // Title
     wsSummary.mergeCells('A1:B1')
-    const titleCell = wsSummary.getCell('A1')
-    titleCell.value = `Отчёт — ${user?.name || 'Менеджер'}`
+    wsSummary.getCell('A1').value = L.title.manager(user?.name || '')
     styleTitleRow(wsSummary, 1, 2)
 
     wsSummary.mergeCells('A2:B2')
     const subCell = wsSummary.getCell('A2')
-    subCell.value = `Период: ${pLabel}  |  Роль: ${isCloser ? 'Клоузер' : 'Лидоруб'}`
+    subCell.value = `${L.misc.period}: ${pLabel}  |  ${L.misc.role}: ${isCloser ? L.role.closer : L.role.lider}`
     subCell.font = { size: 10, color: { argb: 'FF64748B' }, name: 'Calibri' }
     subCell.alignment = { horizontal: 'left', vertical: 'middle' }
     wsSummary.getRow(2).height = 20
-
     wsSummary.addRow([])
 
     if (isCloser) {
@@ -229,20 +525,20 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const conversion = pctOneDecimal(salesCount, clientsReceived)
       const avgCheck = salesCount > 0 ? Math.round(salesAmount / salesCount) : 0
 
-      const subHdr = wsSummary.addRow(['Показатели продаж', ''])
+      const subHdr = wsSummary.addRow([L.hdr.closerStats, ''])
       styleSubHeader(wsSummary, subHdr.number, 2)
 
       addSummaryBlock(wsSummary, subHdr.number + 1, [
-        { label: 'Продажи (сумма)', value: fmtMoney(salesAmount) },
-        { label: 'Кол-во сделок', value: salesCount },
-        { label: 'План продаж', value: fmtMoney(salesPlan) },
-        { label: 'Выполнение плана', value: `${completion}%` },
-        { label: 'Конверсия (клиенты → сделки)', value: `${conversion}%` },
-        { label: 'Средний чек', value: fmtMoney(avgCheck) },
-        { label: 'Клиентов получено', value: clientsReceived },
-        { label: 'Консультаций', value: consultations },
-        { label: 'Отказов', value: refusals },
-        { label: 'В работе', value: Math.max(0, consultations - salesCount - refusals) },
+        { label: L.sum.salesAmount,     value: fmtMoney(salesAmount) },
+        { label: L.sum.dealsCount,      value: salesCount },
+        { label: L.sum.salesPlan,       value: fmtMoney(salesPlan) },
+        { label: L.sum.planCompletion,  value: `${completion}%` },
+        { label: L.sum.conversion,      value: `${conversion}%` },
+        { label: L.sum.avgCheck,        value: fmtMoney(avgCheck) },
+        { label: L.sum.clientsReceived, value: clientsReceived },
+        { label: L.sum.consultations,   value: consultations },
+        { label: L.sum.refusals,        value: refusals },
+        { label: L.sum.inWork,          value: Math.max(0, consultations - salesCount - refusals) },
       ])
     } else {
       const leads = sumLiderLeads(reports)
@@ -253,36 +549,32 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const leadsplan = plans.find(p => p.type === 'LEADS')?.value || 0
       const completion = pctOneDecimal(meetingsAttended, attendedPlan)
 
-      const subHdr = wsSummary.addRow(['Показатели лидоруба', ''])
+      const subHdr = wsSummary.addRow([L.hdr.liderStats, ''])
       styleSubHeader(wsSummary, subHdr.number, 2)
 
       addSummaryBlock(wsSummary, subHdr.number + 1, [
-        { label: 'Проведено встреч (пришло)', value: meetingsAttended },
-        { label: 'План встреч', value: attendedPlan },
-        { label: 'Выполнение плана', value: `${completion}%` },
-        { label: 'Записано на встречу', value: meetingsScheduled },
-        { label: 'Лидов получено', value: leads },
-        { label: 'План по лидам', value: leadsplan || '—' },
-        { label: 'Квалифицировано', value: qualifiedLeads },
-        { label: '% квалификации', value: `${pctOneDecimal(qualifiedLeads, leads)}%` },
+        { label: L.sum.meetingsHappened,  value: meetingsAttended },
+        { label: L.sum.meetingsPlan,      value: attendedPlan },
+        { label: L.sum.planCompletion,    value: `${completion}%` },
+        { label: L.sum.meetingsScheduled, value: meetingsScheduled },
+        { label: L.sum.leadsReceived,     value: leads },
+        { label: L.sum.leadsplan,         value: leadsplan || '—' },
+        { label: L.sum.qualified,         value: qualifiedLeads },
+        { label: L.sum.qualPct,           value: `${pctOneDecimal(qualifiedLeads, leads)}%` },
       ])
     }
 
     // ── SHEET 2: Daily reports ───────────────────────────────────────────────
     if (!isCloser) {
-      const wsReports = wb.addWorksheet('Отчёты по дням', { properties: { tabColor: { argb: 'FF7C3AED' } } })
-      const headers = ['Дата', 'Лидов', 'Квалиф.', 'Записано на встречу', 'Пришло на встречу', 'Комментарий']
+      const wsReports = wb.addWorksheet(L.sheet.daily, { properties: { tabColor: { argb: 'FF7C3AED' } } })
+      const headers = [L.col.date, L.col.leads, L.col.qual, L.col.scheduled, L.col.attended, L.col.comment]
       wsReports.columns = [
-        { key: 'date', width: 14 },
-        { key: 'leads', width: 12 },
-        { key: 'qual', width: 12 },
-        { key: 'scheduled', width: 20 },
-        { key: 'attended', width: 20 },
-        { key: 'comment', width: 35 },
+        { key: 'date', width: 14 }, { key: 'leads', width: 12 }, { key: 'qual', width: 12 },
+        { key: 'scheduled', width: 20 }, { key: 'attended', width: 20 }, { key: 'comment', width: 35 },
       ]
 
       wsReports.mergeCells(`A1:${String.fromCharCode(64 + headers.length)}1`)
-      wsReports.getCell('A1').value = `Ежедневные отчёты — ${pLabel}`
+      wsReports.getCell('A1').value = `${L.sheet.daily} — ${pLabel}`
       styleTitleRow(wsReports, 1, headers.length)
       wsReports.addRow([])
 
@@ -300,76 +592,53 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           d.comment || '',
         ])
         styleDataRow(wsReports, dataRow.number, headers.length, i % 2 === 0)
-        dataRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' }
-        dataRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' }
-        dataRow.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' }
-        dataRow.getCell(4).alignment = { horizontal: 'center', vertical: 'middle' }
-        dataRow.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' }
-        // Highlight attended > 0
+        for (let c = 1; c <= 5; c++) dataRow.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' }
         if (Number(d.meetingsAttended) > 0) {
           dataRow.getCell(5).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GREEN_LIGHT } }
           dataRow.getCell(5).font = { bold: true, color: { argb: C_GREEN_TEXT }, size: 10, name: 'Calibri' }
         }
       })
 
-      // Totals row
       const totRow = wsReports.addRow([
-        'ИТОГО',
-        sumLiderLeads(reports),
-        sumField(reports, 'qualifiedLeads'),
-        sumField(reports, 'meetingsScheduled'),
-        sumField(reports, 'meetingsAttended'),
-        '',
+        L.total, sumLiderLeads(reports), sumField(reports, 'qualifiedLeads'),
+        sumField(reports, 'meetingsScheduled'), sumField(reports, 'meetingsAttended'), '',
       ])
       for (let c = 1; c <= headers.length; c++) {
-        const cell = totRow.getCell(c)
-        cell.font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_BLUE_DARK } }
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_HDR } }
-        cell.alignment = { horizontal: 'center', vertical: 'middle' }
-        cell.border = { top: { style: 'medium', color: { argb: C_BLUE_MID } } }
+        totRow.getCell(c).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_BLUE_DARK } }
+        totRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_HDR } }
+        totRow.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' }
+        totRow.getCell(c).border = { top: { style: 'medium', color: { argb: C_BLUE_MID } } }
       }
       totRow.height = 22
     } else {
       // ── SHEET 2: Sales ──────────────────────────────────────────────────────
-      const wsSales = wb.addWorksheet('Продажи', { properties: { tabColor: { argb: 'FF16A34A' } } })
-      const saleCols = ['Дата', 'Сумма', 'Тип', 'Способ оплаты', 'Банк', 'Месяцев', 'Комментарий']
+      const wsSales = wb.addWorksheet(L.sheet.sales, { properties: { tabColor: { argb: 'FF16A34A' } } })
+      const saleCols = [L.col.date, L.col.amount, L.col.type, L.col.method, L.col.bank, L.col.months, L.col.comment]
       wsSales.columns = [
-        { key: 'date', width: 14 },
-        { key: 'amount', width: 18 },
-        { key: 'type', width: 14 },
-        { key: 'method', width: 16 },
-        { key: 'bank', width: 18 },
-        { key: 'months', width: 10 },
-        { key: 'comment', width: 35 },
+        { key: 'date', width: 14 }, { key: 'amount', width: 18 }, { key: 'type', width: 14 },
+        { key: 'method', width: 16 }, { key: 'bank', width: 18 }, { key: 'months', width: 10 }, { key: 'comment', width: 35 },
       ]
 
       wsSales.mergeCells(`A1:${String.fromCharCode(64 + saleCols.length)}1`)
-      wsSales.getCell('A1').value = `Продажи — ${pLabel}`
+      wsSales.getCell('A1').value = `${L.sheet.sales} — ${pLabel}`
       styleTitleRow(wsSales, 1, saleCols.length)
       wsSales.addRow([])
 
       const hRow = wsSales.addRow(saleCols)
       styleHeaderRow(wsSales, hRow.number, saleCols.length)
 
-      const typeLabel: Record<string, string> = { new_sale: 'Новая продажа', additional: 'Доплата' }
-      const methodLabel: Record<string, string> = { cash: 'Наличные', card: 'Безналичный', credit: 'Кредит', installment: 'Рассрочка' }
-
       periodSales.forEach((s, i) => {
         const dataRow = wsSales.addRow([
-          fmtDate(s.date),
-          s.amount,
-          typeLabel[s.paymentType] || s.paymentType,
-          methodLabel[s.paymentMethod] || s.paymentMethod,
-          s.bank || '',
-          s.months || '',
-          s.comment || '',
+          fmtDate(s.date), s.amount,
+          (L.payType as any)[s.paymentType] || s.paymentType,
+          (L.payMethod as any)[s.paymentMethod] || s.paymentMethod,
+          s.bank || '', s.months || '', s.comment || '',
         ])
         styleDataRow(wsSales, dataRow.number, saleCols.length, i % 2 === 0)
         dataRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' }
         dataRow.getCell(2).numFmt = '#,##0'
         dataRow.getCell(2).alignment = { horizontal: 'right', vertical: 'middle' }
         dataRow.getCell(2).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_BLUE_DARK } }
-        // Color by type
         if (s.paymentType === 'new_sale') {
           dataRow.getCell(3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GREEN_LIGHT } }
           dataRow.getCell(3).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_GREEN_TEXT } }
@@ -379,33 +648,28 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         }
       })
 
-      // Totals
       const total = periodSales.reduce((s, x) => s + x.amount, 0)
-      const totRow = wsSales.addRow(['ИТОГО', total, '', '', '', '', `${periodSales.length} сделок`])
+      const totRow = wsSales.addRow([L.total, total, '', '', '', '', L.misc.dealsTotal(periodSales.length)])
       for (let c = 1; c <= saleCols.length; c++) {
-        const cell = totRow.getCell(c)
-        cell.font = { bold: true, size: 11, name: 'Calibri', color: { argb: C_BLUE_DARK } }
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_HDR } }
-        cell.border = { top: { style: 'medium', color: { argb: C_BLUE_MID } } }
-        cell.alignment = { vertical: 'middle' }
+        totRow.getCell(c).font = { bold: true, size: 11, name: 'Calibri', color: { argb: C_BLUE_DARK } }
+        totRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_HDR } }
+        totRow.getCell(c).border = { top: { style: 'medium', color: { argb: C_BLUE_MID } } }
+        totRow.getCell(c).alignment = { vertical: 'middle' }
       }
       totRow.getCell(2).numFmt = '#,##0'
       totRow.getCell(2).alignment = { horizontal: 'right', vertical: 'middle' }
       totRow.height = 24
 
       // ── SHEET 3: Daily reports (closer) ─────────────────────────────────────
-      const wsCloserRep = wb.addWorksheet('Отчёты по дням', { properties: { tabColor: { argb: 'FF7C3AED' } } })
-      const closerCols = ['Дата', 'Клиентов', 'Консультаций', 'Отказов', 'Комментарий']
+      const wsCloserRep = wb.addWorksheet(L.sheet.daily, { properties: { tabColor: { argb: 'FF7C3AED' } } })
+      const closerCols = [L.col.date, L.col.clients, L.col.consults, L.col.refusals, L.col.comment]
       wsCloserRep.columns = [
-        { key: 'date', width: 14 },
-        { key: 'clients', width: 14 },
-        { key: 'consults', width: 16 },
-        { key: 'refusals', width: 14 },
-        { key: 'comment', width: 35 },
+        { key: 'date', width: 14 }, { key: 'clients', width: 14 },
+        { key: 'consults', width: 16 }, { key: 'refusals', width: 14 }, { key: 'comment', width: 35 },
       ]
 
       wsCloserRep.mergeCells(`A1:${String.fromCharCode(64 + closerCols.length)}1`)
-      wsCloserRep.getCell('A1').value = `Ежедневные отчёты — ${pLabel}`
+      wsCloserRep.getCell('A1').value = `${L.sheet.daily} — ${pLabel}`
       styleTitleRow(wsCloserRep, 1, closerCols.length)
       wsCloserRep.addRow([])
 
@@ -415,11 +679,8 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       reports.forEach((r, i) => {
         const d = r.data as any
         const dataRow = wsCloserRep.addRow([
-          fmtDate(r.date),
-          Number(d.clientsReceived) || 0,
-          Number(d.consultations) || 0,
-          Number(d.refusals) || 0,
-          d.comment || '',
+          fmtDate(r.date), Number(d.clientsReceived) || 0,
+          Number(d.consultations) || 0, Number(d.refusals) || 0, d.comment || '',
         ])
         styleDataRow(wsCloserRep, dataRow.number, closerCols.length, i % 2 === 0)
         dataRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' }
@@ -440,16 +701,17 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
   }
 })
 
-// ── ROP export (most detailed — 4 sheets) ─────────────────────────────────
+// ── ROP export ─────────────────────────────────────────────────────────────
 
 router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
-  const { period = 'month', from, to } = req.query
+  const { period = 'month', from, to, lang } = req.query
+  const L = getL(lang as string)
   const { start, end } = getPeriodDates(period as string, from as string, to as string)
   const periodKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
   const deptId = req.user!.departmentId
   const fromStr = dateToStr(start)
   const toStr = dateToStr(end)
-  const pLabel = periodLabel(period as string, from as string, to as string)
+  const pLabel = periodLabel(period as string, L, from as string, to as string)
 
   try {
     const [managers, plans, closerReports, liderReports, periodSales] = await Promise.all([
@@ -460,7 +722,6 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       prisma.sale.findMany({ where: { companyId: req.user!.companyId, date: { gte: fromStr, lte: toStr } }, include: { user: { select: { id: true, name: true, managerType: true } } }, orderBy: { date: 'asc' } }),
     ])
 
-    // Aggregate
     const salesByUser: Record<string, { salesCount: number; salesAmount: number }> = {}
     for (const s of periodSales) {
       if (!salesByUser[s.userId]) salesByUser[s.userId] = { salesCount: 0, salesAmount: 0 }
@@ -501,87 +762,96 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     wb.creator = 'SalesPlatform'
     wb.created = new Date()
 
-    // ── SHEET 1: Сводка ────────────────────────────────────────────────────
-    const wsSummary = wb.addWorksheet('Сводка', { properties: { tabColor: { argb: C_BLUE_MID } } })
+    // ── SHEET 1: Summary ────────────────────────────────────────────────────
+    const wsSummary = wb.addWorksheet(L.sheet.summary, { properties: { tabColor: { argb: C_BLUE_MID } } })
     wsSummary.columns = [{ key: 'l', width: 32 }, { key: 'v', width: 28 }]
 
     wsSummary.mergeCells('A1:B1')
-    wsSummary.getCell('A1').value = 'Отчёт РОПа — Сводные показатели'
+    wsSummary.getCell('A1').value = L.title.rop
     styleTitleRow(wsSummary, 1, 2)
 
     wsSummary.mergeCells('A2:B2')
-    wsSummary.getCell('A2').value = `Период: ${pLabel}`
+    wsSummary.getCell('A2').value = `${L.misc.period}: ${pLabel}`
     wsSummary.getCell('A2').font = { size: 10, color: { argb: 'FF64748B' }, name: 'Calibri' }
     wsSummary.getCell('A2').alignment = { horizontal: 'left', vertical: 'middle' }
     wsSummary.getRow(2).height = 20
     wsSummary.addRow([])
 
-    const salesHdr = wsSummary.addRow(['Продажи', ''])
+    const salesHdr = wsSummary.addRow([L.hdr.salesHdr, ''])
     styleSubHeader(wsSummary, salesHdr.number, 2)
-    let nextRow = addSummaryBlock(wsSummary, salesHdr.number + 1, [
-      { label: 'Объём продаж', value: fmtMoney(totalSalesAmount) },
-      { label: 'Кол-во сделок', value: totalSalesCount },
-      { label: 'План продаж', value: fmtMoney(salesPlan) },
-      { label: 'Выполнение плана', value: `${planCompletion}%` },
-      { label: 'Конверсия (клиенты → сделки)', value: `${conversion}%` },
-      { label: 'Средний чек', value: fmtMoney(avgCheck) },
+    addSummaryBlock(wsSummary, salesHdr.number + 1, [
+      { label: L.sum.salesVolume,    value: fmtMoney(totalSalesAmount) },
+      { label: L.sum.dealsCount,     value: totalSalesCount },
+      { label: L.sum.salesPlan,      value: fmtMoney(salesPlan) },
+      { label: L.sum.planCompletion, value: `${planCompletion}%` },
+      { label: L.sum.conversion,     value: `${conversion}%` },
+      { label: L.sum.avgCheck,       value: fmtMoney(avgCheck) },
     ])
 
-    // Color the planCompletion value
     const compCell = wsSummary.getCell(`B${salesHdr.number + 4}`)
     compCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: completionColor(planCompletion) } }
     compCell.font = { bold: true, size: 11, name: 'Calibri', color: { argb: completionTextColor(planCompletion) } }
 
     wsSummary.addRow([])
-    const clientHdr = wsSummary.addRow(['Клиентский поток', ''])
+    const clientHdr = wsSummary.addRow([L.hdr.clientFlow, ''])
     styleSubHeader(wsSummary, clientHdr.number, 2)
     addSummaryBlock(wsSummary, clientHdr.number + 1, [
-      { label: 'Клиентов получено', value: totalClients },
-      { label: 'Консультаций', value: totalConsultations },
-      { label: 'Отказов', value: totalRefusals },
-      { label: 'В работе', value: Math.max(0, totalConsultations - totalSalesCount - totalRefusals) },
+      { label: L.sum.clientsReceived, value: totalClients },
+      { label: L.sum.consultations,   value: totalConsultations },
+      { label: L.sum.refusals,        value: totalRefusals },
+      { label: L.sum.inWork,          value: Math.max(0, totalConsultations - totalSalesCount - totalRefusals) },
     ])
 
-    // Лидоруб funnel
     const totalLiderLeads = Object.values(liderMap).reduce((s, x) => s + x.leads, 0)
     const totalQual = Object.values(liderMap).reduce((s, x) => s + x.qual, 0)
     const totalScheduled = Object.values(liderMap).reduce((s, x) => s + x.scheduled, 0)
     const totalAttended = Object.values(liderMap).reduce((s, x) => s + x.attended, 0)
 
     wsSummary.addRow([])
-    const funnelHdr = wsSummary.addRow(['Воронка лидорубов', ''])
+    const funnelHdr = wsSummary.addRow([L.hdr.liderFunnel, ''])
     styleSubHeader(wsSummary, funnelHdr.number, 2)
     addSummaryBlock(wsSummary, funnelHdr.number + 1, [
-      { label: 'Лидов получено', value: totalLiderLeads },
-      { label: 'Квалифицировано', value: totalQual },
-      { label: 'Записано на встречу', value: totalScheduled },
-      { label: 'Пришло на встречу', value: totalAttended },
+      { label: L.sum.leadsReceived,     value: totalLiderLeads },
+      { label: L.sum.qualified,         value: totalQual },
+      { label: L.sum.meetingsScheduled, value: totalScheduled },
+      { label: L.sum.meetingsHappened,  value: totalAttended },
     ])
 
-    // ── SHEET 2: Клоузеры ──────────────────────────────────────────────────
-    const wsClosers = wb.addWorksheet('Клоузеры', { properties: { tabColor: { argb: 'FF16A34A' } } })
-    const closerCols = ['Менеджер', 'Продажи (₸)', 'Кол-во сделок', 'План (₸)', 'Выполнение %', 'Конверсия %', 'Средний чек (₸)', 'Клиентов', 'Консультаций', 'Отказов', 'В работе']
+    // ── SHEET 2: Closers ────────────────────────────────────────────────────
+    const wsClosers = wb.addWorksheet(L.sheet.closers, { properties: { tabColor: { argb: 'FF16A34A' } } })
+    const closerCols = [
+      L.col.manager, `${L.col.amount} (₸)`, L.col.amountRub.replace('Сома (₸)', L.col.amountRub),
+      L.col.plan, L.col.completion, L.col.conversion, L.col.avgCheck,
+      L.col.clients, L.col.consults, L.col.refusals, L.col.inWork,
+    ]
+    // Redefine cleanly
+    const closerColsClean = [
+      L.col.manager,
+      `${L.hdr.salesHdr} (₸)`,
+      L.sum.dealsCount,
+      L.col.plan,
+      L.col.completion,
+      L.col.conversion,
+      L.col.avgCheck,
+      L.col.clients,
+      L.col.consults,
+      L.col.refusals,
+      L.col.inWork,
+    ]
     wsClosers.columns = [
-      { key: 'name', width: 22 },
-      { key: 'amount', width: 18 },
-      { key: 'count', width: 14 },
-      { key: 'plan', width: 16 },
-      { key: 'pct', width: 14 },
-      { key: 'conv', width: 14 },
-      { key: 'avg', width: 16 },
-      { key: 'clients', width: 12 },
-      { key: 'consults', width: 14 },
-      { key: 'refusals', width: 12 },
-      { key: 'inWork', width: 12 },
+      { key: 'name', width: 22 }, { key: 'amount', width: 18 }, { key: 'count', width: 14 },
+      { key: 'plan', width: 16 }, { key: 'pct', width: 14 }, { key: 'conv', width: 14 },
+      { key: 'avg', width: 16 }, { key: 'clients', width: 12 }, { key: 'consults', width: 14 },
+      { key: 'refusals', width: 12 }, { key: 'inWork', width: 12 },
     ]
 
-    wsClosers.mergeCells(`A1:${String.fromCharCode(64 + closerCols.length)}1`)
-    wsClosers.getCell('A1').value = `Клоузеры — ${pLabel}`
-    styleTitleRow(wsClosers, 1, closerCols.length)
+    wsClosers.mergeCells(`A1:${String.fromCharCode(64 + closerColsClean.length)}1`)
+    wsClosers.getCell('A1').value = `${L.sheet.closers} — ${pLabel}`
+    styleTitleRow(wsClosers, 1, closerColsClean.length)
     wsClosers.addRow([])
 
-    const hRowC = wsClosers.addRow(closerCols)
-    styleHeaderRow(wsClosers, hRowC.number, closerCols.length)
+    const hRowC = wsClosers.addRow(closerColsClean)
+    styleHeaderRow(wsClosers, hRowC.number, closerColsClean.length)
 
     const closers = managers.filter(m => m.managerType !== 'LIDER')
       .map(m => {
@@ -592,25 +862,20 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         const plan = plans.find(p => p.userId === m.id && p.type === 'SALES_AMOUNT')?.value || 0
         const comp = pctOneDecimal(stats.salesAmount, plan)
         return {
-          name: m.name,
-          salesAmount: stats.salesAmount,
-          salesCount: stats.salesCount,
-          plan,
-          completion: comp,
-          conversion: pctOneDecimal(stats.salesCount, clients),
+          name: m.name, salesAmount: stats.salesAmount, salesCount: stats.salesCount, plan,
+          completion: comp, conversion: pctOneDecimal(stats.salesCount, clients),
           avgCheck: stats.salesCount > 0 ? Math.round(stats.salesAmount / stats.salesCount) : 0,
           clients, consults, refusals,
           inWork: Math.max(0, consults - stats.salesCount - refusals),
         }
-      })
-      .sort((a, b) => b.salesAmount - a.salesAmount)
+      }).sort((a, b) => b.salesAmount - a.salesAmount)
 
     closers.forEach((m, i) => {
       const row = wsClosers.addRow([
         m.name, m.salesAmount, m.salesCount, m.plan, `${m.completion}%`,
         `${m.conversion}%`, m.avgCheck, m.clients, m.consults, m.refusals, m.inWork,
       ])
-      styleDataRow(wsClosers, row.number, closerCols.length, i % 2 === 0)
+      styleDataRow(wsClosers, row.number, closerColsClean.length, i % 2 === 0)
       row.getCell(2).numFmt = '#,##0'; row.getCell(2).alignment = { horizontal: 'right', vertical: 'middle' }
       row.getCell(4).numFmt = '#,##0'; row.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' }
       row.getCell(7).numFmt = '#,##0'; row.getCell(7).alignment = { horizontal: 'right', vertical: 'middle' }
@@ -621,16 +886,16 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       for (let c = 8; c <= 11; c++) row.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' }
     })
 
-    // Totals row
     const closerTotalAmount = closers.reduce((s, m) => s + m.salesAmount, 0)
     const closerTotalCount = closers.reduce((s, m) => s + m.salesCount, 0)
     const totRowC = wsClosers.addRow([
-      'ИТОГО', closerTotalAmount, closerTotalCount, '', `${pctOneDecimal(closerTotalAmount, salesPlan)}%`,
-      `${conversion}%`, closerTotalCount > 0 ? Math.round(closerTotalAmount / closerTotalCount) : 0,
+      L.total, closerTotalAmount, closerTotalCount, '',
+      `${pctOneDecimal(closerTotalAmount, salesPlan)}%`, `${conversion}%`,
+      closerTotalCount > 0 ? Math.round(closerTotalAmount / closerTotalCount) : 0,
       totalClients, totalConsultations, totalRefusals,
       Math.max(0, totalConsultations - closerTotalCount - totalRefusals),
     ])
-    for (let c = 1; c <= closerCols.length; c++) {
+    for (let c = 1; c <= closerColsClean.length; c++) {
       totRowC.getCell(c).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_BLUE_DARK } }
       totRowC.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_HDR } }
       totRowC.getCell(c).border = { top: { style: 'medium', color: { argb: C_BLUE_MID } } }
@@ -640,39 +905,43 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     totRowC.getCell(7).numFmt = '#,##0'; totRowC.getCell(7).alignment = { horizontal: 'right', vertical: 'middle' }
     totRowC.height = 24
 
-    // ── SHEET 3: Лидорубы ──────────────────────────────────────────────────
-    const wsLiders = wb.addWorksheet('Лидорубы', { properties: { tabColor: { argb: 'FF7C3AED' } } })
-    const liderCols = ['Лидоруб', 'Пришло (факт)', 'План встреч', 'Выполнение %', 'Записано', 'Лидов', 'Квалиф.', '% квал.']
+    // ── SHEET 3: Liders ─────────────────────────────────────────────────────
+    const wsLiders = wb.addWorksheet(L.sheet.liders, { properties: { tabColor: { argb: 'FF7C3AED' } } })
+    const liderCols = [
+      L.col.lider, L.col.attendedFact, L.col.meetingPlan,
+      L.col.completion, L.col.scheduled, L.col.leads, L.col.qual, L.col.qualPct,
+    ]
     wsLiders.columns = [
-      { key: 'name', width: 22 },
-      { key: 'attended', width: 14 },
-      { key: 'plan', width: 14 },
-      { key: 'pct', width: 14 },
-      { key: 'scheduled', width: 14 },
-      { key: 'leads', width: 12 },
-      { key: 'qual', width: 12 },
-      { key: 'qualPct', width: 12 },
+      { key: 'name', width: 22 }, { key: 'attended', width: 14 }, { key: 'plan', width: 14 },
+      { key: 'pct', width: 14 }, { key: 'scheduled', width: 14 }, { key: 'leads', width: 12 },
+      { key: 'qual', width: 12 }, { key: 'qualPct', width: 12 },
     ]
 
     wsLiders.mergeCells(`A1:${String.fromCharCode(64 + liderCols.length)}1`)
-    wsLiders.getCell('A1').value = `Лидорубы — ${pLabel}`
+    wsLiders.getCell('A1').value = `${L.sheet.liders} — ${pLabel}`
     styleTitleRow(wsLiders, 1, liderCols.length)
     wsLiders.addRow([])
 
     const hRowL = wsLiders.addRow(liderCols)
     styleHeaderRow(wsLiders, hRowL.number, liderCols.length)
 
-    const liderUsers = managers.filter(m => m.managerType === 'LIDER')
-    liderUsers
+    managers.filter(m => m.managerType === 'LIDER')
       .map(m => {
         const stats = liderMap[m.id] || { leads: 0, qual: 0, scheduled: 0, attended: 0 }
         const meetingsPlan = plans.find(p => p.userId === m.id && p.type === 'MEETINGS_ATTENDED')?.value || 0
         const comp = pctOneDecimal(stats.attended, meetingsPlan)
-        return { name: m.name, attended: stats.attended, plan: meetingsPlan, completion: comp, scheduled: stats.scheduled, leads: stats.leads, qual: stats.qual, qualPct: pctOneDecimal(stats.qual, stats.leads) }
+        return {
+          name: m.name, attended: stats.attended, plan: meetingsPlan,
+          completion: comp, scheduled: stats.scheduled, leads: stats.leads,
+          qual: stats.qual, qualPct: pctOneDecimal(stats.qual, stats.leads),
+        }
       })
       .sort((a, b) => b.completion - a.completion)
       .forEach((m, i) => {
-        const row = wsLiders.addRow([m.name, m.attended, m.plan, `${m.completion}%`, m.scheduled, m.leads, m.qual, `${m.qualPct}%`])
+        const row = wsLiders.addRow([
+          m.name, m.attended, m.plan, `${m.completion}%`,
+          m.scheduled, m.leads, m.qual, `${m.qualPct}%`,
+        ])
         styleDataRow(wsLiders, row.number, liderCols.length, i % 2 === 0)
         row.getCell(2).font = { bold: true, size: 11, name: 'Calibri', color: { argb: C_BLUE_MID } }
         row.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' }
@@ -683,41 +952,32 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         for (let c = 5; c <= 8; c++) row.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' }
       })
 
-    // ── SHEET 4: Все продажи ───────────────────────────────────────────────
-    const wsSales = wb.addWorksheet('Все продажи', { properties: { tabColor: { argb: 'FFDC2626' } } })
-    const allSaleCols = ['Дата', 'Менеджер', 'Сумма (₸)', 'Тип', 'Способ оплаты', 'Банк', 'Месяцев', 'Комментарий']
+    // ── SHEET 4: All sales ──────────────────────────────────────────────────
+    const wsSales = wb.addWorksheet(L.sheet.allSales, { properties: { tabColor: { argb: 'FFDC2626' } } })
+    const allSaleCols = [
+      L.col.date, L.col.manager, L.col.amountRub, L.col.type,
+      L.col.method, L.col.bank, L.col.months, L.col.comment,
+    ]
     wsSales.columns = [
-      { key: 'date', width: 14 },
-      { key: 'name', width: 20 },
-      { key: 'amount', width: 18 },
-      { key: 'type', width: 16 },
-      { key: 'method', width: 16 },
-      { key: 'bank', width: 18 },
-      { key: 'months', width: 10 },
-      { key: 'comment', width: 30 },
+      { key: 'date', width: 14 }, { key: 'name', width: 20 }, { key: 'amount', width: 18 },
+      { key: 'type', width: 16 }, { key: 'method', width: 16 }, { key: 'bank', width: 18 },
+      { key: 'months', width: 10 }, { key: 'comment', width: 30 },
     ]
 
     wsSales.mergeCells(`A1:${String.fromCharCode(64 + allSaleCols.length)}1`)
-    wsSales.getCell('A1').value = `Все продажи — ${pLabel}`
+    wsSales.getCell('A1').value = `${L.sheet.allSales} — ${pLabel}`
     styleTitleRow(wsSales, 1, allSaleCols.length)
     wsSales.addRow([])
 
     const hRowS = wsSales.addRow(allSaleCols)
     styleHeaderRow(wsSales, hRowS.number, allSaleCols.length)
 
-    const typeLabel: Record<string, string> = { new_sale: 'Новая продажа', additional: 'Доплата' }
-    const methodLabel: Record<string, string> = { cash: 'Наличные', card: 'Безналичный', credit: 'Кредит', installment: 'Рассрочка' }
-
     periodSales.forEach((s, i) => {
       const row = wsSales.addRow([
-        fmtDate(s.date),
-        s.user?.name || '—',
-        s.amount,
-        typeLabel[s.paymentType] || s.paymentType,
-        methodLabel[s.paymentMethod] || s.paymentMethod,
-        s.bank || '',
-        s.months || '',
-        s.comment || '',
+        fmtDate(s.date), s.user?.name || '—', s.amount,
+        (L.payType as any)[s.paymentType] || s.paymentType,
+        (L.payMethod as any)[s.paymentMethod] || s.paymentMethod,
+        s.bank || '', s.months || '', s.comment || '',
       ])
       styleDataRow(wsSales, row.number, allSaleCols.length, i % 2 === 0)
       row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' }
@@ -733,7 +993,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       }
     })
 
-    const totRowS = wsSales.addRow(['ИТОГО', '', totalSalesAmount, '', '', '', '', `${totalSalesCount} сделок`])
+    const totRowS = wsSales.addRow([L.total, '', totalSalesAmount, '', '', '', '', L.misc.dealsTotal(totalSalesCount)])
     for (let c = 1; c <= allSaleCols.length; c++) {
       totRowS.getCell(c).font = { bold: true, size: 11, name: 'Calibri', color: { argb: C_BLUE_DARK } }
       totRowS.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_HDR } }
@@ -743,7 +1003,6 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     totRowS.getCell(3).numFmt = '#,##0'; totRowS.getCell(3).alignment = { horizontal: 'right', vertical: 'middle' }
     totRowS.height = 24
 
-    // ── Send ─────────────────────────────────────────────────────────────────
     const filename = `rop_report_${dateToStr(start)}_${dateToStr(end)}.xlsx`
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`)
@@ -758,12 +1017,13 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
 // ── Marketer export ────────────────────────────────────────────────────────
 
 router.get('/marketer', authenticate, async (req: AuthRequest, res: Response) => {
-  const { period = 'month', from, to } = req.query
+  const { period = 'month', from, to, lang } = req.query
+  const L = getL(lang as string)
   const { start, end } = getPeriodDates(period as string, from as string, to as string)
   const periodKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
   const userId = req.user!.id
   const deptId = req.user!.departmentId
-  const pLabel = periodLabel(period as string, from as string, to as string)
+  const pLabel = periodLabel(period as string, L, from as string, to as string)
 
   try {
     const [user, reports, plans] = await Promise.all([
@@ -790,55 +1050,51 @@ router.get('/marketer', authenticate, async (req: AuthRequest, res: Response) =>
     wb.creator = 'SalesPlatform'
     wb.created = new Date()
 
-    // ── SHEET 1: Сводка ────────────────────────────────────────────────────
-    const wsSummary = wb.addWorksheet('Сводка', { properties: { tabColor: { argb: 'FFF59E0B' } } })
+    // ── SHEET 1: Summary ────────────────────────────────────────────────────
+    const wsSummary = wb.addWorksheet(L.sheet.summary, { properties: { tabColor: { argb: 'FFF59E0B' } } })
     wsSummary.columns = [{ key: 'l', width: 32 }, { key: 'v', width: 28 }]
 
     wsSummary.mergeCells('A1:B1')
-    wsSummary.getCell('A1').value = `Отчёт маркетолога — ${user?.name || ''}`
+    wsSummary.getCell('A1').value = L.title.marketer(user?.name || '')
     styleTitleRow(wsSummary, 1, 2)
 
     wsSummary.mergeCells('A2:B2')
-    wsSummary.getCell('A2').value = `Период: ${pLabel}`
+    wsSummary.getCell('A2').value = `${L.misc.period}: ${pLabel}`
     wsSummary.getCell('A2').font = { size: 10, color: { argb: 'FF64748B' }, name: 'Calibri' }
     wsSummary.getCell('A2').alignment = { horizontal: 'left', vertical: 'middle' }
     wsSummary.getRow(2).height = 20
     wsSummary.addRow([])
 
-    const leadsHdr = wsSummary.addRow(['Лиды', ''])
+    const leadsHdr = wsSummary.addRow([L.hdr.leadsHdr, ''])
     styleSubHeader(wsSummary, leadsHdr.number, 2)
     addSummaryBlock(wsSummary, leadsHdr.number + 1, [
-      { label: 'Лидов получено', value: totalLeads },
-      { label: 'План по лидам', value: leadsplan || '—' },
-      { label: 'Выполнение плана', value: `${planCompletion}%` },
-      { label: 'Квалифицировано', value: totalQualified },
-      { label: '% квалификации', value: `${pctOneDecimal(totalQualified, totalLeads)}%` },
+      { label: L.sum.totalLeads,     value: totalLeads },
+      { label: L.sum.leadsplan,      value: leadsplan || '—' },
+      { label: L.sum.planCompletion, value: `${planCompletion}%` },
+      { label: L.sum.qualified,      value: totalQualified },
+      { label: L.sum.qualPct,        value: `${pctOneDecimal(totalQualified, totalLeads)}%` },
     ])
 
     wsSummary.addRow([])
-    const budgetHdr = wsSummary.addRow(['Бюджет', ''])
+    const budgetHdr = wsSummary.addRow([L.hdr.budgetHdr, ''])
     styleSubHeader(wsSummary, budgetHdr.number, 2)
     addSummaryBlock(wsSummary, budgetHdr.number + 1, [
-      { label: 'Рекламный бюджет (факт)', value: fmtMoney(totalBudget) },
-      { label: 'Бюджетный план', value: budgetPlan ? fmtMoney(budgetPlan) : '—' },
-      { label: 'Стоимость лида', value: leadCost ? fmtMoney(leadCost) : '—' },
-      { label: 'Стоимость квал. лида', value: qualCost ? fmtMoney(qualCost) : '—' },
+      { label: L.sum.adBudgetFact, value: fmtMoney(totalBudget) },
+      { label: L.sum.budgetPlan,   value: budgetPlan ? fmtMoney(budgetPlan) : '—' },
+      { label: L.sum.leadCost,     value: leadCost ? fmtMoney(leadCost) : '—' },
+      { label: L.sum.qualLeadCost, value: qualCost ? fmtMoney(qualCost) : '—' },
     ])
 
-    // ── SHEET 2: Данные по дням ─────────────────────────────────────────────
-    const wsDaily = wb.addWorksheet('Данные по дням', { properties: { tabColor: { argb: 'FFF59E0B' } } })
-    const dailyCols = ['Дата', 'Лидов', 'Квалиф.', 'Рекл. бюджет (₸)', 'Стоим. лида (₸)', 'Комментарий']
+    // ── SHEET 2: Daily data ─────────────────────────────────────────────────
+    const wsDaily = wb.addWorksheet(L.sheet.data, { properties: { tabColor: { argb: 'FFF59E0B' } } })
+    const dailyCols = [L.col.date, L.col.leads, L.col.qual, L.col.budget, L.col.leadCost, L.col.comment]
     wsDaily.columns = [
-      { key: 'date', width: 14 },
-      { key: 'leads', width: 12 },
-      { key: 'qual', width: 12 },
-      { key: 'budget', width: 18 },
-      { key: 'cost', width: 16 },
-      { key: 'comment', width: 35 },
+      { key: 'date', width: 14 }, { key: 'leads', width: 12 }, { key: 'qual', width: 12 },
+      { key: 'budget', width: 18 }, { key: 'cost', width: 16 }, { key: 'comment', width: 35 },
     ]
 
     wsDaily.mergeCells(`A1:${String.fromCharCode(64 + dailyCols.length)}1`)
-    wsDaily.getCell('A1').value = `Ежедневные данные — ${pLabel}`
+    wsDaily.getCell('A1').value = `${L.sheet.data} — ${pLabel}`
     styleTitleRow(wsDaily, 1, dailyCols.length)
     wsDaily.addRow([])
 
@@ -850,9 +1106,7 @@ router.get('/marketer', authenticate, async (req: AuthRequest, res: Response) =>
       const leads = Number(d.leadsCount) || Number(d.leads) || 0
       const budget = Number(d.adBudget) || 0
       const cost = leads > 0 ? Math.round(budget / leads) : 0
-      const row = wsDaily.addRow([
-        fmtDate(r.date), leads, Number(d.qualifiedLeads) || 0, budget, cost, d.comment || '',
-      ])
+      const row = wsDaily.addRow([fmtDate(r.date), leads, Number(d.qualifiedLeads) || 0, budget, cost, d.comment || ''])
       styleDataRow(wsDaily, row.number, dailyCols.length, i % 2 === 0)
       row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' }
       row.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' }
@@ -861,9 +1115,7 @@ router.get('/marketer', authenticate, async (req: AuthRequest, res: Response) =>
       row.getCell(5).numFmt = '#,##0'; row.getCell(5).alignment = { horizontal: 'right', vertical: 'middle' }
     })
 
-    const totRowD = wsDaily.addRow([
-      'ИТОГО', totalLeads, totalQualified, totalBudget, leadCost || '', `${reports.length} дней`,
-    ])
+    const totRowD = wsDaily.addRow([L.total, totalLeads, totalQualified, totalBudget, leadCost || '', `${reports.length} ${L.days}`])
     for (let c = 1; c <= dailyCols.length; c++) {
       totRowD.getCell(c).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_BLUE_DARK } }
       totRowD.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_HDR } }
@@ -885,21 +1137,19 @@ router.get('/marketer', authenticate, async (req: AuthRequest, res: Response) =>
   }
 })
 
-// ── Lider FULL export (Лиды + Мой кабинет combined, 5 sheets) ────────────
+// ── Lider FULL export ──────────────────────────────────────────────────────
 
 router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) => {
-  const { period = 'month', from, to, search, channelId, ktsStatus, subStatus, consultationStatus, date: dateFilter } = req.query
+  const { period = 'month', from, to, search, channelId, ktsStatus, subStatus, consultationStatus, date: dateFilter, lang } = req.query
+  const L = getL(lang as string)
   const { start, end } = getPeriodDates(period as string, from as string, to as string)
   const fromStr = dateToStr(start)
   const toStr   = dateToStr(end)
   const userId  = req.user!.id
-  const pLabel  = periodLabel(period as string, from as string, to as string)
-
-  // Period key for plans (use start month)
+  const pLabel  = periodLabel(period as string, L, from as string, to as string)
   const periodKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
 
   try {
-    // ── Build lead filter (mirrors LiderLeadsPage filter logic) ─────────────
     const leadWhere: any = {
       createdById: userId,
       date: { gte: fromStr, lte: toStr },
@@ -925,7 +1175,6 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
       leadWhere.OR = [{ subStatus: 'in_work_kc' }, { status: 'IN_WORK' }]
     }
 
-    // ── Fetch all data in parallel ────────────────────────────────────────
     const [user, leads, reports, plans] = await Promise.all([
       prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
       prisma.lead.findMany({
@@ -936,14 +1185,10 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
         },
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.report.findMany({
-        where: { userId, date: { gte: start, lte: end } },
-        orderBy: { date: 'asc' },
-      }),
+      prisma.report.findMany({ where: { userId, date: { gte: start, lte: end } }, orderBy: { date: 'asc' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey, userId } }),
     ])
 
-    // ── Overall aggregates ────────────────────────────────────────────────
     const totalLeads     = leads.length
     const totalQual      = leads.filter(l => l.isQualified).length
     const totalScheduled = leads.filter(l =>
@@ -955,20 +1200,17 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
     const leadsPlan = plans.find(p => p.type === 'LEADS')?.value || 0
 
     const pctMeet  = meetPlan  > 0 ? pctOneDecimal(totalHappened, meetPlan)  : 0
-    const pctLeads = leadsPlan > 0 ? pctOneDecimal(totalLeads, leadsPlan)     : 0
-    const pctQual  = totalLeads > 0 ? pctOneDecimal(totalQual, totalLeads)    : 0
+    const pctLeads = leadsPlan > 0 ? pctOneDecimal(totalLeads, leadsPlan)    : 0
+    const pctQual  = totalLeads > 0 ? pctOneDecimal(totalQual, totalLeads)   : 0
 
-    // ── Monthly breakdown ─────────────────────────────────────────────────
-    // Group leads by calendar month (use lead date field = day in KZ)
-    const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
+    // Monthly breakdown
     const monthMap = new Map<string, { label: string; leads: number; qual: number; scheduled: number; happened: number }>()
     for (const l of leads) {
-      // use l.date (YYYY-MM-DD string)
       const [y, m] = (l.date as string).split('-')
       const key = `${y}-${m}`
       if (!monthMap.has(key)) {
         monthMap.set(key, {
-          label: `${MONTHS_RU[parseInt(m, 10) - 1]} ${y}`,
+          label: `${L.months[parseInt(m, 10) - 1]} ${y}`,
           leads: 0, qual: 0, scheduled: 0, happened: 0,
         })
       }
@@ -981,14 +1223,13 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
     const monthRows = [...monthMap.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([, v]) => v)
-
     const isMultiMonth = monthRows.length > 1
 
-    // ── Channel breakdown ─────────────────────────────────────────────────
+    // Channel breakdown
     const chanMap = new Map<string, { name: string; leads: number; qual: number; scheduled: number; happened: number }>()
     for (const l of leads) {
       const cId   = (l as any).salesChannel?.id   || '__none__'
-      const cName = (l as any).salesChannel?.name || '— без канала —'
+      const cName = (l as any).salesChannel?.name || L.misc.noChannel
       if (!chanMap.has(cId)) chanMap.set(cId, { name: cName, leads: 0, qual: 0, scheduled: 0, happened: 0 })
       const ch = chanMap.get(cId)!
       ch.leads++
@@ -998,119 +1239,110 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
     }
     const chanRows = [...chanMap.values()].sort((a, b) => b.leads - a.leads)
 
-    // ── Status helpers ────────────────────────────────────────────────────
-    const statusLabels: Record<string, string> = {
-      scheduled:    'Записан',      refused:      'Отказ',
-      thinking:     'Думает',       in_work_kc:   'В работе КЦ',
-      happened:     'Состоялась',   not_happened: 'Не состоялась',
-      postponed:    'Перенос',
-    }
     const fmtD = (s?: string | null) => s ? s.split('-').reverse().join('.') : ''
-    const ktsLabel = (l: any) => !l.isQualified ? 'Не квал' : l.status === 'IN_WORK' ? 'В работе КЦ' : l.subStatus === 'in_work_kc' ? 'В работе КЦ' : l.assignedToId ? 'Квал (клоузер)' : 'Квал'
+    const ktsLabel = (l: any) =>
+      !l.isQualified ? L.kts.unqual
+      : l.status === 'IN_WORK' ? L.kts.inWork
+      : l.subStatus === 'in_work_kc' ? L.kts.inWork
+      : l.assignedToId ? L.kts.qualCloser
+      : L.kts.qual
 
-    // ── Build workbook ────────────────────────────────────────────────────
     const wb = new ExcelJS.Workbook()
     wb.creator = 'SalesPlatform'
     wb.created = new Date()
 
-    // ════════════════════════════════════════════════════════════════════
-    // SHEET 1: Сводка
-    // ════════════════════════════════════════════════════════════════════
-    const wsSum = wb.addWorksheet('Сводка', { properties: { tabColor: { argb: C_BLUE_MID } } })
+    // ── SHEET 1: Summary ────────────────────────────────────────────────────
+    const wsSum = wb.addWorksheet(L.sheet.summary, { properties: { tabColor: { argb: C_BLUE_MID } } })
     wsSum.columns = [{ key: 'l', width: 34 }, { key: 'v', width: 22 }]
 
     wsSum.mergeCells('A1:B1')
-    wsSum.getCell('A1').value = `📊 Отчёт лидоруба — ${user?.name || ''}`
+    wsSum.getCell('A1').value = L.title.lider(user?.name || '')
     styleTitleRow(wsSum, 1, 2)
 
     wsSum.mergeCells('A2:B2')
     const subCell = wsSum.getCell('A2')
-    subCell.value = `Период: ${pLabel}${ktsStatus || search || channelId ? '  |  Применены фильтры' : ''}`
+    subCell.value = `${L.misc.period}: ${pLabel}${ktsStatus || search || channelId ? `  |  ${L.misc.filters}` : ''}`
     subCell.font = { size: 10, color: { argb: 'FF64748B' }, name: 'Calibri' }
     subCell.alignment = { horizontal: 'left', vertical: 'middle' }
     wsSum.getRow(2).height = 20
     wsSum.addRow([])
 
-    // — Воронка ————————————————————————————————————————————————
-    styleSubHeader(wsSum, wsSum.addRow(['Воронка лидов', '']).number, 2)
+    // Funnel
+    styleSubHeader(wsSum, wsSum.addRow([L.hdr.leadFunnel, '']).number, 2)
     const funnelItems = [
-      { label: 'Лидов получено',         value: totalLeads,     pct: leadsPlan > 0 ? `план: ${leadsPlan}  /  факт: ${totalLeads}  /  ${pctLeads}%` : `${totalLeads}` },
-      { label: '→ Квалифицировано',       value: totalQual,      pct: `${pctOneDecimal(totalQual, totalLeads)}% от лидов` },
-      { label: '→ Записано на встречу',   value: totalScheduled, pct: `${pctOneDecimal(totalScheduled, totalQual)}% от квал` },
-      { label: '→ Пришло на встречу',     value: totalHappened,  pct: `${pctOneDecimal(totalHappened, totalScheduled)}% от записанных` },
+      { label: L.sum.leadsReceived,     value: totalLeads,     pct: leadsPlan > 0 ? `${L.misc.plan}: ${leadsPlan}  /  ${L.misc.fact}: ${totalLeads}  /  ${pctLeads}%` : `${totalLeads}` },
+      { label: `→ ${L.sum.qualified}`,  value: totalQual,      pct: `${pctOneDecimal(totalQual, totalLeads)}% ${L.misc.fromLeads}` },
+      { label: `→ ${L.sum.meetingsScheduled}`, value: totalScheduled, pct: `${pctOneDecimal(totalScheduled, totalQual)}% ${L.misc.fromQual}` },
+      { label: `→ ${L.sum.meetingsHappened}`,  value: totalHappened,  pct: `${pctOneDecimal(totalHappened, totalScheduled)}% ${L.misc.fromScheduled}` },
     ]
-    let rn = wsSum.lastRow!.number + 1
     for (const fi of funnelItems) {
       const row = wsSum.addRow([fi.label, fi.value])
-      const cell1 = row.getCell(1); const cell2 = row.getCell(2)
-      cell1.font = { size: 10, name: 'Calibri', color: { argb: 'FF475569' } }
-      cell1.alignment = { horizontal: 'left', vertical: 'middle' }
-      // add comment with % as note below
-      cell2.font = { bold: true, size: 11, name: 'Calibri', color: { argb: C_BLUE_DARK } }
-      cell2.alignment = { horizontal: 'left', vertical: 'middle' }
-      // small note in col C
+      row.getCell(1).font = { size: 10, name: 'Calibri', color: { argb: 'FF475569' } }
+      row.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' }
+      row.getCell(2).font = { bold: true, size: 11, name: 'Calibri', color: { argb: C_BLUE_DARK } }
+      row.getCell(2).alignment = { horizontal: 'left', vertical: 'middle' }
       wsSum.getCell(`C${row.number}`).value = fi.pct
       wsSum.getCell(`C${row.number}`).font = { italic: true, size: 9, name: 'Calibri', color: { argb: 'FF94A3B8' } }
       wsSum.getCell(`C${row.number}`).alignment = { horizontal: 'left', vertical: 'middle' }
       row.height = 22
-      rn++
     }
-    wsSum.columns[2] = { key: 'c', width: 36 } // widen col C for notes
+    wsSum.columns[2] = { key: 'c', width: 36 }
 
     wsSum.addRow([])
 
-    // — Выполнение планов ───────────────────────────────────────
-    styleSubHeader(wsSum, wsSum.addRow(['Выполнение планов', '']).number, 2)
+    // Plan execution
+    styleSubHeader(wsSum, wsSum.addRow([L.hdr.planExec, '']).number, 2)
     if (meetPlan > 0) {
-      const planRow = wsSum.addRow(['Выполнение плана по встречам', `${pctMeet}%`])
+      const planRow = wsSum.addRow([L.misc.meetPlanLbl, `${pctMeet}%`])
       planRow.getCell(1).font = { size: 10, name: 'Calibri', color: { argb: 'FF475569' } }
       planRow.getCell(2).font = { bold: true, size: 13, name: 'Calibri', color: { argb: completionTextColor(pctMeet) } }
       planRow.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: completionColor(pctMeet) } }
       planRow.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' }
       planRow.height = 24
-      wsSum.addRow(['  Факт встреч', totalHappened]).getCell(1).font = { size: 10, name: 'Calibri', color: { argb: 'FF64748B' } }
-      wsSum.addRow(['  План встреч', meetPlan]).getCell(1).font     = { size: 10, name: 'Calibri', color: { argb: 'FF64748B' } }
+      wsSum.addRow([L.misc.factMeetings, totalHappened]).getCell(1).font = { size: 10, name: 'Calibri', color: { argb: 'FF64748B' } }
+      wsSum.addRow([L.misc.planMeetings, meetPlan]).getCell(1).font    = { size: 10, name: 'Calibri', color: { argb: 'FF64748B' } }
     }
     if (leadsPlan > 0) {
       wsSum.addRow([])
-      const planRow2 = wsSum.addRow(['Выполнение плана по лидам', `${pctLeads}%`])
+      const planRow2 = wsSum.addRow([L.misc.leadPlanLbl, `${pctLeads}%`])
       planRow2.getCell(1).font = { size: 10, name: 'Calibri', color: { argb: 'FF475569' } }
       planRow2.getCell(2).font = { bold: true, size: 13, name: 'Calibri', color: { argb: completionTextColor(pctLeads) } }
       planRow2.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: completionColor(pctLeads) } }
       planRow2.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' }
       planRow2.height = 24
-      wsSum.addRow(['  Факт лидов', totalLeads]).getCell(1).font = { size: 10, name: 'Calibri', color: { argb: 'FF64748B' } }
-      wsSum.addRow(['  План по лидам', leadsPlan]).getCell(1).font = { size: 10, name: 'Calibri', color: { argb: 'FF64748B' } }
+      wsSum.addRow([L.misc.factLeads, totalLeads]).getCell(1).font   = { size: 10, name: 'Calibri', color: { argb: 'FF64748B' } }
+      wsSum.addRow([L.misc.planLeads, leadsPlan]).getCell(1).font    = { size: 10, name: 'Calibri', color: { argb: 'FF64748B' } }
     }
 
     wsSum.addRow([])
 
-    // — Топ-3 канала ────────────────────────────────────────────
+    // Top channels
     if (chanRows.length > 0) {
-      styleSubHeader(wsSum, wsSum.addRow(['Топ каналов по лидам', '']).number, 2)
+      styleSubHeader(wsSum, wsSum.addRow([L.hdr.topChannels, '']).number, 2)
       chanRows.slice(0, 5).forEach((ch, i) => {
         const r = wsSum.addRow([`${i + 1}. ${ch.name}`, ch.leads])
         r.getCell(1).font = { size: 10, name: 'Calibri', color: { argb: 'FF475569' } }
         r.getCell(2).font = { bold: true, size: 11, name: 'Calibri', color: { argb: C_BLUE_DARK } }
-        wsSum.getCell(`C${r.number}`).value = ch.qual > 0 ? `квал: ${ch.qual}  (${pctOneDecimal(ch.qual, ch.leads)}%)` : ''
+        wsSum.getCell(`C${r.number}`).value = ch.qual > 0 ? `${L.sum.qualified.toLowerCase()}: ${ch.qual}  (${pctOneDecimal(ch.qual, ch.leads)}%)` : ''
         wsSum.getCell(`C${r.number}`).font  = { italic: true, size: 9, name: 'Calibri', color: { argb: 'FF94A3B8' } }
         r.height = 20
       })
     }
 
-    // ════════════════════════════════════════════════════════════════════
-    // SHEET 2: По месяцам (only if multi-month)
-    // ════════════════════════════════════════════════════════════════════
+    // ── SHEET 2: Monthly (if multi-month) ───────────────────────────────────
     if (isMultiMonth) {
-      const wsMon = wb.addWorksheet('По месяцам', { properties: { tabColor: { argb: 'FF7C3AED' } } })
-      const monCols = ['Месяц', 'Лидов', 'Квалиф.', '% квал', 'Записано', 'Пришло', '% пришло от записанных', 'Вып. плана встреч']
+      const wsMon = wb.addWorksheet(L.sheet.monthly, { properties: { tabColor: { argb: 'FF7C3AED' } } })
+      const monCols = [
+        L.col.month, L.col.leads, L.col.qual, L.col.qualPctCol,
+        L.col.scheduled, L.col.attended, L.col.happenedPct, L.col.planExecCol,
+      ]
       wsMon.columns = [
-        { key: 'month', width: 20 }, { key: 'leads',  width: 12 }, { key: 'qual',  width: 12 },
-        { key: 'qpct',  width: 12 }, { key: 'sched',  width: 14 }, { key: 'happ',  width: 14 },
-        { key: 'hpct',  width: 26 }, { key: 'plan',   width: 22 },
+        { key: 'month', width: 20 }, { key: 'leads', width: 12 }, { key: 'qual', width: 12 },
+        { key: 'qpct', width: 12 }, { key: 'sched', width: 14 }, { key: 'happ', width: 14 },
+        { key: 'hpct', width: 26 }, { key: 'plan', width: 22 },
       ]
       wsMon.mergeCells(`A1:${String.fromCharCode(64 + monCols.length)}1`)
-      wsMon.getCell('A1').value = `По месяцам — ${pLabel}`
+      wsMon.getCell('A1').value = `${L.sheet.monthly} — ${pLabel}`
       styleTitleRow(wsMon, 1, monCols.length)
       wsMon.addRow([])
       styleHeaderRow(wsMon, wsMon.addRow(monCols).number, monCols.length)
@@ -1121,20 +1353,18 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
         const hPct = mo.scheduled > 0 ? pctOneDecimal(mo.happened, mo.scheduled) : 0
         const planPct = meetPlan > 0 ? pctOneDecimal(mo.happened, meetPlan) : null
         const row = wsMon.addRow([
-          mo.label, mo.leads, mo.qual,
-          `${qPct}%`, mo.scheduled, mo.happened, `${hPct}%`,
+          mo.label, mo.leads, mo.qual, `${qPct}%`,
+          mo.scheduled, mo.happened, `${hPct}%`,
           planPct !== null ? `${planPct}%` : '—',
         ])
         styleDataRow(wsMon, row.number, monCols.length, altMon)
         altMon = !altMon
         row.getCell(1).font = { bold: true, size: 10, name: 'Calibri', color: { argb: 'FF1E293B' } }
         for (let c = 2; c <= 8; c++) row.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' }
-        // colour plan completion
         if (planPct !== null) {
           row.getCell(8).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: completionColor(planPct) } }
           row.getCell(8).font = { bold: true, size: 10, name: 'Calibri', color: { argb: completionTextColor(planPct) } }
         }
-        // highlight high qual%
         if (qPct >= 70) {
           row.getCell(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GREEN_LIGHT } }
           row.getCell(4).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_GREEN_TEXT } }
@@ -1144,15 +1374,13 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
         }
       }
 
-      // Totals
       const totQ = monthRows.reduce((s, m) => s + m.qual, 0)
       const totS = monthRows.reduce((s, m) => s + m.scheduled, 0)
       const totH = monthRows.reduce((s, m) => s + m.happened, 0)
       const totL = monthRows.reduce((s, m) => s + m.leads, 0)
       const totRow = wsMon.addRow([
-        'ИТОГО', totL, totQ,
-        `${pctOneDecimal(totQ, totL)}%`, totS, totH,
-        `${pctOneDecimal(totH, totS)}%`,
+        L.total, totL, totQ, `${pctOneDecimal(totQ, totL)}%`,
+        totS, totH, `${pctOneDecimal(totH, totS)}%`,
         meetPlan > 0 ? `${pctOneDecimal(totH, meetPlan)}%` : '—',
       ])
       for (let c = 1; c <= monCols.length; c++) {
@@ -1164,33 +1392,32 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
       totRow.height = 22
     }
 
-    // ════════════════════════════════════════════════════════════════════
-    // SHEET 3: По каналам
-    // ════════════════════════════════════════════════════════════════════
-    const wsChan = wb.addWorksheet('По каналам', { properties: { tabColor: { argb: 'FFEA580C' } } })
-    const chanCols = ['Канал', 'Лидов', 'Квалиф.', '% квал', 'Записано', 'Пришло', '% пришло', 'Доля от всех']
+    // ── SHEET 3: By channel ─────────────────────────────────────────────────
+    const wsChan = wb.addWorksheet(L.sheet.channels, { properties: { tabColor: { argb: 'FFEA580C' } } })
+    const chanCols = [
+      L.col.channel, L.col.leads, L.col.qual, L.col.qualPctCol,
+      L.col.scheduled, L.col.attended, L.col.happenedPct.replace('от записанных', '').trim(), L.col.share,
+    ]
     wsChan.columns = [
-      { key: 'chan', width: 24 }, { key: 'leads', width: 12 }, { key: 'qual',  width: 12 },
+      { key: 'chan', width: 24 }, { key: 'leads', width: 12 }, { key: 'qual', width: 12 },
       { key: 'qpct', width: 12 }, { key: 'sched', width: 14 }, { key: 'happ', width: 14 },
       { key: 'hpct', width: 14 }, { key: 'share', width: 16 },
     ]
     wsChan.mergeCells(`A1:${String.fromCharCode(64 + chanCols.length)}1`)
-    wsChan.getCell('A1').value = `По каналам — ${pLabel}`
+    wsChan.getCell('A1').value = `${L.sheet.channels} — ${pLabel}`
     styleTitleRow(wsChan, 1, chanCols.length)
     wsChan.addRow([])
     styleHeaderRow(wsChan, wsChan.addRow(chanCols).number, chanCols.length)
 
     let altC = false
     for (const ch of chanRows) {
-      const qPct    = ch.leads > 0     ? pctOneDecimal(ch.qual, ch.leads)       : 0
-      const hPct    = ch.scheduled > 0 ? pctOneDecimal(ch.happened, ch.scheduled) : 0
-      const share   = totalLeads > 0   ? pctOneDecimal(ch.leads, totalLeads)    : 0
+      const qPct  = ch.leads > 0     ? pctOneDecimal(ch.qual, ch.leads)         : 0
+      const hPct  = ch.scheduled > 0 ? pctOneDecimal(ch.happened, ch.scheduled) : 0
+      const share = totalLeads > 0   ? pctOneDecimal(ch.leads, totalLeads)      : 0
       const row = wsChan.addRow([ch.name, ch.leads, ch.qual, `${qPct}%`, ch.scheduled, ch.happened, `${hPct}%`, `${share}%`])
       styleDataRow(wsChan, row.number, chanCols.length, altC)
       altC = !altC
-      row.getCell(1).font = { bold: false, size: 10, name: 'Calibri', color: { argb: 'FF1E293B' } }
       for (let c = 2; c <= 8; c++) row.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' }
-      // colour qual%
       if (qPct >= 70) {
         row.getCell(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GREEN_LIGHT } }
         row.getCell(4).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_GREEN_TEXT } }
@@ -1199,9 +1426,10 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
         row.getCell(4).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_RED_TEXT } }
       }
     }
-    // Totals
-    const cTotRow = wsChan.addRow(['ИТОГО', totalLeads, totalQual, `${pctQual}%`, totalScheduled, totalHappened,
-      `${totalScheduled > 0 ? pctOneDecimal(totalHappened, totalScheduled) : 0}%`, '100%'])
+    const cTotRow = wsChan.addRow([
+      L.total, totalLeads, totalQual, `${pctQual}%`, totalScheduled, totalHappened,
+      `${totalScheduled > 0 ? pctOneDecimal(totalHappened, totalScheduled) : 0}%`, '100%',
+    ])
     for (let c = 1; c <= chanCols.length; c++) {
       cTotRow.getCell(c).font  = { bold: true, size: 10, name: 'Calibri', color: { argb: C_BLUE_DARK } }
       cTotRow.getCell(c).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_HDR } }
@@ -1210,10 +1438,8 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
     }
     cTotRow.height = 22
 
-    // ════════════════════════════════════════════════════════════════════
-    // SHEET 4: Все лиды
-    // ════════════════════════════════════════════════════════════════════
-    const wsLeads = wb.addWorksheet('Все лиды', { properties: { tabColor: { argb: C_BLUE_MID } } })
+    // ── SHEET 4: All leads ──────────────────────────────────────────────────
+    const wsLeads = wb.addWorksheet(L.sheet.leads, { properties: { tabColor: { argb: C_BLUE_MID } } })
     const LCOLS = 12
     wsLeads.columns = [
       { key: 'date',   width: 20 }, { key: 'client', width: 24 }, { key: 'phone',  width: 16 },
@@ -1222,51 +1448,43 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
       { key: 'closer', width: 22 }, { key: 'consul', width: 18 }, { key: 'post',   width: 18 },
     ]
     wsLeads.mergeCells(`A1:${String.fromCharCode(64 + LCOLS)}1`)
-    wsLeads.getCell('A1').value = `Все лиды — ${pLabel}`
+    wsLeads.getCell('A1').value = `${L.sheet.leads} — ${pLabel}`
     styleTitleRow(wsLeads, 1, LCOLS)
     wsLeads.addRow([])
     styleHeaderRow(wsLeads, wsLeads.addRow([
-      'Дата поступления', 'Клиент', 'Телефон', 'Ссылка', 'Рекламный канал',
-      'Квал / Не квал', 'Записан / Отказ', 'Дата записи', 'Время', 'Клоузер',
-      'Статус встречи', 'Перенос на',
+      L.col.receivedAt, L.col.clientName, L.col.phone, L.col.link, L.col.channel,
+      L.col.kts, L.col.sub, L.col.apptDate, L.col.apptTime, L.col.closer,
+      L.col.consultStatus, L.col.postponed,
     ]).number, LCOLS)
 
     leads.forEach((l, i) => {
-      const d   = new Date(l.createdAt)
       const pad = (n: number) => String(n).padStart(2, '0')
-      // KZ offset: createdAt is UTC, display +5
       const kzDate = new Date(l.createdAt.getTime() + 5 * 3600 * 1000)
       const dateStr = `${pad(kzDate.getUTCDate())}.${pad(kzDate.getUTCMonth()+1)}.${kzDate.getUTCFullYear()} ${pad(kzDate.getUTCHours())}:${pad(kzDate.getUTCMinutes())}`
       const row = wsLeads.addRow([
-        dateStr,
-        l.clientName,
-        l.phone,
-        l.leadLink || '',
+        dateStr, l.clientName, l.phone, l.leadLink || '',
         (l as any).salesChannel?.name || '',
         ktsLabel(l),
-        l.subStatus ? (statusLabels[l.subStatus] || l.subStatus) : '',
-        fmtD(l.appointmentDate),
-        l.appointmentTime || '',
+        l.subStatus ? ((L.status as any)[l.subStatus] || l.subStatus) : '',
+        fmtD(l.appointmentDate), l.appointmentTime || '',
         (l as any).assignedTo?.name || '',
-        l.consultationStatus ? (statusLabels[l.consultationStatus] || l.consultationStatus) : '',
+        l.consultationStatus ? ((L.status as any)[l.consultationStatus] || l.consultationStatus) : '',
         l.postponedDate ? `${fmtD(l.postponedDate)}${l.postponedTime ? ' ' + l.postponedTime : ''}` : '',
       ])
       styleDataRow(wsLeads, row.number, LCOLS, i % 2 === 1)
       row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' }
 
-      // Colour KTS cell
       const kts = ktsLabel(l)
-      if (kts === 'Квал' || kts === 'Квал (клоузер)') {
+      if (kts === L.kts.qual || kts === L.kts.qualCloser) {
         row.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GREEN_LIGHT } }
         row.getCell(6).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_GREEN_TEXT } }
-      } else if (kts === 'Не квал') {
+      } else if (kts === L.kts.unqual) {
         row.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_RED_LIGHT } }
         row.getCell(6).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_RED_TEXT } }
       } else {
         row.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_AMBER_LIGHT } }
         row.getCell(6).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_AMBER_TEXT } }
       }
-      // Colour consultation status
       const cs = l.consultationStatus
       if (cs === 'happened') {
         row.getCell(11).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GREEN_LIGHT } }
@@ -1280,9 +1498,11 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
       }
     })
 
-    // Totals
-    const lTotRow = wsLeads.addRow([`Итого: ${leads.length} лидов`, '', '', '', '',
-      `Квал: ${totalQual}`, `Записано: ${totalScheduled}`, '', '', '', `Пришло: ${totalHappened}`, ''])
+    const lTotRow = wsLeads.addRow([
+      L.misc.leadsTotal(leads.length), '', '', '', '',
+      L.misc.qualTotal(totalQual), L.misc.scheduledTotal(totalScheduled),
+      '', '', '', L.misc.happenedTotal(totalHappened), '',
+    ])
     for (let c = 1; c <= LCOLS; c++) {
       lTotRow.getCell(c).font  = { bold: true, size: 10, name: 'Calibri', color: { argb: C_BLUE_DARK } }
       lTotRow.getCell(c).fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_HDR } }
@@ -1290,18 +1510,16 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
     }
     lTotRow.height = 22
 
-    // ════════════════════════════════════════════════════════════════════
-    // SHEET 5: Ежедневные отчёты
-    // ════════════════════════════════════════════════════════════════════
+    // ── SHEET 5: Daily reports ───────────────────────────────────────────────
     if (reports.length > 0) {
-      const wsRep = wb.addWorksheet('Ежедневные отчёты', { properties: { tabColor: { argb: 'FF16A34A' } } })
-      const repCols = ['Дата', 'Лидов', 'Квалиф.', 'Записано на встречу', 'Пришло на встречу', 'Комментарий']
+      const wsRep = wb.addWorksheet(L.sheet.dailyReports, { properties: { tabColor: { argb: 'FF16A34A' } } })
+      const repCols = [L.col.date, L.col.leads, L.col.qual, L.col.scheduled, L.col.attended, L.col.comment]
       wsRep.columns = [
         { key: 'date', width: 14 }, { key: 'leads', width: 12 }, { key: 'qual', width: 12 },
         { key: 'sched', width: 22 }, { key: 'happ', width: 22 }, { key: 'comment', width: 40 },
       ]
       wsRep.mergeCells(`A1:${String.fromCharCode(64 + repCols.length)}1`)
-      wsRep.getCell('A1').value = `Ежедневные отчёты — ${pLabel}`
+      wsRep.getCell('A1').value = `${L.sheet.dailyReports} — ${pLabel}`
       styleTitleRow(wsRep, 1, repCols.length)
       wsRep.addRow([])
       styleHeaderRow(wsRep, wsRep.addRow(repCols).number, repCols.length)
@@ -1311,10 +1529,8 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
         const sched = Number(d.meetingsScheduled) || 0
         const happ  = Number(d.meetingsAttended)  || 0
         const row = wsRep.addRow([
-          fmtDate(r.date),
-          Number(d.leadsReceived) || Number(d.leads) || 0,
-          Number(d.qualifiedLeads) || 0,
-          sched, happ, d.comment || '',
+          fmtDate(r.date), Number(d.leadsReceived) || Number(d.leads) || 0,
+          Number(d.qualifiedLeads) || 0, sched, happ, d.comment || '',
         ])
         styleDataRow(wsRep, row.number, repCols.length, i % 2 === 0)
         for (let c = 1; c <= 5; c++) row.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' }
@@ -1325,14 +1541,10 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
         }
       })
 
-      // Totals
       const rTot = wsRep.addRow([
-        'ИТОГО',
-        sumLiderLeads(reports),
-        sumField(reports, 'qualifiedLeads'),
-        sumField(reports, 'meetingsScheduled'),
-        sumField(reports, 'meetingsAttended'),
-        `${reports.length} дней`,
+        L.total, sumLiderLeads(reports), sumField(reports, 'qualifiedLeads'),
+        sumField(reports, 'meetingsScheduled'), sumField(reports, 'meetingsAttended'),
+        `${reports.length} ${L.days}`,
       ])
       for (let c = 1; c <= repCols.length; c++) {
         rTot.getCell(c).font  = { bold: true, size: 10, name: 'Calibri', color: { argb: C_BLUE_DARK } }
@@ -1343,7 +1555,7 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
       rTot.height = 22
     }
 
-    // ── Send ─────────────────────────────────────────────────────────────
+    // ── Send ─────────────────────────────────────────────────────────────────
     const safeName = (user?.name || 'lider').replace(/[^а-яёА-ЯЁa-zA-Z0-9]/g, '_')
     const filename = `lider_${safeName}_${fromStr}_${toStr}.xlsx`
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -1356,13 +1568,15 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
   }
 })
 
-// ── Lider leads export (legacy, kept for compatibility) ────────────────────
+// ── Lider leads export (legacy) ────────────────────────────────────────────
 
 router.get('/lider-leads', authenticate, async (req: AuthRequest, res: Response) => {
-  const { period = 'month', from, to, search, channelId, ktsStatus, subStatus, consultationStatus, date: dateFilter } = req.query
+  const { period = 'month', from, to, search, channelId, ktsStatus, subStatus, consultationStatus, date: dateFilter, lang } = req.query
+  const L = getL(lang as string)
   const { start, end } = getPeriodDates(period as string, from as string, to as string)
   const fromStr = dateToStr(start)
   const toStr = dateToStr(end)
+  const pLabel = periodLabel(period as string, L, from as string, to as string)
 
   try {
     const where: any = {
@@ -1391,44 +1605,31 @@ router.get('/lider-leads', authenticate, async (req: AuthRequest, res: Response)
       orderBy: { createdAt: 'desc' },
     })
 
-    const statusLabels: Record<string, string> = {
-      scheduled: 'Записан', refused: 'Отказ', thinking: 'Думает', in_work_kc: 'В работе КЦ',
-      happened: 'Состоялась', not_happened: 'Не состоялась', postponed: 'Перенос',
-    }
     const fmtD = (s?: string | null) => s ? s.split('-').reverse().join('.') : ''
 
     const wb = new ExcelJS.Workbook()
     wb.creator = 'SalesPlatform'
     wb.created = new Date()
 
-    const ws = wb.addWorksheet('Лиды', { properties: { tabColor: { argb: C_BLUE_MID } } })
+    const ws = wb.addWorksheet(L.col.leads, { properties: { tabColor: { argb: C_BLUE_MID } } })
     const COLS = 12
 
     ws.columns = [
-      { key: 'date',        width: 20 },
-      { key: 'client',      width: 24 },
-      { key: 'phone',       width: 18 },
-      { key: 'link',        width: 36 },
-      { key: 'channel',     width: 18 },
-      { key: 'kts',         width: 14 },
-      { key: 'subStatus',   width: 16 },
-      { key: 'apptDate',    width: 14 },
-      { key: 'apptTime',    width: 10 },
-      { key: 'closer',      width: 22 },
-      { key: 'consultation',width: 18 },
-      { key: 'postponed',   width: 18 },
+      { key: 'date', width: 20 }, { key: 'client', width: 24 }, { key: 'phone', width: 18 },
+      { key: 'link', width: 36 }, { key: 'channel', width: 18 }, { key: 'kts', width: 14 },
+      { key: 'subStatus', width: 16 }, { key: 'apptDate', width: 14 }, { key: 'apptTime', width: 10 },
+      { key: 'closer', width: 22 }, { key: 'consultation', width: 18 }, { key: 'postponed', width: 18 },
     ]
 
-    // Title
     ws.mergeCells('A1:L1')
-    const titleCell = ws.getCell('A1')
-    titleCell.value = `Отчёт лидоруба — ${periodLabel(period as string, from as string, to as string)}`
+    ws.getCell('A1').value = L.title.lider(req.user?.name || '')
     styleTitleRow(ws, 1, COLS)
 
-    // Header
-    const headers = ['Дата поступления', 'Клиент', 'Телефон', 'Ссылка', 'Рекламный канал',
-      'Квал / не квал', 'Записан / Отказ', 'Дата записи', 'Время', 'Клоузер',
-      'Статус встречи', 'Перенос на']
+    const headers = [
+      L.col.receivedAt, L.col.clientName, L.col.phone, L.col.link, L.col.channel,
+      L.col.kts, L.col.sub, L.col.apptDate, L.col.apptTime, L.col.closer,
+      L.col.consultStatus, L.col.postponed,
+    ]
     ws.addRow(headers)
     styleHeaderRow(ws, 2, COLS)
 
@@ -1437,24 +1638,19 @@ router.get('/lider-leads', authenticate, async (req: AuthRequest, res: Response)
       const pad = (n: number) => String(n).padStart(2, '0')
       const dateStr = `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
       const row = ws.addRow([
-        dateStr,
-        l.clientName,
-        l.phone,
-        l.leadLink || '',
+        dateStr, l.clientName, l.phone, l.leadLink || '',
         (l as any).salesChannel?.name || '',
-        !l.isQualified ? 'Не квал' : l.assignedToId ? 'В работе КЦ' : 'Квал',
-        l.subStatus ? (statusLabels[l.subStatus] || l.subStatus) : '',
-        fmtD(l.appointmentDate),
-        l.appointmentTime || '',
+        !l.isQualified ? L.kts.unqual : l.assignedToId ? L.kts.inWork : L.kts.qual,
+        l.subStatus ? ((L.status as any)[l.subStatus] || l.subStatus) : '',
+        fmtD(l.appointmentDate), l.appointmentTime || '',
         (l as any).assignedTo?.name || '',
-        l.consultationStatus ? (statusLabels[l.consultationStatus] || l.consultationStatus) : '',
+        l.consultationStatus ? ((L.status as any)[l.consultationStatus] || l.consultationStatus) : '',
         l.postponedDate ? `${fmtD(l.postponedDate)}${l.postponedTime ? ' ' + l.postponedTime : ''}` : '',
       ])
       styleDataRow(ws, row.number, COLS, i % 2 === 1)
     })
 
-    // Totals
-    const totRow = ws.addRow([`Итого: ${leads.length} лидов`, '', '', '', '', '', '', '', '', '', '', ''])
+    const totRow = ws.addRow([L.misc.leadsTotal(leads.length), '', '', '', '', '', '', '', '', '', '', ''])
     for (let c = 1; c <= COLS; c++) {
       totRow.getCell(c).font = { bold: true, size: 10, name: 'Calibri', color: { argb: C_BLUE_DARK } }
       totRow.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: C_GRAY_HDR } }

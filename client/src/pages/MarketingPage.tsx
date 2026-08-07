@@ -203,7 +203,7 @@ function ChannelBudgetRow({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function MarketingPage() {
-  const { t } = useT()
+  const { t, lang } = useT()
   const qc = useQueryClient()
   const { user } = useAuthStore()
   const canManagePlans = user?.role === 'MARKETER'
@@ -286,10 +286,12 @@ export default function MarketingPage() {
             <button onClick={() => refetch()} className={`p-2 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors ${isFetching ? 'animate-spin text-blue-500' : ''}`} title="Обновить">
               <RefreshCw className="w-4 h-4" />
             </button>
-            <button onClick={() => downloadExport('marketer', apiParams)}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-              <Download className="w-4 h-4" /> {t('mkt.page.export')}
-            </button>
+            {user?.role !== 'OWNER' && (
+              <button onClick={() => downloadExport('marketer', `${apiParams}&lang=${lang}`)}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                <Download className="w-4 h-4" /> {t('mkt.page.export')}
+              </button>
+            )}
           </div>
         </div>
 
