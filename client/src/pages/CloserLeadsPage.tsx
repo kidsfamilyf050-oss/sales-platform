@@ -87,9 +87,9 @@ function useGateways() {
   return { all, active }
 }
 
-function fmtDate(s: string) {
+function fmtDate(s: string, lang: string) {
   if (!s) return ''
-  return new Date(s + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })
+  return new Date(s + 'T12:00:00').toLocaleDateString(lang === 'kk' ? 'kk' : 'ru', { day: 'numeric', month: 'short' })
 }
 
 function isOverdue(dueDate: string) {
@@ -753,7 +753,7 @@ function LeadCard({ lead, showAccept = false, showConsult = false, showWork = fa
   showRestore?: boolean
 }) {
   const qc = useQueryClient()
-  const { t } = useT()
+  const { t, lang } = useT()
   const { all: allGateways } = useGateways()
   const [open, setOpen] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -818,10 +818,10 @@ function LeadCard({ lead, showAccept = false, showConsult = false, showWork = fa
             {showWork && (() => {
               const days = Math.floor((Date.now() - new Date(lead.date + 'T12:00:00').getTime()) / 86400000)
               if (days <= 0) return null
-              const monthName = new Date(lead.date + 'T12:00:00').toLocaleDateString('ru', { month: 'long' })
+              const monthName = new Date(lead.date + 'T12:00:00').toLocaleDateString(lang === 'kk' ? 'kk' : 'ru', { month: 'long' })
               return (
                 <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                  {monthName} · {days} дн. в работе
+                  {monthName} · {days} {t('cl.card.daysInWork')}
                 </span>
               )
             })()}
@@ -840,7 +840,7 @@ function LeadCard({ lead, showAccept = false, showConsult = false, showWork = fa
             {lead.status === 'REFUSED' && readonly && (
               <span className="flex items-center gap-1 text-red-400">
                 <X className="w-3 h-3" />
-                {t('cl.card.refusedAt')} {new Date(lead.updatedAt).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}
+                {t('cl.card.refusedAt')} {new Date(lead.updatedAt).toLocaleDateString(lang === 'kk' ? 'kk' : 'ru', { day: 'numeric', month: 'short' })}
               </span>
             )}
             {displayAmount != null && displayAmount > 0 && (
@@ -877,7 +877,7 @@ function LeadCard({ lead, showAccept = false, showConsult = false, showWork = fa
             <button
               onClick={e => { e.stopPropagation(); setShowEditModal(true) }}
               className="p-1.5 rounded-lg text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition-colors"
-              title="Редактировать"
+              title={t('common.edit')}
             >
               <Pencil className="w-4 h-4" />
             </button>
@@ -895,7 +895,7 @@ function LeadCard({ lead, showAccept = false, showConsult = false, showWork = fa
             <button
               onClick={e => { e.stopPropagation(); setShowConfirmDelete(true) }}
               className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-              title="Удалить"
+              title={t('common.delete')}
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -958,7 +958,7 @@ function LeadCard({ lead, showAccept = false, showConsult = false, showWork = fa
                         : <div className="w-4 h-4 rounded-full border-2 border-current shrink-0" />
                       }
                       <span className={task.completed ? 'line-through opacity-60' : ''}>{task.title}</span>
-                      <span className="ml-auto text-xs opacity-60">{fmtDate(task.dueDate)}</span>
+                      <span className="ml-auto text-xs opacity-60">{fmtDate(task.dueDate, lang)}</span>
                     </div>
                   )
                 })}
@@ -1121,7 +1121,7 @@ export default function CloserLeadsPage() {
               <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-1.5 text-sm flex items-center gap-1.5">
                 <RotateCcw className="w-3.5 h-3.5 text-orange-500" />
                 <span className="text-orange-600 font-medium">{t('cl.refunds.label')} </span>
-                <span className="text-orange-700 font-bold">{soldWithRefunds.length} шт. / ₸ {soldRefundTotal.toLocaleString('ru')} (полная сумма)</span>
+                <span className="text-orange-700 font-bold">{t('cl.refunds.withRefundsCount', { n: soldWithRefunds.length, amount: soldRefundTotal.toLocaleString('ru') })}</span>
               </div>
             )}
           </div>
@@ -1132,7 +1132,7 @@ export default function CloserLeadsPage() {
             <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-1.5 text-sm flex items-center gap-1.5">
               <RotateCcw className="w-3.5 h-3.5 text-orange-500" />
               <span className="text-orange-600 font-medium">{t('cl.refunds.total')} </span>
-              <span className="text-orange-700 font-bold">{refunds.length} шт. / ₸ {refundsGrossTotal.toLocaleString('ru')}</span>
+              <span className="text-orange-700 font-bold">{t('cl.refunds.grossCount', { n: refunds.length, amount: refundsGrossTotal.toLocaleString('ru') })}</span>
             </div>
           </div>
         )}
@@ -1193,7 +1193,7 @@ export default function CloserLeadsPage() {
                     {otherLeads.length > 0 && (
                       <div className="flex items-center gap-2 pt-1">
                         <div className="h-px flex-1 bg-gray-200" />
-                        <span className="text-xs text-gray-400 uppercase tracking-wide">Остальные</span>
+                        <span className="text-xs text-gray-400 uppercase tracking-wide">{t('cl.incoming.others')}</span>
                         <div className="h-px flex-1 bg-gray-200" />
                       </div>
                     )}

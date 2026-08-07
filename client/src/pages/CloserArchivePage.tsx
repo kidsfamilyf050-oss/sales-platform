@@ -47,21 +47,21 @@ const STATUS_STYLE: Record<string, { dot: string; badge: string }> = {
   NEW:         { dot: 'bg-purple-400', badge: 'bg-purple-50 text-purple-700' },
 }
 
-function fmtDate(s: string) {
+function fmtDate(s: string, lang: string) {
   if (!s) return ''
-  return new Date(s + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short', year: 'numeric' })
+  return new Date(s + 'T12:00:00').toLocaleDateString(lang === 'kk' ? 'kk' : 'ru', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-function fmtDateTime(s: string) {
+function fmtDateTime(s: string, lang: string) {
   if (!s) return ''
   const d = new Date(s)
-  return d.toLocaleString('ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleString(lang === 'kk' ? 'kk' : 'ru', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
 // ── Lead Card ────────────────────────────────────────────────────────────────
 function ArchiveCard({ lead }: { lead: Lead }) {
   const qc = useQueryClient()
-  const { t } = useT()
+  const { t, lang } = useT()
   const [open, setOpen] = useState(false)
 
   const completedTasks = lead.tasks.filter(t => t.completed).length
@@ -136,10 +136,10 @@ function ArchiveCard({ lead }: { lead: Lead }) {
             )}
             {lead.salesChannel && <span>{lead.salesChannel.name}</span>}
             <span className="flex items-center gap-1"><User className="w-3 h-3" />{lead.createdBy?.name}</span>
-            <span className="text-gray-300">{t('ca.card.received')} {fmtDateTime(lead.createdAt)}</span>
+            <span className="text-gray-300">{t('ca.card.received')} {fmtDateTime(lead.createdAt, lang)}</span>
             {isDeleted && lead.deletedAt && (
               <span className="text-red-400 flex items-center gap-1">
-                <Trash2 className="w-3 h-3" /> {t('ca.card.deleted')} {fmtDateTime(lead.deletedAt)}
+                <Trash2 className="w-3 h-3" /> {t('ca.card.deleted')} {fmtDateTime(lead.deletedAt, lang)}
               </span>
             )}
           </div>
@@ -331,7 +331,7 @@ export default function CloserArchivePage() {
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
           <Trash2 className="w-5 h-5 text-amber-500 shrink-0" />
           <p className="text-sm text-amber-700">
-            <span className="font-semibold">{deleted.length} заявок удалено</span> — они видны в журнале и не могут быть скрыты навсегда. Фильтр «Удалённые» покажет их.
+            {t('ca.deleted.warning', { n: deleted.length })}
           </p>
           <button onClick={() => setStatusFilter('DELETED')} className="ml-auto text-xs text-amber-700 font-semibold underline whitespace-nowrap">
             {t('ca.deleted.show')}

@@ -1300,6 +1300,15 @@ const ru = {
   'lider.notHappened.leadLabel': 'Лид:',
   'lider.notHappened.meetingWas': 'Встреча была:',
   'lider.notHappened.closerLabel': 'Клоузер:',
+
+  // Closer leads page — hardcoded strings
+  'cl.card.daysInWork': 'дн. в работе',
+  'cl.refunds.withRefundsCount': '{{n}} шт. / ₸ {{amount}} (полная сумма)',
+  'cl.refunds.grossCount': '{{n}} шт. / ₸ {{amount}}',
+  'cl.incoming.others': 'Остальные',
+
+  // Closer archive page — hardcoded strings
+  'ca.deleted.warning': '{{n}} заявок удалено — они видны в журнале и не могут быть скрыты навсегда. Фильтр «Удалённые» покажет их.',
 }
 
 const kk: typeof ru = {
@@ -2598,6 +2607,15 @@ const kk: typeof ru = {
   'lider.notHappened.leadLabel': 'Лид:',
   'lider.notHappened.meetingWas': 'Кездесу болды:',
   'lider.notHappened.closerLabel': 'Клоузер:',
+
+  // Closer leads page — hardcoded strings
+  'cl.card.daysInWork': 'к. жұмыста',
+  'cl.refunds.withRefundsCount': '{{n}} шт. / ₸ {{amount}} (жалпы сомасы)',
+  'cl.refunds.grossCount': '{{n}} шт. / ₸ {{amount}}',
+  'cl.incoming.others': 'Қалғандары',
+
+  // Closer archive page — hardcoded strings
+  'ca.deleted.warning': '{{n}} өтінім жойылды — олар журналда көрінеді және мәңгі жасырыла алмайды. «Жойылған» сүзгісі оларды көрсетеді.',
 }
 
 // ── Store ────────────────────────────────────────────────────────────────────

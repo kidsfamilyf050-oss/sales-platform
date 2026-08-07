@@ -145,7 +145,7 @@ function SelectDropdown({
 }
 
 export default function ManagerDashboard() {
-  const { t } = useT()
+  const { t, lang } = useT()
   const periodStore = usePeriodStore()
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -413,11 +413,11 @@ export default function ManagerDashboard() {
                         {s.isDojim && <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-200 text-amber-700">ДОЖИМ</span>}
                         {s.leadId ? (
                           <>
-                            <span className="text-xs text-gray-400 shrink-0">{t('dash.closer.leadDateLabel')} {new Date(s.date + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
-                            <span className="text-xs text-gray-400 shrink-0">· {t('dash.closer.saleDateLabel')} {new Date(s.createdAt).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
+                            <span className="text-xs text-gray-400 shrink-0">{t('dash.closer.leadDateLabel')} {new Date(s.date + 'T12:00:00').toLocaleDateString(lang === 'kk' ? 'kk' : 'ru', { day: 'numeric', month: 'short' })}</span>
+                            <span className="text-xs text-gray-400 shrink-0">· {t('dash.closer.saleDateLabel')} {new Date(s.createdAt).toLocaleDateString(lang === 'kk' ? 'kk' : 'ru', { day: 'numeric', month: 'short' })}</span>
                           </>
                         ) : (
-                          <span className="text-xs text-gray-400 w-16 shrink-0">{new Date(s.date + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
+                          <span className="text-xs text-gray-400 w-16 shrink-0">{new Date(s.date + 'T12:00:00').toLocaleDateString(lang === 'kk' ? 'kk' : 'ru', { day: 'numeric', month: 'short' })}</span>
                         )}
                         {s.isRefund ? (
                           <>
@@ -483,7 +483,7 @@ export default function ManagerDashboard() {
                         <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-200 text-red-700">{t('dash.closer.refundBadge')}</span>
                         <span className="font-bold text-red-600">−₸ {fmt(l.netAmount ?? l.amount ?? 0)}</span>
                         <span className="text-xs text-gray-400">
-                          {new Date((l.refundedAt ?? l.date + 'T12:00:00')).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}
+                          {new Date((l.refundedAt ?? l.date + 'T12:00:00')).toLocaleDateString(lang === 'kk' ? 'kk' : 'ru', { day: 'numeric', month: 'short' })}
                         </span>
                       </div>
                       {l.name && <p className="text-xs text-gray-600 mt-1 font-medium">{l.name}</p>}
@@ -500,7 +500,7 @@ export default function ManagerDashboard() {
             <div className="flex items-start justify-between gap-2 mb-4 flex-wrap">
               <div>
                 <h3 className="font-semibold text-gray-900">
-                  {t('report.closer.sales')} {isToday ? t('period.today').toLowerCase() : new Date(salesDate + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}
+                  {t('report.closer.sales')} {isToday ? t('period.today').toLowerCase() : new Date(salesDate + 'T12:00:00').toLocaleDateString(lang === 'kk' ? 'kk' : 'ru', { day: 'numeric', month: 'short' })}
                 </h3>
                 {(todaySales as any[]).length > 0 && (
                   <p className="text-xs text-gray-400 mt-0.5">{(todaySales as any[]).length} {t('dash.closer.dealsShort')} · ₸ {fmt(totalToday)}</p>
