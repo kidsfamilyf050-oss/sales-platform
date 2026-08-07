@@ -66,11 +66,11 @@ export default function LiderNotHappenedPage() {
                       </span>
                     )}
                     {lead.date && (
-                      <span>Лид: {lead.date}</span>
+                      <span>{t('lider.notHappened.leadLabel')} {lead.date}</span>
                     )}
                     {lead.appointmentDate && (
                       <span className="text-orange-600 font-medium">
-                        Встреча была: {lead.appointmentDate}
+                        {t('lider.notHappened.meetingWas')} {lead.appointmentDate}
                         {lead.appointmentTime ? ` ${lead.appointmentTime}` : ''}
                       </span>
                     )}
@@ -78,7 +78,7 @@ export default function LiderNotHappenedPage() {
 
                   {lead.assignedTo && (
                     <p className="text-xs text-gray-400 mt-1">
-                      Клоузер: <span className="font-medium text-gray-600">{lead.assignedTo.name}</span>
+                      {t('lider.notHappened.closerLabel')} <span className="font-medium text-gray-600">{lead.assignedTo.name}</span>
                     </p>
                   )}
 

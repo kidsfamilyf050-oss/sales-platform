@@ -398,7 +398,7 @@ function AddLeadModal({
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('lider.field.channel')}</label>
               <select value={salesChannelId} onChange={e => setSalesChannelId(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                <option value="">— не выбран —</option>
+                <option value="">{t('lider.field.noChannelOption')}</option>
                 {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
@@ -474,7 +474,7 @@ function AddLeadModal({
                 value={assignedToId}
                 onChange={e => setAssignedToId(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                <option value="">— не назначен —</option>
+                <option value="">{t('lider.field.notAssigned')}</option>
                 {closers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
@@ -501,7 +501,7 @@ function AddLeadModal({
           {!salesChannelId && <p className="text-xs text-orange-600 text-center">{t('lider.field.noChannel')}</p>}
           {addError && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-              <p className="text-xs text-red-700 font-semibold mb-1">⚠ Ошибка</p>
+              <p className="text-xs text-red-700 font-semibold mb-1">⚠ {t('common.error')}</p>
               <p className="text-xs text-red-600 whitespace-pre-line">{addError}</p>
               <button type="button" onClick={() => setAddError(null)} className="mt-2 text-xs text-red-500 underline">{t('lider.field.errorClose')}</button>
             </div>
@@ -619,7 +619,7 @@ function EditLeadModal({
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">{t('lider.field.channel')}</label>
               <select value={salesChannelId} onChange={e => setSalesChannelId(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                <option value="">— не выбран —</option>
+                <option value="">{t('lider.field.noChannelOption')}</option>
                 {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
@@ -632,18 +632,18 @@ function EditLeadModal({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-2">Квалификация</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-2">{t('lider.field.qualification')}</label>
             <div className="grid grid-cols-3 gap-2">
               {(['qual', 'unqual', 'inwork'] as const).map(mode => {
                 const cfg = {
-                  qual:   { label: 'Квал',       on: 'bg-green-600 text-white' },
-                  unqual: { label: 'Не квал',     on: 'bg-red-500 text-white' },
-                  inwork: { label: 'В работе КЦ', on: 'bg-blue-600 text-white' },
+                  qual:   { labelKey: 'lider.badge.qual' as const,   on: 'bg-green-600 text-white' },
+                  unqual: { labelKey: 'lider.badge.unqual' as const,  on: 'bg-red-500 text-white' },
+                  inwork: { labelKey: 'lider.badge.inwork' as const,  on: 'bg-blue-600 text-white' },
                 }[mode]
                 return (
                   <button key={mode} type="button" onClick={() => handleEditKtsModeChange(mode)}
                     className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${ktsMode === mode ? cfg.on : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                    {cfg.label}
+                    {t(cfg.labelKey)}
                   </button>
                 )
               })}
@@ -652,17 +652,17 @@ function EditLeadModal({
 
           {ktsMode !== 'unqual' && (
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-2">Статус: Записан / Отказ / Думает / В работе КЦ</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-2">{t('lider.field.statusLabel')}</label>
               <div className="grid grid-cols-2 gap-2">
-                {[
-                  ['scheduled',  'Записан',      'bg-green-600 text-white'],
-                  ['refused',    'Отказ',         'bg-red-500 text-white'],
-                  ['thinking',   'Думает',        'bg-orange-500 text-white'],
-                  ['in_work_kc', 'В работе КЦ',  'bg-purple-600 text-white'],
-                ].map(([val, label, cls]) => (
+                {([
+                  ['scheduled',  'lider.sub.scheduled', 'bg-green-600 text-white'],
+                  ['refused',    'lider.sub.refused',   'bg-red-500 text-white'],
+                  ['thinking',   'lider.sub.thinking',  'bg-orange-500 text-white'],
+                  ['in_work_kc', 'lider.sub.inwork',    'bg-purple-600 text-white'],
+                ] as const).map(([val, labelKey, cls]) => (
                   <button key={val} type="button" onClick={() => setSubStatus(subStatus === val ? '' : val)}
                     className={`py-2.5 rounded-xl text-sm font-semibold transition-all ${subStatus === val ? cls : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                    {label}
+                    {t(labelKey)}
                   </button>
                 ))}
               </div>
@@ -696,7 +696,7 @@ function EditLeadModal({
                 value={assignedToId}
                 onChange={e => setAssignedToId(e.target.value)}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                <option value="">— не назначен —</option>
+                <option value="">{t('lider.field.notAssigned')}</option>
                 {closers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
@@ -730,7 +730,7 @@ function EditLeadModal({
 
           {consultationStatus === 'postponed' && (
             <div className="p-3.5 bg-orange-50 border border-orange-100 rounded-xl space-y-3">
-              <p className="text-xs font-semibold text-orange-700">Перенесено на</p>
+              <p className="text-xs font-semibold text-orange-700">{t('lider.field.postponedLabel')}</p>
               <div className="grid grid-cols-2 gap-3">
                 <input type="date" value={postponedDate} onChange={e => setPostponedDate(e.target.value)}
                   className="w-full border border-orange-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
@@ -760,7 +760,7 @@ function EditLeadModal({
           {!salesChannelId && <p className="text-xs text-orange-600 text-center">{t('lider.field.noChannel')}</p>}
           {editError && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-              <p className="text-xs text-red-700 font-semibold mb-1">⚠ Ошибка</p>
+              <p className="text-xs text-red-700 font-semibold mb-1">⚠ {t('common.error')}</p>
               <p className="text-xs text-red-600 whitespace-pre-line">{editError}</p>
               <button type="button" onClick={() => setEditError(null)} className="mt-2 text-xs text-red-500 underline">{t('lider.field.errorClose')}</button>
             </div>
@@ -1097,7 +1097,7 @@ export default function LiderLeadsPage() {
       a.href = url; a.download = `lider-report-${new Date().toISOString().slice(0, 10)}.xlsx`
       document.body.appendChild(a); a.click()
       document.body.removeChild(a); URL.revokeObjectURL(url)
-    } catch { alert('Ошибка экспорта') }
+    } catch { alert(t('lider.exportError')) }
   }
 
   const filtersActive = !!(search || channelId || ktsStatus || subStatusFilter || consultationFilter || dateFilter)
@@ -1112,14 +1112,14 @@ export default function LiderLeadsPage() {
 
         {/* ── Header ── */}
         <div className="flex flex-wrap items-center gap-3 mb-5">
-          <h1 className="text-xl font-bold text-gray-900">Отчёт лидоруба</h1>
+          <h1 className="text-xl font-bold text-gray-900">{t('lider.pageTitle')}</h1>
           <div className="flex-1" />
           <button onClick={exportExcel}
             className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors">
             <Download className="w-4 h-4" /> {t('lider.export')}
           </button>
           <button onClick={() => refetch()}
-            className="p-2 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors" title="Обновить">
+            className="p-2 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors" title={t('common.refresh')}>
             <RefreshCw className="w-4 h-4" />
           </button>
         </div>
@@ -1132,8 +1132,8 @@ export default function LiderLeadsPage() {
             { label: t('lider.stats.cancelled'),value: stats?.totalCancelled,      sub: stats?.totalScheduled ? `${pct(stats.totalCancelled, stats.totalScheduled)}% ${t('lider.stats.fromScheduled')}` : '', color: 'text-red-500', filter: { consultation: 'not_happened' } },
             { label: t('lider.stats.postponed'),value: stats?.totalPostponed,      sub: stats?.totalScheduled ? `${pct(stats.totalPostponed, stats.totalScheduled)}% ${t('lider.stats.fromScheduled')}` : '', color: 'text-orange-500', filter: { consultation: 'postponed' } },
             { label: t('lider.stats.refusal'),  value: stats?.totalRefused, sub: null, color: 'text-red-400', filter: { subStatus: 'refused' } },
-            { label: t('lider.stats.convLead'), value: `${stats?.conversionToScheduled ?? '—'}%`, sub: stats ? `${stats.totalScheduled} из ${stats.totalLeads}` : '', color: 'text-purple-600', filter: null },
-            { label: t('lider.stats.convMeet'), value: stats?.totalScheduled ? `${pct(stats.totalHappened, stats.totalScheduled)}%` : '—', sub: stats ? `${stats.totalHappened} из ${stats.totalScheduled}` : '', color: 'text-blue-600', filter: null },
+            { label: t('lider.stats.convLead'), value: `${stats?.conversionToScheduled ?? '—'}%`, sub: stats ? t('lider.stats.ofTotal', { a: stats.totalScheduled, b: stats.totalLeads }) : '', color: 'text-purple-600', filter: null },
+            { label: t('lider.stats.convMeet'), value: stats?.totalScheduled ? `${pct(stats.totalHappened, stats.totalScheduled)}%` : '—', sub: stats ? t('lider.stats.ofTotal', { a: stats.totalHappened, b: stats.totalScheduled }) : '', color: 'text-blue-600', filter: null },
           ].map((card, i) => (
             <div key={i}
               onClick={() => {
@@ -1152,7 +1152,7 @@ export default function LiderLeadsPage() {
               <p className="text-xs text-gray-400 mb-1.5 leading-tight font-medium">{card.label}</p>
               <p className={`text-2xl font-bold ${card.color}`}>{card.value ?? '—'}</p>
               {card.sub && <p className="text-xs text-gray-400 mt-1">{card.sub}</p>}
-              {card.filter && <p className="text-[10px] text-blue-400 mt-1">↑ нажми для фильтра</p>}
+              {card.filter && <p className="text-[10px] text-blue-400 mt-1">{t('lider.stats.clickToFilter')}</p>}
             </div>
           ))}
         </div>
@@ -1821,13 +1821,13 @@ export default function LiderLeadsPage() {
                 <AlertCircle className="w-5 h-5 text-red-600" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-gray-900 mb-1">Ошибка в дате</h3>
+                <h3 className="text-base font-bold text-gray-900 mb-1">{t('lider.dateError')}</h3>
                 <p className="text-sm text-gray-600 whitespace-pre-line">{validationError}</p>
               </div>
             </div>
             <button onClick={() => setValidationError(null)}
               className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-semibold transition-colors">
-              Понял, исправлю
+              {t('lider.dateErrorOk')}
             </button>
           </div>
         </div>

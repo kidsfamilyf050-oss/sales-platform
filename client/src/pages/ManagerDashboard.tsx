@@ -272,7 +272,7 @@ export default function ManagerDashboard() {
           <button
             onClick={() => downloadExport(isCloser ? 'manager' : 'lider-full', buildPeriodParams(periodStore))}
             className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
-            title="Скачать отчёт Excel"
+            title={t('lider.export')}
           >
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">{t('dash.closer.exportBtn')}</span>
@@ -304,7 +304,7 @@ export default function ManagerDashboard() {
               {(summary.carryover?.avgCheck ?? 0) > 0 && (
                 <div className="text-right">
                   <p className="text-2xl font-bold text-amber-800">₸ {fmt(summary.carryover?.avgCheck ?? 0)}</p>
-                  <p className="text-xs text-amber-500">средний чек</p>
+                  <p className="text-xs text-amber-500">{t('dash.avgCheck')}</p>
                 </div>
               )}
               <div className="text-right">
@@ -380,7 +380,7 @@ export default function ManagerDashboard() {
                       </div>
                       <div className="text-right shrink-0">
                         <p className={`text-sm font-bold ${isMe ? 'text-blue-700' : 'text-gray-700'}`}>₸ {fmt(r.salesAmount)}</p>
-                        <p className="text-xs text-gray-400">{r.salesCount} сд.</p>
+                        <p className="text-xs text-gray-400">{r.salesCount} {t('dash.closer.dealsShort')}</p>
                       </div>
                     </div>
                   )
@@ -396,7 +396,7 @@ export default function ManagerDashboard() {
                 <h3 className="font-semibold text-gray-900">{t('dash.periodSales')}</h3>
                 {(periodSalesData as any[]).length > 0 && (
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {(periodSalesData as any[]).length} сд. · ₸ {fmt((periodSalesData as any[]).reduce((s: number, x: any) => s + net(x), 0))}
+                    {(periodSalesData as any[]).length} {t('dash.closer.dealsShort')} · ₸ {fmt((periodSalesData as any[]).reduce((s: number, x: any) => s + net(x), 0))}
                   </p>
                 )}
               </div>
@@ -413,8 +413,8 @@ export default function ManagerDashboard() {
                         {s.isDojim && <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-200 text-amber-700">ДОЖИМ</span>}
                         {s.leadId ? (
                           <>
-                            <span className="text-xs text-gray-400 shrink-0">Заявка: {new Date(s.date + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
-                            <span className="text-xs text-gray-400 shrink-0">· Продажа: {new Date(s.createdAt).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
+                            <span className="text-xs text-gray-400 shrink-0">{t('dash.closer.leadDateLabel')} {new Date(s.date + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
+                            <span className="text-xs text-gray-400 shrink-0">· {t('dash.closer.saleDateLabel')} {new Date(s.createdAt).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
                           </>
                         ) : (
                           <span className="text-xs text-gray-400 w-16 shrink-0">{new Date(s.date + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
@@ -432,12 +432,12 @@ export default function ManagerDashboard() {
                         )}
                         {!s.isRefund && (
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                            {PAYMENT_TYPE_LABEL[s.paymentType]}
+                            {s.paymentType === 'new_sale' ? t('dash.payType.new') : t('dash.payType.additional')}
                           </span>
                         )}
                         <span className="text-xs text-gray-500">{gatewayLabel(s.paymentMethod)}</span>
                         {!s.isRefund && s.netAmount && <span className="text-xs text-green-600 font-medium">{t('dash.closer.budgetLabel')} {s.netAmount.toLocaleString('ru')} ₸</span>}
-                        {s.months && showMonths(s.paymentMethod) && <span className="text-xs text-gray-400">{s.months} мес.</span>}
+                        {s.months && showMonths(s.paymentMethod) && <span className="text-xs text-gray-400">{s.months} {t('common.monthsShort')}</span>}
                       </div>
                       {s.crmLink && (
                         <a href={s.crmLink} target="_blank" rel="noreferrer"
@@ -471,7 +471,7 @@ export default function ManagerDashboard() {
                 <div>
                   <h3 className="font-semibold text-red-600">{t('dash.closer.refundsTitle')}</h3>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {(refundLeads as any[]).length} шт. · −₸ {fmt((refundLeads as any[]).reduce((s: number, l: any) => s + (l.netAmount ?? l.amount ?? 0), 0))}
+                    {(refundLeads as any[]).length} {t('dash.closer.dealsShort')} · −₸ {fmt((refundLeads as any[]).reduce((s: number, l: any) => s + (l.netAmount ?? l.amount ?? 0), 0))}
                   </p>
                 </div>
               </div>
@@ -503,7 +503,7 @@ export default function ManagerDashboard() {
                   {t('report.closer.sales')} {isToday ? t('period.today').toLowerCase() : new Date(salesDate + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}
                 </h3>
                 {(todaySales as any[]).length > 0 && (
-                  <p className="text-xs text-gray-400 mt-0.5">{(todaySales as any[]).length} сд. · ₸ {fmt(totalToday)}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{(todaySales as any[]).length} {t('dash.closer.dealsShort')} · ₸ {fmt(totalToday)}</p>
                 )}
               </div>
               <div className="flex items-center gap-2 ml-auto">
@@ -513,7 +513,7 @@ export default function ManagerDashboard() {
                   value={salesDate}
                   max={todayStr}
                   onChange={e => { setSalesDate(e.target.value); setSaleForm(null); setEditingId(null) }}
-                  title="Выбрать дату"
+                  title={t('dash.closer.selectDateTitle')}
                 />
                 {!saleForm && (
                   <button onClick={openAdd}
@@ -537,8 +537,8 @@ export default function ManagerDashboard() {
                           {PAYMENT_TYPE_LABEL[s.paymentType]}
                         </span>
                         <span className="text-xs text-gray-500">{gatewayLabel(s.paymentMethod)}</span>
-                        {s.netAmount && <span className="text-xs text-green-600 font-medium">Бюджет: {s.netAmount.toLocaleString('ru')} ₸</span>}
-                        {s.months && showMonths(s.paymentMethod) && <span className="text-xs text-gray-400">{s.months} мес.</span>}
+                        {s.netAmount && <span className="text-xs text-green-600 font-medium">{t('dash.closer.budgetLabel')} {s.netAmount.toLocaleString('ru')} ₸</span>}
+                        {s.months && showMonths(s.paymentMethod) && <span className="text-xs text-gray-400">{s.months} {t('common.monthsShort')}</span>}
                       </div>
                       {s.crmLink && (
                         <a href={s.crmLink} target="_blank" rel="noreferrer"
@@ -555,7 +555,7 @@ export default function ManagerDashboard() {
                       <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={() => { if (confirm('Удалить продажу?')) deleteSale.mutate(s.id) }}
+                      <button onClick={() => { if (confirm(t('dash.closer.deleteSale'))) deleteSale.mutate(s.id) }}
                         className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -635,7 +635,7 @@ export default function ManagerDashboard() {
                           className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
                             saleForm.months === m ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-blue-300'
                           }`}>
-                          {m} мес.
+                          {m} {t('common.monthsShort')}
                         </button>
                       ))}
                     </div>
@@ -690,12 +690,12 @@ export default function ManagerDashboard() {
 
           {/* Lider stats — primary KPI: consultations conducted */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
-            <StatCard label={t('dash.manager.leads')} value={summary.leads} sub={summary.leadsplan > 0 ? `план ${summary.leadsplan}` : undefined} />
-            <StatCard label={t('dash.manager.qualified')} value={summary.qualifiedLeads} sub={`${summary.qualRate}% квал.`} />
+            <StatCard label={t('dash.manager.leads')} value={summary.leads} sub={summary.leadsplan > 0 ? `${t('dash.plan')} ${summary.leadsplan}` : undefined} />
+            <StatCard label={t('dash.manager.qualified')} value={summary.qualifiedLeads} sub={`${summary.qualRate}% ${t('common.qualShort')}`} />
             <StatCard label={t('dash.manager.meetings')} value={summary.meetingsScheduled} />
             <StatCard label={t('dash.manager.attended')} value={summary.meetingsAttended} color="blue" />
             <StatCard label={t('dash.manager.schedToAtt')} value={summary.meetingsScheduled > 0 ? `${Math.round(summary.meetingsAttended / summary.meetingsScheduled * 100)}%` : '—'} color="yellow" />
-            <StatCard label={t('dash.manager.meetingsPlan')} value={summary.meetingsScheduledPlan} sub={summary.planCompletion > 0 ? `${summary.planCompletion}% выполн.` : undefined} />
+            <StatCard label={t('dash.manager.meetingsPlan')} value={summary.meetingsScheduledPlan} sub={summary.planCompletion > 0 ? `${summary.planCompletion}% ${t('common.completionShort')}` : undefined} />
           </div>
 
           {/* Несостоявшиеся — lider's own metric */}
@@ -735,7 +735,7 @@ export default function ManagerDashboard() {
                   const usePostponed = lead.postponedDate === todayStr
                   const time = usePostponed ? lead.postponedTime : lead.appointmentTime
                   const statusColor = lead.consultationStatus === 'happened' ? 'text-green-600' : lead.consultationStatus === 'not_happened' ? 'text-red-500' : lead.consultationStatus === 'postponed' ? 'text-orange-500' : 'text-gray-400'
-                  const statusLabel = lead.consultationStatus === 'happened' ? 'Состоялась' : lead.consultationStatus === 'not_happened' ? 'Не состоялась' : lead.consultationStatus === 'postponed' ? 'Перенос' : 'Ожидается'
+                  const statusLabel = lead.consultationStatus === 'happened' ? t('lider.consult.happened') : lead.consultationStatus === 'not_happened' ? t('lider.consult.notHappened') : lead.consultationStatus === 'postponed' ? t('lider.consult.postponed') : t('lider.consult.planned')
                   return (
                     <div key={lead.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 border border-gray-100">
                       <div className="text-sm font-bold text-blue-700 w-12 shrink-0 text-center">
@@ -743,7 +743,7 @@ export default function ManagerDashboard() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate">{lead.clientName}</p>
-                        <p className="text-xs text-gray-400 truncate">{lead.assignedTo?.name || 'Без клоузера'}</p>
+                        <p className="text-xs text-gray-400 truncate">{lead.assignedTo?.name || t('lider.noCloser')}</p>
                       </div>
                       <span className={`text-xs font-semibold shrink-0 ${statusColor}`}>{statusLabel}</span>
                     </div>
@@ -751,7 +751,7 @@ export default function ManagerDashboard() {
                 })}
                 <button onClick={() => navigate('/lider/leads')}
                   className="w-full text-xs text-blue-500 hover:text-blue-700 font-medium pt-1 text-center hover:underline">
-                  Перейти к списку лидов →
+                  {t('dash.closer.goToLeads')}
                 </button>
               </div>
             )}
@@ -765,11 +765,11 @@ export default function ManagerDashboard() {
                   <p className="text-xs text-gray-500 mb-0.5">{t('dash.manager.schedToAtt')}</p>
                   <p className="text-sm text-gray-600">
                     <span className="font-bold text-blue-700 text-xl">{summary.schedToAttRate}%</span>
-                    <span className="ml-2 text-gray-400">({summary.meetingsAttended} из {summary.meetingsScheduled} записанных)</span>
+                    <span className="ml-2 text-gray-400">{t('dash.closer.ofScheduled', { attended: summary.meetingsAttended, scheduled: summary.meetingsScheduled })}</span>
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-gray-400">лиды → записано</p>
+                  <p className="text-xs text-gray-400">{t('dash.closer.leadsToSched')}</p>
                   <p className="font-semibold text-gray-700">{summary.leadsToSchedRate}%</p>
                 </div>
               </div>
@@ -816,7 +816,7 @@ export default function ManagerDashboard() {
                       </div>
                       <div className="text-right shrink-0">
                         <p className={`text-sm font-bold ${isMe ? 'text-blue-700' : 'text-gray-700'}`}>{r.meetingsAttended}</p>
-                        <p className="text-xs text-gray-400">из {r.plan}</p>
+                        <p className="text-xs text-gray-400">{t('dash.closer.ofRanking', { plan: r.plan })}</p>
                       </div>
                     </div>
                   )
@@ -848,8 +848,8 @@ export default function ManagerDashboard() {
               <Archive className="w-4 h-4 text-gray-500 group-hover:text-blue-600" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-800">Архив заявок</p>
-              <p className="text-xs text-gray-400 mt-0.5">Отказники и заявки в работе</p>
+              <p className="text-sm font-semibold text-gray-800">{t('dash.closer.archiveTitle')}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{t('dash.closer.archiveSubtitle')}</p>
             </div>
           </div>
           <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-400 shrink-0" />

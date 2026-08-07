@@ -1264,6 +1264,42 @@ const ru = {
   'mkt.ch.archiveEmpty': 'Архив пуст',
   'mkt.ch.restore': 'Восстановить',
   'mkt.ch.archiveConfirm': 'Архивировать канал "{{name}}"?\n\nКанал исчезнет из списков при добавлении лидов, но история расходов и лидов сохранится.',
+
+  // Manager/Lider dashboard hardcoded strings
+  'dash.closer.leadDateLabel': 'Заявка:',
+  'dash.closer.saleDateLabel': 'Продажа:',
+  'dash.closer.selectDateTitle': 'Выбрать дату',
+  'common.monthsShort': 'мес.',
+  'common.qualShort': 'квал.',
+  'common.completionShort': 'выполн.',
+  'dash.closer.dealsShort': 'сд.',
+  'dash.closer.goToLeads': 'Перейти к списку лидов →',
+  'dash.closer.ofScheduled': '({{attended}} из {{scheduled}} записанных)',
+  'dash.closer.leadsToSched': 'лиды → записано',
+  'dash.closer.archiveTitle': 'Архив заявок',
+  'dash.closer.archiveSubtitle': 'Отказники и заявки в работе',
+  'dash.closer.ofRanking': 'из {{plan}}',
+  'dash.payType.new': 'Новая',
+  'dash.payType.additional': 'Доплата',
+
+  // Lider leads page — hardcoded strings
+  'lider.pageTitle': 'Отчёт лидоруба',
+  'common.refresh': 'Обновить',
+  'lider.stats.clickToFilter': '↑ нажми для фильтра',
+  'lider.stats.ofTotal': '{{a}} из {{b}}',
+  'lider.field.qualification': 'Квалификация',
+  'lider.field.statusLabel': 'Статус: Записан / Отказ / Думает / В работе КЦ',
+  'lider.field.notAssigned': '— не назначен —',
+  'lider.field.noChannelOption': '— не выбран —',
+  'lider.field.postponedLabel': 'Перенесено на',
+  'lider.exportError': 'Ошибка экспорта',
+  'lider.dateError': 'Ошибка в дате',
+  'lider.dateErrorOk': 'Понял, исправлю',
+
+  // Lider not happened page
+  'lider.notHappened.leadLabel': 'Лид:',
+  'lider.notHappened.meetingWas': 'Встреча была:',
+  'lider.notHappened.closerLabel': 'Клоузер:',
 }
 
 const kk: typeof ru = {
@@ -2526,6 +2562,42 @@ const kk: typeof ru = {
   'mkt.ch.archiveEmpty': 'Мұрағат бос',
   'mkt.ch.restore': 'Қалпына келтіру',
   'mkt.ch.archiveConfirm': '«{{name}}» арнасын мұрағаттау?\n\nАрна лид қосу кезінде тізімдерден жоғалады, бірақ шығындар мен лидтер тарихы сақталады.',
+
+  // Manager/Lider dashboard hardcoded strings
+  'dash.closer.leadDateLabel': 'Өтінім:',
+  'dash.closer.saleDateLabel': 'Сату:',
+  'dash.closer.selectDateTitle': 'Күн таңдау',
+  'common.monthsShort': 'ай.',
+  'common.qualShort': 'сарал.',
+  'common.completionShort': 'орынд.',
+  'dash.closer.dealsShort': 'мәм.',
+  'dash.closer.goToLeads': 'Лидтер тізіміне өту →',
+  'dash.closer.ofScheduled': '({{attended}} / {{scheduled}} жазылған)',
+  'dash.closer.leadsToSched': 'лидтер → жазылды',
+  'dash.closer.archiveTitle': 'Өтінімдер мұрағаты',
+  'dash.closer.archiveSubtitle': 'Бас тартқандар және жұмыстағы өтінімдер',
+  'dash.closer.ofRanking': '/ {{plan}}',
+  'dash.payType.new': 'Жаңа',
+  'dash.payType.additional': 'Қосымша',
+
+  // Lider leads page — hardcoded strings
+  'lider.pageTitle': 'Лидоруб есебі',
+  'common.refresh': 'Жаңарту',
+  'lider.stats.clickToFilter': '↑ сүзгі үшін басыңыз',
+  'lider.stats.ofTotal': '{{a}} / {{b}}',
+  'lider.field.qualification': 'Квалификация',
+  'lider.field.statusLabel': 'Мәртебе: Жазылды / Бас тарту / Ойлауда / КЦ жұмысында',
+  'lider.field.notAssigned': '— тағайындалмаған —',
+  'lider.field.noChannelOption': '— таңдалмаған —',
+  'lider.field.postponedLabel': 'Ауыстырылды',
+  'lider.exportError': 'Экспорт қатесі',
+  'lider.dateError': 'Күн қатесі',
+  'lider.dateErrorOk': 'Түсіндім, түземін',
+
+  // Lider not happened page
+  'lider.notHappened.leadLabel': 'Лид:',
+  'lider.notHappened.meetingWas': 'Кездесу болды:',
+  'lider.notHappened.closerLabel': 'Клоузер:',
 }
 
 // ── Store ────────────────────────────────────────────────────────────────────
