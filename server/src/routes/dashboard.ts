@@ -83,6 +83,9 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
   const periodKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
   const fromStr = dateToStr(start)
   const toStr = dateToStr(end)
+  // KZ timezone (UTC+5) boundaries for updatedAt/createdAt comparisons
+  const periodStart = new Date(fromStr + 'T00:00:00+05:00')
+  const periodEnd   = new Date(toStr   + 'T23:59:59+05:00')
 
   try {
     const [salesDepts, allUsers, plans, closerReports, liderReports, marketerReports, periodSales] = await Promise.all([
@@ -92,8 +95,8 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'CLOSER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true, departmentId: true, managerType: true } } } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'LIDER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true, departmentId: true, managerType: true } } } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'MARKETER', date: { gte: start, lte: end } } }),
-      // Sales from Sale model — truth source
-      prisma.sale.findMany({ where: { companyId: req.user!.companyId, date: { gte: fromStr, lte: toStr } }, include: { user: { select: { id: true, name: true } }, product: { select: { id: true, name: true } } } }),
+      // Sales from Sale model — truth source; OR Sale.createdAt in KZ period (covers wrong-date records)
+      prisma.sale.findMany({ where: { companyId: req.user!.companyId, OR: [{ date: { gte: fromStr, lte: toStr } }, { createdAt: { gte: periodStart, lte: periodEnd } }] }, include: { user: { select: { id: true, name: true } }, product: { select: { id: true, name: true } } } }),
     ])
 
     // ── Sales (Sale model) — use netAmount (бюджет сделки) where available ──
@@ -326,6 +329,11 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
   const fromStr = dateToStr(start)
   const toStr = dateToStr(end)
   const todayStr = dateToStr(new Date())
+  // KZ timezone (UTC+5) boundaries for updatedAt/createdAt comparisons
+  const periodStart = new Date(fromStr + 'T00:00:00+05:00')
+  const periodEnd   = new Date(toStr   + 'T23:59:59+05:00')
+  const todayStart  = new Date(todayStr + 'T00:00:00+05:00')
+  const todayEnd    = new Date(todayStr + 'T23:59:59+05:00')
 
   try {
     const [managers, plans, closerReports, marketerReports, todayReports, periodSales, todaySales, ropLiderLeadsFull, allCompanyLeads, closerLeads] = await Promise.all([
@@ -334,10 +342,10 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, departmentId: deptId || undefined }, type: 'CLOSER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true, managerType: true } } } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'MARKETER', date: { gte: start, lte: end } } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, departmentId: deptId || undefined }, date: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } }, include: { user: { select: { id: true, name: true } } } }),
-      // Period sales from Sale model — newest first
-      prisma.sale.findMany({ where: { companyId: req.user!.companyId, date: { gte: fromStr, lte: toStr } }, include: { user: { select: { id: true, name: true, managerType: true } }, product: { select: { id: true, name: true } } }, orderBy: [{ date: 'desc' }, { createdAt: 'desc' }] }),
-      // Today's sales per manager
-      prisma.sale.findMany({ where: { companyId: req.user!.companyId, date: todayStr }, orderBy: { createdAt: 'asc' } }),
+      // Period sales — Sale.date OR Sale.createdAt in KZ period (covers wrong-date records)
+      prisma.sale.findMany({ where: { companyId: req.user!.companyId, OR: [{ date: { gte: fromStr, lte: toStr } }, { createdAt: { gte: periodStart, lte: periodEnd } }] }, include: { user: { select: { id: true, name: true, managerType: true } }, product: { select: { id: true, name: true } } }, orderBy: [{ date: 'desc' }, { createdAt: 'desc' }] }),
+      // Today's sales — Sale.date OR Sale.createdAt today in KZ
+      prisma.sale.findMany({ where: { companyId: req.user!.companyId, OR: [{ date: todayStr }, { createdAt: { gte: todayStart, lte: todayEnd } }] }, orderBy: { createdAt: 'asc' } }),
       // Lider leads from Lead model (source of truth for lider stats)
       prisma.lead.findMany({
         where: { createdBy: { companyId: req.user!.companyId, departmentId: deptId || undefined, managerType: 'LIDER' }, date: { gte: fromStr, lte: toStr } },
@@ -864,15 +872,16 @@ router.get('/closer-ranking', authenticate, async (req: AuthRequest, res: Respon
   const { period = 'month', from, to } = req.query
   const { start, end } = getPeriodDates(period as string, from as string, to as string)
   const periodKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`
-  // Sale.date is a String field (YYYY-MM-DD) — must use string comparison, not Date objects
   const fromStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`
   const toStr = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`
+  const periodStart = new Date(fromStr + 'T00:00:00+05:00')
+  const periodEnd   = new Date(toStr   + 'T23:59:59+05:00')
 
   try {
     const [closers, plans, sales] = await Promise.all([
       prisma.user.findMany({ where: { companyId: req.user!.companyId, status: 'ACTIVE', role: 'MANAGER', managerType: 'CLOSER' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey } }),
-      prisma.sale.findMany({ where: { user: { companyId: req.user!.companyId, managerType: 'CLOSER' }, date: { gte: fromStr, lte: toStr } }, include: { user: { select: { id: true } } } }),
+      prisma.sale.findMany({ where: { user: { companyId: req.user!.companyId, managerType: 'CLOSER' }, OR: [{ date: { gte: fromStr, lte: toStr } }, { createdAt: { gte: periodStart, lte: periodEnd } }] }, include: { user: { select: { id: true } } } }),
     ])
 
     const salesMap: Record<string, { salesAmount: number; salesCount: number }> = {}
