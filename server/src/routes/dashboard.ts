@@ -296,10 +296,11 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     // Fact = total sales minus dojim (carryover) — leads created THIS period
     const factSalesAmount    = totalSalesAmount - ownerCarryoverRevenue
     const factSalesCount     = Math.max(0, totalSalesCount - ownerCarryoverCount)
-    const factNetSales       = factSalesAmount - ownerFactRefundTotal   // only fact refunds reduce fact
+    const factNetSales         = factSalesAmount - ownerFactRefundTotal   // only fact refunds reduce fact
     const ownerDojimNetRevenue = ownerCarryoverRevenue - ownerDojimRefundTotal  // dojim refunds reduce dojim
-    const factAvgCheck       = factSalesCount > 0 ? Math.round(factNetSales / factSalesCount) : 0
-    const dojimAvgCheck      = ownerCarryoverCount > 0 ? Math.round(ownerDojimNetRevenue / ownerCarryoverCount) : 0
+    const ownerDojimNetCount   = Math.max(0, ownerCarryoverCount - ownerDojimRefundLeads.length)
+    const factAvgCheck         = factSalesCount > 0 ? Math.round(factNetSales / factSalesCount) : 0
+    const dojimAvgCheck        = ownerDojimNetCount > 0 ? Math.round(ownerDojimNetRevenue / ownerDojimNetCount) : 0
     // conversion uses factSalesCount — dojim sales don't count as conversions
     const conversion = totalConsultations > 0 ? Math.round((factSalesCount / totalConsultations) * 100) : 0
     const conversionLabel = 'встречи → продажи'
@@ -329,7 +330,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       liderRating,
       productStats,
       gatewayAnalytics: buildGatewayAnalytics(periodSales),
-      carryover: { count: ownerCarryoverCount, revenue: ownerDojimNetRevenue, avgCheck: dojimAvgCheck },
+      carryover: { count: ownerDojimNetCount, revenue: ownerDojimNetRevenue, avgCheck: dojimAvgCheck },
     })
   } catch (e) {
     console.error(e)
@@ -593,8 +594,9 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const ropFactSalesCount  = Math.max(0, totalSalesCount - ropCarryoverCount - ropFactRefundLeads.length)
     const ropFactNetSales    = ropFactSalesAmount - ropFactRefundTotal   // only fact refunds reduce fact
     const ropDojimNetRevenue = ropCarryoverRevenue - ropDojimRefundTotal  // dojim refunds reduce dojim
+    const ropDojimNetCount   = Math.max(0, ropCarryoverCount - ropDojimRefundLeads.length)
     const ropFactAvgCheck    = ropFactSalesCount > 0 ? Math.round(ropFactNetSales / ropFactSalesCount) : 0
-    const ropDojimAvgCheck   = ropCarryoverCount > 0 ? Math.round(ropDojimNetRevenue / ropCarryoverCount) : 0
+    const ropDojimAvgCheck   = ropDojimNetCount > 0 ? Math.round(ropDojimNetRevenue / ropDojimNetCount) : 0
 
     res.json({
       summary: {
@@ -613,7 +615,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       },
       funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount: Math.max(0, totalSalesCount - ropRefundCount) },
       marketing: { leadsplan, totalLeads, totalBudget, leadCost: totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0, qualifiedLeads },
-      carryover: { count: ropCarryoverCount, revenue: ropDojimNetRevenue, avgCheck: ropDojimAvgCheck },
+      carryover: { count: ropDojimNetCount, revenue: ropDojimNetRevenue, avgCheck: ropDojimAvgCheck },
       managerRating,
       liderRating,
       productStats,
@@ -722,8 +724,9 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const factSalesCount  = Math.max(0, salesCount - mgrCarryoverCount)
       const factNetSales    = factSalesAmount - mgrFactRefundTotal   // only fact refunds reduce fact
       const dojimNetRevenue = mgrCarryoverRevenue - mgrDojimRefundTotal  // dojim refunds reduce dojim
+      const dojimNetCount   = Math.max(0, mgrCarryoverCount - mgrDojimRefundLeads.length)
       const factAvgCheck    = factSalesCount > 0 ? Math.round(factNetSales / factSalesCount) : 0
-      const dojimAvgCheck   = mgrCarryoverCount > 0 ? Math.round(dojimNetRevenue / mgrCarryoverCount) : 0
+      const dojimAvgCheck   = dojimNetCount > 0 ? Math.round(dojimNetRevenue / dojimNetCount) : 0
       // conversion uses factSalesCount — dojim sales don't count as conversions
       const conversion = consultations > 0 ? Math.round((factSalesCount / consultations) * 1000) / 10 : 0
 
@@ -745,7 +748,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           consultations, refusals, inWork,
           pendingLeadsCount, inWorkLeadsCount, pendingTasksCount,
           leadRefusedCount, leadSoldCount, leadTotal, leadConversion,
-          carryover: { count: mgrCarryoverCount, revenue: dojimNetRevenue, avgCheck: dojimAvgCheck },
+          carryover: { count: dojimNetCount, revenue: dojimNetRevenue, avgCheck: dojimAvgCheck },
         },
         periodSales: periodSales.map(s => ({
           id: s.id, date: s.date, amount: s.amount, netAmount: s.netAmount,
