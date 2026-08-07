@@ -605,12 +605,23 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
   const toStr = dateToStr(end)
 
   try {
-    const [reports, plans, todayReport, periodSales] = await Promise.all([
+    const [reports, plans, todayReport, salesByDate, soldLeadsInPeriod] = await Promise.all([
       prisma.report.findMany({ where: { userId, date: { gte: start, lte: end } }, orderBy: { date: 'desc' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey, userId } }),
       prisma.report.findFirst({ where: { userId, date: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } } }),
       prisma.sale.findMany({ where: { userId, date: { gte: fromStr, lte: toStr } }, orderBy: [{ date: 'desc' }, { createdAt: 'desc' }] }),
+      // Fallback: leads that were SOLD in this period (covers old Sale records with wrong date)
+      prisma.lead.findMany({ where: { assignedToId: userId, status: 'SOLD', updatedAt: { gte: start, lte: end } }, select: { id: true } }),
     ])
+
+    // Merge Sale records: by date + by lead.updatedAt (deduplicate by sale id)
+    const fallbackLeadIds = soldLeadsInPeriod.map(l => l.id)
+    const salesByUpdatedAt = fallbackLeadIds.length > 0
+      ? await prisma.sale.findMany({ where: { leadId: { in: fallbackLeadIds } }, orderBy: [{ date: 'desc' }, { createdAt: 'desc' }] })
+      : []
+    const saleMap = new Map<string, any>()
+    for (const s of [...salesByDate, ...salesByUpdatedAt]) saleMap.set(s.id, s)
+    const periodSales = Array.from(saleMap.values())
 
     const isCloser = req.user!.managerType === 'CLOSER'
 
@@ -641,9 +652,9 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         prisma.lead.count({ where: { assignedToId: userId, status: 'IN_WORK' } }),
         prisma.leadTask.count({ where: { userId, completed: false } }),
         prisma.lead.count({ where: { assignedToId: userId, status: 'REFUSED', consultationStatus: { not: 'not_happened' }, date: { gte: fromStr, lte: toStr } } }),
-        prisma.lead.count({ where: { assignedToId: userId, status: 'SOLD', isRefund: false, date: { gte: fromStr, lte: toStr } } }),
+        prisma.lead.count({ where: { assignedToId: userId, status: 'SOLD', isRefund: false, updatedAt: { gte: start, lte: end } } }),
         prisma.lead.findMany({
-          where: { assignedToId: userId, status: 'SOLD', isRefund: true, date: { gte: fromStr, lte: toStr } },
+          where: { assignedToId: userId, status: 'SOLD', isRefund: true, updatedAt: { gte: start, lte: end } },
           select: { id: true, netAmount: true, amount: true },
         }),
       ])

@@ -380,19 +380,36 @@ router.get('/refused', authenticate, async (req: AuthRequest, res: Response) => 
 })
 
 // ── GET /api/leads/sold — closer: SOLD leads ─────────────────────────────────
-// Uses Sale.date (actual sale date) so dojim leads (created in prev period but sold now) appear correctly.
+// Uses Sale.date (actual sale date) for new sales; falls back to updatedAt for old Sales
+// that were recorded with lead.date (created before the Sale.date fix).
 router.get('/sold', authenticate, async (req: AuthRequest, res: Response) => {
   const { from, to, period = 'month' } = req.query
   const { fromStr, toStr } = getPeriodStr(period as string, from as string, to as string)
   try {
-    const sales = await prisma.sale.findMany({
+    // Method 1: Sales whose Sale.date is in the period (new, correct)
+    const salesByDate = await prisma.sale.findMany({
       where: { userId: req.user!.id, date: { gte: fromStr, lte: toStr } },
       select: { leadId: true },
     })
-    const leadIds = sales.map(s => s.leadId).filter(Boolean) as string[]
-    if (leadIds.length === 0) return res.json([])
+    const leadIdsByDate = new Set(salesByDate.map(s => s.leadId).filter(Boolean) as string[])
+
+    // Method 2: Leads with status=SOLD whose updatedAt falls in the period (covers old Sales with wrong date)
+    const periodStart = new Date(fromStr + 'T00:00:00+05:00')
+    const periodEnd   = new Date(toStr   + 'T23:59:59+05:00')
+    const soldLeadsByUpdatedAt = await prisma.lead.findMany({
+      where: {
+        assignedToId: req.user!.id,
+        status: 'SOLD',
+        updatedAt: { gte: periodStart, lte: periodEnd },
+        deletedAt: null,
+      },
+      select: { id: true },
+    })
+    const allLeadIds = new Set([...leadIdsByDate, ...soldLeadsByUpdatedAt.map(l => l.id)])
+
+    if (allLeadIds.size === 0) return res.json([])
     const leads = await prisma.lead.findMany({
-      where: { id: { in: leadIds }, deletedAt: null },
+      where: { id: { in: Array.from(allLeadIds) }, deletedAt: null },
       include: INCLUDE_FULL,
       orderBy: { updatedAt: 'desc' },
     })
