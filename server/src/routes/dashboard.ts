@@ -775,9 +775,10 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       // conversion uses factSalesCount — dojim sales don't count as conversions
       const conversion = consultations > 0 ? Math.round((factSalesCount / consultations) * 1000) / 10 : 0
 
-      // Lead-based totals for period stats display
-      const leadTotal = inWorkLeadsCount + leadRefusedCount + leadSoldCount
-      const leadConversion = leadTotal > 0 ? Math.round((leadSoldCount / leadTotal) * 1000) / 10 : 0
+      // Lead-based totals for period stats display — dojim sales excluded from conversion
+      const factLeadSoldCount = factSalesCount  // Sale-model fact count (excludes dojim carryover)
+      const leadTotal = inWorkLeadsCount + leadRefusedCount + factLeadSoldCount
+      const leadConversion = leadTotal > 0 ? Math.round((factLeadSoldCount / leadTotal) * 1000) / 10 : 0
 
       res.json({
         type: 'CLOSER',
@@ -792,7 +793,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           factAvgCheck,
           consultations, refusals, inWork,
           pendingLeadsCount, inWorkLeadsCount, pendingTasksCount,
-          leadRefusedCount, leadSoldCount, leadTotal, leadConversion,
+          leadRefusedCount, leadSoldCount: factLeadSoldCount, leadTotal, leadConversion,
           carryover: { count: dojimNetCount, revenue: dojimNetRevenue, avgCheck: dojimAvgCheck },
         },
         periodSales: periodSales.map(s => ({
