@@ -155,6 +155,15 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         ownerRefundsByUser[l.assignedToId].amount += l.amount ?? l.netAmount ?? 0
       }
     }
+    // Per-manager dojim refund map (to correct per-manager carryover in manager table)
+    const ownerDojimRefundsByUser: Record<string, { count: number; amount: number }> = {}
+    for (const l of ownerDojimRefundLeads) {
+      if (l.assignedToId) {
+        if (!ownerDojimRefundsByUser[l.assignedToId]) ownerDojimRefundsByUser[l.assignedToId] = { count: 0, amount: 0 }
+        ownerDojimRefundsByUser[l.assignedToId].count++
+        ownerDojimRefundsByUser[l.assignedToId].amount += l.amount ?? l.netAmount ?? 0
+      }
+    }
     const totalLiderLeads        = allLiderLeads.length
     const totalQualifiedLeads    = allLiderLeads.filter(l => l.isQualified).length
     const totalMeetingsScheduled = allLiderLeads.filter(l => l.assignedToId != null).length // "Передано клоузеру"
@@ -237,7 +246,11 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
           conversion: consultations > 0 ? Math.round((stats.salesCount / consultations) * 1000) / 10 : 0,
           avgCheck: netSalesCount > 0 ? Math.round(netSalesAmount / netSalesCount) : 0,
           sales: userSales, status,
-          carryover: ownerCarryoverByUser[u.id] || { count: 0, revenue: 0 },
+          carryover: (() => {
+            const base = ownerCarryoverByUser[u.id] || { count: 0, revenue: 0 }
+            const dr = ownerDojimRefundsByUser[u.id] || { count: 0, amount: 0 }
+            return { count: Math.max(0, base.count - dr.count), revenue: Math.max(0, base.revenue - dr.amount) }
+          })(),
         }
       })
       .sort((a, b) => b.completion - a.completion || b.salesAmount - a.salesAmount)
@@ -429,6 +442,16 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const ropFactRefundLeads  = ropRefundedLeads.filter(l => !ropCarryoverLeadSet.has(l.id))
     const ropDojimRefundTotal = ropDojimRefundLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
     const ropFactRefundTotal  = ropFactRefundLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
+    // Per-manager dojim refund map (to correct per-manager carryover count/revenue in manager table)
+    const ropDojimRefundsByUser: Record<string, { count: number; amount: number }> = {}
+    for (const l of ropDojimRefundLeads) {
+      const uid = l.assignedTo?.id
+      if (uid) {
+        if (!ropDojimRefundsByUser[uid]) ropDojimRefundsByUser[uid] = { count: 0, amount: 0 }
+        ropDojimRefundsByUser[uid].count++
+        ropDojimRefundsByUser[uid].amount += l.amount ?? l.netAmount ?? 0
+      }
+    }
 
     // Clients/consultations from closer reports
     const clientsReceived = sumReportField(closerReports, 'clientsReceived')
@@ -518,7 +541,11 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         avgCheck: mgrNetCount > 0 ? Math.round(mgrNetAmount / mgrNetCount) : 0,
         consultations, refusals, inWork,
         status, reportedToday,
-        carryover: ropCarryoverByUser[m.id] || { count: 0, revenue: 0 },
+        carryover: (() => {
+          const base = ropCarryoverByUser[m.id] || { count: 0, revenue: 0 }
+          const dr = ropDojimRefundsByUser[m.id] || { count: 0, amount: 0 }
+          return { count: Math.max(0, base.count - dr.count), revenue: Math.max(0, base.revenue - dr.amount) }
+        })(),
         // Period sales for expanded view (matches selected date range)
         sales: periodSalesByManager[m.id] || [],
         // Today's detail for status tracking
