@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   BarChart2, Users, FileText, Settings, TrendingUp, Target,
-  LogOut, Activity, X, Inbox, CheckSquare, UserPlus, Archive, ClipboardList, Package, CreditCard,
+  LogOut, Activity, X, Inbox, CheckSquare, UserPlus, Archive, ClipboardList, Package, CreditCard, XCircle,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth'
 import { useT } from '../../i18n'
@@ -58,9 +58,10 @@ export default function Sidebar({ onClose }: Props) {
       { to: '/settings',      label: t('nav.settings'),   icon: Settings },
     ],
     MANAGER: isLider ? [
-      { to: '/dashboard/manager', label: t('nav.myOffice'), icon: BarChart2 },
-      { to: '/lider/leads',       label: t('nav.leads'),    icon: UserPlus },
-      { to: '/lider/tasks',       label: t('nav.tasks'),    icon: CheckSquare },
+      { to: '/dashboard/manager',  label: t('nav.myOffice'),    icon: BarChart2 },
+      { to: '/lider/leads',        label: t('nav.leads'),       icon: UserPlus },
+      { to: '/lider/not-happened', label: t('nav.notHappened'), icon: XCircle },
+      { to: '/lider/tasks',        label: t('nav.tasks'),       icon: CheckSquare },
     ] : [
       { to: '/dashboard/manager', label: t('nav.myOffice'),  icon: BarChart2 },
       { to: '/closer/leads',      label: t('nav.meetings'),  icon: Inbox },

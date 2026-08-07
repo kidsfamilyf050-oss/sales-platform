@@ -152,8 +152,8 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const totalMeetingsAttended  = allLiderLeads.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length // "Консультация состоялась"
     // Lead model is source of truth for consultations/refusals/inWork
     const totalConsultations = allLiderLeads.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length
-    const totalRefusals      = allLiderLeads.filter(l => l.status === 'REFUSED').length
-    const totalRefusalsAmount = allLiderLeads.filter(l => l.status === 'REFUSED').reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+    const totalRefusals      = allLiderLeads.filter(l => l.status === 'REFUSED' && l.consultationStatus !== 'not_happened').length
+    const totalRefusalsAmount = allLiderLeads.filter(l => l.status === 'REFUSED' && l.consultationStatus !== 'not_happened').reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
     const totalInWork        = allLiderLeads.filter(l => l.status === 'IN_WORK').length
 
     // ── Plans ─────────────────────────────────────────────────────────────
@@ -200,7 +200,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       if (l.consultationStatus === 'happened' || l.status === 'SOLD') {
         consultationsByUser[uid] = (consultationsByUser[uid] || 0) + 1
       }
-      if (l.status === 'REFUSED') {
+      if (l.status === 'REFUSED' && l.consultationStatus !== 'not_happened') {
         refusalsByUser[uid] = (refusalsByUser[uid] || 0) + 1
       }
     }
@@ -441,7 +441,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       if (!l.assignedToId) continue
       if (l.consultationStatus === 'happened' || l.status === 'SOLD')
         consultationsByManager[l.assignedToId] = (consultationsByManager[l.assignedToId] || 0) + 1
-      if (l.status === 'REFUSED')
+      if (l.status === 'REFUSED' && l.consultationStatus !== 'not_happened')
         refusalsByManager[l.assignedToId] = (refusalsByManager[l.assignedToId] || 0) + 1
       if (l.status === 'IN_WORK')
         inWorkByManager[l.assignedToId] = (inWorkByManager[l.assignedToId] || 0) + 1
@@ -450,8 +450,8 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     // Company-level totals from Lead model
     // totalConsultations uses same source+filter as funnel.meetingsAttended so both cards show identical numbers
     const totalConsultations = meetingsAttended
-    const totalRefusals = allCompanyLeads.filter(l => l.status === 'REFUSED').length
-    const totalRefusalsAmount = allCompanyLeads.filter(l => l.status === 'REFUSED').reduce((s, l) => s + ((l as any).netAmount ?? (l as any).amount ?? 0), 0)
+    const totalRefusals = allCompanyLeads.filter(l => l.status === 'REFUSED' && (l as any).consultationStatus !== 'not_happened').length
+    const totalRefusalsAmount = allCompanyLeads.filter(l => l.status === 'REFUSED' && (l as any).consultationStatus !== 'not_happened').reduce((s, l) => s + ((l as any).netAmount ?? (l as any).amount ?? 0), 0)
     const totalInWork = allCompanyLeads.filter(l => l.status === 'IN_WORK').length
 
     // Per-manager refunds map for ROP (using ropRefundedLeads fetched above)
@@ -640,7 +640,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         prisma.lead.count({ where: { assignedToId: userId, status: 'ASSIGNED' } }),
         prisma.lead.count({ where: { assignedToId: userId, status: 'IN_WORK' } }),
         prisma.leadTask.count({ where: { userId, completed: false } }),
-        prisma.lead.count({ where: { assignedToId: userId, status: 'REFUSED', date: { gte: fromStr, lte: toStr } } }),
+        prisma.lead.count({ where: { assignedToId: userId, status: 'REFUSED', consultationStatus: { not: 'not_happened' }, date: { gte: fromStr, lte: toStr } } }),
         prisma.lead.count({ where: { assignedToId: userId, status: 'SOLD', isRefund: false, date: { gte: fromStr, lte: toStr } } }),
         prisma.lead.findMany({
           where: { assignedToId: userId, status: 'SOLD', isRefund: true, date: { gte: fromStr, lte: toStr } },
@@ -703,6 +703,8 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const newCount = liderLeads.filter(l => l.status === 'NEW').length
       const assignedCount = liderLeads.filter(l => l.status === 'ASSIGNED').length
       const unqualifiedCount = await prisma.lead.count({ where: { createdById: userId, status: 'UNQUALIFIED' } })
+      // Несостоявшиеся = consultations that didn't happen (lider's metric)
+      const notHappened = liderLeads.filter(l => l.consultationStatus === 'not_happened').length
 
       res.json({
         type: 'LIDER',
@@ -715,6 +717,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           schedToAttRate,
           leadsToSchedRate,
           newCount, assignedCount, unqualifiedCount,
+          notHappened,
         },
         todayReport: null,
         recentReports: [],

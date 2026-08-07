@@ -691,6 +691,25 @@ export default function ManagerDashboard() {
             <StatCard label={t('dash.manager.meetingsPlan')} value={summary.meetingsScheduledPlan} sub={summary.planCompletion > 0 ? `${summary.planCompletion}% выполн.` : undefined} />
           </div>
 
+          {/* Несостоявшиеся — lider's own metric */}
+          {(summary.notHappened ?? 0) > 0 && (
+            <div
+              onClick={() => navigate('/lider/not-happened')}
+              className="card cursor-pointer group transition-all hover:shadow-md hover:border-orange-200 hover:bg-orange-50/30 border border-transparent flex items-center justify-between"
+            >
+              <div>
+                <p className="text-xs font-semibold text-gray-400 group-hover:text-orange-600 uppercase tracking-wide mb-1 transition-colors">
+                  {t('dash.lider.notHappened')}
+                </p>
+                <p className="text-2xl font-bold text-orange-500">{summary.notHappened}</p>
+                <p className="text-xs text-gray-300 group-hover:text-orange-400 mt-1 transition-colors">
+                  {t('dash.lider.notHappenedHint')}
+                </p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-orange-400 transition-colors shrink-0" />
+            </div>
+          )}
+
           {/* ── Today's consultations ── */}
           <div className="card">
             <div className="flex items-center justify-between mb-3">

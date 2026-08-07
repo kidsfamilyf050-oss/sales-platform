@@ -16,6 +16,7 @@ const ru = {
   'nav.fillReport': 'Заполнить отчёт',
   'nav.logout': 'Выйти',
   'nav.leads': 'Лиды',
+  'nav.notHappened': 'Несостоявшиеся',
   'nav.tasks': 'Задачи',
   'nav.meetings': 'Встречи',
   'nav.archive': 'Архив',
@@ -584,6 +585,12 @@ const ru = {
   'dash.lider.rankingNote': 'Соревнуйся с коллегами — твоё место в команде',
   'dash.lider.rankMe': '← Ты здесь',
   'dash.lider.pctAttended': '% проведения',
+  'dash.lider.notHappened': 'Несостоявшиеся',
+  'dash.lider.notHappenedHint': 'консультации не состоялись',
+  'dash.lider.notHappenedSubtitle': 'Консультации, которые не состоялись',
+  'dash.lider.notHappenedBadge': 'Не состоялась',
+  'dash.lider.notHappenedEmpty': 'Несостоявшихся консультаций нет',
+  'dash.lider.notHappenedCount': 'записей',
 
   // Marketer Dashboard extra
   'dash.marketer.title': 'Кабинет маркетолога',
@@ -1271,6 +1278,7 @@ const kk: typeof ru = {
   'nav.fillReport': 'Есеп толтыру',
   'nav.logout': 'Шығу',
   'nav.leads': 'Лидтер',
+  'nav.notHappened': 'Болмағандар',
   'nav.tasks': 'Тапсырмалар',
   'nav.meetings': 'Кездесулер',
   'nav.archive': 'Мұрағат',
@@ -1839,6 +1847,12 @@ const kk: typeof ru = {
   'dash.lider.rankingNote': 'Командадағы орныңды біл',
   'dash.lider.rankMe': '← Сен',
   'dash.lider.pctAttended': '% өткізілді',
+  'dash.lider.notHappened': 'Болмағандар',
+  'dash.lider.notHappenedHint': 'кеңесулер болмады',
+  'dash.lider.notHappenedSubtitle': 'Өтпеген кеңесулер',
+  'dash.lider.notHappenedBadge': 'Болмады',
+  'dash.lider.notHappenedEmpty': 'Өтпеген кеңесулер жоқ',
+  'dash.lider.notHappenedCount': 'жазба',
 
   // Marketer Dashboard extra
   'dash.marketer.title': 'Маркетолог кабинеті',
