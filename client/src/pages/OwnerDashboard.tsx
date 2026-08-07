@@ -209,7 +209,7 @@ export default function OwnerDashboard() {
       {/* ── Block 1: Sales KPIs ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
         <StatCard label={t('dash.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
-        <StatCard label={t('dash.salesFact')} value={`₸ ${fmt(summary.totalNetSales ?? summary.totalSalesAmount)}`} color="blue" />
+        <StatCard label={t('dash.salesFact')} value={`₸ ${fmt(summary.factNetSales ?? summary.factSalesAmount ?? summary.totalNetSales ?? summary.totalSalesAmount)}`} color="blue" />
         <StatCard label="Возвраты" value={`${summary.totalRefundCount ?? 0} шт.`}
           color={summary.totalRefundCount > 0 ? 'red' : 'default'}
           sub={summary.totalRefundCount > 0 ? `−₸ ${fmt(summary.totalRefundAmount)}` : undefined} />
@@ -414,13 +414,13 @@ export default function OwnerDashboard() {
                         <td className="py-2.5 text-gray-400 font-medium">{i + 1}</td>
                         <td className="py-2.5 font-medium text-gray-900">{m.name}</td>
                         <td className="py-2.5 text-right text-gray-500">₸ {fmt(m.plan)}</td>
-                        <td className="py-2.5 text-right font-bold text-blue-600">₸ {fmt(m.salesAmount)}</td>
+                        <td className="py-2.5 text-right font-bold text-blue-600">₸ {fmt(Math.max(0, m.salesAmount - (m.carryover?.revenue ?? 0)))}</td>
                         <td className="py-2.5 text-right">
                           <span className={`font-bold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
                             {m.plan > 0 ? `${m.completion}%` : '—'}
                           </span>
                         </td>
-                        <td className="py-2.5 text-right font-medium">{m.salesCount}</td>
+                        <td className="py-2.5 text-right font-medium">{Math.max(0, m.salesCount - (m.carryover?.count ?? 0))}</td>
                         <td className="py-2.5 text-right text-amber-700 font-medium">
                           {m.carryover?.count > 0 ? m.carryover.count : '—'}
                         </td>

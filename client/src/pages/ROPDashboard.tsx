@@ -413,7 +413,7 @@ export default function ROPDashboard() {
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
         <StatCard label={t('dash.rop.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
-        <StatCard label={t('dash.rop.salesFact')} value={`₸ ${fmt(summary.netSalesAmount ?? summary.salesAmount)}`} color="blue" />
+        <StatCard label={t('dash.rop.salesFact')} value={`₸ ${fmt(summary.factNetSales ?? summary.factSalesAmount ?? summary.netSalesAmount ?? summary.salesAmount)}`} color="blue" />
         <div
           onClick={() => navigate('/rop/links?tab=REFUND')}
           className="cursor-pointer group"
@@ -562,13 +562,13 @@ export default function ROPDashboard() {
                           )}
                         </td>
                         <td className="py-2.5 text-center text-gray-500">₸ {fmt(m.plan)}</td>
-                        <td className="py-2.5 text-center font-medium">₸ {fmt(m.salesAmount)}</td>
+                        <td className="py-2.5 text-center font-medium">₸ {fmt(Math.max(0, m.salesAmount - (m.carryover?.revenue ?? 0)))}</td>
                         <td className="py-2.5 text-center">
                           <span className={`font-bold ${m.completion >= 75 ? 'text-green-600' : m.completion >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
                             {m.completion}%
                           </span>
                         </td>
-                        <td className="py-2.5 text-center">{m.salesCount}</td>
+                        <td className="py-2.5 text-center">{Math.max(0, m.salesCount - (m.carryover?.count ?? 0))}</td>
                         <td className="py-2.5 text-center text-amber-700 font-medium">
                           {m.carryover?.count > 0 ? m.carryover.count : '—'}
                         </td>

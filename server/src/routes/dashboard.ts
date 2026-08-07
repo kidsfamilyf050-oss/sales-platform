@@ -290,10 +290,17 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     }
     const productStats = Object.values(productStatsMap).sort((a, b) => b.totalAmount - a.totalAmount)
 
+    // Fact = total sales minus dojim (carryover) — leads created THIS period
+    const factSalesAmount = totalSalesAmount - ownerCarryoverRevenue
+    const factSalesCount  = Math.max(0, totalSalesCount - ownerCarryoverCount)
+    const factNetSales    = factSalesAmount - totalRefundAmount
+
     res.json({
       summary: {
         salesPlan, totalSalesAmount, totalSalesCount: netSalesCountOwner, totalSalesCountGross: totalSalesCount, avgCheck: Math.round(avgCheck),
         totalRefundCount, totalRefundAmount, totalNetSales,
+        // Fact = new-period leads sold this period (excludes dojim carryover)
+        factSalesAmount, factSalesCount, factNetSales,
         conversion,
         conversionLabel,
         planCompletion: salesPlan > 0 ? Math.round((totalNetSales / salesPlan) * 1000) / 10 : 0,
@@ -566,12 +573,19 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     }
     const productStats = Object.values(ropProductStatsMap).sort((a, b) => b.totalAmount - a.totalAmount)
 
+    // Fact = total sales minus dojim (carryover) — leads created THIS period
+    const ropFactSalesAmount = totalSalesAmount - ropCarryoverRevenue
+    const ropFactSalesCount  = Math.max(0, totalSalesCount - ropCarryoverCount - ropRefundCount)
+    const ropFactNetSales    = ropFactSalesAmount - ropRefundTotal
+
     res.json({
       summary: {
         salesPlan, salesAmount: totalSalesAmount,
         salesCount: Math.max(0, totalSalesCount - ropRefundCount),
         salesCountGross: totalSalesCount,
         refundCount: ropRefundCount, refundTotal: ropRefundTotal, netSalesAmount: ropNetSales,
+        // Fact = new-period leads sold this period (excludes dojim carryover)
+        factSalesAmount: ropFactSalesAmount, factSalesCount: ropFactSalesCount, factNetSales: ropFactNetSales,
         // Use net count for conversion (refunded deals shouldn't count as successful conversions)
         conversion: totalConsultations > 0 ? Math.round((Math.max(0, totalSalesCount - ropRefundCount) / totalConsultations) * 100) : 0,
         avgCheck: Math.max(0, totalSalesCount - ropRefundCount) > 0 ? Math.round(ropNetSales / Math.max(0, totalSalesCount - ropRefundCount)) : 0,
@@ -680,6 +694,11 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const netSalesAmount = salesAmount - refundTotal
       const refundedLeadIds = new Set(refundedLeads.map(l => l.id))
 
+      // Fact = new-period leads sold this period (excludes dojim carryover)
+      const factSalesAmount = salesAmount - mgrCarryoverRevenue
+      const factSalesCount  = Math.max(0, salesCount - mgrCarryoverCount)
+      const factNetSales    = factSalesAmount - refundTotal
+
       // Lead-based totals for period stats display
       const leadTotal = inWorkLeadsCount + leadRefusedCount + leadSoldCount
       const leadConversion = leadTotal > 0 ? Math.round((leadSoldCount / leadTotal) * 1000) / 10 : 0
@@ -689,6 +708,8 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         summary: {
           salesPlan, salesAmount, salesCount,
           refundCount, refundTotal, netSalesAmount,
+          // Fact = new-period leads (excludes dojim carryover); used for "Факт продаж" display
+          factSalesAmount, factSalesCount, factNetSales,
           planCompletion: salesPlan > 0 ? Math.round((netSalesAmount / salesPlan) * 1000) / 10 : 0,
           conversion,
           avgCheck: Math.max(0, salesCount - refundCount) > 0 ? Math.round(netSalesAmount / Math.max(0, salesCount - refundCount)) : 0,
