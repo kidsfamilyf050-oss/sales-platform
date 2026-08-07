@@ -515,6 +515,9 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
   const L = getL(lang as string)
   const { start, end } = getPeriodDates(period as string, from as string, to as string)
   const monthKeys = getMonthKeys(start, end)
+  const ytdStart = new Date(start.getFullYear(), 0, 1)
+  const ytdFromStr = dateToStr(ytdStart)
+  const ytdMonthKeys = getMonthKeys(ytdStart, end)
   const userId = req.user!.id
   const fromStr = dateToStr(start)
   const toStr = dateToStr(end)
@@ -524,9 +527,22 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
     const [user, reports, plans, periodSales] = await Promise.all([
       prisma.user.findUnique({ where: { id: userId }, select: { name: true, managerType: true } }),
       prisma.report.findMany({ where: { userId, date: { gte: start, lte: end } }, orderBy: { date: 'asc' } }),
-      prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: { in: monthKeys }, userId } }),
+      prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: { in: ytdMonthKeys }, userId } }),
       prisma.sale.findMany({ where: { userId, date: { gte: fromStr, lte: toStr } }, orderBy: { date: 'asc' } }),
     ])
+    // selectedPlans = only plans for the chosen period (for summary stats)
+    const selectedPlans = plans.filter((p: any) => monthKeys.includes(p.period))
+    // YTD data for the monthly breakdown sheet
+    let ytdSales = periodSales
+    let ytdReports = reports
+    if (ytdStart < start) {
+      const [prevSales, prevReports] = await Promise.all([
+        prisma.sale.findMany({ where: { userId, date: { gte: ytdFromStr, lt: fromStr } }, orderBy: { date: 'asc' } }),
+        prisma.report.findMany({ where: { userId, date: { gte: ytdStart, lt: start } }, orderBy: { date: 'asc' } }),
+      ])
+      ytdSales = [...prevSales, ...periodSales]
+      ytdReports = [...prevReports, ...reports]
+    }
 
     const isCloser = req.user!.managerType === 'CLOSER'
     const wb = new ExcelJS.Workbook()
@@ -555,7 +571,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const clientsReceived = sumField(reports, 'clientsReceived')
       const consultations = sumField(reports, 'consultations')
       const refusals = sumField(reports, 'refusals')
-      const salesPlan = totalPlan(plans, 'SALES_AMOUNT', userId)
+      const salesPlan = totalPlan(selectedPlans, 'SALES_AMOUNT', userId)
       const completion = pctOneDecimal(salesAmount, salesPlan)
       const conversion = pctOneDecimal(salesCount, clientsReceived)
       const avgCheck = salesCount > 0 ? Math.round(salesAmount / salesCount) : 0
@@ -580,8 +596,8 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const qualifiedLeads = sumField(reports, 'qualifiedLeads')
       const meetingsScheduled = sumField(reports, 'meetingsScheduled')
       const meetingsAttended = sumField(reports, 'meetingsAttended')
-      const attendedPlan = totalPlan(plans, 'MEETINGS_ATTENDED', userId)
-      const leadsplan = totalPlan(plans, 'LEADS', userId)
+      const attendedPlan = totalPlan(selectedPlans, 'MEETINGS_ATTENDED', userId)
+      const leadsplan = totalPlan(selectedPlans, 'LEADS', userId)
       const completion = pctOneDecimal(meetingsAttended, attendedPlan)
 
       const subHdr = wsSummary.addRow([L.hdr.liderStats, ''])
@@ -723,9 +739,8 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       })
     }
 
-    // ── Monthly breakdown sheet (multi-month only) ───────────────────────────
-    const isMultiMonth = monthKeys.length > 1
-    if (isMultiMonth && isCloser) {
+    // ── Monthly breakdown sheet (YTD — always shown when >1 month in year) ──
+    if (ytdMonthKeys.length > 1 && isCloser) {
       const wsM = wb.addWorksheet(L.sheet.monthly, { properties: { tabColor: { argb: 'FF0F766E' } } })
       const moCols = [L.col.month, `${L.hdr.salesHdr} (₸)`, L.sum.dealsCount, L.col.plan, L.col.completion, L.col.clients, L.col.consults, L.col.refusals]
       wsM.columns = [
@@ -734,25 +749,25 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         { key: 'con', width: 14 }, { key: 'ref', width: 12 },
       ]
       wsM.mergeCells(`A1:${String.fromCharCode(64 + moCols.length)}1`)
-      wsM.getCell('A1').value = `${L.sheet.monthly} — ${pLabel}`
+      wsM.getCell('A1').value = `${L.sheet.monthly} — ${L.months[0]} ${start.getFullYear()} → ${pLabel}`
       styleTitleRow(wsM, 1, moCols.length)
       wsM.addRow([])
       styleHeaderRow(wsM, wsM.addRow(moCols).number, moCols.length)
 
       const sByMo: Record<string, { amt: number; cnt: number }> = {}
-      for (const s of periodSales) {
+      for (const s of ytdSales) {
         const mk = s.date.substring(0, 7)
         if (!sByMo[mk]) sByMo[mk] = { amt: 0, cnt: 0 }
         sByMo[mk].amt += s.amount; sByMo[mk].cnt++
       }
       const cliByMo: Record<string, number> = {}; const conByMo: Record<string, number> = {}; const refByMo: Record<string, number> = {}
-      for (const r of reports) {
+      for (const r of ytdReports) {
         const mk = dateToStr(r.date).substring(0, 7); const d = r.data as any
         cliByMo[mk] = (cliByMo[mk] || 0) + (Number(d.clientsReceived) || 0)
         conByMo[mk] = (conByMo[mk] || 0) + (Number(d.consultations) || 0)
         refByMo[mk] = (refByMo[mk] || 0) + (Number(d.refusals) || 0)
       }
-      monthKeys.forEach((mk, i) => {
+      ytdMonthKeys.forEach((mk, i) => {
         const [y, mo] = mk.split('-')
         const lbl = `${L.months[parseInt(mo, 10) - 1]} ${y}`
         const sa = sByMo[mk] || { amt: 0, cnt: 0 }
@@ -769,7 +784,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         for (let c = 6; c <= 8; c++) row.getCell(c).alignment = { horizontal: 'center', vertical: 'middle' }
       })
     }
-    if (isMultiMonth && !isCloser) {
+    if (ytdMonthKeys.length > 1 && !isCloser) {
       const wsM = wb.addWorksheet(L.sheet.monthly, { properties: { tabColor: { argb: 'FF0F766E' } } })
       const moCols = [L.col.month, L.col.leads, L.col.qual, L.col.scheduled, L.col.attended, L.col.meetingPlan, L.col.completion]
       wsM.columns = [
@@ -777,13 +792,13 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         { key: 'sched', width: 20 }, { key: 'att', width: 20 }, { key: 'pl', width: 16 }, { key: 'pct', width: 14 },
       ]
       wsM.mergeCells(`A1:${String.fromCharCode(64 + moCols.length)}1`)
-      wsM.getCell('A1').value = `${L.sheet.monthly} — ${pLabel}`
+      wsM.getCell('A1').value = `${L.sheet.monthly} — ${L.months[0]} ${start.getFullYear()} → ${pLabel}`
       styleTitleRow(wsM, 1, moCols.length)
       wsM.addRow([])
       styleHeaderRow(wsM, wsM.addRow(moCols).number, moCols.length)
 
       const rByMo: Record<string, { leads: number; qual: number; sched: number; att: number }> = {}
-      for (const r of reports) {
+      for (const r of ytdReports) {
         const mk = dateToStr(r.date).substring(0, 7); const d = r.data as any
         if (!rByMo[mk]) rByMo[mk] = { leads: 0, qual: 0, sched: 0, att: 0 }
         rByMo[mk].leads += Number(d.leadsReceived) || Number(d.leads) || 0
@@ -791,7 +806,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         rByMo[mk].sched += Number(d.meetingsScheduled) || 0
         rByMo[mk].att += Number(d.meetingsAttended) || 0
       }
-      monthKeys.forEach((mk, i) => {
+      ytdMonthKeys.forEach((mk, i) => {
         const [y, mo] = mk.split('-')
         const lbl = `${L.months[parseInt(mo, 10) - 1]} ${y}`
         const st = rByMo[mk] || { leads: 0, qual: 0, sched: 0, att: 0 }
@@ -827,6 +842,9 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
   const L = getL(lang as string)
   const { start, end } = getPeriodDates(period as string, from as string, to as string)
   const monthKeys = getMonthKeys(start, end)
+  const ytdStart = new Date(start.getFullYear(), 0, 1)
+  const ytdFromStr = dateToStr(ytdStart)
+  const ytdMonthKeys = getMonthKeys(ytdStart, end)
   const deptId = req.user!.departmentId
   const fromStr = dateToStr(start)
   const toStr = dateToStr(end)
@@ -835,11 +853,25 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const [managers, plans, closerReports, liderReports, periodSales] = await Promise.all([
       prisma.user.findMany({ where: { companyId: req.user!.companyId, departmentId: deptId || undefined, status: 'ACTIVE', role: 'MANAGER' } }),
-      prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: { in: monthKeys } } }),
+      prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: { in: ytdMonthKeys } } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, departmentId: deptId || undefined }, type: 'CLOSER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true } } } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, departmentId: deptId || undefined }, type: 'LIDER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true } } } }),
       prisma.sale.findMany({ where: { companyId: req.user!.companyId, date: { gte: fromStr, lte: toStr } }, include: { user: { select: { id: true, name: true, managerType: true } } }, orderBy: { date: 'asc' } }),
     ])
+    const selectedPlans = plans.filter((p: any) => monthKeys.includes(p.period))
+    let ytdSales = periodSales
+    let ytdCloserReports = closerReports
+    let ytdLiderReports = liderReports
+    if (ytdStart < start) {
+      const [prevSales, prevCloser, prevLider] = await Promise.all([
+        prisma.sale.findMany({ where: { companyId: req.user!.companyId, date: { gte: ytdFromStr, lt: fromStr } }, include: { user: { select: { id: true, name: true, managerType: true } } }, orderBy: { date: 'asc' } }),
+        prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, departmentId: deptId || undefined }, type: 'CLOSER', date: { gte: ytdStart, lt: start } }, include: { user: { select: { id: true, name: true } } } }),
+        prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, departmentId: deptId || undefined }, type: 'LIDER', date: { gte: ytdStart, lt: start } }, include: { user: { select: { id: true, name: true } } } }),
+      ])
+      ytdSales = [...prevSales, ...periodSales]
+      ytdCloserReports = [...prevCloser, ...closerReports]
+      ytdLiderReports = [...prevLider, ...liderReports]
+    }
 
     const salesByUser: Record<string, { salesCount: number; salesAmount: number }> = {}
     for (const s of periodSales) {
@@ -871,8 +903,8 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const totalClients = Object.values(clientsByManager).reduce((s, x) => s + x, 0)
     const totalConsultations = sumField(closerReports, 'consultations')
     const totalRefusals = sumField(closerReports, 'refusals')
-    const salesPlan = totalPlan(plans, 'SALES_AMOUNT', null, deptId) ||
-      totalPlan(plans, 'SALES_AMOUNT', null, null)
+    const salesPlan = totalPlan(selectedPlans, 'SALES_AMOUNT', null, deptId) ||
+      totalPlan(selectedPlans, 'SALES_AMOUNT', null, null)
     const planCompletion = pctOneDecimal(totalSalesAmount, salesPlan)
     const conversion = pctOneDecimal(totalSalesCount, totalClients)
     const avgCheck = totalSalesCount > 0 ? Math.round(totalSalesAmount / totalSalesCount) : 0
@@ -978,7 +1010,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         const clients = clientsByManager[m.id] || 0
         const consults = consultByManager[m.id] || 0
         const refusals = refusalsByManager[m.id] || 0
-        const plan = totalPlan(plans, 'SALES_AMOUNT', m.id)
+        const plan = totalPlan(selectedPlans, 'SALES_AMOUNT', m.id)
         const comp = pctOneDecimal(stats.salesAmount, plan)
         return {
           name: m.name, salesAmount: stats.salesAmount, salesCount: stats.salesCount, plan,
@@ -1047,7 +1079,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     managers.filter(m => m.managerType === 'LIDER')
       .map(m => {
         const stats = liderMap[m.id] || { leads: 0, qual: 0, scheduled: 0, attended: 0 }
-        const meetingsPlan = totalPlan(plans, 'MEETINGS_ATTENDED', m.id)
+        const meetingsPlan = totalPlan(selectedPlans, 'MEETINGS_ATTENDED', m.id)
         const comp = pctOneDecimal(stats.attended, meetingsPlan)
         return {
           name: m.name, attended: stats.attended, plan: meetingsPlan,
@@ -1122,9 +1154,8 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     totRowS.getCell(3).numFmt = '#,##0'; totRowS.getCell(3).alignment = { horizontal: 'right', vertical: 'middle' }
     totRowS.height = 24
 
-    // ── Monthly breakdown sheet (ROP, multi-month only) ──────────────────────
-    const isMultiMonthRop = monthKeys.length > 1
-    if (isMultiMonthRop) {
+    // ── Monthly breakdown sheet (ROP, YTD — always shown when >1 month in year) ─
+    if (ytdMonthKeys.length > 1) {
       const wsM = wb.addWorksheet(L.sheet.monthly, { properties: { tabColor: { argb: 'FF0F766E' } } })
       const moCols = [L.col.month, `${L.hdr.salesHdr} (₸)`, L.sum.dealsCount, L.col.plan, L.col.completion, L.col.clients, L.col.consults, L.col.leads, L.col.qual, L.col.scheduled, L.col.attended]
       wsM.columns = [
@@ -1134,25 +1165,25 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         { key: 'sched', width: 18 }, { key: 'att', width: 16 },
       ]
       wsM.mergeCells(`A1:${String.fromCharCode(64 + moCols.length)}1`)
-      wsM.getCell('A1').value = `${L.sheet.monthly} — ${pLabel}`
+      wsM.getCell('A1').value = `${L.sheet.monthly} — ${L.months[0]} ${start.getFullYear()} → ${pLabel}`
       styleTitleRow(wsM, 1, moCols.length)
       wsM.addRow([])
       styleHeaderRow(wsM, wsM.addRow(moCols).number, moCols.length)
 
       const sByMo: Record<string, { amt: number; cnt: number }> = {}
-      for (const s of periodSales) {
+      for (const s of ytdSales) {
         const mk = s.date.substring(0, 7)
         if (!sByMo[mk]) sByMo[mk] = { amt: 0, cnt: 0 }
         sByMo[mk].amt += s.amount; sByMo[mk].cnt++
       }
       const cliByMo: Record<string, number> = {}; const conByMo: Record<string, number> = {}
-      for (const r of closerReports) {
+      for (const r of ytdCloserReports) {
         const mk = dateToStr(r.date).substring(0, 7); const d = r.data as any
         cliByMo[mk] = (cliByMo[mk] || 0) + (Number(d.clientsReceived) || 0)
         conByMo[mk] = (conByMo[mk] || 0) + (Number(d.consultations) || 0)
       }
       const lByMo: Record<string, { leads: number; qual: number; sched: number; att: number }> = {}
-      for (const r of liderReports) {
+      for (const r of ytdLiderReports) {
         const mk = dateToStr(r.date).substring(0, 7); const d = r.data as any
         if (!lByMo[mk]) lByMo[mk] = { leads: 0, qual: 0, sched: 0, att: 0 }
         lByMo[mk].leads += Number(d.leadsReceived) || Number(d.leads) || 0
@@ -1160,7 +1191,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         lByMo[mk].sched += Number(d.meetingsScheduled) || 0
         lByMo[mk].att += Number(d.meetingsAttended) || 0
       }
-      monthKeys.forEach((mk, i) => {
+      ytdMonthKeys.forEach((mk, i) => {
         const [y, mo] = mk.split('-')
         const lbl = `${L.months[parseInt(mo, 10) - 1]} ${y}`
         const sa = sByMo[mk] || { amt: 0, cnt: 0 }
@@ -1197,6 +1228,9 @@ router.get('/marketer', authenticate, async (req: AuthRequest, res: Response) =>
   const L = getL(lang as string)
   const { start, end } = getPeriodDates(period as string, from as string, to as string)
   const monthKeys = getMonthKeys(start, end)
+  const ytdStart = new Date(start.getFullYear(), 0, 1)
+  const ytdFromStr = dateToStr(ytdStart)
+  const ytdMonthKeys = getMonthKeys(ytdStart, end)
   const userId = req.user!.id
   const deptId = req.user!.departmentId
   const pLabel = periodLabel(period as string, L, from as string, to as string)
@@ -1205,13 +1239,19 @@ router.get('/marketer', authenticate, async (req: AuthRequest, res: Response) =>
     const [user, reports, plans] = await Promise.all([
       prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
       prisma.report.findMany({ where: { userId, type: 'MARKETER', date: { gte: start, lte: end } }, orderBy: { date: 'asc' } }),
-      prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: { in: monthKeys } } }),
+      prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: { in: ytdMonthKeys } } }),
     ])
+    const selectedPlans = plans.filter((p: any) => monthKeys.includes(p.period))
+    let ytdReports = reports
+    if (ytdStart < start) {
+      const prevReports = await prisma.report.findMany({ where: { userId, type: 'MARKETER', date: { gte: ytdStart, lt: start } }, orderBy: { date: 'asc' } })
+      ytdReports = [...prevReports, ...reports]
+    }
 
     const findPlan = (type: string): number =>
-      totalPlan(plans, type, userId) ||
-      totalPlan(plans, type, null, deptId) ||
-      totalPlan(plans, type, null, null)
+      totalPlan(selectedPlans, type, userId) ||
+      totalPlan(selectedPlans, type, null, deptId) ||
+      totalPlan(selectedPlans, type, null, null)
 
     const totalLeads = reports.reduce((s, r) => s + (Number((r.data as any).leadsCount) || Number((r.data as any).leads) || 0), 0)
     const totalQualified = reports.reduce((s, r) => s + (Number((r.data as any).qualifiedLeads) || 0), 0)
@@ -1301,8 +1341,8 @@ router.get('/marketer', authenticate, async (req: AuthRequest, res: Response) =>
     totRowD.getCell(4).numFmt = '#,##0'; totRowD.getCell(4).alignment = { horizontal: 'right', vertical: 'middle' }
     totRowD.height = 22
 
-    // ── Monthly breakdown sheet (marketer, multi-month only) ─────────────────
-    if (monthKeys.length > 1) {
+    // ── Monthly breakdown sheet (marketer, YTD — always shown when >1 month) ──
+    if (ytdMonthKeys.length > 1) {
       const wsM = wb.addWorksheet(L.sheet.monthly, { properties: { tabColor: { argb: 'FF0F766E' } } })
       const moCols = [L.col.month, L.col.leads, L.sum.leadsplan, L.col.completion, L.col.qual, L.col.qualPct, L.col.budget, L.col.leadCost]
       wsM.columns = [
@@ -1311,20 +1351,20 @@ router.get('/marketer', authenticate, async (req: AuthRequest, res: Response) =>
         { key: 'bud', width: 18 }, { key: 'lc', width: 16 },
       ]
       wsM.mergeCells(`A1:${String.fromCharCode(64 + moCols.length)}1`)
-      wsM.getCell('A1').value = `${L.sheet.monthly} — ${pLabel}`
+      wsM.getCell('A1').value = `${L.sheet.monthly} — ${L.months[0]} ${start.getFullYear()} → ${pLabel}`
       styleTitleRow(wsM, 1, moCols.length)
       wsM.addRow([])
       styleHeaderRow(wsM, wsM.addRow(moCols).number, moCols.length)
 
       const rByMo: Record<string, { leads: number; qual: number; budget: number }> = {}
-      for (const r of reports) {
+      for (const r of ytdReports) {
         const mk = dateToStr(r.date).substring(0, 7); const d = r.data as any
         if (!rByMo[mk]) rByMo[mk] = { leads: 0, qual: 0, budget: 0 }
         rByMo[mk].leads += Number(d.leadsCount) || Number(d.leads) || 0
         rByMo[mk].qual += Number(d.qualifiedLeads) || 0
         rByMo[mk].budget += Number(d.adBudget) || 0
       }
-      monthKeys.forEach((mk, i) => {
+      ytdMonthKeys.forEach((mk, i) => {
         const [y, mo] = mk.split('-')
         const lbl = `${L.months[parseInt(mo, 10) - 1]} ${y}`
         const st = rByMo[mk] || { leads: 0, qual: 0, budget: 0 }
@@ -1367,6 +1407,9 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
   const userId  = req.user!.id
   const pLabel  = periodLabel(period as string, L, from as string, to as string)
   const monthKeys = getMonthKeys(start, end)
+  const ytdStart = new Date(start.getFullYear(), 0, 1)
+  const ytdFromStr = dateToStr(ytdStart)
+  const ytdMonthKeys = getMonthKeys(ytdStart, end)
 
   try {
     const leadWhere: any = {
@@ -1405,8 +1448,19 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
         orderBy: { createdAt: 'desc' },
       }),
       prisma.report.findMany({ where: { userId, date: { gte: start, lte: end } }, orderBy: { date: 'asc' } }),
-      prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: { in: monthKeys }, userId } }),
+      prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: { in: ytdMonthKeys }, userId } }),
     ])
+    const selectedPlans = plans.filter((p: any) => monthKeys.includes(p.period))
+    // YTD leads (no filters except date/user) for monthly breakdown
+    let ytdLeads = leads
+    if (ytdStart < start) {
+      const prevLeads = await prisma.lead.findMany({
+        where: { createdById: userId, date: { gte: ytdFromStr, lt: fromStr } },
+        include: { salesChannel: { select: { id: true, name: true } }, assignedTo: { select: { name: true } } },
+        orderBy: { createdAt: 'desc' },
+      })
+      ytdLeads = [...prevLeads, ...leads]
+    }
 
     const totalLeads     = leads.length
     const totalQual      = leads.filter(l => l.isQualified).length
@@ -1415,16 +1469,16 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
     ).length
     const totalHappened  = leads.filter(l => l.consultationStatus === 'happened').length
 
-    const meetPlan  = totalPlan(plans, 'MEETINGS_ATTENDED', userId)
-    const leadsPlan = totalPlan(plans, 'LEADS', userId)
+    const meetPlan  = totalPlan(selectedPlans, 'MEETINGS_ATTENDED', userId)
+    const leadsPlan = totalPlan(selectedPlans, 'LEADS', userId)
 
     const pctMeet  = meetPlan  > 0 ? pctOneDecimal(totalHappened, meetPlan)  : 0
     const pctLeads = leadsPlan > 0 ? pctOneDecimal(totalLeads, leadsPlan)    : 0
     const pctQual  = totalLeads > 0 ? pctOneDecimal(totalQual, totalLeads)   : 0
 
-    // Monthly breakdown
+    // Monthly breakdown (YTD — uses ytdLeads which includes all months from Jan 1)
     const monthMap = new Map<string, { label: string; leads: number; qual: number; scheduled: number; happened: number }>()
-    for (const l of leads) {
+    for (const l of ytdLeads) {
       const [y, m] = (l.date as string).split('-')
       const key = `${y}-${m}`
       if (!monthMap.has(key)) {
@@ -1439,10 +1493,17 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
       if (l.consultationStatus && ['planned','happened','not_happened','postponed'].includes(l.consultationStatus)) mo.scheduled++
       if (l.consultationStatus === 'happened') mo.happened++
     }
+    // Also ensure all ytdMonthKeys have a row (even if no leads that month)
+    for (const mk of ytdMonthKeys) {
+      if (!monthMap.has(mk)) {
+        const [y, m] = mk.split('-')
+        monthMap.set(mk, { label: `${L.months[parseInt(m, 10) - 1]} ${y}`, leads: 0, qual: 0, scheduled: 0, happened: 0 })
+      }
+    }
     const monthRows = [...monthMap.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([, v]) => v)
-    const isMultiMonth = monthRows.length > 1
+    const isMultiMonth = ytdMonthKeys.length > 1
 
     // Channel breakdown
     const chanMap = new Map<string, { name: string; leads: number; qual: number; scheduled: number; happened: number }>()
@@ -1547,7 +1608,7 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
       })
     }
 
-    // ── SHEET 2: Monthly (if multi-month) ───────────────────────────────────
+    // ── SHEET 2: Monthly (YTD — always shown when >1 month in year) ─────────
     if (isMultiMonth) {
       const wsMon = wb.addWorksheet(L.sheet.monthly, { properties: { tabColor: { argb: 'FF7C3AED' } } })
       const monCols = [
@@ -1560,7 +1621,7 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
         { key: 'hpct', width: 26 }, { key: 'plan', width: 22 },
       ]
       wsMon.mergeCells(`A1:${String.fromCharCode(64 + monCols.length)}1`)
-      wsMon.getCell('A1').value = `${L.sheet.monthly} — ${pLabel}`
+      wsMon.getCell('A1').value = `${L.sheet.monthly} — ${L.months[0]} ${start.getFullYear()} → ${pLabel}`
       styleTitleRow(wsMon, 1, monCols.length)
       wsMon.addRow([])
       styleHeaderRow(wsMon, wsMon.addRow(monCols).number, monCols.length)
