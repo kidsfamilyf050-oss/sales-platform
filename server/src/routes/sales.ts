@@ -21,9 +21,15 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   const date = req.query.date as string
   if (!date) return res.status(400).json({ error: 'date required' })
   try {
-    // Primary: Sales with matching Sale.date
+    // Primary: Sales with matching Sale.date OR created on this KZ day (covers wrong-date records)
     const salesByDate = await prisma.sale.findMany({
-      where: { userId: req.user!.id, date },
+      where: {
+        userId: req.user!.id,
+        OR: [
+          { date },
+          { createdAt: { gte: new Date(date + 'T00:00:00+05:00'), lte: new Date(date + 'T23:59:59+05:00') } },
+        ],
+      },
       orderBy: { createdAt: 'asc' },
     })
     // Fallback: lead-linked Sales where the lead was SOLD on this date (covers old records with wrong date)

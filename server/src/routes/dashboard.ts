@@ -604,17 +604,25 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
   const fromStr = dateToStr(start)
   const toStr = dateToStr(end)
 
+  // KZ timezone (UTC+5) boundaries for updatedAt/createdAt comparisons
+  const periodStart = new Date(fromStr + 'T00:00:00+05:00')
+  const periodEnd   = new Date(toStr   + 'T23:59:59+05:00')
+
   try {
     const [reports, plans, todayReport, salesByDate, soldLeadsInPeriod] = await Promise.all([
       prisma.report.findMany({ where: { userId, date: { gte: start, lte: end } }, orderBy: { date: 'desc' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey, userId } }),
       prisma.report.findFirst({ where: { userId, date: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } } }),
-      prisma.sale.findMany({ where: { userId, date: { gte: fromStr, lte: toStr } }, orderBy: [{ date: 'desc' }, { createdAt: 'desc' }] }),
-      // Fallback: leads that were SOLD in this period (covers old Sale records with wrong date)
-      prisma.lead.findMany({ where: { assignedToId: userId, status: 'SOLD', updatedAt: { gte: start, lte: end } }, select: { id: true } }),
+      // Primary: Sale.date string match OR Sale.createdAt in KZ period (covers manually-entered and old-date records)
+      prisma.sale.findMany({
+        where: { userId, OR: [{ date: { gte: fromStr, lte: toStr } }, { createdAt: { gte: periodStart, lte: periodEnd } }] },
+        orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+      }),
+      // Fallback: leads that were SOLD (updatedAt) in this KZ period (covers lead-linked Sales with wrong date)
+      prisma.lead.findMany({ where: { assignedToId: userId, status: 'SOLD', updatedAt: { gte: periodStart, lte: periodEnd } }, select: { id: true } }),
     ])
 
-    // Merge Sale records: by date + by lead.updatedAt (deduplicate by sale id)
+    // Merge Sale records: by date/createdAt + by lead.updatedAt (deduplicate by sale id)
     const fallbackLeadIds = soldLeadsInPeriod.map(l => l.id)
     const salesByUpdatedAt = fallbackLeadIds.length > 0
       ? await prisma.sale.findMany({ where: { leadId: { in: fallbackLeadIds } }, orderBy: [{ date: 'desc' }, { createdAt: 'desc' }] })
@@ -652,9 +660,9 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         prisma.lead.count({ where: { assignedToId: userId, status: 'IN_WORK' } }),
         prisma.leadTask.count({ where: { userId, completed: false } }),
         prisma.lead.count({ where: { assignedToId: userId, status: 'REFUSED', consultationStatus: { not: 'not_happened' }, date: { gte: fromStr, lte: toStr } } }),
-        prisma.lead.count({ where: { assignedToId: userId, status: 'SOLD', isRefund: false, updatedAt: { gte: start, lte: end } } }),
+        prisma.lead.count({ where: { assignedToId: userId, status: 'SOLD', isRefund: false, updatedAt: { gte: periodStart, lte: periodEnd } } }),
         prisma.lead.findMany({
-          where: { assignedToId: userId, status: 'SOLD', isRefund: true, updatedAt: { gte: start, lte: end } },
+          where: { assignedToId: userId, status: 'SOLD', isRefund: true, updatedAt: { gte: periodStart, lte: periodEnd } },
           select: { id: true, netAmount: true, amount: true },
         }),
       ])

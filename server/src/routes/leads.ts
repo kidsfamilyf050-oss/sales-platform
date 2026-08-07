@@ -386,16 +386,16 @@ router.get('/sold', authenticate, async (req: AuthRequest, res: Response) => {
   const { from, to, period = 'month' } = req.query
   const { fromStr, toStr } = getPeriodStr(period as string, from as string, to as string)
   try {
-    // Method 1: Sales whose Sale.date is in the period (new, correct)
+    // KZ timezone boundaries for updatedAt/createdAt comparisons
+    const periodStart = new Date(fromStr + 'T00:00:00+05:00')
+    const periodEnd   = new Date(toStr   + 'T23:59:59+05:00')
+
+    // Method 1: Sales whose Sale.date is in the period OR Sale was created in the KZ period (covers old wrong-date records)
     const salesByDate = await prisma.sale.findMany({
-      where: { userId: req.user!.id, date: { gte: fromStr, lte: toStr } },
+      where: { userId: req.user!.id, OR: [{ date: { gte: fromStr, lte: toStr } }, { createdAt: { gte: periodStart, lte: periodEnd } }] },
       select: { leadId: true },
     })
     const leadIdsByDate = new Set(salesByDate.map(s => s.leadId).filter(Boolean) as string[])
-
-    // Method 2: Leads with status=SOLD whose updatedAt falls in the period (covers old Sales with wrong date)
-    const periodStart = new Date(fromStr + 'T00:00:00+05:00')
-    const periodEnd   = new Date(toStr   + 'T23:59:59+05:00')
     const soldLeadsByUpdatedAt = await prisma.lead.findMany({
       where: {
         assignedToId: req.user!.id,
