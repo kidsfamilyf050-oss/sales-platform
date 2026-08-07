@@ -1253,7 +1253,7 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
 
     // ── SHEET 1: Summary ────────────────────────────────────────────────────
     const wsSum = wb.addWorksheet(L.sheet.summary, { properties: { tabColor: { argb: C_BLUE_MID } } })
-    wsSum.columns = [{ key: 'l', width: 34 }, { key: 'v', width: 22 }]
+    wsSum.columns = [{ key: 'l', width: 34 }, { key: 'v', width: 22 }, { key: 'c', width: 36 }]
 
     wsSum.mergeCells('A1:B1')
     wsSum.getCell('A1').value = L.title.lider(user?.name || '')
@@ -1286,7 +1286,6 @@ router.get('/lider-full', authenticate, async (req: AuthRequest, res: Response) 
       wsSum.getCell(`C${row.number}`).alignment = { horizontal: 'left', vertical: 'middle' }
       row.height = 22
     }
-    wsSum.columns[2] = { key: 'c', width: 36 }
 
     wsSum.addRow([])
 
