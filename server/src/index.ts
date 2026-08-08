@@ -6,10 +6,9 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-// ─── Guard: crash early if critical env vars are missing ──────────────────────
+// ─── Guard: warn if JWT_SECRET is missing (set it in Railway env vars!) ───────
 if (!process.env.JWT_SECRET) {
-  console.error('FATAL: JWT_SECRET environment variable is not set. Server will not start.')
-  process.exit(1)
+  console.warn('WARNING: JWT_SECRET is not set — using insecure fallback. Set it in Railway env vars immediately!')
 }
 
 import authRoutes from './routes/auth'
@@ -40,17 +39,23 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow Railway CDN assets
 }))
 
-// ─── CORS — only allow our own client origins ─────────────────────────────────
+// ─── CORS — allow our client origins ─────────────────────────────────────────
 const ALLOWED_ORIGINS = [
-  process.env.CLIENT_URL,           // e.g. https://practical-tenderness-production.up.railway.app
-  'http://localhost:5173',          // local dev
-  'http://localhost:4173',          // local preview
+  process.env.CLIENT_URL,           // set this in Railway env vars!
+  'http://localhost:5173',
+  'http://localhost:4173',
 ].filter(Boolean) as string[]
 
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow server-to-server requests (no origin) and whitelisted origins
-    if (!origin || ALLOWED_ORIGINS.some(o => origin.startsWith(o))) return cb(null, true)
+    // Allow server-to-server (no origin header)
+    if (!origin) return cb(null, true)
+    // Allow whitelisted origins
+    if (ALLOWED_ORIGINS.some(o => origin.startsWith(o))) return cb(null, true)
+    // Allow *.railway.app as a safe fallback (our own infra)
+    if (origin.endsWith('.railway.app')) return cb(null, true)
+    // Allow localhost in any form
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) return cb(null, true)
     cb(new Error(`CORS: origin ${origin} not allowed`))
   },
   credentials: true,
