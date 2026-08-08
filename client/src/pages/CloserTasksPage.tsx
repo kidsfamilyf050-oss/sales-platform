@@ -123,10 +123,14 @@ function TaskExpanded({ task, onClose }: { task: LeadTask; onClose: () => void }
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['closer-tasks'] }); onClose() },
   })
 
+  const hasComment = comment.trim().length > 0
   const saveComment = () => {
     if (comment !== (task.comment || '')) updateMut.mutate({ comment: comment.trim() || null })
   }
-  const markClosed = () => updateMut.mutate({ completed: true, comment: comment.trim() || task.comment || null })
+  const markClosed = () => {
+    if (!hasComment) return
+    updateMut.mutate({ completed: true, comment: comment.trim() })
+  }
   const markPostponed = () => {
     if (!postponeDate) return
     updateMut.mutate({ dueDate: postponeDate, comment: comment.trim() || task.comment || null })
@@ -145,14 +149,15 @@ function TaskExpanded({ task, onClose }: { task: LeadTask; onClose: () => void }
           onChange={e => setComment(e.target.value)}
           onBlur={saveComment}
           placeholder={t('tasks.expanded.commentPlaceholder')}
-          className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none text-gray-700 placeholder-gray-400"
+          className={`w-full text-sm border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 resize-none text-gray-700 placeholder-gray-400 ${!hasComment ? 'border-red-300 focus:ring-red-300' : 'border-gray-200 focus:ring-blue-400'}`}
         />
+        {!hasComment && <p className="text-xs text-red-500 mt-0.5">{t('tasks.commentRequired')}</p>}
       </div>
       <div className="flex flex-wrap gap-2">
         {!task.completed && (
           <>
-            <button onClick={markClosed} disabled={updateMut.isPending}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50">
+            <button onClick={markClosed} disabled={updateMut.isPending || !hasComment}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               <Check className="w-3 h-3" /> {t('tasks.expanded.close')}
             </button>
             <button onClick={() => setShowPostpone(p => !p)}
