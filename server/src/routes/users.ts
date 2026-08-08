@@ -30,10 +30,13 @@ router.get('/', authenticate, requireRole('OWNER', 'ROP'), async (req: AuthReque
     }
     const users = await prisma.user.findMany({
       where,
+      // SECURITY: select inviteToken only to convert it to a boolean — never expose the raw token
       select: { id: true, name: true, email: true, phone: true, role: true, managerType: true, showInPlans: true, canManageGateways: true, status: true, departmentId: true, department: { select: { name: true } }, lastLoginAt: true, createdAt: true, invitedAt: true, inviteToken: true },
       orderBy: { createdAt: 'asc' },
     })
-    res.json(users)
+    // Strip the actual token — return only a boolean so UI can show "invite pending" state
+    const safeUsers = users.map(({ inviteToken, ...u }) => ({ ...u, invitePending: !!inviteToken }))
+    res.json(safeUsers)
   } catch (e) {
     res.status(500).json({ error: 'Server error' })
   }

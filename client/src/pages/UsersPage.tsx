@@ -84,10 +84,10 @@ export default function UsersPage() {
   // Invite status helpers
   const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000
   function isInvitePending(u: any): boolean {
-    return !!u.inviteToken
+    return !!u.invitePending  // server returns boolean, not raw token
   }
   function isInviteExpired(u: any): boolean {
-    if (!u.inviteToken || !u.invitedAt) return false
+    if (!u.invitePending || !u.invitedAt) return false
     return Date.now() - new Date(u.invitedAt).getTime() > THREE_DAYS_MS
   }
   function inviteExpiresIn(u: any): string {

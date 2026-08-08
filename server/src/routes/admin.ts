@@ -5,7 +5,7 @@ import { PrismaClient } from '@prisma/client'
 
 const router = Router()
 const prisma = new PrismaClient()
-const JWT_SECRET = process.env.JWT_SECRET || 'secret'
+const JWT_SECRET = process.env.JWT_SECRET! // required — guarded in index.ts
 
 // ─── Super Admin Auth Middleware ───────────────────────────────────────────────
 interface AdminRequest extends Request {

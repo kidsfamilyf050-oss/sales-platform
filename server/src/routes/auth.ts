@@ -7,7 +7,7 @@ import { authenticate, AuthRequest } from '../middleware/auth'
 const router = Router()
 const prisma = new PrismaClient()
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secret'
+const JWT_SECRET = process.env.JWT_SECRET! // required — server won't start without it (see index.ts guard)
 const JWT_EXPIRES = '30d'
 
 // Register (Owner creates company + account)
@@ -151,12 +151,13 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173'
     const resetUrl = `${clientUrl}/reset-password?token=${resetToken}`
 
-    console.log(`[RESET PASSWORD] ${email} → ${resetUrl}`)
+    // SECURITY: never log the full reset URL — it contains a valid auth token
+    console.log(`[RESET PASSWORD] request for ${email}`)
 
     res.json({
       message: 'Инструкции по сбросу пароля сгенерированы.',
-      // Only expose resetUrl if no email provider configured
-      ...(!process.env.SMTP_HOST && { resetUrl, note: 'Email-провайдер не настроен. Скопируйте ссылку и передайте пользователю.' }),
+      // Only expose resetUrl in response if SMTP is not configured (dev/staging only)
+      ...(process.env.NODE_ENV !== 'production' && !process.env.SMTP_HOST && { resetUrl, note: 'Email-провайдер не настроен. Скопируйте ссылку и передайте пользователю.' }),
     })
   } catch (e) {
     console.error(e)
@@ -168,7 +169,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 router.post('/reset-password', async (req: Request, res: Response) => {
   const { token, password } = req.body
   if (!token || !password) return res.status(400).json({ error: 'Missing fields' })
-  if (password.length < 6) return res.status(400).json({ error: 'Пароль должен быть минимум 6 символов' })
+  if (password.length < 8) return res.status(400).json({ error: 'Пароль должен быть минимум 8 символов' })
   try {
     const payload = jwt.verify(token, JWT_SECRET) as { userId: string; purpose: string }
     if (payload.purpose !== 'reset-password') return res.status(400).json({ error: 'Invalid token' })
