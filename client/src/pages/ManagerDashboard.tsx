@@ -287,8 +287,7 @@ export default function ManagerDashboard() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
             <StatCard label={t('dash.manager.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
             <StatCard label={t('dash.manager.salesPeriod')} value={`₸ ${fmt(summary.netSalesAmount ?? summary.salesAmount)}`} color="blue"
-              sub={`Новые: ₸ ${fmt(summary.factNetSales ?? 0)}`}
-              sub={summary.refundCount > 0 ? `−₸ ${fmt(summary.refundTotal)} ${t('dash.closer.refundsSuffix')}` : undefined} />
+              sub={[`Новые: ₸ ${fmt(summary.factNetSales ?? 0)}`, summary.refundCount > 0 ? `−₸ ${fmt(summary.refundTotal)} ${t('dash.closer.refundsSuffix')}` : ''].filter(Boolean).join(' · ')} />
             <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
             <StatCard label={t('dash.manager.deals')} value={Math.max(0, (summary.salesCount ?? 0) - (summary.refundCount ?? 0))}
               sub={`Новые: ${summary.factSalesCount ?? 0}`} />
