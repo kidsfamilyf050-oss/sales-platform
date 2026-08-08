@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useT } from '../i18n'
-import { CheckSquare, Circle, Plus, X, Check, Users, ChevronDown, ChevronUp, MessageSquare, CalendarClock, Trash2 } from 'lucide-react'
+import { CheckSquare, Circle, Plus, X, Check, Users, MessageSquare, CalendarClock, Trash2, RotateCcw } from 'lucide-react'
 
 type LeadTask = {
   id: string
@@ -112,7 +112,7 @@ function CreateTaskModal({ users, onClose }: { users: any[]; onClose: () => void
   )
 }
 
-function TaskExpanded({ task, onClose }: { task: LeadTask; onClose: () => void }) {
+function TaskModal({ task, onClose }: { task: LeadTask; onClose: () => void }) {
   const qc = useQueryClient()
   const { t } = useT()
   const [comment, setComment] = useState(task.comment || '')
@@ -121,7 +121,7 @@ function TaskExpanded({ task, onClose }: { task: LeadTask; onClose: () => void }
 
   const updateMut = useMutation({
     mutationFn: (data: any) => api.put(`/lead-tasks/${task.id}`, data).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['rop-tasks'] }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rop-tasks'] }); onClose() },
   })
   const deleteMut = useMutation({
     mutationFn: () => api.delete(`/lead-tasks/${task.id}`),
@@ -129,75 +129,95 @@ function TaskExpanded({ task, onClose }: { task: LeadTask; onClose: () => void }
   })
 
   const hasComment = comment.trim().length > 0
-  const saveComment = () => {
-    if (comment !== (task.comment || '')) updateMut.mutate({ comment: comment.trim() || null })
-  }
   const markClosed = () => {
     if (!hasComment) return
     updateMut.mutate({ completed: true, comment: comment.trim() })
   }
+  const markReopened = () => updateMut.mutate({ completed: false })
   const markPostponed = () => {
     if (!postponeDate) return
     updateMut.mutate({ dueDate: postponeDate, comment: comment.trim() || task.comment || null })
-    setShowPostpone(false); onClose()
   }
 
   return (
-    <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
-      <div>
-        <label className="text-xs font-semibold text-gray-500 mb-1 flex items-center gap-1">
-          <MessageSquare className="w-3 h-3" />
-          {task.completed ? t('tasks.reportLabel') : t('tasks.expanded.comment')}
-        </label>
-        <textarea
-          rows={2}
-          value={comment}
-          onChange={e => setComment(e.target.value)}
-          placeholder={task.completed ? t('tasks.reportPlaceholder') : t('tasks.notePlaceholder')}
-          className={`w-full text-sm border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 resize-none text-gray-700 placeholder-gray-400 ${!hasComment && !task.completed ? 'border-red-300 focus:ring-red-300' : 'border-gray-200 focus:ring-blue-400'}`}
-        />
-        {!hasComment && !task.completed && <p className="text-xs text-red-500 mt-0.5">{t('tasks.commentRequired')}</p>}
-        <div className="flex justify-end mt-1">
-          <button
-            onClick={saveComment}
-            disabled={comment === (task.comment || '') || updateMut.isPending}
-            className="text-xs font-semibold px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-40 transition-colors flex items-center gap-1"
-          >
-            <Check className="w-3 h-3" /> {t('common.save')}
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-start justify-between p-5 border-b border-gray-100">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              {task.completed
+                ? <CheckSquare className="w-4 h-4 text-green-500 shrink-0" />
+                : <Circle className="w-4 h-4 text-gray-300 shrink-0" />}
+              <p className={`font-semibold text-sm ${task.completed ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                {task.title}
+              </p>
+            </div>
+            {task.user && (
+              <p className="text-xs text-gray-400 ml-6">{task.user.name}</p>
+            )}
+            {task.lead && (
+              <p className="text-xs text-gray-500 ml-6">{t('tasks.leadLabel')} {task.lead.clientName} {task.lead.phone}</p>
+            )}
+            <p className={`text-xs mt-1 ml-6 font-medium ${!task.completed && isOverdue(task.dueDate) ? 'text-red-500' : 'text-gray-400'}`}>
+              {fmtDate(task.dueDate, t('tasks.fmtToday'), t('tasks.fmtTomorrow'))}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 ml-2 shrink-0">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div>
+            <label className="text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1">
+              <MessageSquare className="w-3 h-3" />
+              {task.completed ? t('tasks.reportLabel') : t('tasks.expanded.comment')}
+            </label>
+            <textarea rows={3} value={comment} onChange={e => setComment(e.target.value)}
+              placeholder={task.completed ? t('tasks.reportPlaceholder') : t('tasks.notePlaceholder')}
+              className={`w-full text-sm border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 resize-none text-gray-700 placeholder-gray-400 ${!hasComment && !task.completed ? 'border-red-300 focus:ring-red-300' : 'border-gray-200 focus:ring-blue-400'}`}
+            />
+            {!hasComment && !task.completed && (
+              <p className="text-xs text-red-500 mt-0.5">{t('tasks.commentRequired')}</p>
+            )}
+          </div>
+          {showPostpone && (
+            <div className="flex items-center gap-2 p-3 bg-orange-50 rounded-xl border border-orange-100">
+              <CalendarClock className="w-4 h-4 text-orange-500 shrink-0" />
+              <input type="date" value={postponeDate} min={localDate()}
+                onChange={e => setPostponeDate(e.target.value)}
+                className="text-sm border border-orange-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white flex-1" />
+              <button onClick={markPostponed} disabled={!postponeDate || updateMut.isPending}
+                className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold rounded-lg disabled:opacity-40 transition-colors">
+                {t('tasks.expanded.postpone')}
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2 px-5 pb-5">
+          {task.completed ? (
+            <button onClick={markReopened} disabled={updateMut.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50">
+              <RotateCcw className="w-3 h-3" /> {t('tasks.expanded.reopen')}
+            </button>
+          ) : (
+            <>
+              <button onClick={markClosed} disabled={updateMut.isPending || !hasComment}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                <Check className="w-3 h-3" /> {t('tasks.expanded.close')}
+              </button>
+              <button onClick={() => setShowPostpone(p => !p)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 border text-xs font-semibold rounded-lg transition-colors ${showPostpone ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-orange-300 text-orange-700 hover:bg-orange-50'}`}>
+                <CalendarClock className="w-3 h-3" /> {t('tasks.expanded.postpone')}
+              </button>
+            </>
+          )}
+          <button onClick={() => { if (confirm(t('tasks.deleteConfirm'))) deleteMut.mutate() }} disabled={deleteMut.isPending}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold rounded-lg transition-colors ml-auto disabled:opacity-50">
+            <Trash2 className="w-3 h-3" /> {t('tasks.expanded.delete')}
           </button>
         </div>
       </div>
-      <div className="flex flex-wrap gap-2">
-        {!task.completed && (
-          <>
-            <button onClick={markClosed} disabled={updateMut.isPending || !hasComment}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-              <Check className="w-3 h-3" /> {t('tasks.expanded.close')}
-            </button>
-            <button onClick={() => setShowPostpone(p => !p)}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-orange-300 text-orange-700 hover:bg-orange-50 text-xs font-semibold rounded-lg transition-colors">
-              <CalendarClock className="w-3 h-3" /> {t('tasks.expanded.postpone')}
-            </button>
-          </>
-        )}
-        <button onClick={() => { if (confirm(t('tasks.deleteConfirm'))) deleteMut.mutate() }} disabled={deleteMut.isPending}
-          className="flex items-center gap-1.5 px-3 py-1.5 border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold rounded-lg transition-colors ml-auto disabled:opacity-50">
-          <Trash2 className="w-3 h-3" /> {t('tasks.expanded.delete')}
-        </button>
-      </div>
-      {showPostpone && (
-        <div className="flex items-center gap-2 p-3 bg-orange-50 rounded-xl border border-orange-100">
-          <CalendarClock className="w-4 h-4 text-orange-500 shrink-0" />
-          <span className="text-xs text-orange-700 font-medium shrink-0">{t('tasks.expanded.newDate')}</span>
-          <input type="date" value={postponeDate} min={localDate()}
-            onChange={e => setPostponeDate(e.target.value)}
-            className="text-sm border border-orange-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white" />
-          <button onClick={markPostponed} disabled={!postponeDate || updateMut.isPending}
-            className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold rounded-lg disabled:opacity-40 transition-colors">
-            {t('tasks.expanded.postpone')}
-          </button>
-        </div>
-      )}
     </div>
   )
 }
@@ -208,7 +228,7 @@ export default function ROPTasksPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [filterUser, setFilterUser] = useState('')
   const [filterCompleted, setFilterCompleted] = useState<'all' | 'active' | 'done'>('all')
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [modalTask, setModalTask] = useState<LeadTask | null>(null)
 
   const tasksQ = useQuery({
     queryKey: ['rop-tasks', filterUser],
@@ -219,12 +239,6 @@ export default function ROPTasksPage() {
   const usersQ = useQuery({
     queryKey: ['team-managers'],
     queryFn: () => api.get('/users').then(r => r.data.filter((u: any) => u.role === 'MANAGER')),
-  })
-
-  const toggleMut = useMutation({
-    mutationFn: ({ id, completed }: { id: string; completed: boolean }) =>
-      api.put(`/lead-tasks/${id}`, { completed }).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['rop-tasks'] }),
   })
 
   const allTasks: LeadTask[] = tasksQ.data || []
@@ -250,6 +264,7 @@ export default function ROPTasksPage() {
   return (
     <div className="space-y-5 px-4 md:px-6 py-2 md:py-4">
       {showCreate && <CreateTaskModal users={users} onClose={() => setShowCreate(false)} />}
+      {modalTask && <TaskModal task={modalTask} onClose={() => setModalTask(null)} />}
 
       <div className="flex items-start justify-between gap-2">
         <div>
@@ -339,22 +354,19 @@ export default function ROPTasksPage() {
             <div className="space-y-2">
               {tasks.map(task => {
                 const overdue = !task.completed && isOverdue(task.dueDate)
-                const isOpen = expandedId === task.id
                 return (
                   <div
                     key={task.id}
-                    className={`rounded-xl border transition-colors ${
-                      task.completed ? 'border-gray-100 bg-gray-50/50 opacity-70' :
-                      overdue ? 'border-red-200 bg-red-50/40' : 'border-gray-100 bg-gray-50/30'
+                    onClick={() => setModalTask(task)}
+                    className={`rounded-xl border transition-colors cursor-pointer ${
+                      task.completed ? 'border-gray-100 bg-gray-50/50 opacity-70 hover:opacity-90' :
+                      overdue ? 'border-red-200 bg-red-50/40 hover:brightness-95' : 'border-gray-100 bg-gray-50/30 hover:bg-gray-50/60'
                     }`}
                   >
                     <div className="flex items-start gap-3 p-3">
-                      <button
-                        onClick={() => toggleMut.mutate({ id: task.id, completed: !task.completed })}
-                        className={`mt-0.5 shrink-0 transition-colors ${task.completed ? 'text-green-500' : overdue ? 'text-red-400 hover:text-red-600' : 'text-gray-300 hover:text-blue-500'}`}
-                      >
+                      <div className={`mt-0.5 shrink-0 ${task.completed ? 'text-green-500' : overdue ? 'text-red-400' : 'text-gray-300'}`}>
                         {task.completed ? <CheckSquare className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
-                      </button>
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-medium ${task.completed ? 'line-through text-gray-400' : overdue ? 'text-red-700' : 'text-gray-800'}`}>
                           {task.title}
@@ -362,36 +374,18 @@ export default function ROPTasksPage() {
                         {task.lead && (
                           <p className="text-xs text-gray-400 mt-0.5">{t('tasks.leadLabel')} {task.lead.clientName} {task.lead.phone}</p>
                         )}
-                        {task.completed && task.comment && !isOpen && (
-                          <p className="text-xs text-green-700 mt-1 italic line-clamp-1 bg-green-50 px-2 py-0.5 rounded-lg">
-                            <MessageSquare className="w-3 h-3 inline mr-1" />{t('tasks.reportPreview')} {task.comment}
-                          </p>
-                        )}
-                        {!task.completed && task.comment && !isOpen && (
-                          <p className="text-xs text-gray-500 mt-1 italic line-clamp-1">
+                        {task.comment && (
+                          <p className={`text-xs mt-1 italic line-clamp-1 ${task.completed ? 'text-green-700 bg-green-50 px-2 py-0.5 rounded-lg' : 'text-gray-500'}`}>
                             <MessageSquare className="w-3 h-3 inline mr-1" />{task.comment}
                           </p>
                         )}
                       </div>
-                      <div className="shrink-0 text-right flex flex-col items-end gap-1.5">
+                      <div className="shrink-0 text-right">
                         <p className={`text-xs font-semibold ${overdue && !task.completed ? 'text-red-500' : 'text-gray-400'}`}>
                           {fmtDate(task.dueDate, t('tasks.fmtToday'), t('tasks.fmtTomorrow'))}
                         </p>
-                        <button
-                          onClick={() => setExpandedId(isOpen ? null : task.id)}
-                          className={`flex items-center gap-1 text-xs font-medium transition-colors px-2 py-0.5 rounded-lg ${isOpen ? 'bg-blue-100 text-blue-700' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}`}
-                        >
-                          {isOpen
-                            ? <><ChevronUp className="w-3.5 h-3.5" /> {t('tasks.expanded.collapse')}</>
-                            : <><ChevronDown className="w-3.5 h-3.5" /> {t('tasks.expanded.edit')}</>}
-                        </button>
                       </div>
                     </div>
-                    {isOpen && (
-                      <div className="px-3 pb-3">
-                        <TaskExpanded task={task} onClose={() => setExpandedId(null)} />
-                      </div>
-                    )}
                   </div>
                 )
               })}
