@@ -2,13 +2,22 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { useT } from '../i18n'
-import { Banknote, Phone, Check, X, CalendarClock, Trash2, RotateCcw, AlertCircle, Clock, Calendar, ChevronRight, MessageSquare } from 'lucide-react'
+import { Banknote, Phone, Check, X, CalendarClock, Trash2, AlertCircle, Clock, Calendar, ChevronRight, MessageSquare } from 'lucide-react'
+
+type GwItem = { value: string; label: string; fee: number }
+
+function calcNet(amount: number, gwValue: string, gws: GwItem[]) {
+  const gw = gws.find(g => g.value === gwValue)
+  if (!gw) return null
+  return { net: Math.round(amount * (1 - gw.fee) * 100) / 100, feeLabel: `${Math.round(gw.fee * 1000) / 10}%`, label: gw.label }
+}
 
 type PaymentTask = {
   id: string
   title: string
   dueDate: string
   paymentAmount: number
+  paymentGateway: string | null
   completed: boolean
   comment: string | null
   lead: { id: string; clientName: string; phone: string } | null
@@ -43,7 +52,7 @@ function sameMonth(dueDate: string, refDate: Date) {
   return d.getMonth() === refDate.getMonth() && d.getFullYear() === refDate.getFullYear()
 }
 
-function TaskModal({ task, onClose }: { task: PaymentTask; onClose: () => void }) {
+function TaskModal({ task, onClose, gateways }: { task: PaymentTask; onClose: () => void; gateways: GwItem[] }) {
   const qc = useQueryClient()
   const { t } = useT()
   const [comment, setComment] = useState(task.comment || '')
@@ -76,11 +85,19 @@ function TaskModal({ task, onClose }: { task: PaymentTask; onClose: () => void }
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
         <div className="flex items-start justify-between p-5 border-b border-gray-100">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <Banknote className="w-4 h-4 text-purple-500 shrink-0" />
               <p className="font-semibold text-sm text-gray-900">
                 ₸ {(task.paymentAmount ?? 0).toLocaleString('ru')}
               </p>
+              {task.paymentGateway && (() => {
+                const info = calcNet(task.paymentAmount, task.paymentGateway, gateways)
+                return info ? (
+                  <span className="text-xs text-gray-400">
+                    → ₸{info.net.toLocaleString('ru')} после {info.feeLabel} ({info.label})
+                  </span>
+                ) : null
+              })()}
             </div>
             {task.lead && (
               <div className="flex items-center gap-2 text-xs text-gray-600 ml-6 flex-wrap">
@@ -154,6 +171,13 @@ export default function PlannedPaymentsPage() {
     refetchInterval: 30000,
   })
 
+  const { data: gwData = [] } = useQuery<any[]>({
+    queryKey: ['payment-gateways'],
+    queryFn: () => api.get('/payment-gateways').then(r => r.data),
+    staleTime: 5 * 60 * 1000,
+  })
+  const gateways: GwItem[] = gwData.map((g: any) => ({ value: g.value, label: g.name, fee: g.feePct }))
+
   const tasks: PaymentTask[] = tasksQ.data || []
 
   const now = new Date()
@@ -178,7 +202,7 @@ export default function PlannedPaymentsPage() {
 
   return (
     <div className="space-y-5 px-4 md:px-6 py-2 md:py-4">
-      {modalTask && <TaskModal task={modalTask} onClose={() => setModalTask(null)} />}
+      {modalTask && <TaskModal task={modalTask} onClose={() => setModalTask(null)} gateways={gateways} />}
 
       {/* Header */}
       <div>
@@ -249,6 +273,14 @@ export default function PlannedPaymentsPage() {
                       {overdueTsk && (
                         <span className="text-[10px] font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Просрочено</span>
                       )}
+                      {task.paymentGateway && (() => {
+                          const info = calcNet(task.paymentAmount, task.paymentGateway, gateways)
+                          return info ? (
+                            <span className="text-[10px] text-gray-400">
+                              →₸{info.net.toLocaleString('ru')} net
+                            </span>
+                          ) : null
+                        })()}
                     </div>
                     {task.lead && (
                       <p className="text-xs text-gray-600 mt-0.5">

@@ -810,6 +810,7 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
             title: `Напоминание об оплате ₸${Number(r.amount).toLocaleString('ru')}`,
             dueDate: r.date,
             paymentAmount: Number(r.amount),
+            paymentGateway: r.gateway || null,
             comment: r.note?.trim() || null,
           })),
         })

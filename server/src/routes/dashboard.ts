@@ -888,7 +888,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
 
       // Planned payment reminders scheduled within this period
       const mgrPlannedPayTasks = await prisma.leadTask.findMany({
-        where: { paymentAmount: { not: null }, completed: false, dueDate: { gte: fromStr, lte: toStr }, lead: { assignedToId: userId } },
+        where: { paymentAmount: { not: null }, completed: false, dueDate: { gte: fromStr, lte: toStr }, userId: userId },
         select: { paymentAmount: true },
       })
       const mgrPlannedPaymentsCount  = mgrPlannedPayTasks.length

@@ -416,11 +416,11 @@ function InWorkSection({ lead }: { lead: Lead }) {
     (lead.paymentPlan as 'full' | 'partial') || 'full'
   )
   const [totalDealAmount, setTotalDealAmount] = useState(lead.totalDealAmount ? String(lead.totalDealAmount) : '')
-  const [paymentReminders, setPaymentReminders] = useState<{ date: string; amount: string; note: string }[]>(() => {
+  const [paymentReminders, setPaymentReminders] = useState<{ date: string; amount: string; note: string; gateway: string }[]>(() => {
     // Pre-populate from existing payment reminder tasks
     const existing = (lead.tasks ?? []).filter(tk => tk.paymentAmount != null && !tk.completed)
     return existing.length > 0
-      ? existing.map(tk => ({ date: tk.dueDate, amount: String(tk.paymentAmount), note: tk.comment ?? '' }))
+      ? existing.map(tk => ({ date: tk.dueDate, amount: String(tk.paymentAmount), note: tk.comment ?? '', gateway: (tk as any).paymentGateway ?? '' }))
       : []
   })
   const [productId, setProductId] = useState<string>('')
@@ -429,7 +429,7 @@ function InWorkSection({ lead }: { lead: Lead }) {
   const [showTaskForm, setShowTaskForm] = useState(false)
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
-  const addReminder = () => setPaymentReminders(r => [...r, { date: todayKz, amount: '', note: '' }])
+  const addReminder = () => setPaymentReminders(r => [...r, { date: todayKz, amount: '', note: '', gateway: activeGateways[0]?.value || '' }])
   const removeReminder = (i: number) => setPaymentReminders(r => r.filter((_, idx) => idx !== i))
   const setReminder = (i: number, k: string, v: string) =>
     setPaymentReminders(r => r.map((item, idx) => idx === i ? { ...item, [k]: v } : item))
@@ -638,34 +638,55 @@ function InWorkSection({ lead }: { lead: Lead }) {
                 <p className="text-xs text-orange-400 italic">Нет напоминаний — нажмите «Добавить»</p>
               )}
               <div className="space-y-2">
-                {paymentReminders.map((r, i) => (
-                  <div key={i} className="flex gap-2 items-start">
-                    <div className="flex-1 grid grid-cols-2 gap-2">
-                      <input
-                        type="date"
-                        className="input text-sm"
-                        value={r.date}
-                        onChange={e => setReminder(i, 'date', e.target.value)}
-                      />
-                      <input
-                        type="number"
-                        className="input text-sm"
-                        placeholder="Сумма ₸"
-                        value={r.amount}
-                        onChange={e => setReminder(i, 'amount', e.target.value)}
-                      />
-                      <input
-                        className="input text-sm col-span-2"
-                        placeholder="Примечание (необязательно)"
-                        value={r.note}
-                        onChange={e => setReminder(i, 'note', e.target.value)}
-                      />
+                {paymentReminders.map((r, i) => {
+                  const rGateway = allGateways.find(g => g.value === r.gateway)
+                  const rNet = rGateway && r.amount && Number(r.amount) > 0
+                    ? calcNetAmount(Number(r.amount), r.gateway, allGateways)
+                    : null
+                  return (
+                    <div key={i} className="flex gap-2 items-start">
+                      <div className="flex-1 grid grid-cols-2 gap-2">
+                        <input
+                          type="date"
+                          className="input text-sm"
+                          value={r.date}
+                          onChange={e => setReminder(i, 'date', e.target.value)}
+                        />
+                        <input
+                          type="number"
+                          className="input text-sm"
+                          placeholder="Сумма ₸"
+                          value={r.amount}
+                          onChange={e => setReminder(i, 'amount', e.target.value)}
+                        />
+                        <select
+                          className="input text-sm col-span-2"
+                          value={r.gateway}
+                          onChange={e => setReminder(i, 'gateway', e.target.value)}
+                        >
+                          <option value="">— Шлюз (необязательно) —</option>
+                          {activeGateways.map(g => (
+                            <option key={g.value} value={g.value}>{g.label} ({Math.round(g.fee * 1000) / 10}%)</option>
+                          ))}
+                        </select>
+                        {rNet !== null && (
+                          <p className="text-xs text-orange-700 font-medium col-span-2">
+                            К получению: ₸{rNet.toLocaleString('ru')} (после комиссии {Math.round((rGateway!.fee) * 1000) / 10}%)
+                          </p>
+                        )}
+                        <input
+                          className="input text-sm col-span-2"
+                          placeholder="Примечание (необязательно)"
+                          value={r.note}
+                          onChange={e => setReminder(i, 'note', e.target.value)}
+                        />
+                      </div>
+                      <button type="button" onClick={() => removeReminder(i)} className="text-red-400 hover:text-red-600 mt-1.5">
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button type="button" onClick={() => removeReminder(i)} className="text-red-400 hover:text-red-600 mt-1.5">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           </div>
