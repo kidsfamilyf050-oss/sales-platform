@@ -422,7 +422,7 @@ export default function ROPDashboard() {
           className="cursor-pointer group"
           title="Открыть список возвратов"
         >
-          <div className="card transition-all duration-150 group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent">
+          <div className="card text-center items-center transition-all duration-150 group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent">
             <p className="text-xs font-medium uppercase tracking-wide mb-1 text-gray-400 group-hover:text-red-500 transition-colors">Возвраты</p>
             <p className={`text-2xl font-bold ${summary.refundCount > 0 ? 'text-red-500' : 'text-gray-900'}`}>
               {summary.refundCount ?? 0} шт.
@@ -446,7 +446,7 @@ export default function ROPDashboard() {
           className="cursor-pointer group"
           title="Открыть CRM-ссылки отказников"
         >
-          <div className="card transition-all duration-150 group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent">
+          <div className="card text-center items-center transition-all duration-150 group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent">
             <p className="text-xs text-gray-400 group-hover:text-red-500 transition-colors font-medium uppercase tracking-wide mb-1">{t('dash.refusals')}</p>
             <p className="text-2xl font-bold text-red-500">{summary.totalRefusals ?? 0}</p>
             {summary.totalRefusalsAmount > 0 && (
@@ -467,18 +467,18 @@ export default function ROPDashboard() {
         </div>
         <div className="ml-auto flex items-center gap-6 shrink-0">
           <div
-            className="text-right cursor-pointer hover:opacity-70 transition-opacity"
+            className="text-center cursor-pointer hover:opacity-70 transition-opacity"
             onClick={() => navigate('/rop/links?tab=IN_WORK')}
             title="Открыть CRM-ссылки сделок в работе"
           >
             <p className="text-2xl font-bold text-amber-800">{summary.totalInWork ?? 0}</p>
             <p className="text-xs text-amber-500">{t('dash.inWork')}</p>
           </div>
-          <div className="text-right">
+          <div className="text-center">
             <p className="text-2xl font-bold text-amber-800">{carryover?.count ?? 0}</p>
             <p className="text-xs text-amber-500">{t('dash.carryover.deals')}</p>
           </div>
-          <div className="text-right">
+          <div className="text-center">
             <p className="text-2xl font-bold text-amber-800">₸ {fmt(carryover?.revenue ?? 0)}</p>
             <p className="text-xs text-amber-500">{t('dash.carryover.revenue')}</p>
           </div>

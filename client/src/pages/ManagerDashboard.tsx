@@ -306,11 +306,11 @@ export default function ManagerDashboard() {
               <p className="text-sm text-amber-600">{t('dash.carryover.subtitle')}</p>
             </div>
             <div className="ml-auto flex items-center gap-6 shrink-0">
-              <div className="text-right">
+              <div className="text-center">
                 <p className="text-2xl font-bold text-amber-800">{summary.carryover?.count ?? 0}</p>
                 <p className="text-xs text-amber-500">{t('dash.carryover.deals')}</p>
               </div>
-              <div className="text-right">
+              <div className="text-center">
                 <p className="text-2xl font-bold text-amber-800">₸ {fmt(summary.carryover?.revenue ?? 0)}</p>
                 <p className="text-xs text-amber-500">{t('dash.carryover.revenue')}</p>
               </div>
