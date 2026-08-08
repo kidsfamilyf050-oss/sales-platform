@@ -25,7 +25,7 @@ type Lead = {
   salesChannel: { id: string; name: string } | null
   createdBy: { id: string; name: string }
   assignedTo: { id: string; name: string } | null
-  tasks: { id: string; title: string; dueDate: string; completed: boolean; paymentAmount: number | null }[]
+  tasks: { id: string; title: string; dueDate: string; completed: boolean; paymentAmount: number | null; comment: string | null }[]
   amount: number | null
   netAmount: number | null
   paymentType: string | null
