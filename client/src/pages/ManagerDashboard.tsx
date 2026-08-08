@@ -331,6 +331,26 @@ export default function ManagerDashboard() {
             </div>
           </div>
 
+          {/* Installments (Доплаты) block */}
+          {(summary.installmentCount ?? 0) > 0 && (
+            <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex items-center gap-4">
+              <div>
+                <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-0.5">Доплаты</p>
+                <p className="text-sm text-purple-600">Дополнительные платежи по закрытым сделкам</p>
+              </div>
+              <div className="ml-auto flex items-center gap-6 shrink-0">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-purple-800">{summary.installmentCount}</p>
+                  <p className="text-xs text-purple-500">платежей</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-purple-800">₸ {fmt(summary.installmentRevenue ?? 0)}</p>
+                  <p className="text-xs text-purple-500">бюджет (нетто)</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Lead-based stats for closer */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div onClick={() => navigate('/closer/leads')} className="card cursor-pointer group transition-all hover:shadow-md hover:border-blue-200 hover:bg-blue-50/40 border border-transparent">
@@ -870,26 +890,6 @@ export default function ManagerDashboard() {
       )}
 
       {/* ── GATEWAY ANALYTICS (for closer) ── */}
-      {/* ── Доплаты summary block ── */}
-      {isCloser && (summary.installmentCount ?? 0) > 0 && (
-        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex items-center gap-4">
-          <div>
-            <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-0.5">Доплаты</p>
-            <p className="text-sm text-purple-600">Дополнительные платежи по закрытым сделкам</p>
-          </div>
-          <div className="ml-auto flex items-center gap-6 shrink-0">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-800">{summary.installmentCount}</p>
-              <p className="text-xs text-purple-500">платежей</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-800">₸ {fmt(summary.installmentRevenue ?? 0)}</p>
-              <p className="text-xs text-purple-500">выручка</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {isCloser && gatewayAnalytics.length > 0 && (
         <div className="card">
           <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
