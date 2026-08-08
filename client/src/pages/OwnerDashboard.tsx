@@ -6,7 +6,7 @@ import StatCard from '../components/ui/StatCard'
 import ProgressBar from '../components/ui/ProgressBar'
 import AIInsights from '../components/ui/AIInsights'
 import GatewayAnalytics from '../components/ui/GatewayAnalytics'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { ChevronDown, ArrowRight, TrendingUp, Users, ExternalLink } from 'lucide-react'
 import { useT } from '../i18n'
 
@@ -62,12 +62,34 @@ function ChartTooltip({ active, payload, label }: any) {
   const { t } = useT()
   if (!active || !payload?.length) return null
   const entry = payload[0]?.payload
+  const newAmt = entry?.newAmount || 0
+  const dojimAmt = entry?.dojimAmount || 0
+  const total = newAmt + dojimAmt
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-md p-3 text-sm">
-      <p className="font-semibold text-gray-700 mb-1">{label}</p>
-      <p className="text-blue-600 font-bold">₸ {fmt(payload[0]?.value || 0)}</p>
+    <div className="bg-white border border-gray-200 rounded-lg shadow-md p-3 text-sm min-w-[160px]">
+      <p className="font-semibold text-gray-700 mb-2">{label}</p>
+      {newAmt > 0 && (
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-2.5 h-2.5 rounded-sm bg-blue-500 shrink-0" />
+          <span className="text-gray-500 text-xs">Новые:</span>
+          <span className="text-blue-600 font-bold text-xs ml-auto">₸ {fmt(newAmt)}</span>
+        </div>
+      )}
+      {dojimAmt > 0 && (
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-2.5 h-2.5 rounded-sm bg-amber-400 shrink-0" />
+          <span className="text-gray-500 text-xs">Дожим:</span>
+          <span className="text-amber-600 font-bold text-xs ml-auto">₸ {fmt(dojimAmt)}</span>
+        </div>
+      )}
+      {total > 0 && (newAmt > 0 && dojimAmt > 0) && (
+        <div className="border-t border-gray-100 mt-1 pt-1 flex items-center gap-2">
+          <span className="text-gray-500 text-xs">Итого:</span>
+          <span className="text-gray-800 font-bold text-xs ml-auto">₸ {fmt(total)}</span>
+        </div>
+      )}
       {entry?.sales > 0 && (
-        <p className="text-gray-500 text-xs mt-0.5">{entry.sales} {t('dash.sale.dealsShort')}</p>
+        <p className="text-gray-400 text-xs mt-1">{entry.sales} {t('dash.sale.dealsShort')}</p>
       )}
     </div>
   )
@@ -105,13 +127,14 @@ function ManagerSalesDetail({ m }: { m: any }) {
                 const hasDiscount = s.netAmount && s.netAmount !== s.amount
                 const isOpen = expandedSales.has(s.id)
                 return (
-                  <div key={s.id} className="bg-white rounded-lg border border-gray-100 overflow-hidden">
+                  <div key={s.id} className={`rounded-lg border overflow-hidden ${s.isDojim ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100'}`}>
                     <div
                       className="flex items-center gap-3 text-xs px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors"
                       onClick={() => toggleSale(s.id)}
                     >
                       <ChevronDown className={`w-3 h-3 text-gray-400 shrink-0 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
                       <span className="font-bold text-gray-900 whitespace-nowrap min-w-[80px]">₸ {fmt(netAmt)}</span>
+                      {s.isDojim && <span className="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-200 text-amber-700 shrink-0">ДОЖИМ</span>}
                       {hasDiscount && <span className="text-gray-400 line-through text-[11px]">₸ {fmt(grossAmt)}</span>}
                       <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                         {PAYMENT_TYPE_LABEL[s.paymentType] || s.paymentType}
@@ -183,13 +206,11 @@ export default function OwnerDashboard() {
   const leadsToQual     = pct(summary.totalQualifiedLeads, summary.totalLiderLeads)
   const qualToScheduled = pct(summary.totalMeetingsScheduled, summary.totalQualifiedLeads)
   const scheduledToAtt  = pct(summary.totalMeetingsAttended, summary.totalMeetingsScheduled)
-  const attToSale       = pct(summary.totalSalesCount, summary.totalMeetingsAttended)
-  const leadsToSale     = pct(summary.totalSalesCount, summary.totalLiderLeads)
+  const factSalesCount  = summary.factSalesCount ?? summary.totalSalesCount
+  const attToSale       = pct(factSalesCount, summary.totalMeetingsAttended)
+  const leadsToSale     = pct(factSalesCount, summary.totalLiderLeads)
   const hasFunnel       = summary.totalLiderLeads > 0 || summary.totalQualifiedLeads > 0
   const leadDeficit     = summary.leadsplan > 0 ? summary.leadsplan - summary.marketingLeads : 0
-
-  // Chart: pick best color per bar based on relative amount
-  const maxAmount = Math.max(...(dailyChart || []).map((d: any) => d.amount), 1)
 
   return (
     <div className="space-y-6 px-4 md:px-6 py-2 md:py-4">
@@ -274,8 +295,8 @@ export default function OwnerDashboard() {
                   </>
                 )}
                 <FunnelArrow pctVal={summary.totalMeetingsAttended > 0 ? attToSale : leadsToSale} />
-                <FunnelStep label={t('dash.funnel.sales')} value={summary.totalSalesCount}
-                  sub={`₸ ${fmt(summary.totalSalesAmount)}`} color="text-green-600" />
+                <FunnelStep label={t('dash.funnel.sales')} value={factSalesCount}
+                  sub={`₸ ${fmt(summary.factNetSales ?? summary.factSalesAmount ?? summary.totalSalesAmount)}`} color="text-green-600" />
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                 {[
@@ -335,31 +356,36 @@ export default function OwnerDashboard() {
         </div>
       </div>
 
-      {/* ── Block 3: Daily sales chart (clean single-axis) ── */}
+      {/* ── Block 3: Daily sales chart — new (blue) vs дожим (yellow) ── */}
       {dailyChart?.length > 0 && (
         <div className="card">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-gray-900">{t('dash.chart.title')}</h3>
             <div className="flex items-center gap-4 text-xs text-gray-500">
-              <span>Всего: <span className="font-bold text-gray-800">₸ {fmt(summary.totalSalesAmount)}</span></span>
-              <span>{summary.totalSalesCount} сделок</span>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-blue-500" />
+                <span>Новые: <span className="font-bold text-gray-800">₸ {fmt(summary.factNetSales ?? summary.factSalesAmount ?? 0)}</span></span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
+                <span>Дожим: <span className="font-bold text-gray-800">₸ {fmt((summary.totalSalesAmount ?? 0) - (summary.factSalesAmount ?? summary.totalSalesAmount ?? 0))}</span></span>
+              </div>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={dailyChart} margin={{ top: 4, right: 4, bottom: 0, left: 0 }} barSize={28}>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={dailyChart} margin={{ top: 4, right: 4, bottom: 0, left: 0 }} barSize={28} barCategoryGap="30%">
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-              <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+              <XAxis
+                dataKey="date"
+                tickFormatter={(v: string) => v ? `${v.split('-')[2]}.${v.split('-')[1]}` : ''}
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                axisLine={false} tickLine={false}
+              />
               <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false}
                 tickFormatter={v => v >= 1000000 ? `${Math.round(v / 1000000)}M` : v >= 1000 ? `${Math.round(v / 1000)}k` : String(v)} />
               <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f3f4f6' }} />
-              <Bar dataKey="amount" name="amount" radius={[4, 4, 0, 0]}>
-                {dailyChart.map((entry: any, idx: number) => (
-                  <Cell
-                    key={`cell-${idx}`}
-                    fill={entry.amount >= maxAmount * 0.8 ? '#3b82f6' : entry.amount >= maxAmount * 0.4 ? '#60a5fa' : '#bfdbfe'}
-                  />
-                ))}
-              </Bar>
+              <Bar dataKey="newAmount" name="Новые" stackId="a" fill="#3b82f6" />
+              <Bar dataKey="dojimAmount" name="Дожим" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

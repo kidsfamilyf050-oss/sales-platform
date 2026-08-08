@@ -190,12 +190,16 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const effectiveBudget = totalBudget > 0 ? totalBudget : budgetPlan
     const leadCost = totalLiderLeads > 0 ? effectiveBudget / totalLiderLeads : 0
 
-    // ── Daily chart from Sale model ────────────────────────────────────────
-    const dailySalesMap: Record<string, { sales: number; amount: number }> = {}
+    // ── Daily chart from Sale model — split new vs дожим ─────────────────
+    const dailySalesMap: Record<string, { sales: number; amount: number; newAmount: number; dojimAmount: number; newSales: number; dojimSales: number }> = {}
     for (const s of periodSales) {
-      if (!dailySalesMap[s.date]) dailySalesMap[s.date] = { sales: 0, amount: 0 }
+      if (!dailySalesMap[s.date]) dailySalesMap[s.date] = { sales: 0, amount: 0, newAmount: 0, dojimAmount: 0, newSales: 0, dojimSales: 0 }
+      const isDojimSale = !!(s.leadId && ownerCarryoverLeadSet.has(s.leadId as string))
+      const amt = s.netAmount ?? s.amount
       dailySalesMap[s.date].sales++
-      dailySalesMap[s.date].amount += s.netAmount ?? s.amount
+      dailySalesMap[s.date].amount += amt
+      if (isDojimSale) { dailySalesMap[s.date].dojimAmount += amt; dailySalesMap[s.date].dojimSales++ }
+      else             { dailySalesMap[s.date].newAmount += amt;  dailySalesMap[s.date].newSales++ }
     }
 
     // ── Sales per user (Sale model) — use netAmount where available ─────────
@@ -249,7 +253,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         if (completion === 0) status = 'red'
         else if (completion < 75) status = 'yellow'
         const userSales = periodSales.filter(s => s.userId === u.id)
-          .map(s => ({ id: s.id, amount: s.amount, netAmount: s.netAmount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date, productName: s.product?.name || null }))
+          .map(s => ({ id: s.id, amount: s.amount, netAmount: s.netAmount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date, productName: s.product?.name || null, isDojim: !!(s.leadId && ownerCarryoverLeadSet.has(s.leadId as string)) }))
         return {
           id: u.id, name: u.name, type: 'CLOSER', plan,
           salesCount: netSalesCount, salesAmount: netSalesAmount, completion,
