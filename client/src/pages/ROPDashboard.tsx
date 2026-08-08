@@ -415,15 +415,15 @@ export default function ROPDashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-5">
         <StatCard label={t('dash.rop.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
         <StatCard label={t('dash.rop.salesFact')} value={`₸ ${fmt(summary.netSalesAmount ?? summary.salesAmount)}`} color="blue" />
-        <StatCard label="Новые продажи" value={`₸ ${fmt(summary.factNetSales ?? 0)}`} color="blue"
-          sub={`${summary.factSalesCount ?? 0} сделок`} />
+        <StatCard label={t('dash.owner.newSales')} value={`₸ ${fmt(summary.factNetSales ?? 0)}`} color="blue"
+          sub={`${summary.factSalesCount ?? 0} ${t('dash.sale.dealsShort')}`} />
         <div
           onClick={() => navigate('/rop/links?tab=REFUND')}
           className="cursor-pointer group"
           title="Открыть список возвратов"
         >
           <div className="card text-center items-center transition-all duration-150 group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent">
-            <p className="text-xs font-medium uppercase tracking-wide mb-1 text-gray-400 group-hover:text-red-500 transition-colors">Возвраты</p>
+            <p className="text-xs font-medium uppercase tracking-wide mb-1 text-gray-400 group-hover:text-red-500 transition-colors">{t('dash.owner.refunds')}</p>
             <p className={`text-2xl font-bold ${summary.refundCount > 0 ? 'text-red-500' : 'text-gray-900'}`}>
               {summary.refundCount ?? 0} шт.
             </p>
@@ -435,11 +435,11 @@ export default function ROPDashboard() {
         </div>
         <StatCard label={t('dash.completion')} value={summary.planCompletion != null ? `${summary.planCompletion}%` : '—'} color={summary.planCompletion == null ? 'default' : summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
         <StatCard label={t('dash.rop.deals')} value={summary.salesCount ?? 0}
-          sub={`Новые: ${summary.factSalesCount ?? 0}`} />
+          sub={`${t('dash.chart.newLabel')}: ${summary.factSalesCount ?? 0}`} />
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} sub={t('dash.rop.conversionSub')} />
-        <StatCard label="Ср. чек (факт)" value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
-        <StatCard label="Ср. чек (новые)" value={`₸ ${fmt(summary.factAvgCheck ?? 0)}`} />
-        <StatCard label="Ср. чек (дожим)" value={`₸ ${fmt(carryover?.avgCheck ?? 0)}`} />
+        <StatCard label={t('dash.owner.avgCheckFact')} value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
+        <StatCard label={t('dash.owner.avgCheckNew')} value={`₸ ${fmt(summary.factAvgCheck ?? 0)}`} />
+        <StatCard label={t('dash.owner.avgCheckDojim')} value={`₸ ${fmt(carryover?.avgCheck ?? 0)}`} />
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         <div
           onClick={() => navigate('/rop/links?tab=REFUSAL')}
@@ -489,17 +489,17 @@ export default function ROPDashboard() {
       {(summary.installmentCount ?? 0) > 0 && (
         <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex items-center gap-4">
           <div>
-            <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-0.5">Доплаты</p>
-            <p className="text-sm text-purple-500">Частичные оплаты по ранее оформленным сделкам</p>
+            <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-0.5">{t('dash.installments.title')}</p>
+            <p className="text-sm text-purple-500">{t('dash.installments.subtitle')}</p>
           </div>
           <div className="ml-auto flex items-center gap-6 shrink-0">
             <div className="text-center">
               <p className="text-2xl font-bold text-purple-800">{summary.installmentCount}</p>
-              <p className="text-xs text-purple-400">платежей</p>
+              <p className="text-xs text-purple-400">{t('dash.installments.payments')}</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-purple-800">₸ {fmt(summary.installmentRevenue ?? 0)}</p>
-              <p className="text-xs text-purple-400">бюджет (нетто)</p>
+              <p className="text-xs text-purple-400">{t('dash.installments.budget')}</p>
             </div>
           </div>
         </div>

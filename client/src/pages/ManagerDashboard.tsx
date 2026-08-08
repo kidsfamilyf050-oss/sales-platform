@@ -302,15 +302,15 @@ export default function ManagerDashboard() {
             <StatCard label={t('dash.manager.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
             <StatCard label={t('dash.manager.salesPeriod')} value={`₸ ${fmt(summary.totalNetSales ?? summary.netSalesAmount ?? summary.salesAmount)}`} color="blue"
               sub={summary.refundCount > 0 ? `−₸ ${fmt(summary.refundTotal)} ${t('dash.closer.refundsSuffix')}` : undefined} />
-            <StatCard label="Новые продажи" value={`₸ ${fmt(summary.factNetSales ?? 0)}`} color="blue"
-              sub={`${summary.factSalesCount ?? 0} сделок`} />
+            <StatCard label={t('dash.owner.newSales')} value={`₸ ${fmt(summary.factNetSales ?? 0)}`} color="blue"
+              sub={`${summary.factSalesCount ?? 0} ${t('dash.sale.dealsShort')}`} />
             <StatCard label={t('dash.completion')} value={summary.planCompletion != null ? `${summary.planCompletion}%` : '—'} color={summary.planCompletion == null ? 'default' : summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
             <StatCard label={t('dash.manager.deals')} value={Math.max(0, (summary.salesCount ?? 0) - (summary.refundCount ?? 0))}
-              sub={`Новые: ${summary.factSalesCount ?? 0}`} />
+              sub={`${t('dash.chart.newLabel')}: ${summary.factSalesCount ?? 0}`} />
             <StatCard label={t('dash.conversion')} value={`${summary.leadConversion ?? summary.conversion}%`} />
-            <StatCard label="Ср. чек (факт)" value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
-            <StatCard label="Ср. чек (новые)" value={`₸ ${fmt(summary.factAvgCheck ?? 0)}`} />
-            <StatCard label="Ср. чек (дожим)" value={`₸ ${fmt(summary.carryover?.avgCheck ?? 0)}`} />
+            <StatCard label={t('dash.owner.avgCheckFact')} value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
+            <StatCard label={t('dash.owner.avgCheckNew')} value={`₸ ${fmt(summary.factAvgCheck ?? 0)}`} />
+            <StatCard label={t('dash.owner.avgCheckDojim')} value={`₸ ${fmt(summary.carryover?.avgCheck ?? 0)}`} />
           </div>
 
           {/* Carryover sales (дожим) */}
@@ -335,17 +335,17 @@ export default function ManagerDashboard() {
           {(summary.installmentCount ?? 0) > 0 && (
             <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex items-center gap-4">
               <div>
-                <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-0.5">Доплаты</p>
-                <p className="text-sm text-purple-600">Дополнительные платежи по закрытым сделкам</p>
+                <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-0.5">{t('dash.installments.title')}</p>
+                <p className="text-sm text-purple-600">{t('dash.installments.subtitleMgr')}</p>
               </div>
               <div className="ml-auto flex items-center gap-6 shrink-0">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-purple-800">{summary.installmentCount}</p>
-                  <p className="text-xs text-purple-500">платежей</p>
+                  <p className="text-xs text-purple-500">{t('dash.installments.payments')}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-purple-800">₸ {fmt(summary.installmentRevenue ?? 0)}</p>
-                  <p className="text-xs text-purple-500">бюджет (нетто)</p>
+                  <p className="text-xs text-purple-500">{t('dash.installments.budget')}</p>
                 </div>
               </div>
             </div>
@@ -505,7 +505,7 @@ export default function ManagerDashboard() {
                     {/* Installments (доплаты) under this sale */}
                     {s.installments?.length > 0 && (
                       <div className="border-t border-purple-100 bg-purple-50/60 rounded-b-xl px-3 pb-2 pt-1.5 space-y-1">
-                        <p className="text-[10px] font-semibold text-purple-500 uppercase tracking-wide mb-1">Доплаты</p>
+                        <p className="text-[10px] font-semibold text-purple-500 uppercase tracking-wide mb-1">{t('dash.installments.title')}</p>
                         {s.installments.map((inst: any) => (
                           <div key={inst.id} className="flex items-center gap-2 text-xs">
                             <span className="w-2 h-2 rounded-full bg-purple-400 shrink-0" />

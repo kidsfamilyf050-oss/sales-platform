@@ -1214,7 +1214,7 @@ function LeadCard({ lead, showAccept = false, showConsult = false, showWork = fa
           {/* Installments display for SOLD leads */}
           {readonly && lead.status === 'SOLD' && (lead.installments?.length ?? 0) > 0 && (
             <div className="border border-purple-100 bg-purple-50/60 rounded-xl px-3 pb-2 pt-2 space-y-1">
-              <p className="text-[10px] font-semibold text-purple-500 uppercase tracking-wide mb-1">Доплаты</p>
+              <p className="text-[10px] font-semibold text-purple-500 uppercase tracking-wide mb-1">{t('dash.installments.title')}</p>
               {(lead.installments ?? []).map(inst => {
                 const net = inst.netAmount ?? inst.amount
                 const gwLabel = allGateways.find(g => g.value === inst.paymentMethod)?.label ?? inst.paymentMethod

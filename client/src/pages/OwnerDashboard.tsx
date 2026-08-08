@@ -71,20 +71,20 @@ function ChartTooltip({ active, payload, label }: any) {
       {newAmt > 0 && (
         <div className="flex items-center gap-2 mb-1">
           <span className="w-2.5 h-2.5 rounded-sm bg-blue-500 shrink-0" />
-          <span className="text-gray-500 text-xs">Новые:</span>
+          <span className="text-gray-500 text-xs">{t('dash.chart.newLabel')}:</span>
           <span className="text-blue-600 font-bold text-xs ml-auto">₸ {fmt(newAmt)}</span>
         </div>
       )}
       {dojimAmt > 0 && (
         <div className="flex items-center gap-2 mb-1">
           <span className="w-2.5 h-2.5 rounded-sm bg-amber-400 shrink-0" />
-          <span className="text-gray-500 text-xs">Дожим:</span>
+          <span className="text-gray-500 text-xs">{t('dash.chart.dojimLabel')}:</span>
           <span className="text-amber-600 font-bold text-xs ml-auto">₸ {fmt(dojimAmt)}</span>
         </div>
       )}
       {total > 0 && (newAmt > 0 && dojimAmt > 0) && (
         <div className="border-t border-gray-100 mt-1 pt-1 flex items-center gap-2">
-          <span className="text-gray-500 text-xs">Итого:</span>
+          <span className="text-gray-500 text-xs">{t('dash.chart.totalLabel')}:</span>
           <span className="text-gray-800 font-bold text-xs ml-auto">₸ {fmt(total)}</span>
         </div>
       )}
@@ -231,9 +231,9 @@ export default function OwnerDashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-5">
         <StatCard label={t('dash.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
         <StatCard label={t('dash.salesFact')} value={`₸ ${fmt(summary.totalNetSales ?? summary.totalSalesAmount)}`} color="blue" />
-        <StatCard label="Новые продажи" value={`₸ ${fmt(summary.factNetSales ?? 0)}`} color="blue"
-          sub={`${summary.factSalesCount ?? 0} сделок`} />
-        <StatCard label="Возвраты" value={`${summary.totalRefundCount ?? 0} шт.`}
+        <StatCard label={t('dash.owner.newSales')} value={`₸ ${fmt(summary.factNetSales ?? 0)}`} color="blue"
+          sub={`${summary.factSalesCount ?? 0} ${t('dash.sale.dealsShort')}`} />
+        <StatCard label={t('dash.owner.refunds')} value={`${summary.totalRefundCount ?? 0} шт.`}
           color={summary.totalRefundCount > 0 ? 'red' : 'default'}
           sub={summary.totalRefundCount > 0 ? `−₸ ${fmt(summary.totalRefundAmount)}` : undefined} />
         <StatCard label={t('dash.completion')} value={summary.planCompletion != null ? `${summary.planCompletion}%` : '—'}
@@ -242,9 +242,9 @@ export default function OwnerDashboard() {
           sub={summary.totalMeetingsAttended > 0 ? t('dash.owner.conversionSubMeetings') : t('dash.owner.conversionSubClients')}
           color={summary.conversion >= 20 ? 'green' : summary.conversion >= 10 ? 'yellow' : 'red'} />
         <StatCard label={t('dash.salesCount')} value={summary.totalSalesCount ?? 0} />
-        <StatCard label="Ср. чек (факт)" value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
-        <StatCard label="Ср. чек (новые)" value={`₸ ${fmt(summary.factAvgCheck ?? 0)}`} />
-        <StatCard label="Ср. чек (дожим)" value={`₸ ${fmt(carryover?.avgCheck ?? 0)}`} />
+        <StatCard label={t('dash.owner.avgCheckFact')} value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
+        <StatCard label={t('dash.owner.avgCheckNew')} value={`₸ ${fmt(summary.factAvgCheck ?? 0)}`} />
+        <StatCard label={t('dash.owner.avgCheckDojim')} value={`₸ ${fmt(carryover?.avgCheck ?? 0)}`} />
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red"
           sub={summary.totalRefusalsAmount > 0 ? `−₸ ${fmt(summary.totalRefusalsAmount)}` : undefined} />
@@ -278,17 +278,17 @@ export default function OwnerDashboard() {
       {(summary.installmentCount ?? 0) > 0 && (
         <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex items-center gap-4">
           <div>
-            <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-0.5">Доплаты</p>
-            <p className="text-sm text-purple-500">Частичные оплаты по ранее оформленным сделкам</p>
+            <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-0.5">{t('dash.installments.title')}</p>
+            <p className="text-sm text-purple-500">{t('dash.installments.subtitle')}</p>
           </div>
           <div className="ml-auto flex items-center gap-6 shrink-0">
             <div className="text-center">
               <p className="text-2xl font-bold text-purple-800">{summary.installmentCount}</p>
-              <p className="text-xs text-purple-400">платежей</p>
+              <p className="text-xs text-purple-400">{t('dash.installments.payments')}</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-purple-800">₸ {fmt(summary.installmentRevenue ?? 0)}</p>
-              <p className="text-xs text-purple-400">бюджет (нетто)</p>
+              <p className="text-xs text-purple-400">{t('dash.installments.budget')}</p>
             </div>
           </div>
         </div>
@@ -385,11 +385,11 @@ export default function OwnerDashboard() {
             <div className="flex items-center gap-4 text-xs text-gray-500">
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-sm bg-blue-500" />
-                <span>Новые: <span className="font-bold text-gray-800">₸ {fmt(summary.factNetSales ?? summary.factSalesAmount ?? 0)}</span></span>
+                <span>{t('dash.chart.newLabel')}: <span className="font-bold text-gray-800">₸ {fmt(summary.factNetSales ?? summary.factSalesAmount ?? 0)}</span></span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
-                <span>Дожим: <span className="font-bold text-gray-800">₸ {fmt(carryover?.revenue ?? 0)}</span></span>
+                <span>{t('dash.chart.dojimLabel')}: <span className="font-bold text-gray-800">₸ {fmt(carryover?.revenue ?? 0)}</span></span>
               </div>
             </div>
           </div>

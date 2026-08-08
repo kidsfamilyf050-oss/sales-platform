@@ -1165,6 +1165,25 @@ const ru = {
   'dash.carryover.deals': 'сделок',
   'dash.carryover.revenue': 'выручка',
 
+  // Stat card labels (previously hardcoded)
+  'dash.owner.newSales': 'Новые продажи',
+  'dash.owner.refunds': 'Возвраты',
+  'dash.owner.avgCheckFact': 'Ср. чек (факт)',
+  'dash.owner.avgCheckNew': 'Ср. чек (новые)',
+  'dash.owner.avgCheckDojim': 'Ср. чек (дожим)',
+
+  // Installments block
+  'dash.installments.title': 'Доплаты',
+  'dash.installments.subtitle': 'Частичные оплаты по ранее оформленным сделкам',
+  'dash.installments.subtitleMgr': 'Дополнительные платежи по закрытым сделкам',
+  'dash.installments.payments': 'платежей',
+  'dash.installments.budget': 'бюджет (нетто)',
+
+  // Chart legend / tooltip
+  'dash.chart.newLabel': 'Новые',
+  'dash.chart.dojimLabel': 'Дожим',
+  'dash.chart.totalLabel': 'Итого',
+
   // Gateway analytics
   'dash.gateway.title': 'Аналитика платёжных методов',
   'dash.gateway.noData': 'Нет данных о продажах',
@@ -2471,6 +2490,25 @@ const kk: typeof ru = {
   'dash.carryover.subtitle': 'Өткен кезеңнің лидтері, осы кезеңде жабылды',
   'dash.carryover.deals': 'мәміле',
   'dash.carryover.revenue': 'түсім',
+
+  // Stat card labels (previously hardcoded)
+  'dash.owner.newSales': 'Жаңа сатылымдар',
+  'dash.owner.refunds': 'Қайтарымдар',
+  'dash.owner.avgCheckFact': 'Орт. чек (нақты)',
+  'dash.owner.avgCheckNew': 'Орт. чек (жаңа)',
+  'dash.owner.avgCheckDojim': 'Орт. чек (өткен)',
+
+  // Installments block
+  'dash.installments.title': 'Үстемеақылар',
+  'dash.installments.subtitle': 'Бұрын рәсімделген мәмілелер бойынша ішінара төлемдер',
+  'dash.installments.subtitleMgr': 'Жабылған мәмілелер бойынша қосымша төлемдер',
+  'dash.installments.payments': 'төлем',
+  'dash.installments.budget': 'бюджет (нетто)',
+
+  // Chart legend / tooltip
+  'dash.chart.newLabel': 'Жаңа',
+  'dash.chart.dojimLabel': 'Өткен',
+  'dash.chart.totalLabel': 'Барлығы',
 
   // Gateway analytics
   'dash.gateway.title': 'Төлем әдістерінің аналитикасы',
