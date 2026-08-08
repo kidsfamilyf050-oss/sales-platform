@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 import StatCard from '../components/ui/StatCard'
@@ -178,6 +179,7 @@ function ManagerSalesDetail({ m }: { m: any }) {
 
 export default function OwnerDashboard() {
   const { t } = useT()
+  const navigate = useNavigate()
   const periodState = usePeriodStore()
   const { monthOffset } = periodState
   const [expandedManager, setExpandedManager] = useState<string | null>(null)
@@ -249,8 +251,10 @@ export default function OwnerDashboard() {
       </div>
       {/* ── Row 3 (3): Additional metrics ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-5">
-        <StatCard label={t('dash.plannedPayments')} value={`₸ ${fmt(summary.plannedPaymentsAmount ?? 0)}`} color="purple"
-          sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
+        <div onClick={() => navigate('/planned-payments')} className="cursor-pointer hover:scale-[1.02] transition-transform">
+          <StatCard label={t('dash.plannedPayments')} value={`₸ ${fmt(summary.plannedPaymentsAmount ?? 0)}`} color="purple"
+            sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
+        </div>
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red"
           sub={summary.totalRefusalsAmount > 0 ? `−₸ ${fmt(summary.totalRefusalsAmount)}` : undefined} />

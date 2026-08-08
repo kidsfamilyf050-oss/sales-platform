@@ -111,6 +111,29 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   }
 })
 
+// GET /api/lead-tasks/planned-payments — all pending payment reminder tasks
+router.get('/planned-payments', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const where: any = { paymentAmount: { not: null }, completed: false }
+    if (req.user!.role === 'OWNER' || req.user!.role === 'ROP') {
+      where.user = { companyId: req.user!.companyId }
+    } else {
+      where.userId = req.user!.id
+    }
+    const tasks = await prisma.leadTask.findMany({
+      where,
+      include: {
+        lead: { select: { id: true, clientName: true, phone: true } },
+        user: { select: { id: true, name: true } },
+      },
+      orderBy: { dueDate: 'asc' },
+    })
+    res.json(tasks)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // PUT /api/lead-tasks/:id — update (toggle complete, change title/date)
 router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {

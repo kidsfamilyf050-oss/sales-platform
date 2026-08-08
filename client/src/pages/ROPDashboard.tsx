@@ -444,8 +444,10 @@ export default function ROPDashboard() {
       </div>
       {/* Row 3 (3): Additional metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-5">
-        <StatCard label={t('dash.plannedPayments')} value={`₸ ${fmt(summary.plannedPaymentsAmount ?? 0)}`} color="purple"
-          sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
+        <div onClick={() => navigate('/planned-payments')} className="cursor-pointer hover:scale-[1.02] transition-transform">
+          <StatCard label={t('dash.plannedPayments')} value={`₸ ${fmt(summary.plannedPaymentsAmount ?? 0)}`} color="purple"
+            sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
+        </div>
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         <div
           onClick={() => navigate('/rop/links?tab=REFUSAL')}

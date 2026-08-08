@@ -315,8 +315,10 @@ export default function ManagerDashboard() {
           {/* Row 3 (2): Avg check + Planned payments */}
           <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 md:gap-5">
             <StatCard label={t('dash.owner.avgCheckFact')} value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
-            <StatCard label={t('dash.plannedPayments')} value={`₸ ${fmt(summary.plannedPaymentsAmount ?? 0)}`} color="purple"
-              sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
+            <div onClick={() => navigate('/planned-payments')} className="cursor-pointer hover:scale-[1.02] transition-transform">
+              <StatCard label={t('dash.plannedPayments')} value={`₸ ${fmt(summary.plannedPaymentsAmount ?? 0)}`} color="purple"
+                sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
+            </div>
           </div>
 
           {/* Carryover sales (дожим) */}

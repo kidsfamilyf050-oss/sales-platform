@@ -963,6 +963,17 @@ router.post('/:id/installment', authenticate, async (req: AuthRequest, res: Resp
         parentSaleId: parentSale.id,
       },
     })
+    // Auto-complete the earliest pending payment reminder for this lead
+    const pendingPaymentTask = await prisma.leadTask.findFirst({
+      where: { leadId: lead.id, paymentAmount: { not: null }, completed: false },
+      orderBy: { dueDate: 'asc' },
+    })
+    if (pendingPaymentTask) {
+      await prisma.leadTask.update({
+        where: { id: pendingPaymentTask.id },
+        data: { completed: true },
+      })
+    }
     res.json(installment)
   } catch (e) {
     console.error(e); res.status(500).json({ error: 'Server error' })
