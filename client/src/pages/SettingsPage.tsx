@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
-import { Save, Pencil, Check, X, Trash2 } from 'lucide-react'
+import { Save, Pencil, Check, X, Trash2, HelpCircle } from 'lucide-react'
 import { useT, getSpheres } from '../i18n'
 import { useAuthStore } from '../store/auth'
 
@@ -136,13 +136,24 @@ export default function SettingsPage() {
           <p className="text-xs text-gray-400 mt-1">{t('settings.reportingNote')}</p>
         </div>
         <div>
-          <label className="label">Цикл сделки (месяцев)</label>
+          <label className="label flex items-center gap-1.5">
+            Цикл сделки (месяцев)
+            <span className="relative group cursor-help">
+              <HelpCircle className="w-4 h-4 text-gray-400 hover:text-blue-500 transition-colors" />
+              <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-72 bg-gray-900 text-white text-xs rounded-xl px-3 py-2.5 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 leading-relaxed">
+                <strong className="block mb-1 text-blue-300">Цикл сделки</strong>
+                Определяет, через какое время лид считается «дожимом».
+                Если лид был создан более чем {form.dealCycleMonths} {form.dealCycleMonths === 1 ? 'месяц' : form.dealCycleMonths < 5 ? 'месяца' : 'месяцев'} назад до даты продажи — она попадает в категорию «Дожим» (продажа с прошлых периодов). Если меньше — считается новой продажей.
+                <span className="block mt-1 text-gray-400">Пример: цикл 2 месяца. Лид создан 1 января, продажа 10 февраля — новая. Продажа 5 марта — дожим.</span>
+              </span>
+            </span>
+          </label>
           <select className="input" value={form.dealCycleMonths} onChange={e => setForm(f => ({ ...f, dealCycleMonths: +e.target.value }))}>
             {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
               <option key={m} value={m}>{m} {m === 1 ? 'месяц' : m < 5 ? 'месяца' : 'месяцев'}</option>
             ))}
           </select>
-          <p className="text-xs text-gray-400 mt-1">Если лид создан более {form.dealCycleMonths} {form.dealCycleMonths === 1 ? 'месяца' : 'месяцев'} назад — продажа считается дожимом</p>
+          <p className="text-xs text-gray-400 mt-1">Продажа считается дожимом, если лид создан более {form.dealCycleMonths} {form.dealCycleMonths === 1 ? 'месяца' : 'месяцев'} назад</p>
         </div>
         <button onClick={() => save.mutate()} disabled={save.isPending} className="btn-primary flex items-center gap-2">
           <Save className="w-4 h-4" />

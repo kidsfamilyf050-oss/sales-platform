@@ -731,7 +731,8 @@ router.put('/:id/refuse', authenticate, async (req: AuthRequest, res: Response) 
 
 // ── PUT /api/leads/:id/sell — closer marks as sold (fills sale details) ───────
 router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) => {
-  const { amount, paymentType, paymentMethod, bank, months, crmLink, closerComment, productId } = req.body
+  const { amount, paymentType, paymentMethod, bank, months, crmLink, closerComment, productId,
+          paymentPlan, totalDealAmount, paymentReminders } = req.body
   if (!amount || !paymentType || !paymentMethod) {
     return res.status(400).json({ error: 'amount, paymentType, paymentMethod required' })
   }
@@ -742,6 +743,8 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
 
     const numAmount = Number(amount)
     const netAmount = calcNetAmount(numAmount, paymentMethod)
+    const isPartial = paymentPlan === 'partial'
+    const numTotalDeal = isPartial && totalDealAmount ? Number(totalDealAmount) : null
 
     const [updated] = await Promise.all([
       prisma.lead.update({
@@ -756,6 +759,8 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
           crmLink: crmLink?.trim() || null,
           closerComment: closerComment?.trim() || null,
           productId: productId || null,
+          paymentPlan: isPartial ? 'partial' : 'full',
+          totalDealAmount: numTotalDeal,
           // Auto-mark consultation as happened when lead is sold (if not already set)
           ...(!lead.consultationStatus && { consultationStatus: 'happened' }),
         },
@@ -767,7 +772,7 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
         create: {
           userId: req.user!.id,
           companyId: req.user!.companyId,
-          date: new Date().toISOString().slice(0, 10), // actual sale date (not lead creation date)
+          date: new Date().toISOString().slice(0, 10),
           amount: numAmount,
           netAmount,
           paymentType, paymentMethod,
@@ -779,7 +784,7 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
           productId: productId || null,
         },
         update: {
-          date: new Date().toISOString().slice(0, 10), // keep sale date current on re-save
+          date: new Date().toISOString().slice(0, 10),
           amount: numAmount,
           netAmount,
           paymentType, paymentMethod,
@@ -791,7 +796,29 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
         },
       }),
     ])
-    res.json(updated)
+
+    // Create payment reminder tasks for partial payments
+    if (isPartial && Array.isArray(paymentReminders) && paymentReminders.length > 0) {
+      // Remove any old payment reminders for this lead before adding new ones
+      await prisma.leadTask.deleteMany({ where: { leadId: req.params.id, paymentAmount: { not: null } } })
+      const validReminders = paymentReminders.filter((r: any) => r.date && r.amount && Number(r.amount) > 0)
+      if (validReminders.length > 0) {
+        await prisma.leadTask.createMany({
+          data: validReminders.map((r: any) => ({
+            leadId: req.params.id,
+            userId: req.user!.id,
+            title: `Напоминание об оплате ₸${Number(r.amount).toLocaleString('ru')}`,
+            dueDate: r.date,
+            paymentAmount: Number(r.amount),
+            comment: r.note?.trim() || null,
+          })),
+        })
+      }
+    }
+
+    // Re-fetch with updated tasks included
+    const finalLead = await prisma.lead.findUnique({ where: { id: req.params.id }, include: INCLUDE_FULL })
+    res.json(finalLead)
   } catch (e) {
     console.error(e); res.status(500).json({ error: 'Server error' })
   }

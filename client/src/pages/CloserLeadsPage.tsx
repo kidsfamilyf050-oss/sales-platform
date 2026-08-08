@@ -25,7 +25,7 @@ type Lead = {
   salesChannel: { id: string; name: string } | null
   createdBy: { id: string; name: string }
   assignedTo: { id: string; name: string } | null
-  tasks: { id: string; title: string; dueDate: string; completed: boolean }[]
+  tasks: { id: string; title: string; dueDate: string; completed: boolean; paymentAmount: number | null }[]
   amount: number | null
   netAmount: number | null
   paymentType: string | null
@@ -37,6 +37,8 @@ type Lead = {
   isRefund: boolean
   refundComment: string | null
   refundAmount: number | null
+  paymentPlan: string | null
+  totalDealAmount: number | null
   deletedAt: string | null
   updatedAt: string
   saleId: string | null
@@ -400,6 +402,7 @@ function InWorkSection({ lead }: { lead: Lead }) {
   const qc = useQueryClient()
   const { t } = useT()
   const { all: allGateways, active: activeGateways } = useGateways()
+  const todayKz = new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const [form, setForm] = useState({
     amount: lead.amount ? String(lead.amount) : '',
     paymentType: lead.paymentType || 'new_sale',
@@ -409,11 +412,27 @@ function InWorkSection({ lead }: { lead: Lead }) {
     crmLink: lead.crmLink || '',
     closerComment: lead.closerComment || '',
   })
+  const [paymentPlan, setPaymentPlan] = useState<'full' | 'partial'>(
+    (lead.paymentPlan as 'full' | 'partial') || 'full'
+  )
+  const [totalDealAmount, setTotalDealAmount] = useState(lead.totalDealAmount ? String(lead.totalDealAmount) : '')
+  const [paymentReminders, setPaymentReminders] = useState<{ date: string; amount: string; note: string }[]>(() => {
+    // Pre-populate from existing payment reminder tasks
+    const existing = (lead.tasks ?? []).filter(tk => tk.paymentAmount != null && !tk.completed)
+    return existing.length > 0
+      ? existing.map(tk => ({ date: tk.dueDate, amount: String(tk.paymentAmount), note: tk.comment ?? '' }))
+      : []
+  })
   const [productId, setProductId] = useState<string>('')
   const [lossReasonId, setLossReasonId] = useState<string>('')
   const [error, setError] = useState('')
   const [showTaskForm, setShowTaskForm] = useState(false)
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+
+  const addReminder = () => setPaymentReminders(r => [...r, { date: todayKz, amount: '', note: '' }])
+  const removeReminder = (i: number) => setPaymentReminders(r => r.filter((_, idx) => idx !== i))
+  const setReminder = (i: number, k: string, v: string) =>
+    setPaymentReminders(r => r.map((item, idx) => idx === i ? { ...item, [k]: v } : item))
 
   const paymentTypes = [
     { value: 'new_sale',   label: t('cl.payType.new') },
@@ -456,6 +475,9 @@ function InWorkSection({ lead }: { lead: Lead }) {
       amount: Number(form.amount),
       months: form.months ? Number(form.months) : null,
       productId: productId || null,
+      paymentPlan,
+      totalDealAmount: paymentPlan === 'partial' && totalDealAmount ? Number(totalDealAmount) : null,
+      paymentReminders: paymentPlan === 'partial' ? paymentReminders : [],
     }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['closer-leads'] }),
     onError: (e: any) => setError(e.response?.data?.error || t('common.error')),
@@ -560,6 +582,94 @@ function InWorkSection({ lead }: { lead: Lead }) {
           <label className="text-xs font-medium text-gray-500 block mb-1">{t('cl.inwork.comment')}</label>
           <textarea className="input resize-none h-16" value={form.closerComment} onChange={e => set('closerComment', e.target.value)} placeholder={t('cl.inwork.commentPlaceholder')} />
         </div>
+
+        {/* Payment plan */}
+        <div className="col-span-2">
+          <label className="text-xs font-medium text-gray-500 block mb-1">Тип оплаты</label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setPaymentPlan('full')}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg border transition-colors ${paymentPlan === 'full' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 border-gray-200 hover:border-green-400'}`}
+            >
+              Полная оплата
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaymentPlan('partial')}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg border transition-colors ${paymentPlan === 'partial' ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-600 border-gray-200 hover:border-orange-400'}`}
+            >
+              Частичная оплата
+            </button>
+          </div>
+        </div>
+
+        {/* Partial payment fields */}
+        {paymentPlan === 'partial' && (
+          <div className="col-span-2 space-y-3 bg-orange-50 border border-orange-200 rounded-xl p-3">
+            <div>
+              <label className="text-xs font-medium text-orange-700 block mb-1">Общая сумма сделки ₸</label>
+              <input
+                type="number"
+                className="input"
+                value={totalDealAmount}
+                onChange={e => setTotalDealAmount(e.target.value)}
+                placeholder="Например: 500 000"
+              />
+              {totalDealAmount && form.amount && (
+                <p className="text-xs text-orange-600 mt-1">
+                  Получено: ₸{Number(form.amount).toLocaleString('ru')} · Остаток: ₸{(Number(totalDealAmount) - Number(form.amount)).toLocaleString('ru')}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-medium text-orange-700">Напоминания об оплате</label>
+                <button
+                  type="button"
+                  onClick={addReminder}
+                  className="text-xs text-orange-600 hover:text-orange-800 font-semibold flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Добавить
+                </button>
+              </div>
+              {paymentReminders.length === 0 && (
+                <p className="text-xs text-orange-400 italic">Нет напоминаний — нажмите «Добавить»</p>
+              )}
+              <div className="space-y-2">
+                {paymentReminders.map((r, i) => (
+                  <div key={i} className="flex gap-2 items-start">
+                    <div className="flex-1 grid grid-cols-2 gap-2">
+                      <input
+                        type="date"
+                        className="input text-sm"
+                        value={r.date}
+                        onChange={e => setReminder(i, 'date', e.target.value)}
+                      />
+                      <input
+                        type="number"
+                        className="input text-sm"
+                        placeholder="Сумма ₸"
+                        value={r.amount}
+                        onChange={e => setReminder(i, 'amount', e.target.value)}
+                      />
+                      <input
+                        className="input text-sm col-span-2"
+                        placeholder="Примечание (необязательно)"
+                        value={r.note}
+                        onChange={e => setReminder(i, 'note', e.target.value)}
+                      />
+                    </div>
+                    <button type="button" onClick={() => removeReminder(i)} className="text-red-400 hover:text-red-600 mt-1.5">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {error && <p className="text-sm text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
@@ -1013,12 +1123,64 @@ function LeadCard({ lead, showAccept = false, showConsult = false, showWork = fa
             </div>
           )}
 
-          {/* Existing tasks */}
-          {lead.tasks.length > 0 && (
+          {/* Payment plan progress block for partial-payment SOLD leads */}
+          {readonly && lead.status === 'SOLD' && lead.paymentPlan === 'partial' && lead.totalDealAmount && (() => {
+            const received = (lead.amount ?? 0) + (lead.installments ?? []).reduce((s, i) => s + (i.netAmount ?? i.amount), 0)
+            const remaining = lead.totalDealAmount - received
+            const paymentTasks = lead.tasks.filter(tk => tk.paymentAmount != null)
+            const pendingTasks = paymentTasks.filter(tk => !tk.completed)
+            const pct = Math.min(100, Math.round((received / lead.totalDealAmount) * 100))
+            return (
+              <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-3 space-y-2">
+                <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Частичная оплата</p>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-white rounded-lg py-2 px-1 border border-orange-100">
+                    <p className="text-[10px] text-orange-500 font-medium">Сумма сделки</p>
+                    <p className="text-sm font-bold text-orange-800">₸ {lead.totalDealAmount.toLocaleString('ru')}</p>
+                  </div>
+                  <div className="bg-white rounded-lg py-2 px-1 border border-green-200">
+                    <p className="text-[10px] text-green-600 font-medium">Получено</p>
+                    <p className="text-sm font-bold text-green-700">₸ {received.toLocaleString('ru')}</p>
+                  </div>
+                  <div className={`rounded-lg py-2 px-1 border ${remaining > 0 ? 'bg-white border-red-200' : 'bg-green-50 border-green-300'}`}>
+                    <p className={`text-[10px] font-medium ${remaining > 0 ? 'text-red-500' : 'text-green-600'}`}>Остаток</p>
+                    <p className={`text-sm font-bold ${remaining > 0 ? 'text-red-700' : 'text-green-700'}`}>₸ {Math.max(0, remaining).toLocaleString('ru')}</p>
+                  </div>
+                </div>
+                {/* Progress bar */}
+                <div className="w-full h-2 bg-orange-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                </div>
+                <p className="text-[10px] text-orange-500 text-right">{pct}% оплачено</p>
+                {/* Upcoming payment reminders */}
+                {pendingTasks.length > 0 && (
+                  <div className="space-y-1 pt-1 border-t border-orange-200">
+                    <p className="text-[10px] font-semibold text-orange-600 uppercase tracking-wide">Предстоящие оплаты</p>
+                    {pendingTasks.map(tk => {
+                      const overdue = isOverdue(tk.dueDate)
+                      return (
+                        <div key={tk.id} className={`flex items-center gap-2 text-xs rounded-lg px-2 py-1.5 ${overdue ? 'bg-red-50 text-red-700' : 'bg-white text-gray-700'}`}>
+                          <Banknote className={`w-3.5 h-3.5 shrink-0 ${overdue ? 'text-red-500' : 'text-orange-400'}`} />
+                          <span className="font-bold">₸ {(tk.paymentAmount ?? 0).toLocaleString('ru')}</span>
+                          <span className="text-gray-400">·</span>
+                          <span>{fmtDate(tk.dueDate, lang)}</span>
+                          {tk.comment && <span className="text-gray-400 ml-auto truncate">· {tk.comment}</span>}
+                          {overdue && <span className="ml-auto text-red-500 font-semibold shrink-0">Просрочено</span>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
+          {/* Existing tasks (non-payment) */}
+          {lead.tasks.filter(tk => tk.paymentAmount == null).length > 0 && (
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('cl.card.tasks')}</p>
               <div className="space-y-1.5">
-                {lead.tasks.map(task => {
+                {lead.tasks.filter(tk => tk.paymentAmount == null).map(task => {
                   const overdue = !task.completed && isOverdue(task.dueDate)
                   return (
                     <div key={task.id} className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg ${task.completed ? 'bg-green-50 text-green-700' : overdue ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-700'}`}>

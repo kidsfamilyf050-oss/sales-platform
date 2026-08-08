@@ -345,6 +345,10 @@ model Lead {
   lossReasonId   String?
   lossReason     LossReason?   @relation(fields: [lossReasonId], references: [id])
 
+  // Payment plan (for partial payment tracking)
+  paymentPlan     String?       // 'full' | 'partial'
+  totalDealAmount Float?        // total contract value when paymentPlan = 'partial'
+
   // Refund flag — marks a SOLD lead as refunded
   isRefund       Boolean       @default(false)
   refundedAt     DateTime?
@@ -373,10 +377,11 @@ model LeadTask {
   user        User     @relation("LeadTaskAssignee", fields: [userId], references: [id], onDelete: Cascade)
   createdById String?                                                                              // null = self, else ROP/OWNER who assigned
   createdBy   User?    @relation("LeadTaskCreator", fields: [createdById], references: [id])
-  title       String
-  dueDate     String   // YYYY-MM-DD
-  completed   Boolean  @default(false)
-  comment     String?  // Task note / comment by assignee
+  title         String
+  dueDate       String   // YYYY-MM-DD
+  completed     Boolean  @default(false)
+  comment       String?  // Task note / comment by assignee
+  paymentAmount Float?   // if set, this task is a payment reminder for this amount
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
