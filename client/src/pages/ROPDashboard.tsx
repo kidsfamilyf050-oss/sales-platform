@@ -433,7 +433,7 @@ export default function ROPDashboard() {
             }
           </div>
         </div>
-        <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
+        <StatCard label={t('dash.completion')} value={summary.planCompletion != null ? `${summary.planCompletion}%` : '—'} color={summary.planCompletion == null ? 'default' : summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
         <StatCard label={t('dash.rop.deals')} value={summary.salesCount ?? 0}
           sub={`Новые: ${summary.factSalesCount ?? 0}`} />
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} sub={t('dash.rop.conversionSub')} />
@@ -457,7 +457,7 @@ export default function ROPDashboard() {
         </div>
       </div>
 
-      <ProgressBar value={summary.planCompletion} label={t('dash.rop.planCompletion')} />
+      {summary.planCompletion != null && <ProgressBar value={summary.planCompletion} label={t('dash.rop.planCompletion')} />}
 
       {/* Carryover sales (дожим) */}
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4">

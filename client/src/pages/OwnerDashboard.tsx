@@ -236,8 +236,8 @@ export default function OwnerDashboard() {
         <StatCard label="Возвраты" value={`${summary.totalRefundCount ?? 0} шт.`}
           color={summary.totalRefundCount > 0 ? 'red' : 'default'}
           sub={summary.totalRefundCount > 0 ? `−₸ ${fmt(summary.totalRefundAmount)}` : undefined} />
-        <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`}
-          color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
+        <StatCard label={t('dash.completion')} value={summary.planCompletion != null ? `${summary.planCompletion}%` : '—'}
+          color={summary.planCompletion == null ? 'default' : summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`}
           sub={summary.totalMeetingsAttended > 0 ? t('dash.owner.conversionSubMeetings') : t('dash.owner.conversionSubClients')}
           color={summary.conversion >= 20 ? 'green' : summary.conversion >= 10 ? 'yellow' : 'red'} />
@@ -250,7 +250,7 @@ export default function OwnerDashboard() {
           sub={summary.totalRefusalsAmount > 0 ? `−₸ ${fmt(summary.totalRefusalsAmount)}` : undefined} />
       </div>
 
-      <ProgressBar value={summary.planCompletion} label={t('dash.planCompletion')} />
+      {summary.planCompletion != null && <ProgressBar value={summary.planCompletion} label={t('dash.planCompletion')} />}
 
       {/* Carryover sales (дожим) */}
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4">

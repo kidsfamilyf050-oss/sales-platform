@@ -290,7 +290,7 @@ export default function ManagerDashboard() {
               sub={summary.refundCount > 0 ? `−₸ ${fmt(summary.refundTotal)} ${t('dash.closer.refundsSuffix')}` : undefined} />
             <StatCard label="Новые продажи" value={`₸ ${fmt(summary.factNetSales ?? 0)}`} color="blue"
               sub={`${summary.factSalesCount ?? 0} сделок`} />
-            <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
+            <StatCard label={t('dash.completion')} value={summary.planCompletion != null ? `${summary.planCompletion}%` : '—'} color={summary.planCompletion == null ? 'default' : summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
             <StatCard label={t('dash.manager.deals')} value={Math.max(0, (summary.salesCount ?? 0) - (summary.refundCount ?? 0))}
               sub={`Новые: ${summary.factSalesCount ?? 0}`} />
             <StatCard label={t('dash.conversion')} value={`${summary.leadConversion ?? summary.conversion}%`} />
@@ -694,7 +694,7 @@ export default function ManagerDashboard() {
             <StatCard label={t('dash.manager.meetings')} value={summary.meetingsScheduled} />
             <StatCard label={t('dash.manager.attended')} value={summary.meetingsAttended} color="blue" />
             <StatCard label={t('dash.manager.schedToAtt')} value={summary.meetingsScheduled > 0 ? `${Math.round(summary.meetingsAttended / summary.meetingsScheduled * 100)}%` : '—'} color="yellow" />
-            <StatCard label={t('dash.manager.meetingsPlan')} value={summary.meetingsScheduledPlan} sub={summary.planCompletion > 0 ? `${summary.planCompletion}% ${t('common.completionShort')}` : undefined} />
+            <StatCard label={t('dash.manager.meetingsPlan')} value={summary.meetingsScheduledPlan} sub={summary.planCompletion != null && summary.planCompletion > 0 ? `${summary.planCompletion}% ${t('common.completionShort')}` : undefined} />
           </div>
 
           {/* Несостоявшиеся — lider's own metric */}
@@ -775,7 +775,7 @@ export default function ManagerDashboard() {
             </div>
           )}
 
-          <ProgressBar value={summary.planCompletion} label={t('dash.manager.planCompletionMeetings')} />
+          {summary.planCompletion != null && <ProgressBar value={summary.planCompletion} label={t('dash.manager.planCompletionMeetings')} />}
 
           {/* Lider leaderboard — competitive ranking */}
           {rankingData?.ranking?.length > 0 && (

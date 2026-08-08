@@ -133,7 +133,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       prisma.lead.findMany({
         // Use updatedAt so dojim refunds (lead.date in prev period) are captured
         where: { createdBy: { companyId: req.user!.companyId }, status: 'SOLD', isRefund: true, updatedAt: { gte: periodStart, lte: periodEnd } },
-        select: { id: true, netAmount: true, amount: true, assignedToId: true },
+        select: { id: true, netAmount: true, amount: true, assignedToId: true, date: true },
       }),
     ])
 
@@ -202,6 +202,23 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       dailySalesMap[s.date].amount += amt
       if (isDojimSale) { dailySalesMap[s.date].dojimAmount += amt; dailySalesMap[s.date].dojimSales++ }
       else             { dailySalesMap[s.date].newAmount += amt;  dailySalesMap[s.date].newSales++ }
+    }
+
+    // Apply дожим refunds to chart per-day (gateway fee tracked as refund lead)
+    for (const refundLead of ownerDojimRefundLeads) {
+      const refDate = (refundLead as any).date ?? null
+      const refAmt = refundLead.amount ?? refundLead.netAmount ?? 0
+      if (refDate && dailySalesMap[refDate]) {
+        dailySalesMap[refDate].dojimAmount = Math.max(0, dailySalesMap[refDate].dojimAmount - refAmt)
+        dailySalesMap[refDate].amount = Math.max(0, dailySalesMap[refDate].amount - refAmt)
+      } else if (refAmt > 0) {
+        // Refund date not in chart — subtract from day with largest дожим amount
+        const topDay = Object.entries(dailySalesMap).sort((a, b) => b[1].dojimAmount - a[1].dojimAmount)[0]
+        if (topDay) {
+          topDay[1].dojimAmount = Math.max(0, topDay[1].dojimAmount - refAmt)
+          topDay[1].amount = Math.max(0, topDay[1].amount - refAmt)
+        }
+      }
     }
 
     // ── Sales per user (Sale model) — use netAmount where available ─────────
@@ -329,8 +346,8 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const factNetSales         = factSalesAmount - ownerFactRefundTotal   // only fact refunds reduce fact
     const ownerDojimNetRevenue = ownerCarryoverRevenue - ownerDojimRefundTotal  // dojim refunds reduce dojim
     const ownerDojimNetCount   = Math.max(0, ownerCarryoverCount - ownerDojimRefundLeads.length)
-    const factAvgCheck         = factSalesCount > 0 ? Math.round(factNetSales / factSalesCount) : 0
-    const dojimAvgCheck        = ownerDojimNetCount > 0 ? Math.round(ownerDojimNetRevenue / ownerDojimNetCount) : 0
+    const factAvgCheck         = factSalesCount > 0 ? Math.round(factNetSales / factSalesCount * 10) / 10 : 0
+    const dojimAvgCheck        = ownerDojimNetCount > 0 ? Math.round(ownerDojimNetRevenue / ownerDojimNetCount * 10) / 10 : 0
     // conversion uses factSalesCount — dojim sales don't count as conversions
     const conversion = totalConsultations > 0 ? Math.round((factSalesCount / totalConsultations) * 100) : 0
     const conversionLabel = 'встречи → продажи'
@@ -338,13 +355,13 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     res.json({
       summary: {
         salesPlan, totalSalesAmount, totalSalesCount: netSalesCountOwner, totalSalesCountGross: totalSalesCount,
-        avgCheck: Math.round(avgCheck), factAvgCheck,
+        avgCheck: Math.round(avgCheck * 10) / 10, factAvgCheck,
         totalRefundCount, totalRefundAmount, totalNetSales,
         // Fact = new-period leads sold this period (excludes dojim carryover)
         factSalesAmount, factSalesCount, factNetSales,
         conversion,
         conversionLabel,
-        planCompletion: salesPlan > 0 ? Math.round((totalNetSales / salesPlan) * 1000) / 10 : 0,
+        planCompletion: salesPlan > 0 ? Math.round((totalNetSales / salesPlan) * 1000) / 10 : null,
         totalConsultations, totalRefusals, totalRefusalsAmount, totalInWork,
         // Marketing block — leads from Lead model, budget from MARKETER reports
         marketingLeads: totalLiderLeads, leadsplan, totalBudget, budgetPlan, leadCost: Math.round(leadCost),
@@ -646,8 +663,8 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const ropFactNetSales    = ropFactSalesAmount - ropFactRefundTotal   // only fact refunds reduce fact
     const ropDojimNetRevenue = ropCarryoverRevenue - ropDojimRefundTotal  // dojim refunds reduce dojim
     const ropDojimNetCount   = Math.max(0, ropCarryoverCount - ropDojimRefundLeads.length)
-    const ropFactAvgCheck    = ropFactSalesCount > 0 ? Math.round(ropFactNetSales / ropFactSalesCount) : 0
-    const ropDojimAvgCheck   = ropDojimNetCount > 0 ? Math.round(ropDojimNetRevenue / ropDojimNetCount) : 0
+    const ropFactAvgCheck    = ropFactSalesCount > 0 ? Math.round(ropFactNetSales / ropFactSalesCount * 10) / 10 : 0
+    const ropDojimAvgCheck   = ropDojimNetCount > 0 ? Math.round(ropDojimNetRevenue / ropDojimNetCount * 10) / 10 : 0
 
     res.json({
       summary: {
@@ -659,9 +676,9 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         factSalesAmount: ropFactSalesAmount, factSalesCount: ropFactSalesCount, factNetSales: ropFactNetSales,
         // conversion uses factSalesCount — dojim sales don't count as conversions
         conversion: totalConsultations > 0 ? Math.round((ropFactSalesCount / totalConsultations) * 100) : 0,
-        avgCheck: Math.max(0, totalSalesCount - ropRefundCount) > 0 ? Math.round(ropNetSales / Math.max(0, totalSalesCount - ropRefundCount)) : 0,
+        avgCheck: Math.max(0, totalSalesCount - ropRefundCount) > 0 ? Math.round(ropNetSales / Math.max(0, totalSalesCount - ropRefundCount) * 10) / 10 : 0,
         factAvgCheck: ropFactAvgCheck,
-        planCompletion: salesPlan > 0 ? Math.round((ropNetSales / salesPlan) * 1000) / 10 : 0,
+        planCompletion: salesPlan > 0 ? Math.round((ropNetSales / salesPlan) * 1000) / 10 : null,
         totalConsultations, totalRefusals, totalRefusalsAmount, totalInWork,
       },
       funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount: Math.max(0, totalSalesCount - ropRefundCount) },
@@ -776,8 +793,8 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const factNetSales    = factSalesAmount - mgrFactRefundTotal   // only fact refunds reduce fact
       const dojimNetRevenue = mgrCarryoverRevenue - mgrDojimRefundTotal  // dojim refunds reduce dojim
       const dojimNetCount   = Math.max(0, mgrCarryoverCount - mgrDojimRefundLeads.length)
-      const factAvgCheck    = factSalesCount > 0 ? Math.round(factNetSales / factSalesCount) : 0
-      const dojimAvgCheck   = dojimNetCount > 0 ? Math.round(dojimNetRevenue / dojimNetCount) : 0
+      const factAvgCheck    = factSalesCount > 0 ? Math.round(factNetSales / factSalesCount * 10) / 10 : 0
+      const dojimAvgCheck   = dojimNetCount > 0 ? Math.round(dojimNetRevenue / dojimNetCount * 10) / 10 : 0
       // conversion uses factSalesCount — dojim sales don't count as conversions
       const conversion = consultations > 0 ? Math.round((factSalesCount / consultations) * 1000) / 10 : 0
 
@@ -793,9 +810,9 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           refundCount, refundTotal, netSalesAmount,
           // Fact = new-period leads (excludes dojim carryover); used for "Факт продаж" display
           factSalesAmount, factSalesCount, factNetSales,
-          planCompletion: salesPlan > 0 ? Math.round((netSalesAmount / salesPlan) * 1000) / 10 : 0,
+          planCompletion: salesPlan > 0 ? Math.round((netSalesAmount / salesPlan) * 1000) / 10 : null,
           conversion,
-          avgCheck: Math.max(0, salesCount - refundCount) > 0 ? Math.round(netSalesAmount / Math.max(0, salesCount - refundCount)) : 0,
+          avgCheck: Math.max(0, salesCount - refundCount) > 0 ? Math.round(netSalesAmount / Math.max(0, salesCount - refundCount) * 10) / 10 : 0,
           factAvgCheck,
           consultations, refusals, inWork,
           pendingLeadsCount, inWorkLeadsCount, pendingTasksCount,
