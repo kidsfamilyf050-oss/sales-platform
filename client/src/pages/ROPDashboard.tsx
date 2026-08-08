@@ -414,7 +414,8 @@ export default function ROPDashboard() {
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
         <StatCard label={t('dash.rop.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
-        <StatCard label={t('dash.rop.salesFact')} value={`₸ ${fmt(summary.factNetSales ?? summary.factSalesAmount ?? summary.netSalesAmount ?? summary.salesAmount)}`} color="blue" />
+        <StatCard label={t('dash.rop.salesFact')} value={`₸ ${fmt(summary.netSalesAmount ?? summary.salesAmount)}`} color="blue"
+          sub={`Новые: ₸ ${fmt(summary.factNetSales ?? 0)}`} />
         <div
           onClick={() => navigate('/rop/links?tab=REFUND')}
           className="cursor-pointer group"
@@ -432,9 +433,10 @@ export default function ROPDashboard() {
           </div>
         </div>
         <StatCard label={t('dash.completion')} value={`${summary.planCompletion}%`} color={summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
-        <StatCard label={t('dash.rop.deals')} value={summary.factSalesCount ?? summary.salesCount} />
+        <StatCard label={t('dash.rop.deals')} value={summary.salesCount ?? 0}
+          sub={`Новые: ${summary.factSalesCount ?? 0}`} />
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} sub={t('dash.rop.conversionSub')} />
-        <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.factAvgCheck ?? summary.avgCheck)}`} />
+        <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         <div
           onClick={() => navigate('/rop/links?tab=REFUSAL')}
