@@ -681,7 +681,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         planCompletion: salesPlan > 0 ? Math.round((ropNetSales / salesPlan) * 1000) / 10 : null,
         totalConsultations, totalRefusals, totalRefusalsAmount, totalInWork,
       },
-      funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount: Math.max(0, totalSalesCount - ropRefundCount) },
+      funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount: ropFactSalesCount },
       marketing: { leadsplan, totalLeads, totalBudget, leadCost: totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0, qualifiedLeads },
       carryover: { count: ropDojimNetCount, revenue: ropDojimNetRevenue, avgCheck: ropDojimAvgCheck },
       managerRating,
