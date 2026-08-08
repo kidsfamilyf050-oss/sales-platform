@@ -190,9 +190,11 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const effectiveBudget = totalBudget > 0 ? totalBudget : budgetPlan
     const leadCost = totalLiderLeads > 0 ? effectiveBudget / totalLiderLeads : 0
 
-    // ── Daily chart from Sale model — split new vs дожим ─────────────────
+    // ── Daily chart from Sale model — split new vs дожим, exclude refunds ──
+    const ownerRefundedLeadSet = new Set(companyRefundedLeads.map(l => l.id))
     const dailySalesMap: Record<string, { sales: number; amount: number; newAmount: number; dojimAmount: number; newSales: number; dojimSales: number }> = {}
     for (const s of periodSales) {
+      if (s.leadId && ownerRefundedLeadSet.has(s.leadId as string)) continue // skip refunded sales
       if (!dailySalesMap[s.date]) dailySalesMap[s.date] = { sales: 0, amount: 0, newAmount: 0, dojimAmount: 0, newSales: 0, dojimSales: 0 }
       const isDojimSale = !!(s.leadId && ownerCarryoverLeadSet.has(s.leadId as string))
       const amt = s.netAmount ?? s.amount

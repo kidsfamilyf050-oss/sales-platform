@@ -368,7 +368,7 @@ export default function OwnerDashboard() {
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
-                <span>Дожим: <span className="font-bold text-gray-800">₸ {fmt((summary.totalSalesAmount ?? 0) - (summary.factSalesAmount ?? summary.totalSalesAmount ?? 0))}</span></span>
+                <span>Дожим: <span className="font-bold text-gray-800">₸ {fmt(carryover?.revenue ?? 0)}</span></span>
               </div>
             </div>
           </div>
