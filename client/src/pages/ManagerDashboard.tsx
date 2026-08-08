@@ -294,7 +294,9 @@ export default function ManagerDashboard() {
             <StatCard label={t('dash.manager.deals')} value={Math.max(0, (summary.salesCount ?? 0) - (summary.refundCount ?? 0))}
               sub={`Новые: ${summary.factSalesCount ?? 0}`} />
             <StatCard label={t('dash.conversion')} value={`${summary.leadConversion ?? summary.conversion}%`} />
-            <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
+            <StatCard label="Ср. чек (факт)" value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
+            <StatCard label="Ср. чек (новые)" value={`₸ ${fmt(summary.factAvgCheck ?? 0)}`} />
+            <StatCard label="Ср. чек (дожим)" value={`₸ ${fmt(summary.carryover?.avgCheck ?? 0)}`} />
           </div>
 
           {/* Carryover sales (дожим) */}

@@ -437,7 +437,9 @@ export default function ROPDashboard() {
         <StatCard label={t('dash.rop.deals')} value={summary.salesCount ?? 0}
           sub={`Новые: ${summary.factSalesCount ?? 0}`} />
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} sub={t('dash.rop.conversionSub')} />
-        <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
+        <StatCard label="Ср. чек (факт)" value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
+        <StatCard label="Ср. чек (новые)" value={`₸ ${fmt(summary.factAvgCheck ?? 0)}`} />
+        <StatCard label="Ср. чек (дожим)" value={`₸ ${fmt(carryover?.avgCheck ?? 0)}`} />
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         <div
           onClick={() => navigate('/rop/links?tab=REFUSAL')}

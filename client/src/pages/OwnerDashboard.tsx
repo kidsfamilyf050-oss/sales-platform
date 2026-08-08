@@ -242,7 +242,9 @@ export default function OwnerDashboard() {
           sub={summary.totalMeetingsAttended > 0 ? t('dash.owner.conversionSubMeetings') : t('dash.owner.conversionSubClients')}
           color={summary.conversion >= 20 ? 'green' : summary.conversion >= 10 ? 'yellow' : 'red'} />
         <StatCard label={t('dash.salesCount')} value={summary.totalSalesCount ?? 0} />
-        <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
+        <StatCard label="Ср. чек (факт)" value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
+        <StatCard label="Ср. чек (новые)" value={`₸ ${fmt(summary.factAvgCheck ?? 0)}`} />
+        <StatCard label="Ср. чек (дожим)" value={`₸ ${fmt(carryover?.avgCheck ?? 0)}`} />
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red"
           sub={summary.totalRefusalsAmount > 0 ? `−₸ ${fmt(summary.totalRefusalsAmount)}` : undefined} />
