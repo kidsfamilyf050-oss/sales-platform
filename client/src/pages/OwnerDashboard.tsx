@@ -230,8 +230,9 @@ export default function OwnerDashboard() {
       {/* ── Block 1: Sales KPIs ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
         <StatCard label={t('dash.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
-        <StatCard label={t('dash.salesFact')} value={`₸ ${fmt(summary.totalNetSales ?? summary.totalSalesAmount)}`} color="blue"
-          sub={`Новые: ₸ ${fmt(summary.factNetSales ?? 0)}`} />
+        <StatCard label={t('dash.salesFact')} value={`₸ ${fmt(summary.totalNetSales ?? summary.totalSalesAmount)}`} color="blue" />
+        <StatCard label="Новые продажи" value={`₸ ${fmt(summary.factNetSales ?? 0)}`} color="blue"
+          sub={`${summary.factSalesCount ?? 0} сделок`} />
         <StatCard label="Возвраты" value={`${summary.totalRefundCount ?? 0} шт.`}
           color={summary.totalRefundCount > 0 ? 'red' : 'default'}
           sub={summary.totalRefundCount > 0 ? `−₸ ${fmt(summary.totalRefundAmount)}` : undefined} />
@@ -240,8 +241,7 @@ export default function OwnerDashboard() {
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`}
           sub={summary.totalMeetingsAttended > 0 ? t('dash.owner.conversionSubMeetings') : t('dash.owner.conversionSubClients')}
           color={summary.conversion >= 20 ? 'green' : summary.conversion >= 10 ? 'yellow' : 'red'} />
-        <StatCard label={t('dash.salesCount')} value={summary.totalSalesCount ?? 0}
-          sub={`Новые: ${summary.factSalesCount ?? 0}`} />
+        <StatCard label={t('dash.salesCount')} value={summary.totalSalesCount ?? 0} />
         <StatCard label={t('dash.avgCheck')} value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red"
