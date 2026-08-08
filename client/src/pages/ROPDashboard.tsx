@@ -411,7 +411,7 @@ export default function ROPDashboard() {
         </button>
       </div>
 
-      {/* Summary */}
+      {/* Summary — Row 1 (4): Finance */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-5">
         <StatCard label={t('dash.rop.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
         <StatCard label={t('dash.rop.salesFact')} value={`₸ ${fmt(summary.netSalesAmount ?? summary.salesAmount)}`} color="blue" />
@@ -433,13 +433,19 @@ export default function ROPDashboard() {
             }
           </div>
         </div>
+      </div>
+      {/* Row 2 (4): Performance */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-5">
         <StatCard label={t('dash.completion')} value={summary.planCompletion != null ? `${summary.planCompletion}%` : '—'} color={summary.planCompletion == null ? 'default' : summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
         <StatCard label={t('dash.rop.deals')} value={summary.salesCount ?? 0}
           sub={`${t('dash.chart.newLabel')}: ${summary.factSalesCount ?? 0}`} />
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} sub={t('dash.rop.conversionSub')} />
         <StatCard label={t('dash.owner.avgCheckFact')} value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
-        <StatCard label={t('dash.owner.avgCheckNew')} value={`₸ ${fmt(summary.factAvgCheck ?? 0)}`} />
-        <StatCard label={t('dash.owner.avgCheckDojim')} value={`₸ ${fmt(carryover?.avgCheck ?? 0)}`} />
+      </div>
+      {/* Row 3 (3): Additional metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-5">
+        <StatCard label={t('dash.plannedPayments')} value={`₸ ${fmt(summary.plannedPaymentsAmount ?? 0)}`} color="purple"
+          sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         <div
           onClick={() => navigate('/rop/links?tab=REFUSAL')}

@@ -1167,6 +1167,7 @@ const ru = {
   'dash.carryover.revenue': 'выручка',
 
   // Stat card labels (previously hardcoded)
+  'dash.plannedPayments': 'Запланировано доплат',
   'dash.owner.newSales': 'Новые продажи',
   'dash.owner.refunds': 'Возвраты',
   'dash.owner.avgCheckFact': 'Ср. чек (факт)',
@@ -2494,6 +2495,7 @@ const kk: typeof ru = {
   'dash.carryover.revenue': 'түсім',
 
   // Stat card labels (previously hardcoded)
+  'dash.plannedPayments': 'Жоспарлы үстемеақылар',
   'dash.owner.newSales': 'Жаңа сатылымдар',
   'dash.owner.refunds': 'Қайтарымдар',
   'dash.owner.avgCheckFact': 'Орт. чек (нақты)',

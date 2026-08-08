@@ -227,7 +227,7 @@ export default function OwnerDashboard() {
         )}
       </div>
 
-      {/* ── Block 1: Sales KPIs — 4 cols × 3 rows = 12 cards ── */}
+      {/* ── Block 1: Sales KPIs — Row 1 (4): Finance ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-5">
         <StatCard label={t('dash.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
         <StatCard label={t('dash.salesFact')} value={`₸ ${fmt(summary.totalNetSales ?? summary.totalSalesAmount)}`} color="blue" />
@@ -236,6 +236,9 @@ export default function OwnerDashboard() {
         <StatCard label={t('dash.owner.refunds')} value={`${summary.totalRefundCount ?? 0} шт.`}
           color={summary.totalRefundCount > 0 ? 'red' : 'default'}
           sub={summary.totalRefundCount > 0 ? `−₸ ${fmt(summary.totalRefundAmount)}` : undefined} />
+      </div>
+      {/* ── Row 2 (4): Performance ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-5">
         <StatCard label={t('dash.completion')} value={summary.planCompletion != null ? `${summary.planCompletion}%` : '—'}
           color={summary.planCompletion == null ? 'default' : summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`}
@@ -243,8 +246,11 @@ export default function OwnerDashboard() {
           color={summary.conversion >= 20 ? 'green' : summary.conversion >= 10 ? 'yellow' : 'red'} />
         <StatCard label={t('dash.salesCount')} value={summary.totalSalesCount ?? 0} />
         <StatCard label={t('dash.owner.avgCheckFact')} value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
-        <StatCard label={t('dash.owner.avgCheckNew')} value={`₸ ${fmt(summary.factAvgCheck ?? 0)}`} />
-        <StatCard label={t('dash.owner.avgCheckDojim')} value={`₸ ${fmt(carryover?.avgCheck ?? 0)}`} />
+      </div>
+      {/* ── Row 3 (3): Additional metrics ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-5">
+        <StatCard label={t('dash.plannedPayments')} value={`₸ ${fmt(summary.plannedPaymentsAmount ?? 0)}`} color="purple"
+          sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red"
           sub={summary.totalRefusalsAmount > 0 ? `−₸ ${fmt(summary.totalRefusalsAmount)}` : undefined} />

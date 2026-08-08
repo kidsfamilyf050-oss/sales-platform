@@ -3,7 +3,7 @@ interface StatCardProps {
   value: string | number
   sub?: string
   extraSub?: React.ReactNode
-  color?: 'default' | 'green' | 'red' | 'yellow' | 'blue'
+  color?: 'default' | 'green' | 'red' | 'yellow' | 'blue' | 'purple'
   icon?: React.ReactNode
 }
 
@@ -13,6 +13,7 @@ const colorMap = {
   red: 'text-red-600',
   yellow: 'text-yellow-600',
   blue: 'text-blue-600',
+  purple: 'text-purple-600',
 }
 
 function formatValue(v: string | number): string {

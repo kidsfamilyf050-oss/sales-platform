@@ -404,6 +404,14 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const conversion = totalConsultations > 0 ? Math.round((factSalesCount / totalConsultations) * 100) : 0
     const conversionLabel = 'встречи → продажи'
 
+    // Planned payment reminders scheduled within this period (pending LeadTask with paymentAmount)
+    const ownerPlannedPayTasks = await prisma.leadTask.findMany({
+      where: { paymentAmount: { not: null }, completed: false, dueDate: { gte: fromStr, lte: toStr }, lead: { companyId: req.user!.companyId } },
+      select: { paymentAmount: true },
+    })
+    const plannedPaymentsCount  = ownerPlannedPayTasks.length
+    const plannedPaymentsAmount = ownerPlannedPayTasks.reduce((s: number, t: any) => s + (t.paymentAmount || 0), 0)
+
     res.json({
       summary: {
         salesPlan, totalSalesAmount, totalSalesCount: netSalesCountOwner, totalSalesCountGross: totalSalesCount,
@@ -417,6 +425,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         totalConsultations, totalRefusals, totalRefusalsAmount, totalInWork,
         // Installments (доплаты) — additional payments on existing deals
         installmentCount: installmentCountOwner, installmentRevenue: installmentRevenueOwner,
+        plannedPaymentsCount, plannedPaymentsAmount,
         // Marketing block — leads from Lead model, budget from MARKETER reports
         marketingLeads: totalLiderLeads, leadsplan, totalBudget, budgetPlan, leadCost: Math.round(leadCost),
         // Lider funnel (from LIDER reports)
@@ -725,6 +734,14 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const ropFactAvgCheck    = ropFactSalesCount > 0 ? Math.round(ropFactNetSales / ropFactSalesCount * 10) / 10 : 0
     const ropDojimAvgCheck   = ropDojimNetCount > 0 ? Math.round(ropDojimNetRevenue / ropDojimNetCount * 10) / 10 : 0
 
+    // Planned payment reminders scheduled within this period
+    const ropPlannedPayTasks = await prisma.leadTask.findMany({
+      where: { paymentAmount: { not: null }, completed: false, dueDate: { gte: fromStr, lte: toStr }, lead: { companyId: req.user!.companyId } },
+      select: { paymentAmount: true },
+    })
+    const ropPlannedPaymentsCount  = ropPlannedPayTasks.length
+    const ropPlannedPaymentsAmount = ropPlannedPayTasks.reduce((s: number, t: any) => s + (t.paymentAmount || 0), 0)
+
     res.json({
       summary: {
         salesPlan, salesAmount: totalSalesAmount,
@@ -740,6 +757,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         planCompletion: salesPlan > 0 ? Math.round((ropNetSales / salesPlan) * 1000) / 10 : null,
         totalConsultations, totalRefusals, totalRefusalsAmount, totalInWork,
         installmentCount: ropInstallmentCount, installmentRevenue: ropInstallmentRevenue,
+        plannedPaymentsCount: ropPlannedPaymentsCount, plannedPaymentsAmount: ropPlannedPaymentsAmount,
       },
       funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount: ropFactSalesCount },
       marketing: { leadsplan, totalLeads, totalBudget, leadCost: totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0, qualifiedLeads },
@@ -868,6 +886,14 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const leadTotal = inWorkLeadsCount + leadRefusedCount + factLeadSoldCount
       const leadConversion = leadTotal > 0 ? Math.round((factLeadSoldCount / leadTotal) * 1000) / 10 : 0
 
+      // Planned payment reminders scheduled within this period
+      const mgrPlannedPayTasks = await prisma.leadTask.findMany({
+        where: { paymentAmount: { not: null }, completed: false, dueDate: { gte: fromStr, lte: toStr }, lead: { assignedToId: userId } },
+        select: { paymentAmount: true },
+      })
+      const mgrPlannedPaymentsCount  = mgrPlannedPayTasks.length
+      const mgrPlannedPaymentsAmount = mgrPlannedPayTasks.reduce((s: number, t: any) => s + (t.paymentAmount || 0), 0)
+
       res.json({
         type: 'CLOSER',
         summary: {
@@ -886,6 +912,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           leadRefusedCount, leadSoldCount: factLeadSoldCount, leadTotal, leadConversion,
           carryover: { count: dojimNetCount, revenue: dojimNetRevenue, avgCheck: dojimAvgCheck },
           installmentCount: mgrInstallmentCount, installmentRevenue: mgrInstallmentRevenue,
+          plannedPaymentsCount: mgrPlannedPaymentsCount, plannedPaymentsAmount: mgrPlannedPaymentsAmount,
         },
         periodSales: mgrRegularSales.map((s: any) => ({
           id: s.id, date: s.date, amount: s.amount, netAmount: s.netAmount,

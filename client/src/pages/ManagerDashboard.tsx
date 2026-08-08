@@ -297,20 +297,26 @@ export default function ManagerDashboard() {
 
       {isCloser ? (
         <>
-          {/* Period stats */}
+          {/* Period stats — Row 1 (3): Finance */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 md:gap-5">
             <StatCard label={t('dash.manager.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
             <StatCard label={t('dash.manager.salesPeriod')} value={`₸ ${fmt(summary.totalNetSales ?? summary.netSalesAmount ?? summary.salesAmount)}`} color="blue"
               sub={summary.refundCount > 0 ? `−₸ ${fmt(summary.refundTotal)} ${t('dash.closer.refundsSuffix')}` : undefined} />
             <StatCard label={t('dash.owner.newSales')} value={`₸ ${fmt(summary.factNetSales ?? 0)}`} color="blue"
               sub={`${summary.factSalesCount ?? 0} ${t('dash.sale.dealsShort')}`} />
+          </div>
+          {/* Row 2 (3): Performance */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 md:gap-5">
             <StatCard label={t('dash.completion')} value={summary.planCompletion != null ? `${summary.planCompletion}%` : '—'} color={summary.planCompletion == null ? 'default' : summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
             <StatCard label={t('dash.manager.deals')} value={Math.max(0, (summary.salesCount ?? 0) - (summary.refundCount ?? 0))}
               sub={`${t('dash.chart.newLabel')}: ${summary.factSalesCount ?? 0}`} />
             <StatCard label={t('dash.conversion')} value={`${summary.leadConversion ?? summary.conversion}%`} />
+          </div>
+          {/* Row 3 (2): Avg check + Planned payments */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 md:gap-5">
             <StatCard label={t('dash.owner.avgCheckFact')} value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
-            <StatCard label={t('dash.owner.avgCheckNew')} value={`₸ ${fmt(summary.factAvgCheck ?? 0)}`} />
-            <StatCard label={t('dash.owner.avgCheckDojim')} value={`₸ ${fmt(summary.carryover?.avgCheck ?? 0)}`} />
+            <StatCard label={t('dash.plannedPayments')} value={`₸ ${fmt(summary.plannedPaymentsAmount ?? 0)}`} color="purple"
+              sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
           </div>
 
           {/* Carryover sales (дожим) */}
