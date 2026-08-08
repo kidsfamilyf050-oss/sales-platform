@@ -251,7 +251,7 @@ export default function OwnerDashboard() {
       </div>
       {/* ── Row 3 (3): Additional metrics ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-5">
-        <div onClick={() => navigate('/planned-payments')} className="cursor-pointer hover:scale-[1.02] transition-transform">
+        <div onClick={() => navigate('/planned-payments')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-purple-300 rounded-xl transition-all duration-150">
           <StatCard label={t('dash.plannedPayments')} value={`₸ ${fmt(summary.plannedPaymentsAmount ?? 0)}`} color="purple"
             sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
         </div>

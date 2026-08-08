@@ -404,9 +404,9 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const conversion = totalConsultations > 0 ? Math.round((factSalesCount / totalConsultations) * 100) : 0
     const conversionLabel = 'встречи → продажи'
 
-    // Planned payment reminders scheduled within this period (pending LeadTask with paymentAmount)
+    // All pending payment reminders for company (no date filter — overdue ones stay visible)
     const ownerPlannedPayTasks = await prisma.leadTask.findMany({
-      where: { paymentAmount: { not: null }, completed: false, dueDate: { gte: fromStr, lte: toStr }, lead: { companyId: req.user!.companyId } },
+      where: { paymentAmount: { not: null }, completed: false, user: { companyId: req.user!.companyId } },
       select: { paymentAmount: true },
     })
     const plannedPaymentsCount  = ownerPlannedPayTasks.length
@@ -734,9 +734,9 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const ropFactAvgCheck    = ropFactSalesCount > 0 ? Math.round(ropFactNetSales / ropFactSalesCount * 10) / 10 : 0
     const ropDojimAvgCheck   = ropDojimNetCount > 0 ? Math.round(ropDojimNetRevenue / ropDojimNetCount * 10) / 10 : 0
 
-    // Planned payment reminders scheduled within this period
+    // All pending payment reminders for company (no date filter — overdue ones stay visible)
     const ropPlannedPayTasks = await prisma.leadTask.findMany({
-      where: { paymentAmount: { not: null }, completed: false, dueDate: { gte: fromStr, lte: toStr }, lead: { companyId: req.user!.companyId } },
+      where: { paymentAmount: { not: null }, completed: false, user: { companyId: req.user!.companyId } },
       select: { paymentAmount: true },
     })
     const ropPlannedPaymentsCount  = ropPlannedPayTasks.length
@@ -886,9 +886,9 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const leadTotal = inWorkLeadsCount + leadRefusedCount + factLeadSoldCount
       const leadConversion = leadTotal > 0 ? Math.round((factLeadSoldCount / leadTotal) * 1000) / 10 : 0
 
-      // Planned payment reminders scheduled within this period
+      // All pending payment reminders for this manager (no date filter — overdue ones stay visible)
       const mgrPlannedPayTasks = await prisma.leadTask.findMany({
-        where: { paymentAmount: { not: null }, completed: false, dueDate: { gte: fromStr, lte: toStr }, userId: userId },
+        where: { paymentAmount: { not: null }, completed: false, userId: userId },
         select: { paymentAmount: true },
       })
       const mgrPlannedPaymentsCount  = mgrPlannedPayTasks.length
