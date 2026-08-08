@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { Save, Pencil, Check, X, Trash2 } from 'lucide-react'
@@ -83,6 +83,7 @@ function DeptRenameRow({ dept }: { dept: any }) {
 export default function SettingsPage() {
   const { t } = useT()
   const { user } = useAuthStore()
+  const qc = useQueryClient()
   const isOwner = user?.role === 'OWNER'
   const [saved, setSaved] = useState(false)
   const { data: company } = useQuery({ queryKey: ['company'], queryFn: () => api.get('/company').then(r => r.data) })
@@ -90,13 +91,25 @@ export default function SettingsPage() {
   const [form, setForm] = useState({ name: '', businessSphere: '', reportingStart: 1, dealCycleMonths: 1 })
   const spheres = getSpheres(t)
 
-  if (company && !form.name && company.name !== 'Моя компания') {
-    setForm({ name: company.name, businessSphere: company.businessSphere || '', reportingStart: company.reportingStart || 1, dealCycleMonths: company.dealCycleMonths || 1 })
-  }
+  // Populate form whenever company data loads or refreshes (useEffect avoids render-phase setState)
+  useEffect(() => {
+    if (company) {
+      setForm({
+        name: company.name || '',
+        businessSphere: company.businessSphere || '',
+        reportingStart: company.reportingStart ?? 1,
+        dealCycleMonths: company.dealCycleMonths ?? 1,
+      })
+    }
+  }, [company])
 
   const save = useMutation({
     mutationFn: () => api.put('/company', form),
-    onSuccess: () => { setSaved(true); setTimeout(() => setSaved(false), 2000) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['company'] })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    },
     onError: () => alert(t('settings.saveError')),
   })
 
