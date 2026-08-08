@@ -76,6 +76,36 @@ function sumCloserSalesCount(reports: any[]) {
   }, 0)
 }
 
+// Helper: subtract N months from a date (exact calendar month arithmetic)
+function subtractMonths(date: Date, months: number): Date {
+  const result = new Date(date)
+  result.setMonth(result.getMonth() - months)
+  return result
+}
+
+// Helper: build carryover lead set using per-sale deal cycle comparison
+// A lead is carryover (дожим) if it was created more than dealCycleMonths before the sale date
+async function buildCarryoverLeadSet(
+  sales: any[],
+  dealCycleMonths: number,
+  prismaClient: any
+): Promise<Set<string>> {
+  const leadIds = sales.map((s: any) => s.leadId).filter(Boolean) as string[]
+  if (leadIds.length === 0) return new Set<string>()
+  const leads = await prismaClient.lead.findMany({ where: { id: { in: leadIds } }, select: { id: true, createdAt: true } })
+  const createdAtMap = new Map<string, Date>(leads.map((l: any) => [l.id, l.createdAt]))
+  const carryoverSet = new Set<string>()
+  for (const s of sales) {
+    if (!s.leadId) continue
+    const leadCreatedAt = createdAtMap.get(s.leadId as string)
+    if (!leadCreatedAt) continue
+    const saleDate = new Date((s.date as string) + 'T12:00:00+05:00')
+    const threshold = subtractMonths(saleDate, dealCycleMonths)
+    if (leadCreatedAt < threshold) carryoverSet.add(s.leadId as string)
+  }
+  return carryoverSet
+}
+
 // Owner dashboard
 router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
   const { period = 'month', from, to } = req.query
@@ -88,7 +118,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
   const periodEnd   = new Date(toStr   + 'T23:59:59+05:00')
 
   try {
-    const [salesDepts, allUsers, plans, closerReports, liderReports, marketerReports, periodSales] = await Promise.all([
+    const [salesDepts, allUsers, plans, closerReports, liderReports, marketerReports, periodSales, companySettings] = await Promise.all([
       prisma.department.findMany({ where: { companyId: req.user!.companyId, type: 'SALES' }, include: { users: { where: { status: 'ACTIVE', role: 'MANAGER' } } } }),
       prisma.user.findMany({ where: { companyId: req.user!.companyId, status: 'ACTIVE', role: 'MANAGER' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey } }),
@@ -97,7 +127,10 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'MARKETER', date: { gte: start, lte: end } } }),
       // Sales from Sale model — truth source; OR Sale.createdAt in KZ period (covers wrong-date records)
       prisma.sale.findMany({ where: { companyId: req.user!.companyId, OR: [{ date: { gte: fromStr, lte: toStr } }, { createdAt: { gte: periodStart, lte: periodEnd } }] }, include: { user: { select: { id: true, name: true } }, product: { select: { id: true, name: true } } } }),
+      prisma.company.findUnique({ where: { id: req.user!.companyId }, select: { dealCycleMonths: true } }),
     ])
+
+    const dealCycleMonths = (companySettings as any)?.dealCycleMonths ?? 1
 
     // ── Sales (Sale model) — use netAmount (бюджет сделки) where available ──
     // Separate installments (доплаты) from regular sales
@@ -109,13 +142,9 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const totalSalesCount    = regularSalesOwner.length
     // NOTE: totalConsultations/Refusals/InWork computed below from Lead model (after allLiderLeads query)
 
-    // Carryover: sold in this period from leads created before period start (use createdAt — system timestamp, always reliable)
-    const ownerSaleLeadIds = periodSales.map((s: any) => s.leadId).filter(Boolean) as string[]
-    const ownerCarryoverLeadSet = ownerSaleLeadIds.length > 0
-      ? await prisma.lead.findMany({ where: { id: { in: ownerSaleLeadIds }, createdAt: { lt: start } }, select: { id: true } })
-          .then(ls => new Set(ls.map(l => l.id)))
-      : new Set<string>()
-    const ownerCarryoverSales = periodSales.filter((s: any) => s.leadId && ownerCarryoverLeadSet.has(s.leadId))
+    // Carryover (дожим): lead was created more than dealCycleMonths before the sale date
+    const ownerCarryoverLeadSet = await buildCarryoverLeadSet(regularSalesOwner, dealCycleMonths, prisma)
+    const ownerCarryoverSales = regularSalesOwner.filter((s: any) => s.leadId && ownerCarryoverLeadSet.has(s.leadId))
     const ownerCarryoverCount = ownerCarryoverSales.length
     const ownerCarryoverRevenue = ownerCarryoverSales.reduce((sum: number, x: any) => sum + (x.netAmount ?? x.amount), 0)
     // Per-manager carryover map (for manager rating table)
@@ -426,7 +455,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
   const todayEnd    = new Date(todayStr + 'T23:59:59+05:00')
 
   try {
-    const [managers, plans, closerReports, marketerReports, todayReports, periodSales, todaySales, ropLiderLeadsFull, allCompanyLeads, closerLeads] = await Promise.all([
+    const [managers, plans, closerReports, marketerReports, todayReports, periodSales, todaySales, ropLiderLeadsFull, allCompanyLeads, closerLeads, ropCompanySettings] = await Promise.all([
       prisma.user.findMany({ where: { companyId: req.user!.companyId, departmentId: deptId || undefined, status: 'ACTIVE', role: 'MANAGER' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, departmentId: deptId || undefined }, type: 'CLOSER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true, managerType: true } } } }),
@@ -451,7 +480,10 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         where: { assignedTo: { companyId: req.user!.companyId }, date: { gte: fromStr, lte: toStr } },
         select: { assignedToId: true, status: true, consultationStatus: true },
       }),
+      prisma.company.findUnique({ where: { id: req.user!.companyId }, select: { dealCycleMonths: true } }),
     ])
+
+    const ropDealCycleMonths = (ropCompanySettings as any)?.dealCycleMonths ?? 1
 
     const todayReportedIds = new Set(todayReports.map(r => r.userId))
 
@@ -472,12 +504,8 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const totalSalesAmount = ropRegularSales.reduce((s: number, x: any) => s + (x.netAmount ?? x.amount), 0)
     const totalSalesCount = ropRegularSales.length
 
-    // Carryover: sold in this period from leads created before period start (use createdAt — system timestamp, always reliable)
-    const ropSaleLeadIds = ropRegularSales.map((s: any) => s.leadId).filter(Boolean) as string[]
-    const ropCarryoverLeadSet = ropSaleLeadIds.length > 0
-      ? await prisma.lead.findMany({ where: { id: { in: ropSaleLeadIds }, createdAt: { lt: start } }, select: { id: true } })
-          .then(ls => new Set(ls.map(l => l.id)))
-      : new Set<string>()
+    // Carryover (дожим): lead was created more than dealCycleMonths before the sale date
+    const ropCarryoverLeadSet = await buildCarryoverLeadSet(ropRegularSales, ropDealCycleMonths, prisma)
     const ropCarryoverSales = ropRegularSales.filter((s: any) => s.leadId && ropCarryoverLeadSet.has(s.leadId))
     const ropCarryoverCount = ropCarryoverSales.length
     const ropCarryoverRevenue = ropCarryoverSales.reduce((sum: number, x: any) => sum + (x.netAmount ?? x.amount), 0)
@@ -752,7 +780,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
   const periodEnd   = new Date(toStr   + 'T23:59:59+05:00')
 
   try {
-    const [reports, plans, todayReport, salesByDate, soldLeadsInPeriod] = await Promise.all([
+    const [reports, plans, todayReport, salesByDate, soldLeadsInPeriod, mgrCompanySettings] = await Promise.all([
       prisma.report.findMany({ where: { userId, date: { gte: start, lte: end } }, orderBy: { date: 'desc' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey, userId } }),
       prisma.report.findFirst({ where: { userId, date: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } } }),
@@ -763,7 +791,10 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       }),
       // Fallback: leads that were SOLD (updatedAt) in this KZ period (covers lead-linked Sales with wrong date)
       prisma.lead.findMany({ where: { assignedToId: userId, status: 'SOLD', updatedAt: { gte: periodStart, lte: periodEnd } }, select: { id: true } }),
+      prisma.company.findUnique({ where: { id: req.user!.companyId }, select: { dealCycleMonths: true } }),
     ])
+
+    const mgrDealCycleMonths = (mgrCompanySettings as any)?.dealCycleMonths ?? 1
 
     // Merge Sale records: by date/createdAt + by lead.updatedAt (deduplicate by sale id)
     const fallbackLeadIds = soldLeadsInPeriod.map(l => l.id)
@@ -784,13 +815,9 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const mgrInstallmentCount   = mgrInstallmentSales.length
       const salesAmount = mgrRegularSales.reduce((s: number, x: any) => s + (x.netAmount ?? x.amount), 0)
       const salesCount = mgrRegularSales.length
-      // Carryover: sold in this period from leads created before period start
-      const mgrSaleLeadIds = periodSales.map((s: any) => s.leadId).filter(Boolean) as string[]
-      const mgrCarryoverLeadSet = mgrSaleLeadIds.length > 0
-        ? await prisma.lead.findMany({ where: { id: { in: mgrSaleLeadIds }, date: { lt: fromStr } }, select: { id: true } })
-            .then(ls => new Set(ls.map(l => l.id)))
-        : new Set<string>()
-      const mgrCarryoverSales = periodSales.filter((s: any) => s.leadId && mgrCarryoverLeadSet.has(s.leadId))
+      // Carryover (дожим): lead was created more than dealCycleMonths before the sale date
+      const mgrCarryoverLeadSet = await buildCarryoverLeadSet(mgrRegularSales, mgrDealCycleMonths, prisma)
+      const mgrCarryoverSales = mgrRegularSales.filter((s: any) => s.leadId && mgrCarryoverLeadSet.has(s.leadId))
       const mgrCarryoverCount = mgrCarryoverSales.length
       const mgrCarryoverRevenue = mgrCarryoverSales.reduce((sum: number, x: any) => sum + (x.netAmount ?? x.amount), 0)
       // Clients received from daily reports

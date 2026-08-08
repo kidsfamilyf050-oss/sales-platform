@@ -20,6 +20,7 @@ model Company {
   name             String
   businessSphere   String?
   reportingStart   Int       @default(1)
+  dealCycleMonths  Int       @default(1)  // deal cycle 1-12 months; determines carryover (дожим) threshold
   isActive         Boolean   @default(true)
   subscriptionPlan String?   // "trial", "starter", "pro"
   trialEndsAt      DateTime?

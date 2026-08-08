@@ -20,7 +20,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 
 // Update company settings (onboarding + settings page)
 router.put('/', authenticate, requireRole('OWNER'), async (req: AuthRequest, res: Response) => {
-  const { name, businessSphere, reportingStart } = req.body
+  const { name, businessSphere, reportingStart, dealCycleMonths } = req.body
   try {
     const company = await prisma.company.update({
       where: { id: req.user!.companyId },
@@ -28,6 +28,7 @@ router.put('/', authenticate, requireRole('OWNER'), async (req: AuthRequest, res
         ...(name && { name }),
         ...(businessSphere && { businessSphere }),
         ...(reportingStart !== undefined && { reportingStart }),
+        ...(dealCycleMonths !== undefined && { dealCycleMonths: Math.min(12, Math.max(1, Number(dealCycleMonths))) }),
       },
     })
     res.json(company)

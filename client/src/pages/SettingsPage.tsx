@@ -87,11 +87,11 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const { data: company } = useQuery({ queryKey: ['company'], queryFn: () => api.get('/company').then(r => r.data) })
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: () => api.get('/company/departments').then(r => r.data) })
-  const [form, setForm] = useState({ name: '', businessSphere: '', reportingStart: 1 })
+  const [form, setForm] = useState({ name: '', businessSphere: '', reportingStart: 1, dealCycleMonths: 1 })
   const spheres = getSpheres(t)
 
   if (company && !form.name && company.name !== 'Моя компания') {
-    setForm({ name: company.name, businessSphere: company.businessSphere || '', reportingStart: company.reportingStart || 1 })
+    setForm({ name: company.name, businessSphere: company.businessSphere || '', reportingStart: company.reportingStart || 1, dealCycleMonths: company.dealCycleMonths || 1 })
   }
 
   const save = useMutation({
@@ -121,6 +121,15 @@ export default function SettingsPage() {
           <label className="label">{t('settings.reportingStart')}</label>
           <input type="number" className="input" min={1} max={28} value={form.reportingStart} onChange={e => setForm(f => ({ ...f, reportingStart: +e.target.value }))} />
           <p className="text-xs text-gray-400 mt-1">{t('settings.reportingNote')}</p>
+        </div>
+        <div>
+          <label className="label">Цикл сделки (месяцев)</label>
+          <select className="input" value={form.dealCycleMonths} onChange={e => setForm(f => ({ ...f, dealCycleMonths: +e.target.value }))}>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+              <option key={m} value={m}>{m} {m === 1 ? 'месяц' : m < 5 ? 'месяца' : 'месяцев'}</option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">Если лид создан более {form.dealCycleMonths} {form.dealCycleMonths === 1 ? 'месяца' : 'месяцев'} назад — продажа считается дожимом</p>
         </div>
         <button onClick={() => save.mutate()} disabled={save.isPending} className="btn-primary flex items-center gap-2">
           <Save className="w-4 h-4" />
