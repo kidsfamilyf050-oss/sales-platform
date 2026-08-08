@@ -39,6 +39,8 @@ type Lead = {
   refundAmount: number | null
   deletedAt: string | null
   updatedAt: string
+  saleId: string | null
+  installments: { id: string; date: string; amount: number; netAmount: number | null; paymentMethod: string; comment: string | null }[]
 }
 
 // Payment type options — built inside components using t()
@@ -317,6 +319,68 @@ function RefundButton({ lead }: { lead: Lead }) {
         <button onClick={() => refundMut.mutate()} disabled={refundMut.isPending}
           className="flex-1 bg-orange-500 text-white text-xs font-semibold py-2 rounded-lg hover:bg-orange-600 disabled:opacity-40 transition-colors">
           {t('cl.refund.confirm')}
+        </button>
+        <button onClick={() => setShow(false)} className="px-3 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg">
+          {t('common.cancel')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Installment Button component ──────────────────────────────────────────────
+function InstallmentButton({ lead }: { lead: Lead }) {
+  const qc = useQueryClient()
+  const { t } = useT()
+  const { active: activeGateways, all: allGateways } = useGateways()
+  const [show, setShow] = useState(false)
+  const todayKz = new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const [form, setForm] = useState({ date: todayKz, amount: '', paymentMethod: 'Cash', comment: '' })
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+
+  const netPreview = form.amount ? calcNetAmount(Number(form.amount), form.paymentMethod, activeGateways) : null
+
+  const instMut = useMutation({
+    mutationFn: () => api.post(`/leads/${lead.id}/installment`, {
+      date: form.date, amount: Number(form.amount), paymentMethod: form.paymentMethod, comment: form.comment || null,
+    }).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['closer-leads'] }); setShow(false); setForm({ date: todayKz, amount: '', paymentMethod: 'Cash', comment: '' }) },
+  })
+
+  if (!show) return (
+    <button onClick={() => setShow(true)}
+      className="flex items-center gap-1.5 text-sm text-purple-600 border border-purple-200 bg-purple-50 hover:bg-purple-100 px-3 py-2 rounded-lg font-medium transition-colors w-full justify-center">
+      <Banknote className="w-4 h-4" /> + Доплата
+    </button>
+  )
+  return (
+    <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 space-y-2">
+      <p className="text-xs font-semibold text-purple-700">Добавить доплату</p>
+      <div>
+        <p className="text-xs font-semibold text-purple-700 mb-1">Дата</p>
+        <input type="date" className="input text-sm" value={form.date} onChange={e => set('date', e.target.value)} />
+      </div>
+      <div>
+        <p className="text-xs font-semibold text-purple-700 mb-1">Сумма (₸)</p>
+        <input type="number" className="input text-sm" value={form.amount} onChange={e => set('amount', e.target.value)} placeholder="0" />
+        {netPreview !== null && <p className="text-xs text-purple-500 mt-0.5">Бюджет: ₸ {netPreview.toLocaleString('ru')}</p>}
+      </div>
+      <div>
+        <p className="text-xs font-semibold text-purple-700 mb-1">Способ оплаты</p>
+        <select className="input text-sm" value={form.paymentMethod} onChange={e => set('paymentMethod', e.target.value)}>
+          {activeGateways.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+        </select>
+      </div>
+      <div>
+        <p className="text-xs font-semibold text-purple-700 mb-1">Комментарий</p>
+        <input className="input text-sm" value={form.comment} onChange={e => set('comment', e.target.value)} placeholder="Необязательно" />
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={() => instMut.mutate()}
+          disabled={instMut.isPending || !form.amount}
+          className="flex-1 bg-purple-600 text-white text-xs font-semibold py-2 rounded-lg hover:bg-purple-700 disabled:opacity-40 transition-colors">
+          Сохранить
         </button>
         <button onClick={() => setShow(false)} className="px-3 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg">
           {t('common.cancel')}
@@ -980,9 +1044,35 @@ function LeadCard({ lead, showAccept = false, showConsult = false, showWork = fa
             </a>
           )}
 
+          {/* Installments display for SOLD leads */}
+          {readonly && lead.status === 'SOLD' && (lead.installments?.length ?? 0) > 0 && (
+            <div className="border border-purple-100 bg-purple-50/60 rounded-xl px-3 pb-2 pt-2 space-y-1">
+              <p className="text-[10px] font-semibold text-purple-500 uppercase tracking-wide mb-1">Доплаты</p>
+              {(lead.installments ?? []).map(inst => {
+                const net = inst.netAmount ?? inst.amount
+                const gwLabel = allGateways.find(g => g.value === inst.paymentMethod)?.label ?? inst.paymentMethod
+                return (
+                  <div key={inst.id} className="flex items-center gap-2 text-xs flex-wrap">
+                    <span className="w-2 h-2 rounded-full bg-purple-400 shrink-0" />
+                    <span className="text-gray-500">{inst.date.split('-').reverse().join('.')}</span>
+                    <span className="font-bold text-purple-700">₸ {net.toLocaleString('ru')}</span>
+                    <span className="text-gray-400">{gwLabel}</span>
+                    {inst.comment && <span className="text-gray-400">· {inst.comment}</span>}
+                  </div>
+                )
+              })}
+              <p className="text-[10px] text-purple-400 font-medium pt-0.5">
+                Итого: ₸ {(lead.installments ?? []).reduce((s, i) => s + (i.netAmount ?? i.amount), 0).toLocaleString('ru')}
+              </p>
+            </div>
+          )}
+
           {/* Refund button for SOLD leads */}
           {readonly && lead.status === 'SOLD' && !lead.isRefund && (
-            <RefundButton lead={lead} />
+            <div className="space-y-2">
+              <InstallmentButton lead={lead} />
+              <RefundButton lead={lead} />
+            </div>
           )}
           {readonly && lead.status === 'SOLD' && lead.isRefund && (
             <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2 text-sm text-orange-700 flex items-center gap-2">

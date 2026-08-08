@@ -100,8 +100,13 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     ])
 
     // ── Sales (Sale model) — use netAmount (бюджет сделки) where available ──
-    const totalSalesAmount   = periodSales.reduce((s, x) => s + (x.netAmount ?? x.amount), 0)
-    const totalSalesCount    = periodSales.length
+    // Separate installments (доплаты) from regular sales
+    const installmentSalesOwner = periodSales.filter((s: any) => s.parentSaleId != null)
+    const regularSalesOwner     = periodSales.filter((s: any) => s.parentSaleId == null)
+    const installmentRevenueOwner = installmentSalesOwner.reduce((s: number, x: any) => s + (x.netAmount ?? x.amount), 0)
+    const installmentCountOwner   = installmentSalesOwner.length
+    const totalSalesAmount   = regularSalesOwner.reduce((s: number, x: any) => s + (x.netAmount ?? x.amount), 0)
+    const totalSalesCount    = regularSalesOwner.length
     // NOTE: totalConsultations/Refusals/InWork computed below from Lead model (after allLiderLeads query)
 
     // Carryover: sold in this period from leads created before period start (use createdAt — system timestamp, always reliable)
@@ -139,7 +144,8 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
 
     const totalRefundCount  = companyRefundedLeads.length
     const totalRefundAmount = companyRefundedLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
-    const totalNetSales     = totalSalesAmount - totalRefundAmount
+    // totalNetSales = regular sales + installments - refunds (all real money received)
+    const totalNetSales     = totalSalesAmount + installmentRevenueOwner - totalRefundAmount
     // Split refunds: dojim (lead from prev period) vs fact (lead from this period)
     const ownerDojimRefundLeads = companyRefundedLeads.filter(l => ownerCarryoverLeadSet.has(l.id))
     const ownerFactRefundLeads  = companyRefundedLeads.filter(l => !ownerCarryoverLeadSet.has(l.id))
@@ -190,18 +196,24 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const effectiveBudget = totalBudget > 0 ? totalBudget : budgetPlan
     const leadCost = totalLiderLeads > 0 ? effectiveBudget / totalLiderLeads : 0
 
-    // ── Daily chart from Sale model — split new vs дожим, exclude refunds ──
+    // ── Daily chart from Sale model — split new vs дожим vs installments, exclude refunds ──
     const ownerRefundedLeadSet = new Set(companyRefundedLeads.map(l => l.id))
-    const dailySalesMap: Record<string, { sales: number; amount: number; newAmount: number; dojimAmount: number; newSales: number; dojimSales: number }> = {}
-    for (const s of periodSales) {
-      if (s.leadId && ownerRefundedLeadSet.has(s.leadId as string)) continue // skip refunded sales
-      if (!dailySalesMap[s.date]) dailySalesMap[s.date] = { sales: 0, amount: 0, newAmount: 0, dojimAmount: 0, newSales: 0, dojimSales: 0 }
-      const isDojimSale = !!(s.leadId && ownerCarryoverLeadSet.has(s.leadId as string))
+    const dailySalesMap: Record<string, { sales: number; amount: number; newAmount: number; dojimAmount: number; installmentAmount: number; newSales: number; dojimSales: number }> = {}
+    for (const s of (periodSales as any[])) {
+      if (s.leadId && ownerRefundedLeadSet.has(s.leadId)) continue // skip refunded sales
+      if (!dailySalesMap[s.date]) dailySalesMap[s.date] = { sales: 0, amount: 0, newAmount: 0, dojimAmount: 0, installmentAmount: 0, newSales: 0, dojimSales: 0 }
       const amt = s.netAmount ?? s.amount
-      dailySalesMap[s.date].sales++
-      dailySalesMap[s.date].amount += amt
-      if (isDojimSale) { dailySalesMap[s.date].dojimAmount += amt; dailySalesMap[s.date].dojimSales++ }
-      else             { dailySalesMap[s.date].newAmount += amt;  dailySalesMap[s.date].newSales++ }
+      if (s.parentSaleId) {
+        // Installment/доплата — counted in amount but not as a new sale
+        dailySalesMap[s.date].installmentAmount += amt
+        dailySalesMap[s.date].amount += amt
+      } else {
+        const isDojimSale = !!(s.leadId && ownerCarryoverLeadSet.has(s.leadId))
+        dailySalesMap[s.date].sales++
+        dailySalesMap[s.date].amount += amt
+        if (isDojimSale) { dailySalesMap[s.date].dojimAmount += amt; dailySalesMap[s.date].dojimSales++ }
+        else             { dailySalesMap[s.date].newAmount += amt;  dailySalesMap[s.date].newSales++ }
+      }
     }
 
     // Apply дожим refunds to chart per-day (gateway fee tracked as refund lead)
@@ -223,10 +235,19 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
 
     // ── Sales per user (Sale model) — use netAmount where available ─────────
     const salesByUser: Record<string, { salesCount: number; salesAmount: number }> = {}
-    for (const s of periodSales) {
-      if (!salesByUser[s.userId]) salesByUser[s.userId] = { salesCount: 0, salesAmount: 0 }
-      salesByUser[s.userId].salesCount++
-      salesByUser[s.userId].salesAmount += s.netAmount ?? s.amount
+    const installmentsByUser: Record<string, { count: number; amount: number; items: any[] }> = {}
+    for (const s of (periodSales as any[])) {
+      if (s.parentSaleId) {
+        // Installment (доплата) — separate from regular sales
+        if (!installmentsByUser[s.userId]) installmentsByUser[s.userId] = { count: 0, amount: 0, items: [] }
+        installmentsByUser[s.userId].count++
+        installmentsByUser[s.userId].amount += s.netAmount ?? s.amount
+        installmentsByUser[s.userId].items.push({ id: s.id, date: s.date, amount: s.amount, netAmount: s.netAmount, paymentMethod: s.paymentMethod, comment: s.comment, parentSaleId: s.parentSaleId })
+      } else {
+        if (!salesByUser[s.userId]) salesByUser[s.userId] = { salesCount: 0, salesAmount: 0 }
+        salesByUser[s.userId].salesCount++
+        salesByUser[s.userId].salesAmount += s.netAmount ?? s.amount
+      }
     }
     // clientsByUser, consultationsByUser, refusalsByUser — from Lead model (consistent with ROP)
     const clientsByUser: Record<string, number> = {}
@@ -271,8 +292,9 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         let status: 'red' | 'yellow' | 'green' = 'green'
         if (completion === 0) status = 'red'
         else if (completion < 75) status = 'yellow'
-        const userSales = periodSales.filter(s => s.userId === u.id)
+        const userSales = (periodSales as any[]).filter(s => s.userId === u.id && !s.parentSaleId)
           .map(s => ({ id: s.id, amount: s.amount, netAmount: s.netAmount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date, productName: s.product?.name || null, isDojim: !!(s.leadId && ownerCarryoverLeadSet.has(s.leadId as string)) }))
+        const userInstallments = installmentsByUser[u.id] || { count: 0, amount: 0, items: [] }
         return {
           id: u.id, name: u.name, type: 'CLOSER', plan,
           salesCount: netSalesCount, salesAmount: netSalesAmount, completion,
@@ -285,6 +307,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
             const dr = ownerDojimRefundsByUser[u.id] || { count: 0, amount: 0 }
             return { count: Math.max(0, base.count - dr.count), revenue: Math.max(0, base.revenue - dr.amount) }
           })(),
+          installments: userInstallments,
         }
       })
       .sort((a, b) => b.completion - a.completion || b.salesAmount - a.salesAmount)
@@ -363,6 +386,8 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         conversionLabel,
         planCompletion: salesPlan > 0 ? Math.round((totalNetSales / salesPlan) * 1000) / 10 : null,
         totalConsultations, totalRefusals, totalRefusalsAmount, totalInWork,
+        // Installments (доплаты) — additional payments on existing deals
+        installmentCount: installmentCountOwner, installmentRevenue: installmentRevenueOwner,
         // Marketing block — leads from Lead model, budget from MARKETER reports
         marketingLeads: totalLiderLeads, leadsplan, totalBudget, budgetPlan, leadCost: Math.round(leadCost),
         // Lider funnel (from LIDER reports)
@@ -376,7 +401,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       managerRating,
       liderRating,
       productStats,
-      gatewayAnalytics: buildGatewayAnalytics(periodSales),
+      gatewayAnalytics: buildGatewayAnalytics(regularSalesOwner),
       carryover: { count: ownerDojimNetCount, revenue: ownerDojimNetRevenue, avgCheck: dojimAvgCheck },
     })
   } catch (e) {
@@ -430,24 +455,30 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
 
     const todayReportedIds = new Set(todayReports.map(r => r.userId))
 
-    // Aggregate period sales per user (from Sale model)
+    // Separate installments from regular sales
+    const ropInstallmentSales = (periodSales as any[]).filter((s: any) => s.parentSaleId != null)
+    const ropRegularSales     = (periodSales as any[]).filter((s: any) => s.parentSaleId == null)
+    const ropInstallmentRevenue = ropInstallmentSales.reduce((s: number, x: any) => s + (x.netAmount ?? x.amount), 0)
+    const ropInstallmentCount   = ropInstallmentSales.length
+
+    // Aggregate period sales per user (from Sale model — regular sales only)
     const salesByUser: Record<string, { salesCount: number; salesAmount: number }> = {}
-    for (const s of periodSales) {
+    for (const s of ropRegularSales) {
       if (!salesByUser[s.userId]) salesByUser[s.userId] = { salesCount: 0, salesAmount: 0 }
       salesByUser[s.userId].salesCount++
       salesByUser[s.userId].salesAmount += s.netAmount ?? s.amount
     }
 
-    const totalSalesAmount = periodSales.reduce((s, x) => s + (x.netAmount ?? x.amount), 0)
-    const totalSalesCount = periodSales.length
+    const totalSalesAmount = ropRegularSales.reduce((s: number, x: any) => s + (x.netAmount ?? x.amount), 0)
+    const totalSalesCount = ropRegularSales.length
 
     // Carryover: sold in this period from leads created before period start (use createdAt — system timestamp, always reliable)
-    const ropSaleLeadIds = periodSales.map((s: any) => s.leadId).filter(Boolean) as string[]
+    const ropSaleLeadIds = ropRegularSales.map((s: any) => s.leadId).filter(Boolean) as string[]
     const ropCarryoverLeadSet = ropSaleLeadIds.length > 0
       ? await prisma.lead.findMany({ where: { id: { in: ropSaleLeadIds }, createdAt: { lt: start } }, select: { id: true } })
           .then(ls => new Set(ls.map(l => l.id)))
       : new Set<string>()
-    const ropCarryoverSales = periodSales.filter((s: any) => s.leadId && ropCarryoverLeadSet.has(s.leadId))
+    const ropCarryoverSales = ropRegularSales.filter((s: any) => s.leadId && ropCarryoverLeadSet.has(s.leadId))
     const ropCarryoverCount = ropCarryoverSales.length
     const ropCarryoverRevenue = ropCarryoverSales.reduce((sum: number, x: any) => sum + (x.netAmount ?? x.amount), 0)
     // Per-manager carryover map (for manager rating table)
@@ -469,7 +500,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     })
     const ropRefundCount  = ropRefundedLeads.length
     const ropRefundTotal  = ropRefundedLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
-    const ropNetSales     = totalSalesAmount - ropRefundTotal
+    const ropNetSales     = totalSalesAmount + ropInstallmentRevenue - ropRefundTotal
     const ropRefundedLeadIds = new Set(ropRefundedLeads.map(l => l.id))
     // Split refunds: dojim (lead from prev period) vs fact (lead from this period)
     const ropDojimRefundLeads = ropRefundedLeads.filter(l => ropCarryoverLeadSet.has(l.id))
@@ -514,9 +545,9 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       todaySalesByManager[s.userId].push(s)
     }
 
-    // Period sales per manager (for expanded view matching selected period)
+    // Period sales per manager (for expanded view matching selected period — regular sales only, not installments)
     const periodSalesByManager: Record<string, any[]> = {}
-    for (const s of periodSales) {
+    for (const s of ropRegularSales) {
       if (!periodSalesByManager[s.userId]) periodSalesByManager[s.userId] = []
       periodSalesByManager[s.userId].push({ id: s.id, amount: s.amount, netAmount: s.netAmount, paymentType: s.paymentType, paymentMethod: s.paymentMethod, bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment, date: s.date, productName: s.product?.name || null, leadId: s.leadId ?? null, isRefund: !!(s.leadId && ropRefundedLeadIds.has(s.leadId)), isDojim: !!(s.leadId && ropCarryoverLeadSet.has(s.leadId)) })
     }
@@ -644,9 +675,9 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const totalBudget = channelBudgetTotal > 0 ? channelBudgetTotal : reportBudgetTotal
     const leadsplan = plans.find(p => !p.userId && !p.departmentId && p.type === 'LEADS')?.value || 0
 
-    // ── Product stats (from Sale model) ────────────────────────────────────────
+    // ── Product stats (from Sale model — regular sales only) ────────────────────────────────────────
     const ropProductStatsMap: Record<string, { productId: string; productName: string; count: number; totalAmount: number }> = {}
-    for (const s of periodSales) {
+    for (const s of ropRegularSales) {
       if (s.productId && s.product) {
         if (!ropProductStatsMap[s.productId]) {
           ropProductStatsMap[s.productId] = { productId: s.productId, productName: s.product.name, count: 0, totalAmount: 0 }
@@ -680,6 +711,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         factAvgCheck: ropFactAvgCheck,
         planCompletion: salesPlan > 0 ? Math.round((ropNetSales / salesPlan) * 1000) / 10 : null,
         totalConsultations, totalRefusals, totalRefusalsAmount, totalInWork,
+        installmentCount: ropInstallmentCount, installmentRevenue: ropInstallmentRevenue,
       },
       funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount: ropFactSalesCount },
       marketing: { leadsplan, totalLeads, totalBudget, leadCost: totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0, qualifiedLeads },
@@ -687,7 +719,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       managerRating,
       liderRating,
       productStats,
-      gatewayAnalytics: buildGatewayAnalytics(periodSales),
+      gatewayAnalytics: buildGatewayAnalytics(ropRegularSales as any[]),
       refundedLeads: ropRefundedLeads.map(l => ({
         id: l.id, clientName: l.clientName, phone: l.phone, date: l.date,
         amount: l.amount, netAmount: l.netAmount, refundComment: l.refundComment,
@@ -745,9 +777,13 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
     const isCloser = req.user!.managerType === 'CLOSER'
 
     if (isCloser) {
-      // Sales come from Sale model (live, per-entry)
-      const salesAmount = periodSales.reduce((s, x) => s + (x.netAmount ?? x.amount), 0)
-      const salesCount = periodSales.length
+      // Sales come from Sale model (live, per-entry); separate installments
+      const mgrInstallmentSales = periodSales.filter((s: any) => s.parentSaleId != null)
+      const mgrRegularSales     = periodSales.filter((s: any) => s.parentSaleId == null)
+      const mgrInstallmentRevenue = mgrInstallmentSales.reduce((s: number, x: any) => s + (x.netAmount ?? x.amount), 0)
+      const mgrInstallmentCount   = mgrInstallmentSales.length
+      const salesAmount = mgrRegularSales.reduce((s: number, x: any) => s + (x.netAmount ?? x.amount), 0)
+      const salesCount = mgrRegularSales.length
       // Carryover: sold in this period from leads created before period start
       const mgrSaleLeadIds = periodSales.map((s: any) => s.leadId).filter(Boolean) as string[]
       const mgrCarryoverLeadSet = mgrSaleLeadIds.length > 0
@@ -818,18 +854,23 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
           pendingLeadsCount, inWorkLeadsCount, pendingTasksCount,
           leadRefusedCount, leadSoldCount: factLeadSoldCount, leadTotal, leadConversion,
           carryover: { count: dojimNetCount, revenue: dojimNetRevenue, avgCheck: dojimAvgCheck },
+          installmentCount: mgrInstallmentCount, installmentRevenue: mgrInstallmentRevenue,
         },
-        periodSales: periodSales.map(s => ({
+        periodSales: mgrRegularSales.map((s: any) => ({
           id: s.id, date: s.date, amount: s.amount, netAmount: s.netAmount,
           paymentType: s.paymentType, paymentMethod: s.paymentMethod,
           bank: s.bank, months: s.months, crmLink: s.crmLink, comment: s.comment,
           leadId: s.leadId, createdAt: s.createdAt,
           isRefund: !!(s.leadId && refundedLeadIds.has(s.leadId)),
           isDojim: !!(s.leadId && mgrCarryoverLeadSet.has(s.leadId)),
+          // Installments for this sale
+          installments: mgrInstallmentSales
+            .filter((inst: any) => inst.parentSaleId === s.id)
+            .map((inst: any) => ({ id: inst.id, date: inst.date, amount: inst.amount, netAmount: inst.netAmount, paymentMethod: inst.paymentMethod, comment: inst.comment })),
         })),
         todayReport,
         recentReports: reports.slice(0, 7),
-        gatewayAnalytics: buildGatewayAnalytics(periodSales),
+        gatewayAnalytics: buildGatewayAnalytics(mgrRegularSales),
       })
     } else {
       // LIDER — stats come from Lead model (live, per-lead)

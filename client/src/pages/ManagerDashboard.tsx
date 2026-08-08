@@ -226,6 +226,20 @@ export default function ManagerDashboard() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sales-today'] }); qc.invalidateQueries({ queryKey: ['dashboard-manager'] }) },
   })
 
+  // ── Installment (доплата) modal ──
+  const [installmentSaleId, setInstallmentSaleId] = useState<string | null>(null)
+  const [installmentSaleCrmLink, setInstallmentSaleCrmLink] = useState<string>('')
+  const [instForm, setInstForm] = useState({ date: localDateStr(new Date()), amount: '', paymentMethod: 'Cash', comment: '' })
+  const addInstallment = useMutation({
+    mutationFn: ({ saleId, data }: { saleId: string; data: any }) =>
+      api.post(`/sales/${saleId}/installment`, data).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['dashboard-manager'] })
+      setInstallmentSaleId(null)
+      setInstForm({ date: localDateStr(new Date()), amount: '', paymentMethod: 'Cash', comment: '' })
+    },
+  })
+
   const openAdd = () => { setSaleForm(emptySale()); setEditingId(null) }
   const openEdit = (s: any) => {
     setSaleForm({ amount: String(s.amount), paymentType: s.paymentType, paymentMethod: s.paymentMethod || 'Cash', bank: '', months: String(s.months || '12'), crmLink: s.crmLink || '', comment: s.comment || '' })
@@ -405,58 +419,87 @@ export default function ManagerDashboard() {
             ) : (
               <div className="space-y-2">
                 {(periodSalesData as any[]).map((s: any) => (
-                  <div key={s.id} className={`flex items-start justify-between p-3 rounded-xl border ${s.isRefund ? 'bg-red-50 border-red-200' : s.isDojim ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-100'}`}>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {s.isRefund && <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-200 text-red-700">{t('dash.closer.refundBadge')}</span>}
-                        {s.isDojim && <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-200 text-amber-700">ДОЖИМ</span>}
-                        {s.leadId ? (
-                          <>
-                            <span className="text-xs text-gray-400 shrink-0">{t('dash.closer.leadDateLabel')} {new Date(s.date + 'T12:00:00').toLocaleDateString(lang === 'kk' ? 'kk' : 'ru', { day: 'numeric', month: 'short' })}</span>
-                            <span className="text-xs text-gray-400 shrink-0">· {t('dash.closer.saleDateLabel')} {new Date(s.createdAt).toLocaleDateString(lang === 'kk' ? 'kk' : 'ru', { day: 'numeric', month: 'short' })}</span>
-                          </>
-                        ) : (
-                          <span className="text-xs text-gray-400 w-16 shrink-0">{new Date(s.date + 'T12:00:00').toLocaleDateString(lang === 'kk' ? 'kk' : 'ru', { day: 'numeric', month: 'short' })}</span>
+                  <div key={s.id} className={`rounded-xl border ${s.isRefund ? 'bg-red-50 border-red-200' : s.isDojim ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-100'}`}>
+                    <div className="flex items-start justify-between p-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {s.isRefund && <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-200 text-red-700">{t('dash.closer.refundBadge')}</span>}
+                          {s.isDojim && <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-200 text-amber-700">ДОЖИМ</span>}
+                          {s.leadId ? (
+                            <>
+                              <span className="text-xs text-gray-400 shrink-0">{t('dash.closer.leadDateLabel')} {new Date(s.date + 'T12:00:00').toLocaleDateString(lang === 'kk' ? 'kk' : 'ru', { day: 'numeric', month: 'short' })}</span>
+                              <span className="text-xs text-gray-400 shrink-0">· {t('dash.closer.saleDateLabel')} {new Date(s.createdAt).toLocaleDateString(lang === 'kk' ? 'kk' : 'ru', { day: 'numeric', month: 'short' })}</span>
+                            </>
+                          ) : (
+                            <span className="text-xs text-gray-400 w-16 shrink-0">{new Date(s.date + 'T12:00:00').toLocaleDateString(lang === 'kk' ? 'kk' : 'ru', { day: 'numeric', month: 'short' })}</span>
+                          )}
+                          {s.isRefund ? (
+                            <>
+                              <span className="font-bold text-red-600">−₸ {fmt(Number(s.amount))}</span>
+                              <span className="text-xs text-gray-400 line-through">₸ {fmt(net(s))}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-bold text-gray-900">₸ {fmt(net(s))}</span>
+                              {s.netAmount && s.netAmount !== s.amount && <span className="text-xs text-gray-400 line-through">₸ {fmt(Number(s.amount))}</span>}
+                            </>
+                          )}
+                          {!s.isRefund && (
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                              {s.paymentType === 'new_sale' ? t('dash.payType.new') : t('dash.payType.additional')}
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-500">{gatewayLabel(s.paymentMethod)}</span>
+                          {!s.isRefund && s.netAmount && <span className="text-xs text-green-600 font-medium">{t('dash.closer.budgetLabel')} {s.netAmount.toLocaleString('ru')} ₸</span>}
+                          {s.months && showMonths(s.paymentMethod) && <span className="text-xs text-gray-400">{s.months} {t('common.monthsShort')}</span>}
+                        </div>
+                        {s.crmLink && (
+                          <a href={s.crmLink} target="_blank" rel="noreferrer"
+                            className="flex items-center gap-1 text-xs text-blue-500 hover:underline mt-1 max-w-xs">
+                            <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{s.crmLink}</span>
+                          </a>
                         )}
-                        {s.isRefund ? (
-                          <>
-                            <span className="font-bold text-red-600">−₸ {fmt(Number(s.amount))}</span>
-                            <span className="text-xs text-gray-400 line-through">₸ {fmt(net(s))}</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="font-bold text-gray-900">₸ {fmt(net(s))}</span>
-                            {s.netAmount && s.netAmount !== s.amount && <span className="text-xs text-gray-400 line-through">₸ {fmt(Number(s.amount))}</span>}
-                          </>
-                        )}
-                        {!s.isRefund && (
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.paymentType === 'new_sale' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                            {s.paymentType === 'new_sale' ? t('dash.payType.new') : t('dash.payType.additional')}
-                          </span>
-                        )}
-                        <span className="text-xs text-gray-500">{gatewayLabel(s.paymentMethod)}</span>
-                        {!s.isRefund && s.netAmount && <span className="text-xs text-green-600 font-medium">{t('dash.closer.budgetLabel')} {s.netAmount.toLocaleString('ru')} ₸</span>}
-                        {s.months && showMonths(s.paymentMethod) && <span className="text-xs text-gray-400">{s.months} {t('common.monthsShort')}</span>}
+                        {s.comment && <p className="text-xs text-gray-500 mt-1">💬 {s.comment}</p>}
                       </div>
-                      {s.crmLink && (
-                        <a href={s.crmLink} target="_blank" rel="noreferrer"
-                          className="flex items-center gap-1 text-xs text-blue-500 hover:underline mt-1 max-w-xs">
-                          <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate">{s.crmLink}</span>
-                        </a>
-                      )}
-                      {s.comment && <p className="text-xs text-gray-500 mt-1">💬 {s.comment}</p>}
+                      <div className="flex gap-0.5 ml-2 flex-shrink-0">
+                        {!s.isRefund && (
+                          <button
+                            onClick={() => { setInstallmentSaleId(s.id); setInstallmentSaleCrmLink(s.crmLink || ''); setInstForm({ date: localDateStr(new Date()), amount: '', paymentMethod: 'Cash', comment: '' }) }}
+                            className="px-2 py-1 rounded-lg text-xs font-medium text-purple-600 hover:bg-purple-50 transition-colors border border-purple-200 hover:border-purple-400"
+                            title="Получить доплату по этой сделке"
+                          >
+                            + Доплата
+                          </button>
+                        )}
+                        <button onClick={() => { setSalesDate(s.date); openEdit(s) }}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => { if (confirm(t('dash.closer.deleteSale'))) deleteSale.mutate(s.id) }}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-0.5 ml-2 flex-shrink-0">
-                      <button onClick={() => { setSalesDate(s.date); openEdit(s) }}
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => { if (confirm(t('dash.closer.deleteSale'))) deleteSale.mutate(s.id) }}
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    {/* Installments (доплаты) under this sale */}
+                    {s.installments?.length > 0 && (
+                      <div className="border-t border-purple-100 bg-purple-50/60 rounded-b-xl px-3 pb-2 pt-1.5 space-y-1">
+                        <p className="text-[10px] font-semibold text-purple-500 uppercase tracking-wide mb-1">Доплаты</p>
+                        {s.installments.map((inst: any) => (
+                          <div key={inst.id} className="flex items-center gap-2 text-xs">
+                            <span className="w-2 h-2 rounded-full bg-purple-400 shrink-0" />
+                            <span className="text-gray-500">{new Date(inst.date + 'T12:00:00').toLocaleDateString('ru', { day: 'numeric', month: 'short' })}</span>
+                            <span className="font-bold text-purple-700">₸ {fmt(inst.netAmount ?? inst.amount)}</span>
+                            <span className="text-gray-400">{gatewayLabel(inst.paymentMethod)}</span>
+                            {inst.comment && <span className="text-gray-400">· {inst.comment}</span>}
+                          </div>
+                        ))}
+                        <p className="text-[10px] text-purple-400 font-medium pt-0.5">
+                          Итого доплат: ₸ {fmt(s.installments.reduce((sum: number, i: any) => sum + (i.netAmount ?? i.amount), 0))}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -827,6 +870,26 @@ export default function ManagerDashboard() {
       )}
 
       {/* ── GATEWAY ANALYTICS (for closer) ── */}
+      {/* ── Доплаты summary block ── */}
+      {isCloser && (summary.installmentCount ?? 0) > 0 && (
+        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex items-center gap-4">
+          <div>
+            <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-0.5">Доплаты</p>
+            <p className="text-sm text-purple-600">Дополнительные платежи по закрытым сделкам</p>
+          </div>
+          <div className="ml-auto flex items-center gap-6 shrink-0">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-purple-800">{summary.installmentCount}</p>
+              <p className="text-xs text-purple-500">платежей</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-purple-800">₸ {fmt(summary.installmentRevenue ?? 0)}</p>
+              <p className="text-xs text-purple-500">выручка</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isCloser && gatewayAnalytics.length > 0 && (
         <div className="card">
           <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -880,6 +943,78 @@ export default function ManagerDashboard() {
                 )}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Installment (доплата) modal ── */}
+      {installmentSaleId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setInstallmentSaleId(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900">Получить доплату</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Дополнительный платёж по сделке</p>
+              </div>
+              <button onClick={() => setInstallmentSaleId(null)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {installmentSaleCrmLink && (
+              <a href={installmentSaleCrmLink} target="_blank" rel="noreferrer"
+                className="flex items-center gap-1 text-xs text-blue-500 hover:underline">
+                <ExternalLink className="w-3 h-3" />
+                <span className="truncate">{installmentSaleCrmLink}</span>
+              </a>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Дата платежа</label>
+                <input type="date" value={instForm.date}
+                  onChange={e => setInstForm(f => ({ ...f, date: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Сумма (₸)</label>
+                <input type="number" placeholder="0" value={instForm.amount}
+                  onChange={e => setInstForm(f => ({ ...f, amount: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+                {instForm.amount && Number(instForm.amount) > 0 && (
+                  <p className="text-xs text-green-600 mt-1">
+                    Бюджет: ₸ {fmt(calcNetAmount(Number(instForm.amount), instForm.paymentMethod))}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Способ оплаты</label>
+                <select value={instForm.paymentMethod}
+                  onChange={e => setInstForm(f => ({ ...f, paymentMethod: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300">
+                  {PAYMENT_GATEWAYS.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Комментарий</label>
+                <input type="text" placeholder="Необязательно" value={instForm.comment}
+                  onChange={e => setInstForm(f => ({ ...f, comment: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300" />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setInstallmentSaleId(null)}
+                className="flex-1 px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                Отмена
+              </button>
+              <button
+                disabled={!instForm.amount || Number(instForm.amount) <= 0 || addInstallment.isPending}
+                onClick={() => addInstallment.mutate({ saleId: installmentSaleId!, data: { date: instForm.date, amount: Number(instForm.amount), paymentMethod: instForm.paymentMethod, comment: instForm.comment || null } })}
+                className="flex-1 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm font-semibold transition-colors">
+                {addInstallment.isPending ? 'Сохранение…' : 'Записать доплату'}
+              </button>
+            </div>
           </div>
         </div>
       )}

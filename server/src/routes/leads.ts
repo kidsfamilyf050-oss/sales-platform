@@ -413,7 +413,32 @@ router.get('/sold', authenticate, async (req: AuthRequest, res: Response) => {
       include: INCLUDE_FULL,
       orderBy: { updatedAt: 'desc' },
     })
-    res.json(leads)
+    // Attach saleId + installments to each lead
+    const leadIdArr = leads.map(l => l.id)
+    const salesForLeads = await prisma.sale.findMany({
+      where: { leadId: { in: leadIdArr }, parentSaleId: null },
+      select: { id: true, leadId: true },
+    })
+    const saleIdByLeadId: Record<string, string> = {}
+    for (const s of salesForLeads) if (s.leadId) saleIdByLeadId[s.leadId] = s.id
+    // Fetch installments for those sales
+    const parentSaleIds = Object.values(saleIdByLeadId)
+    const allInstallments = parentSaleIds.length > 0 ? await prisma.sale.findMany({
+      where: { parentSaleId: { in: parentSaleIds } },
+      select: { id: true, parentSaleId: true, date: true, amount: true, netAmount: true, paymentMethod: true, comment: true },
+      orderBy: { date: 'asc' },
+    }) : []
+    const installmentsBySaleId: Record<string, any[]> = {}
+    for (const inst of allInstallments) {
+      if (!inst.parentSaleId) continue
+      if (!installmentsBySaleId[inst.parentSaleId]) installmentsBySaleId[inst.parentSaleId] = []
+      installmentsBySaleId[inst.parentSaleId].push(inst)
+    }
+    const enrichedLeads = leads.map(l => {
+      const saleId = saleIdByLeadId[l.id] ?? null
+      return { ...l, saleId, installments: saleId ? (installmentsBySaleId[saleId] ?? []) : [] }
+    })
+    res.json(enrichedLeads)
   } catch (e) {
     console.error(e); res.status(500).json({ error: 'Server error' })
   }
@@ -874,6 +899,44 @@ router.put('/:id/refund', authenticate, async (req: AuthRequest, res: Response) 
       },
     })
     res.json(updated)
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── POST /api/leads/:id/installment — add a доплата linked to the Sale of this lead ─
+router.post('/:id/installment', authenticate, async (req: AuthRequest, res: Response) => {
+  const { date, amount, paymentMethod, comment } = req.body
+  if (!date || !amount || !paymentMethod) return res.status(400).json({ error: 'date, amount, paymentMethod required' })
+  try {
+    const lead = await prisma.lead.findFirst({
+      where: { id: req.params.id, companyId: req.user!.companyId },
+    })
+    if (!lead) return res.status(404).json({ error: 'Lead not found' })
+    if (lead.status !== 'SOLD') return res.status(400).json({ error: 'Только SOLD лид может иметь доплату' })
+    // Find the parent Sale linked to this lead
+    const parentSale = await prisma.sale.findFirst({
+      where: { leadId: req.params.id, parentSaleId: null },
+    })
+    if (!parentSale) return res.status(404).json({ error: 'Sale for this lead not found' })
+    const numAmount = Number(amount)
+    const fee = GATEWAY_FEE[paymentMethod] ?? 0.03
+    const netAmount = Math.round(numAmount * (1 - fee) * 100) / 100
+    const installment = await prisma.sale.create({
+      data: {
+        userId:       parentSale.userId,
+        companyId:    parentSale.companyId,
+        date,
+        amount:       numAmount,
+        netAmount,
+        paymentType:  'additional',
+        paymentMethod,
+        crmLink:      parentSale.crmLink || null,
+        comment:      comment || null,
+        parentSaleId: parentSale.id,
+      },
+    })
+    res.json(installment)
   } catch (e) {
     console.error(e); res.status(500).json({ error: 'Server error' })
   }

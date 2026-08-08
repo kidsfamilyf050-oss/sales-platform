@@ -485,6 +485,26 @@ export default function ROPDashboard() {
         </div>
       </div>
 
+      {/* Installments (Доплаты) block */}
+      {(summary.installmentCount ?? 0) > 0 && (
+        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex items-center gap-4">
+          <div>
+            <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-0.5">Доплаты</p>
+            <p className="text-sm text-purple-500">Частичные оплаты по ранее оформленным сделкам</p>
+          </div>
+          <div className="ml-auto flex items-center gap-6 shrink-0">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-purple-800">{summary.installmentCount}</p>
+              <p className="text-xs text-purple-400">платежей</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-purple-800">₸ {fmt(summary.installmentRevenue ?? 0)}</p>
+              <p className="text-xs text-purple-400">бюджет (нетто)</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Visual Funnel */}
         <div className="card lg:col-span-2">

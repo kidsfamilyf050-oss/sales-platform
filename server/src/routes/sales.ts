@@ -177,6 +177,44 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   }
 })
 
+// POST /api/sales/:id/installment — add a доплата (installment) to an existing sale
+router.post('/:id/installment', authenticate, async (req: AuthRequest, res: Response) => {
+  const { date, amount, paymentMethod, bank, months, comment } = req.body
+  if (!date || !amount || !paymentMethod) {
+    return res.status(400).json({ error: 'date, amount, paymentMethod required' })
+  }
+  try {
+    // Find the parent sale — must belong to same company (owner/rop can add on behalf of manager)
+    const parent = await prisma.sale.findFirst({
+      where: { id: req.params.id, companyId: req.user!.companyId },
+    })
+    if (!parent) return res.status(404).json({ error: 'Sale not found' })
+
+    const numAmount = Number(amount)
+    const netAmount = calcNet(numAmount, paymentMethod)
+    const installment = await prisma.sale.create({
+      data: {
+        userId:       parent.userId,      // belongs to the same manager
+        companyId:    parent.companyId,
+        date,
+        amount:       numAmount,
+        netAmount,
+        paymentType:  'additional',
+        paymentMethod,
+        bank:         bank || null,
+        months:       months ? Number(months) : null,
+        crmLink:      parent.crmLink || null,  // inherit CRM link from parent
+        comment:      comment || null,
+        parentSaleId: parent.id,
+      },
+    })
+    res.json(installment)
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // DELETE /api/sales/:id — delete a sale
 router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {

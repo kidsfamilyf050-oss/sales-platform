@@ -202,11 +202,16 @@ model Sale {
   leadId        String?  @unique  // if created from a Lead (prevents duplicates)
   productId     String?
   product       Product? @relation(fields: [productId], references: [id])
+  // Installment (доплата) support: parentSaleId links this payment to the original sale
+  parentSaleId  String?
+  parentSale    Sale?    @relation("SaleInstallments", fields: [parentSaleId], references: [id], onDelete: Cascade)
+  installments  Sale[]   @relation("SaleInstallments")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([userId, date])
   @@index([companyId, date])
+  @@index([parentSaleId])
 }
 
 // CRM links for refusals and in-work deals tracked by closer
