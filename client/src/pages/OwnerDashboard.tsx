@@ -260,12 +260,6 @@ export default function OwnerDashboard() {
           <p className="text-sm text-amber-600">{t('dash.carryover.subtitle')}</p>
         </div>
         <div className="ml-auto flex items-center gap-6 shrink-0">
-          {(carryover?.avgCheck ?? 0) > 0 && (
-            <div className="text-right">
-              <p className="text-2xl font-bold text-amber-800">₸ {fmt(carryover?.avgCheck ?? 0)}</p>
-              <p className="text-xs text-amber-500">средний чек</p>
-            </div>
-          )}
           <div className="text-right">
             <p className="text-2xl font-bold text-amber-800">{carryover?.count ?? 0}</p>
             <p className="text-xs text-amber-500">{t('dash.carryover.deals')}</p>

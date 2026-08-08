@@ -306,12 +306,6 @@ export default function ManagerDashboard() {
               <p className="text-sm text-amber-600">{t('dash.carryover.subtitle')}</p>
             </div>
             <div className="ml-auto flex items-center gap-6 shrink-0">
-              {(summary.carryover?.avgCheck ?? 0) > 0 && (
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-amber-800">₸ {fmt(summary.carryover?.avgCheck ?? 0)}</p>
-                  <p className="text-xs text-amber-500">{t('dash.avgCheck')}</p>
-                </div>
-              )}
               <div className="text-right">
                 <p className="text-2xl font-bold text-amber-800">{summary.carryover?.count ?? 0}</p>
                 <p className="text-xs text-amber-500">{t('dash.carryover.deals')}</p>
