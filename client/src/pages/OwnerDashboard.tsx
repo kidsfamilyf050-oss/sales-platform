@@ -227,8 +227,8 @@ export default function OwnerDashboard() {
         )}
       </div>
 
-      {/* ── Block 1: Sales KPIs ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
+      {/* ── Block 1: Sales KPIs — 4 cols × 3 rows = 12 cards ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-5">
         <StatCard label={t('dash.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
         <StatCard label={t('dash.salesFact')} value={`₸ ${fmt(summary.totalNetSales ?? summary.totalSalesAmount)}`} color="blue" />
         <StatCard label="Новые продажи" value={`₸ ${fmt(summary.factNetSales ?? 0)}`} color="blue"
@@ -248,7 +248,6 @@ export default function OwnerDashboard() {
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red"
           sub={summary.totalRefusalsAmount > 0 ? `−₸ ${fmt(summary.totalRefusalsAmount)}` : undefined} />
-        <StatCard label={t('dash.inWork')} value={summary.totalInWork ?? 0} color="yellow" />
       </div>
 
       <ProgressBar value={summary.planCompletion} label={t('dash.planCompletion')} />
@@ -260,6 +259,10 @@ export default function OwnerDashboard() {
           <p className="text-sm text-amber-600">{t('dash.carryover.subtitle')}</p>
         </div>
         <div className="ml-auto flex items-center gap-6 shrink-0">
+          <div className="text-right">
+            <p className="text-2xl font-bold text-amber-800">{summary.totalInWork ?? 0}</p>
+            <p className="text-xs text-amber-500">{t('dash.inWork')}</p>
+          </div>
           <div className="text-right">
             <p className="text-2xl font-bold text-amber-800">{carryover?.count ?? 0}</p>
             <p className="text-xs text-amber-500">{t('dash.carryover.deals')}</p>

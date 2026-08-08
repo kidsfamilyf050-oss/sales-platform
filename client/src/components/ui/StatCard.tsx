@@ -30,14 +30,14 @@ function formatValue(v: string | number): string {
 
 export default function StatCard({ label, value, sub, extraSub, color = 'default', icon }: StatCardProps) {
   return (
-    <div className="stat-card">
-      <div className="flex items-start justify-between">
-        <p className="stat-label">{label}</p>
+    <div className="stat-card text-center items-center">
+      <div className="flex items-center justify-center gap-1 w-full">
         {icon && <div className="text-gray-400">{icon}</div>}
+        <p className="stat-label">{label}</p>
       </div>
       <p className={`stat-value ${colorMap[color]}`}>{formatValue(value)}</p>
       {sub && <p className="stat-sub">{sub}</p>}
-      {extraSub && <div className="mt-0.5">{extraSub}</div>}
+      {extraSub && <div className="mt-0.5 flex justify-center">{extraSub}</div>}
     </div>
   )
 }

@@ -284,7 +284,7 @@ export default function ManagerDashboard() {
       {isCloser ? (
         <>
           {/* Period stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 md:gap-5">
             <StatCard label={t('dash.manager.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
             <StatCard label={t('dash.manager.salesPeriod')} value={`₸ ${fmt(summary.netSalesAmount ?? summary.salesAmount)}`} color="blue"
               sub={summary.refundCount > 0 ? `−₸ ${fmt(summary.refundTotal)} ${t('dash.closer.refundsSuffix')}` : undefined} />
@@ -688,7 +688,7 @@ export default function ManagerDashboard() {
           </div>
 
           {/* Lider stats — primary KPI: consultations conducted */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 md:gap-5">
             <StatCard label={t('dash.manager.leads')} value={summary.leads} sub={summary.leadsplan > 0 ? `${t('dash.plan')} ${summary.leadsplan}` : undefined} />
             <StatCard label={t('dash.manager.qualified')} value={summary.qualifiedLeads} sub={`${summary.qualRate}% ${t('common.qualShort')}`} />
             <StatCard label={t('dash.manager.meetings')} value={summary.meetingsScheduled} />

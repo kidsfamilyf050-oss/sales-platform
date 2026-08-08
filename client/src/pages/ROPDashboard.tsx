@@ -412,7 +412,7 @@ export default function ROPDashboard() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-5">
         <StatCard label={t('dash.rop.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
         <StatCard label={t('dash.rop.salesFact')} value={`₸ ${fmt(summary.netSalesAmount ?? summary.salesAmount)}`} color="blue" />
         <StatCard label="Новые продажи" value={`₸ ${fmt(summary.factNetSales ?? 0)}`} color="blue"
@@ -455,17 +455,6 @@ export default function ROPDashboard() {
             <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">нажмите → CRM-ссылки</p>
           </div>
         </div>
-        <div
-          onClick={() => navigate('/rop/links?tab=IN_WORK')}
-          className="cursor-pointer group"
-          title="Открыть CRM-ссылки сделок в работе"
-        >
-          <div className="card transition-all duration-150 group-hover:shadow-md group-hover:border-amber-200 group-hover:bg-amber-50/40 border border-transparent">
-            <p className="text-xs text-gray-400 group-hover:text-amber-600 transition-colors font-medium uppercase tracking-wide mb-1">{t('dash.inWork')}</p>
-            <p className="text-2xl font-bold text-amber-500">{summary.totalInWork ?? 0}</p>
-            <p className="text-xs text-gray-300 group-hover:text-amber-400 mt-1 transition-colors">нажмите → CRM-ссылки</p>
-          </div>
-        </div>
       </div>
 
       <ProgressBar value={summary.planCompletion} label={t('dash.rop.planCompletion')} />
@@ -477,6 +466,14 @@ export default function ROPDashboard() {
           <p className="text-sm text-amber-600">{t('dash.carryover.subtitle')}</p>
         </div>
         <div className="ml-auto flex items-center gap-6 shrink-0">
+          <div
+            className="text-right cursor-pointer hover:opacity-70 transition-opacity"
+            onClick={() => navigate('/rop/links?tab=IN_WORK')}
+            title="Открыть CRM-ссылки сделок в работе"
+          >
+            <p className="text-2xl font-bold text-amber-800">{summary.totalInWork ?? 0}</p>
+            <p className="text-xs text-amber-500">{t('dash.inWork')}</p>
+          </div>
           <div className="text-right">
             <p className="text-2xl font-bold text-amber-800">{carryover?.count ?? 0}</p>
             <p className="text-xs text-amber-500">{t('dash.carryover.deals')}</p>
