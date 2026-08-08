@@ -821,7 +821,9 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
       const mgrFactRefundTotal  = mgrFactRefundLeads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
       const refundCount = refundedLeads.length
       const refundTotal = mgrDojimRefundTotal + mgrFactRefundTotal
-      const netSalesAmount = salesAmount - refundTotal
+      // totalNetSales = regular sales + installments - refunds (all real money received this period)
+      const totalNetSales   = salesAmount + mgrInstallmentRevenue - refundTotal
+      const netSalesAmount  = salesAmount - refundTotal  // regular+dojim only (for avgCheck)
 
       // Fact = new-period leads sold this period (excludes dojim carryover)
       const factSalesAmount = salesAmount - mgrCarryoverRevenue
@@ -843,10 +845,12 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         type: 'CLOSER',
         summary: {
           salesPlan, salesAmount, salesCount,
-          refundCount, refundTotal, netSalesAmount,
+          refundCount, refundTotal,
+          totalNetSales,   // includes installments — used for "Продажи за период" display and planCompletion
+          netSalesAmount,  // without installments — kept for avgCheck
           // Fact = new-period leads (excludes dojim carryover); used for "Факт продаж" display
           factSalesAmount, factSalesCount, factNetSales,
-          planCompletion: salesPlan > 0 ? Math.round((netSalesAmount / salesPlan) * 1000) / 10 : null,
+          planCompletion: salesPlan > 0 ? Math.round((totalNetSales / salesPlan) * 1000) / 10 : null,
           conversion,
           avgCheck: Math.max(0, salesCount - refundCount) > 0 ? Math.round(netSalesAmount / Math.max(0, salesCount - refundCount) * 10) / 10 : 0,
           factAvgCheck,

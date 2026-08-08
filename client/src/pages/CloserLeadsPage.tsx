@@ -344,7 +344,12 @@ function InstallmentButton({ lead }: { lead: Lead }) {
     mutationFn: () => api.post(`/leads/${lead.id}/installment`, {
       date: form.date, amount: Number(form.amount), paymentMethod: form.paymentMethod, comment: form.comment || null,
     }).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['closer-leads'] }); setShow(false); setForm({ date: todayKz, amount: '', paymentMethod: 'Cash', comment: '' }) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['closer-leads'] })
+      qc.invalidateQueries({ queryKey: ['dashboard-manager'] })
+      setShow(false)
+      setForm({ date: todayKz, amount: '', paymentMethod: 'Cash', comment: '' })
+    },
   })
 
   if (!show) return (
