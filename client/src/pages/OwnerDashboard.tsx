@@ -213,6 +213,8 @@ export default function OwnerDashboard() {
   const leadsToSale     = pct(factSalesCount, summary.totalLiderLeads)
   const hasFunnel       = summary.totalLiderLeads > 0 || summary.totalQualifiedLeads > 0
   const leadDeficit     = summary.leadsplan > 0 ? summary.leadsplan - summary.marketingLeads : 0
+  const vatAmount       = summary.isVatPayer && summary.vatAmount != null ? summary.vatAmount : null
+  const vatTurnover     = vatAmount != null ? Math.round((summary.netSalesAmount - vatAmount) * 100) / 100 : null
 
   return (
     <div className="space-y-6 px-4 md:px-6 py-2 md:py-4">
@@ -258,27 +260,23 @@ export default function OwnerDashboard() {
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red"
           sub={summary.totalRefusalsAmount > 0 ? `−₸ ${fmt(summary.totalRefusalsAmount)}` : undefined} />
-        {summary.isVatPayer && summary.vatAmount != null && (() => {
-          const vatPct = summary.vatAmount
-          const turnover = Math.round((summary.netSalesAmount - vatPct) * 100) / 100
-          return (
-            <div className="card text-center border border-emerald-200 bg-emerald-50/60">
-              <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide mb-2">НДС (16%)</p>
-              <p className="text-2xl font-bold text-emerald-700">₸ {fmt(vatPct)}</p>
-              <p className="text-xs text-emerald-500 mt-0.5 mb-2">Сумма НДС</p>
-              <div className="border-t border-emerald-200 pt-2 space-y-1">
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>Оборот без НДС</span>
-                  <span className="font-medium text-gray-700">₸ {fmt(turnover)}</span>
-                </div>
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>Итого с НДС</span>
-                  <span className="font-semibold text-gray-800">₸ {fmt(summary.netSalesAmount)}</span>
-                </div>
+        {vatAmount != null && (
+          <div className="card text-center border border-emerald-200 bg-emerald-50/60">
+            <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide mb-2">НДС (16%)</p>
+            <p className="text-2xl font-bold text-emerald-700">₸ {fmt(vatAmount)}</p>
+            <p className="text-xs text-emerald-500 mt-0.5 mb-2">Сумма НДС</p>
+            <div className="border-t border-emerald-200 pt-2 space-y-1">
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Оборот без НДС</span>
+                <span className="font-medium text-gray-700">₸ {fmt(vatTurnover!)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Итого с НДС</span>
+                <span className="font-semibold text-gray-800">₸ {fmt(summary.netSalesAmount)}</span>
               </div>
             </div>
-          )
-        })()}
+          </div>
+        )}
       </div>
 
       {summary.planCompletion != null && <ProgressBar value={summary.planCompletion} label={t('dash.planCompletion')} />}

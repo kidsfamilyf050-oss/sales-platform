@@ -385,6 +385,8 @@ export default function ROPDashboard() {
   if (!data) return null
 
   const { summary, funnel, marketing, managerRating, liderRating, productStats = [], gatewayAnalytics = [], carryover } = data as any
+  const vatAmount   = summary.isVatPayer && summary.vatAmount != null ? summary.vatAmount : null
+  const vatTurnover = vatAmount != null ? Math.round((summary.netSalesAmount - vatAmount) * 100) / 100 : null
 
   const funnelSteps = [
     { label: 'Лидов получено',      value: funnel.leadsReceived,    color: 'bg-purple-400' },
@@ -463,27 +465,23 @@ export default function ROPDashboard() {
             <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">нажмите → CRM-ссылки</p>
           </div>
         </div>
-        {summary.isVatPayer && summary.vatAmount != null && (() => {
-          const vatPct = summary.vatAmount
-          const turnover = Math.round((summary.netSalesAmount - vatPct) * 100) / 100
-          return (
-            <div className="card text-center border border-emerald-200 bg-emerald-50/60">
-              <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide mb-2">НДС (16%)</p>
-              <p className="text-2xl font-bold text-emerald-700">₸ {fmt(vatPct)}</p>
-              <p className="text-xs text-emerald-500 mt-0.5 mb-2">Сумма НДС</p>
-              <div className="border-t border-emerald-200 pt-2 space-y-1">
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>Оборот без НДС</span>
-                  <span className="font-medium text-gray-700">₸ {fmt(turnover)}</span>
-                </div>
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>Итого с НДС</span>
-                  <span className="font-semibold text-gray-800">₸ {fmt(summary.netSalesAmount)}</span>
-                </div>
+        {vatAmount != null && (
+          <div className="card text-center border border-emerald-200 bg-emerald-50/60">
+            <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide mb-2">НДС (16%)</p>
+            <p className="text-2xl font-bold text-emerald-700">₸ {fmt(vatAmount)}</p>
+            <p className="text-xs text-emerald-500 mt-0.5 mb-2">Сумма НДС</p>
+            <div className="border-t border-emerald-200 pt-2 space-y-1">
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Оборот без НДС</span>
+                <span className="font-medium text-gray-700">₸ {fmt(vatTurnover!)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Итого с НДС</span>
+                <span className="font-semibold text-gray-800">₸ {fmt(summary.netSalesAmount)}</span>
               </div>
             </div>
-          )
-        })()}
+          </div>
+        )}
       </div>
 
       {summary.planCompletion != null && <ProgressBar value={summary.planCompletion} label={t('dash.rop.planCompletion')} />}
