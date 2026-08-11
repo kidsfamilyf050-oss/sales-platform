@@ -260,6 +260,22 @@ export default function OwnerDashboard() {
           sub={summary.totalRefusalsAmount > 0 ? `−₸ ${fmt(summary.totalRefusalsAmount)}` : undefined} />
       </div>
 
+      {/* НДС */}
+      {summary.isVatPayer && summary.vatAmount != null && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-4">
+          <div>
+            <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-0.5">НДС (16%)</p>
+            <p className="text-sm text-emerald-600">Включён в стоимость продаж · формула: сумма × 16/116</p>
+          </div>
+          <div className="ml-auto flex items-center gap-6 shrink-0">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-emerald-800">₸ {fmt(summary.vatAmount)}</p>
+              <p className="text-xs text-emerald-500">Сумма НДС за период</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {summary.planCompletion != null && <ProgressBar value={summary.planCompletion} label={t('dash.planCompletion')} />}
 
       {/* Carryover sales (дожим) */}

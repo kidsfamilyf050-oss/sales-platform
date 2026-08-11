@@ -88,7 +88,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const { data: company } = useQuery({ queryKey: ['company'], queryFn: () => api.get('/company').then(r => r.data) })
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: () => api.get('/company/departments').then(r => r.data) })
-  const [form, setForm] = useState({ name: '', businessSphere: '', reportingStart: 1, dealCycleMonths: 1 })
+  const [form, setForm] = useState({ name: '', businessSphere: '', reportingStart: 1, dealCycleMonths: 1, isVatPayer: false })
   const spheres = getSpheres(t)
 
   // Populate form whenever company data loads or refreshes (useEffect avoids render-phase setState)
@@ -99,6 +99,7 @@ export default function SettingsPage() {
         businessSphere: company.businessSphere || '',
         reportingStart: company.reportingStart ?? 1,
         dealCycleMonths: company.dealCycleMonths ?? 1,
+        isVatPayer: company.isVatPayer ?? false,
       })
     }
   }, [company])
@@ -155,6 +156,24 @@ export default function SettingsPage() {
           </select>
           <p className="text-xs text-gray-400 mt-1">Продажа считается дожимом, если лид создан более {form.dealCycleMonths} {form.dealCycleMonths === 1 ? 'месяца' : 'месяцев'} назад</p>
         </div>
+        {/* НДС */}
+        <div className="flex items-center gap-3 py-1">
+          <input
+            id="isVatPayer"
+            type="checkbox"
+            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+            checked={form.isVatPayer}
+            onChange={e => setForm(f => ({ ...f, isVatPayer: e.target.checked }))}
+          />
+          <label htmlFor="isVatPayer" className="text-sm text-gray-800 cursor-pointer select-none">
+            Плательщик НДС (16%)
+          </label>
+        </div>
+        {form.isVatPayer && (
+          <p className="text-xs text-gray-400 -mt-1 ml-7">
+            НДС включён в стоимость продажи. Сумма НДС = сумма продаж × 16/116. В дашборде появится отдельная карточка «Сумма НДС».
+          </p>
+        )}
         <button onClick={() => save.mutate()} disabled={save.isPending} className="btn-primary flex items-center gap-2">
           <Save className="w-4 h-4" />
           {saved ? t('common.saved') : t('common.save')}

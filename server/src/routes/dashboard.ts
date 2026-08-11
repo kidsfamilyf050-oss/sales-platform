@@ -127,10 +127,11 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'MARKETER', date: { gte: start, lte: end } } }),
       // Sales from Sale model — truth source; OR Sale.createdAt in KZ period (covers wrong-date records)
       prisma.sale.findMany({ where: { companyId: req.user!.companyId, OR: [{ date: { gte: fromStr, lte: toStr } }, { createdAt: { gte: periodStart, lte: periodEnd } }] }, include: { user: { select: { id: true, name: true } }, product: { select: { id: true, name: true } } } }),
-      prisma.company.findUnique({ where: { id: req.user!.companyId }, select: { dealCycleMonths: true } }),
+      prisma.company.findUnique({ where: { id: req.user!.companyId }, select: { dealCycleMonths: true, isVatPayer: true } }),
     ])
 
     const dealCycleMonths = (companySettings as any)?.dealCycleMonths ?? 1
+    const isVatPayer = (companySettings as any)?.isVatPayer ?? false
 
     // ── Sales (Sale model) — use netAmount (бюджет сделки) where available ──
     // Separate installments (доплаты) from regular sales
@@ -412,6 +413,11 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const plannedPaymentsCount  = ownerPlannedPayTasks.length
     const plannedPaymentsAmount = ownerPlannedPayTasks.reduce((s: number, t: any) => s + (t.paymentAmount || 0), 0)
 
+    // НДС (VAT): 16% included in price → VAT = totalSales × 16/116
+    const vatAmount = isVatPayer
+      ? Math.round(totalNetSales * 16 / 116 * 100) / 100
+      : null
+
     res.json({
       summary: {
         salesPlan, totalSalesAmount, totalSalesCount: netSalesCountOwner, totalSalesCountGross: totalSalesCount,
@@ -426,6 +432,8 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         // Installments (доплаты) — additional payments on existing deals
         installmentCount: installmentCountOwner, installmentRevenue: installmentRevenueOwner,
         plannedPaymentsCount, plannedPaymentsAmount,
+        // НДС — only present when company.isVatPayer = true
+        vatAmount, isVatPayer,
         // Marketing block — leads from Lead model, budget from MARKETER reports
         marketingLeads: totalLiderLeads, leadsplan, totalBudget, budgetPlan, leadCost: Math.round(leadCost),
         // Lider funnel (from LIDER reports)
@@ -489,10 +497,11 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         where: { assignedTo: { companyId: req.user!.companyId }, date: { gte: fromStr, lte: toStr } },
         select: { assignedToId: true, status: true, consultationStatus: true },
       }),
-      prisma.company.findUnique({ where: { id: req.user!.companyId }, select: { dealCycleMonths: true } }),
+      prisma.company.findUnique({ where: { id: req.user!.companyId }, select: { dealCycleMonths: true, isVatPayer: true } }),
     ])
 
     const ropDealCycleMonths = (ropCompanySettings as any)?.dealCycleMonths ?? 1
+    const ropIsVatPayer = (ropCompanySettings as any)?.isVatPayer ?? false
 
     const todayReportedIds = new Set(todayReports.map(r => r.userId))
 
@@ -742,6 +751,11 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     const ropPlannedPaymentsCount  = ropPlannedPayTasks.length
     const ropPlannedPaymentsAmount = ropPlannedPayTasks.reduce((s: number, t: any) => s + (t.paymentAmount || 0), 0)
 
+    // НДС: 16% included in price → VAT = totalSales × 16/116
+    const ropVatAmount = ropIsVatPayer
+      ? Math.round(ropNetSales * 16 / 116 * 100) / 100
+      : null
+
     res.json({
       summary: {
         salesPlan, salesAmount: totalSalesAmount,
@@ -758,6 +772,8 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         totalConsultations, totalRefusals, totalRefusalsAmount, totalInWork,
         installmentCount: ropInstallmentCount, installmentRevenue: ropInstallmentRevenue,
         plannedPaymentsCount: ropPlannedPaymentsCount, plannedPaymentsAmount: ropPlannedPaymentsAmount,
+        // НДС
+        vatAmount: ropVatAmount, isVatPayer: ropIsVatPayer,
       },
       funnel: { leadsReceived, qualifiedLeads, meetingsScheduled, meetingsAttended, salesCount: ropFactSalesCount },
       marketing: { leadsplan, totalLeads, totalBudget, leadCost: totalLeads > 0 ? Math.round(totalBudget / totalLeads) : 0, qualifiedLeads },
