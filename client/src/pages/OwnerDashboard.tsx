@@ -269,10 +269,6 @@ export default function OwnerDashboard() {
           </div>
           <div className="ml-auto flex items-center gap-6 shrink-0">
             <div className="text-center">
-              <p className="text-xs text-emerald-500 mb-0.5">Оборот без НДС</p>
-              <p className="text-lg font-bold text-emerald-700">₸ {fmt(Math.round(summary.vatAmount * 100 / 16 * 100) / 100)}</p>
-            </div>
-            <div className="text-center">
               <p className="text-xs text-emerald-500 mb-0.5">Сумма НДС</p>
               <p className="text-2xl font-bold text-emerald-800">₸ {fmt(summary.vatAmount)}</p>
             </div>
