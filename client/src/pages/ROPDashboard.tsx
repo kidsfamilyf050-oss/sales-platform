@@ -442,8 +442,8 @@ export default function ROPDashboard() {
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} sub={t('dash.rop.conversionSub')} />
         <StatCard label={t('dash.owner.avgCheckFact')} value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
       </div>
-      {/* Row 3 (3): Additional metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-5">
+      {/* Row 3: Additional metrics (+ VAT card when enabled) */}
+      <div className={`grid grid-cols-1 gap-4 md:gap-5 ${summary.isVatPayer ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'}`}>
         <div onClick={() => navigate('/planned-payments')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-purple-300 rounded-xl transition-all duration-150">
           <StatCard label={t('dash.plannedPayments')} value={`₸ ${fmt(summary.plannedPaymentsAmount ?? 0)}`} color="purple"
             sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
@@ -463,23 +463,28 @@ export default function ROPDashboard() {
             <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">нажмите → CRM-ссылки</p>
           </div>
         </div>
-      </div>
-
-      {/* НДС */}
-      {summary.isVatPayer && summary.vatAmount != null && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-4">
-          <div>
-            <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-0.5">НДС (16%)</p>
-            <p className="text-sm text-emerald-600">Включён в стоимость продаж · формула: сумма × 16/116</p>
-          </div>
-          <div className="ml-auto flex items-center gap-6 shrink-0">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-emerald-800">₸ {fmt(summary.vatAmount)}</p>
-              <p className="text-xs text-emerald-500">Сумма НДС за период</p>
+        {summary.isVatPayer && summary.vatAmount != null && (() => {
+          const vatPct = summary.vatAmount
+          const turnover = Math.round((summary.netSalesAmount - vatPct) * 100) / 100
+          return (
+            <div className="card text-center border border-emerald-200 bg-emerald-50/60">
+              <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide mb-2">НДС (16%)</p>
+              <p className="text-2xl font-bold text-emerald-700">₸ {fmt(vatPct)}</p>
+              <p className="text-xs text-emerald-500 mt-0.5 mb-2">Сумма НДС</p>
+              <div className="border-t border-emerald-200 pt-2 space-y-1">
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Оборот без НДС</span>
+                  <span className="font-medium text-gray-700">₸ {fmt(turnover)}</span>
+                </div>
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Итого с НДС</span>
+                  <span className="font-semibold text-gray-800">₸ {fmt(summary.netSalesAmount)}</span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )
+        })()}
+      </div>
 
       {summary.planCompletion != null && <ProgressBar value={summary.planCompletion} label={t('dash.rop.planCompletion')} />}
 
