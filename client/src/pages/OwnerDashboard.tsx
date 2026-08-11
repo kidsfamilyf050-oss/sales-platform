@@ -194,7 +194,7 @@ export default function OwnerDashboard() {
   })
 
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
-  if (!data) return <div className="flex flex-col items-center justify-center h-64 gap-3 text-gray-400"><p>Ошибка загрузки данных</p><button className="text-sm text-blue-500 underline" onClick={() => window.location.reload()}>Обновить страницу</button></div>
+  if (!data) return null
 
   const { summary, dailyChart, managerRating, liderRating, productStats = [], gatewayAnalytics = [], carryover } = data as any
 
@@ -213,8 +213,6 @@ export default function OwnerDashboard() {
   const leadsToSale     = pct(factSalesCount, summary.totalLiderLeads)
   const hasFunnel       = summary.totalLiderLeads > 0 || summary.totalQualifiedLeads > 0
   const leadDeficit     = summary.leadsplan > 0 ? summary.leadsplan - summary.marketingLeads : 0
-  const vatAmount       = summary.isVatPayer && summary.vatAmount != null ? summary.vatAmount : null
-  const vatTurnover     = vatAmount != null ? Math.round((summary.netSalesAmount - vatAmount) * 100) / 100 : null
 
   return (
     <div className="space-y-6 px-4 md:px-6 py-2 md:py-4">
@@ -251,8 +249,8 @@ export default function OwnerDashboard() {
         <StatCard label={t('dash.salesCount')} value={summary.totalSalesCount ?? 0} />
         <StatCard label={t('dash.owner.avgCheckFact')} value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
       </div>
-      {/* ── Row 3: Additional metrics (+ VAT card when enabled) ── */}
-      <div className={`grid grid-cols-1 gap-4 md:gap-5 ${summary.isVatPayer ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'}`}>
+      {/* ── Row 3 (3): Additional metrics ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-5">
         <div onClick={() => navigate('/planned-payments')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-purple-300 rounded-xl transition-all duration-150">
           <StatCard label={t('dash.plannedPayments')} value={`₸ ${fmt(summary.plannedPaymentsAmount ?? 0)}`} color="purple"
             sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
@@ -260,24 +258,27 @@ export default function OwnerDashboard() {
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red"
           sub={summary.totalRefusalsAmount > 0 ? `−₸ ${fmt(summary.totalRefusalsAmount)}` : undefined} />
-        {vatAmount != null && (
-          <div className="card text-center border border-emerald-200 bg-emerald-50/60">
-            <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide mb-2">НДС (16%)</p>
-            <p className="text-2xl font-bold text-emerald-700">₸ {fmt(vatAmount)}</p>
-            <p className="text-xs text-emerald-500 mt-0.5 mb-2">Сумма НДС</p>
-            <div className="border-t border-emerald-200 pt-2 space-y-1">
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>Оборот без НДС</span>
-                <span className="font-medium text-gray-700">₸ {fmt(vatTurnover!)}</span>
-              </div>
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>Итого с НДС</span>
-                <span className="font-semibold text-gray-800">₸ {fmt(summary.netSalesAmount)}</span>
-              </div>
+      </div>
+
+      {/* НДС */}
+      {summary.isVatPayer && summary.vatAmount != null && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-4">
+          <div>
+            <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-0.5">НДС (16%)</p>
+            <p className="text-sm text-emerald-600">Включён в стоимость продаж</p>
+          </div>
+          <div className="ml-auto flex items-center gap-6 shrink-0">
+            <div className="text-center">
+              <p className="text-xs text-emerald-500 mb-0.5">Оборот без НДС</p>
+              <p className="text-lg font-bold text-emerald-700">₸ {fmt(Math.round(summary.vatAmount * 100 / 16 * 100) / 100)}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-emerald-500 mb-0.5">Сумма НДС</p>
+              <p className="text-2xl font-bold text-emerald-800">₸ {fmt(summary.vatAmount)}</p>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {summary.planCompletion != null && <ProgressBar value={summary.planCompletion} label={t('dash.planCompletion')} />}
 
