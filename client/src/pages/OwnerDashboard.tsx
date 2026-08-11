@@ -194,7 +194,7 @@ export default function OwnerDashboard() {
   })
 
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
-  if (!data) return null
+  if (!data) return <div className="flex flex-col items-center justify-center h-64 gap-3 text-gray-400"><p>Ошибка загрузки данных</p><button className="text-sm text-blue-500 underline" onClick={() => window.location.reload()}>Обновить страницу</button></div>
 
   const { summary, dailyChart, managerRating, liderRating, productStats = [], gatewayAnalytics = [], carryover } = data as any
 

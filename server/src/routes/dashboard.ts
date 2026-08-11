@@ -118,7 +118,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
   const periodEnd   = new Date(toStr   + 'T23:59:59+05:00')
 
   try {
-    const [salesDepts, allUsers, plans, closerReports, liderReports, marketerReports, periodSales, companySettings] = await Promise.all([
+    const [salesDepts, allUsers, plans, closerReports, liderReports, marketerReports, periodSales] = await Promise.all([
       prisma.department.findMany({ where: { companyId: req.user!.companyId, type: 'SALES' }, include: { users: { where: { status: 'ACTIVE', role: 'MANAGER' } } } }),
       prisma.user.findMany({ where: { companyId: req.user!.companyId, status: 'ACTIVE', role: 'MANAGER' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey } }),
@@ -127,9 +127,10 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId }, type: 'MARKETER', date: { gte: start, lte: end } } }),
       // Sales from Sale model — truth source; OR Sale.createdAt in KZ period (covers wrong-date records)
       prisma.sale.findMany({ where: { companyId: req.user!.companyId, OR: [{ date: { gte: fromStr, lte: toStr } }, { createdAt: { gte: periodStart, lte: periodEnd } }] }, include: { user: { select: { id: true, name: true } }, product: { select: { id: true, name: true } } } }),
-      prisma.company.findUnique({ where: { id: req.user!.companyId }, select: { dealCycleMonths: true, isVatPayer: true } }),
     ])
 
+    // Company settings fetched separately so isVatPayer errors don't crash the whole endpoint
+    const companySettings = await prisma.company.findUnique({ where: { id: req.user!.companyId }, select: { dealCycleMonths: true, isVatPayer: true } }).catch(() => null)
     const dealCycleMonths = (companySettings as any)?.dealCycleMonths ?? 1
     const isVatPayer = (companySettings as any)?.isVatPayer ?? false
 
@@ -472,7 +473,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
   const todayEnd    = new Date(todayStr + 'T23:59:59+05:00')
 
   try {
-    const [managers, plans, closerReports, marketerReports, todayReports, periodSales, todaySales, ropLiderLeadsFull, allCompanyLeads, closerLeads, ropCompanySettings] = await Promise.all([
+    const [managers, plans, closerReports, marketerReports, todayReports, periodSales, todaySales, ropLiderLeadsFull, allCompanyLeads, closerLeads] = await Promise.all([
       prisma.user.findMany({ where: { companyId: req.user!.companyId, departmentId: deptId || undefined, status: 'ACTIVE', role: 'MANAGER' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, departmentId: deptId || undefined }, type: 'CLOSER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true, managerType: true } } } }),
@@ -497,9 +498,10 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         where: { assignedTo: { companyId: req.user!.companyId }, date: { gte: fromStr, lte: toStr } },
         select: { assignedToId: true, status: true, consultationStatus: true },
       }),
-      prisma.company.findUnique({ where: { id: req.user!.companyId }, select: { dealCycleMonths: true, isVatPayer: true } }),
     ])
 
+    // Company settings fetched separately so isVatPayer errors don't crash the whole endpoint
+    const ropCompanySettings = await prisma.company.findUnique({ where: { id: req.user!.companyId }, select: { dealCycleMonths: true, isVatPayer: true } }).catch(() => null)
     const ropDealCycleMonths = (ropCompanySettings as any)?.dealCycleMonths ?? 1
     const ropIsVatPayer = (ropCompanySettings as any)?.isVatPayer ?? false
 
