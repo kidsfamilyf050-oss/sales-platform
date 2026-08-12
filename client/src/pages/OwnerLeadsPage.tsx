@@ -5,6 +5,7 @@ import { api } from '../api/client'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 import PeriodSelector from '../components/ui/PeriodSelector'
 import { ArrowLeft, Link2, ExternalLink, Phone, User, Clock, ChevronRight } from 'lucide-react'
+import { useT } from '../i18n'
 
 function fmtDate(s: string) {
   if (!s) return ''
@@ -20,14 +21,14 @@ function daysAgo(dateStr: string) {
 
 type TabType = 'new-sales' | 'all-sales' | 'dojim-sales' | 'inwork' | 'consultations' | 'refusals' | 'refunds'
 
-const TAB_CONFIG: { key: TabType; label: string; dotCls: string; activeCls: string }[] = [
-  { key: 'new-sales',     label: 'Новые продажи',  dotCls: 'bg-blue-500',   activeCls: 'text-blue-600' },
-  { key: 'all-sales',     label: 'Все продажи',     dotCls: 'bg-indigo-500', activeCls: 'text-indigo-600' },
-  { key: 'dojim-sales',   label: 'Закр. дожимы',   dotCls: 'bg-amber-500',  activeCls: 'text-amber-600' },
-  { key: 'inwork',        label: 'В работе',        dotCls: 'bg-orange-400', activeCls: 'text-orange-600' },
-  { key: 'consultations', label: 'Консультации',    dotCls: 'bg-teal-500',   activeCls: 'text-teal-600' },
-  { key: 'refusals',      label: 'Отказники',       dotCls: 'bg-red-400',    activeCls: 'text-red-600' },
-  { key: 'refunds',       label: 'Возвраты',        dotCls: 'bg-orange-500', activeCls: 'text-orange-600' },
+const TAB_CONFIG: { key: TabType; labelKey: string; dotCls: string; activeCls: string }[] = [
+  { key: 'new-sales',     labelKey: 'owner.leads.tab.newSales',     dotCls: 'bg-blue-500',   activeCls: 'text-blue-600' },
+  { key: 'all-sales',     labelKey: 'owner.leads.tab.allSales',     dotCls: 'bg-indigo-500', activeCls: 'text-indigo-600' },
+  { key: 'dojim-sales',   labelKey: 'owner.leads.tab.dojim',        dotCls: 'bg-amber-500',  activeCls: 'text-amber-600' },
+  { key: 'inwork',        labelKey: 'owner.leads.tab.inwork',       dotCls: 'bg-orange-400', activeCls: 'text-orange-600' },
+  { key: 'consultations', labelKey: 'owner.leads.tab.consultations', dotCls: 'bg-teal-500',   activeCls: 'text-teal-600' },
+  { key: 'refusals',      labelKey: 'owner.leads.tab.refusals',     dotCls: 'bg-red-400',    activeCls: 'text-red-600' },
+  { key: 'refunds',       labelKey: 'owner.leads.tab.refunds',      dotCls: 'bg-orange-500', activeCls: 'text-orange-600' },
 ]
 
 const PAYMENT_METHOD_LABEL: Record<string, string> = {
@@ -218,6 +219,7 @@ function LeadRow({ lead, tab, onSelect }: { lead: any; tab: TabType; onSelect: (
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function OwnerLeadsPage() {
+  const { t } = useT()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const periodState = usePeriodStore()
@@ -287,8 +289,8 @@ export default function OwnerLeadsPage() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Аналитика сделок</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Детальный просмотр по категориям</p>
+          <h1 className="text-xl font-bold text-gray-900">{t('owner.leads.title')}</h1>
+          <p className="text-sm text-gray-400 mt-0.5">{t('owner.leads.subtitle')}</p>
         </div>
       </div>
 
@@ -299,7 +301,7 @@ export default function OwnerLeadsPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
-        {TAB_CONFIG.map(({ key, label, dotCls, activeCls }) => (
+        {TAB_CONFIG.map(({ key, labelKey, dotCls, activeCls }) => (
           <button
             key={key}
             onClick={() => handleTabChange(key)}
@@ -308,7 +310,7 @@ export default function OwnerLeadsPage() {
             }`}
           >
             <span className={`w-2 h-2 rounded-full ${dotCls} shrink-0`} />
-            {label}
+            {t(labelKey as any)}
           </button>
         ))}
       </div>
@@ -344,7 +346,7 @@ export default function OwnerLeadsPage() {
       {!leadsQuery.isLoading && filtered.length === 0 && (
         <div className="card text-center py-12">
           <Link2 className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-          <p className="text-gray-400 font-medium">Нет данных за выбранный период</p>
+          <p className="text-gray-400 font-medium">{t('owner.leads.empty')}</p>
         </div>
       )}
 

@@ -46,6 +46,13 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function RequireOwner({ children }: { children: React.ReactNode }) {
+  const user = useAuthStore(s => s.user)
+  if (!user) return <Navigate to="/login" replace />
+  if (user.role !== 'OWNER') return <Navigate to="/app" replace />
+  return <>{children}</>
+}
+
 function DashboardRedirect() {
   const user = useAuthStore(s => s.user)
   if (!user) return <Navigate to="/login" replace />
@@ -80,7 +87,7 @@ export default function App() {
           <Route path="/plans" element={<PlansPage />} />
           <Route path="/tracking" element={<TrackingPage />} />
           <Route path="/marketing" element={<MarketingPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings" element={<RequireOwner><SettingsPage /></RequireOwner>} />
           <Route path="/rop/links" element={<ROPLinksPage />} />
           <Route path="/owner/leads" element={<OwnerLeadsPage />} />
           <Route path="/lider/leads" element={<LiderLeadsPage />} />

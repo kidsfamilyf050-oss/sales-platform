@@ -5,6 +5,7 @@ import { api } from '../api/client'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 import PeriodSelector from '../components/ui/PeriodSelector'
 import { ArrowLeft, Link2, ExternalLink, Phone, User, X, ChevronRight } from 'lucide-react'
+import { useT } from '../i18n'
 
 function fmt(s: string) {
   if (!s) return ''
@@ -93,13 +94,13 @@ function LeadDetailModal({ lead, onClose }: { lead: any; onClose: () => void }) 
 
 type TabType = 'REFUSAL' | 'IN_WORK' | 'REFUND' | 'SOLD_ALL' | 'SOLD_DOJIM' | 'CONSULTATION'
 
-const TAB_CONFIG: { key: TabType; label: string; dotCls: string; activeCls: string }[] = [
-  { key: 'REFUSAL',     label: 'Отказники',       dotCls: 'bg-red-400',    activeCls: 'text-red-600' },
-  { key: 'IN_WORK',     label: 'Дожим',           dotCls: 'bg-amber-400',  activeCls: 'text-amber-600' },
-  { key: 'REFUND',      label: 'Возвраты',        dotCls: 'bg-orange-400', activeCls: 'text-orange-600' },
-  { key: 'CONSULTATION',label: 'Консультации',    dotCls: 'bg-teal-500',   activeCls: 'text-teal-600' },
-  { key: 'SOLD_ALL',    label: 'Все продажи',     dotCls: 'bg-blue-500',   activeCls: 'text-blue-600' },
-  { key: 'SOLD_DOJIM',  label: 'Закр. дожимы',   dotCls: 'bg-amber-600',  activeCls: 'text-amber-700' },
+const TAB_CONFIG: { key: TabType; labelKey: string; dotCls: string; activeCls: string }[] = [
+  { key: 'REFUSAL',     labelKey: 'owner.leads.tab.refusals',     dotCls: 'bg-red-400',    activeCls: 'text-red-600' },
+  { key: 'IN_WORK',     labelKey: 'dash.inWork',                  dotCls: 'bg-amber-400',  activeCls: 'text-amber-600' },
+  { key: 'REFUND',      labelKey: 'owner.leads.tab.refunds',      dotCls: 'bg-orange-400', activeCls: 'text-orange-600' },
+  { key: 'CONSULTATION',labelKey: 'owner.leads.tab.consultations', dotCls: 'bg-teal-500',   activeCls: 'text-teal-600' },
+  { key: 'SOLD_ALL',    labelKey: 'owner.leads.tab.allSales',     dotCls: 'bg-blue-500',   activeCls: 'text-blue-600' },
+  { key: 'SOLD_DOJIM',  labelKey: 'owner.leads.tab.dojim',        dotCls: 'bg-amber-600',  activeCls: 'text-amber-700' },
 ]
 
 const CONSULT_LABEL: Record<string, string> = {
@@ -112,6 +113,7 @@ const CONSULT_CLS: Record<string, string> = {
 }
 
 export default function ROPLinksPage() {
+  const { t } = useT()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const periodState = usePeriodStore()
@@ -196,7 +198,7 @@ export default function ROPLinksPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
-        {TAB_CONFIG.map(({ key, label, dotCls, activeCls }) => (
+        {TAB_CONFIG.map(({ key, labelKey, dotCls, activeCls }) => (
           <button
             key={key}
             onClick={() => { setTab(key); setFilterManager('all') }}
@@ -205,7 +207,7 @@ export default function ROPLinksPage() {
             }`}
           >
             <span className={`w-2 h-2 rounded-full ${dotCls} shrink-0`} />
-            {label}
+            {t(labelKey as any)}
           </button>
         ))}
       </div>

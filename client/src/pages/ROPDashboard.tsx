@@ -327,11 +327,11 @@ export default function ROPDashboard() {
   const { summary, funnel, marketing, managerRating, liderRating, productStats = [], gatewayAnalytics = [], carryover } = data as any
 
   const funnelSteps = [
-    { label: 'Лидов получено',      value: funnel.leadsReceived,    color: 'bg-purple-400' },
-    { label: 'Квалифицировано',     value: funnel.qualifiedLeads,   color: 'bg-purple-500' },
-    { label: 'Передано клоузеру',   value: funnel.meetingsScheduled,color: 'bg-blue-400' },
-    { label: 'В работе у клоузера', value: funnel.meetingsAttended, color: 'bg-blue-500' },
-    { label: 'Продажи (сделки)',    value: funnel.salesCount,       color: 'bg-green-500' },
+    { label: t('dash.rop.funnelStepLeads'),       value: funnel.leadsReceived,    color: 'bg-purple-400' },
+    { label: t('dash.rop.funnelStepQual'),        value: funnel.qualifiedLeads,   color: 'bg-purple-500' },
+    { label: t('dash.rop.funnelStepTransferred'), value: funnel.meetingsScheduled,color: 'bg-blue-400' },
+    { label: t('dash.rop.funnelStepInWork'),      value: funnel.meetingsAttended, color: 'bg-blue-500' },
+    { label: t('dash.rop.funnelStepSales'),       value: funnel.salesCount,       color: 'bg-green-500' },
   ]
 
   return (
@@ -368,8 +368,8 @@ export default function ROPDashboard() {
               {summary.refundCount ?? 0} шт.
             </p>
             {summary.refundCount > 0
-              ? <p className="text-xs text-gray-400 group-hover:text-red-400 mt-1 transition-colors">−₸ {fmt(summary.refundTotal)} · нажмите →</p>
-              : <p className="text-xs text-gray-300 group-hover:text-red-300 mt-1 transition-colors">нажмите →</p>
+              ? <p className="text-xs text-gray-400 group-hover:text-red-400 mt-1 transition-colors">−₸ {fmt(summary.refundTotal)} · {t('dash.clickArrow')}</p>
+              : <p className="text-xs text-gray-300 group-hover:text-red-300 mt-1 transition-colors">{t('dash.clickArrow')}</p>
             }
           </div>
         </div>
@@ -404,7 +404,7 @@ export default function ROPDashboard() {
             {summary.totalRefusalsAmount > 0 && (
               <p className="text-xs text-red-400 font-medium mt-0.5">−₸ {summary.totalRefusalsAmount.toLocaleString('ru')}</p>
             )}
-            <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">нажмите →</p>
+            <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">{t('dash.clickArrow')}</p>
           </div>
         </div>
       </div>
@@ -414,11 +414,11 @@ export default function ROPDashboard() {
         <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-4">
           <div>
             <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide mb-0.5">НДС (16%)</p>
-            <p className="text-sm text-emerald-600">Включён в стоимость продаж</p>
+            <p className="text-sm text-emerald-600">{t('dash.rop.vatIncluded')}</p>
           </div>
           <div className="ml-auto flex items-center gap-6 shrink-0">
             <div className="text-center">
-              <p className="text-xs text-emerald-500 mb-0.5">Сумма НДС</p>
+              <p className="text-xs text-emerald-500 mb-0.5">{t('dash.rop.vatAmountLabel')}</p>
               <p className="text-2xl font-bold text-emerald-800">₸ {fmt(summary.vatAmount)}</p>
             </div>
           </div>
@@ -442,7 +442,7 @@ export default function ROPDashboard() {
           >
             <p className="text-2xl font-bold text-amber-800">{summary.totalInWork ?? 0}</p>
             <p className="text-xs text-amber-500">{t('dash.inWork')}</p>
-            <p className="text-[10px] text-amber-400 mt-0.5">нажмите →</p>
+            <p className="text-[10px] text-amber-400 mt-0.5">{t('dash.clickArrow')}</p>
           </div>
           <div className="w-px h-10 bg-amber-200" />
           {/* Закрытые дожимы → dojim SALES */}
@@ -453,7 +453,7 @@ export default function ROPDashboard() {
           >
             <p className="text-2xl font-bold text-amber-800">{carryover?.count ?? 0}</p>
             <p className="text-xs text-amber-500">{t('dash.carryover.deals')}</p>
-            <p className="text-[10px] text-amber-400 mt-0.5">нажмите →</p>
+            <p className="text-[10px] text-amber-400 mt-0.5">{t('dash.clickArrow')}</p>
           </div>
           <div
             className="text-center px-4 py-2 rounded-xl cursor-pointer hover:bg-amber-100 hover:shadow-sm transition-all"
@@ -462,7 +462,7 @@ export default function ROPDashboard() {
           >
             <p className="text-2xl font-bold text-amber-800">₸ {fmt(carryover?.revenue ?? 0)}</p>
             <p className="text-xs text-amber-500">{t('dash.carryover.revenue')}</p>
-            <p className="text-[10px] text-amber-400 mt-0.5">нажмите →</p>
+            <p className="text-[10px] text-amber-400 mt-0.5">{t('dash.clickArrow')}</p>
           </div>
         </div>
       </div>
@@ -615,14 +615,14 @@ export default function ROPDashboard() {
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium w-6" />
                   <th className="pb-2 font-medium">{t('dash.table.lider')}</th>
-                  <th className="pb-2 font-medium text-center">План (лидов)</th>
-                  <th className="pb-2 font-medium text-center">Лидов</th>
-                  <th className="pb-2 font-medium text-center">% выполн.</th>
-                  <th className="pb-2 font-medium text-center">% квал.</th>
-                  <th className="pb-2 font-medium text-center">Квалиф.</th>
-                  <th className="pb-2 font-medium text-center">% передано</th>
-                  <th className="pb-2 font-medium text-center">Передано</th>
-                  <th className="pb-2 font-medium text-center">% в работе</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.table.planLeads')}</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.table.leadsCol')}</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.table.pctCompletion')}</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.table.qualPctCol')}</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.table.qualified')}</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.table.pctTransferred')}</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.table.transferred')}</th>
+                  <th className="pb-2 font-medium text-center">{t('dash.table.pctInWork')}</th>
                 </tr>
               </thead>
               <tbody>

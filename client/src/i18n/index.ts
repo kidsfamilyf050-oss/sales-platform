@@ -1331,6 +1331,35 @@ const ru = {
 
   // Closer archive page — hardcoded strings
   'ca.deleted.warning': '{{n}} заявок удалено — они видны в журнале и не могут быть скрыты навсегда. Фильтр «Удалённые» покажет их.',
+
+  // ── i18n fixes (ROP funnel + VAT + table + OwnerLeads + Settings) ────────────
+  'dash.rop.funnelStepTransferred': 'Передано клоузеру',
+  'dash.rop.funnelStepInWork': 'В работе у клоузера',
+  'dash.clickArrow': 'нажмите →',
+  'dash.rop.vatIncluded': 'Включён в стоимость продаж',
+  'dash.rop.vatAmountLabel': 'Сумма НДС',
+  'dash.table.planLeads': 'План (лидов)',
+  'dash.table.pctCompletion': '% выполн.',
+  'dash.table.pctTransferred': '% передано',
+  'dash.table.transferred': 'Передано',
+  'dash.table.pctInWork': '% в работе',
+  'owner.leads.title': 'Аналитика сделок',
+  'owner.leads.subtitle': 'Детальный просмотр по категориям',
+  'owner.leads.tab.newSales': 'Новые продажи',
+  'owner.leads.tab.allSales': 'Все продажи',
+  'owner.leads.tab.dojim': 'Закр. дожимы',
+  'owner.leads.tab.inwork': 'В работе',
+  'owner.leads.tab.consultations': 'Консультации',
+  'owner.leads.tab.refusals': 'Отказники',
+  'owner.leads.tab.refunds': 'Возвраты',
+  'owner.leads.empty': 'Нет данных за выбранный период',
+  'settings.dealCycle': 'Цикл сделки (месяцев)',
+  'settings.dealCycleTitle': 'Цикл сделки',
+  'settings.dealCycleDesc': 'Определяет, через какое время лид считается «дожимом». Если лид был создан более чем {{n}} мес. назад до даты продажи — она попадает в «Дожим». Если меньше — новая продажа.',
+  'settings.dealCycleHint': 'Продажа считается дожимом, если лид создан более {{n}} мес. назад',
+  'settings.monthUnit': 'мес.',
+  'settings.vatPayer': 'Плательщик НДС (16%)',
+  'settings.vatDesc': 'НДС включён в стоимость продажи. Сумма НДС = сумма продаж × 16/116. В дашборде появится отдельная карточка «Сумма НДС».',
 }
 
 const kk: typeof ru = {
@@ -2660,6 +2689,35 @@ const kk: typeof ru = {
 
   // Closer archive page — hardcoded strings
   'ca.deleted.warning': '{{n}} өтінім жойылды — олар журналда көрінеді және мәңгі жасырыла алмайды. «Жойылған» сүзгісі оларды көрсетеді.',
+
+  // ── i18n fixes (ROP funnel + VAT + table + OwnerLeads + Settings) ────────────
+  'dash.rop.funnelStepTransferred': 'Клоузерге берілді',
+  'dash.rop.funnelStepInWork': 'Клоузер жұмысында',
+  'dash.clickArrow': 'басыңыз →',
+  'dash.rop.vatIncluded': 'Сату құнына қосылған',
+  'dash.rop.vatAmountLabel': 'ҚҚС сомасы',
+  'dash.table.planLeads': 'Жоспар (лидтер)',
+  'dash.table.pctCompletion': '% орынд.',
+  'dash.table.pctTransferred': '% берілген',
+  'dash.table.transferred': 'Берілді',
+  'dash.table.pctInWork': '% жұмыста',
+  'owner.leads.title': 'Мәміле аналитикасы',
+  'owner.leads.subtitle': 'Санаттар бойынша толық қарау',
+  'owner.leads.tab.newSales': 'Жаңа сатылымдар',
+  'owner.leads.tab.allSales': 'Барлық сатылымдар',
+  'owner.leads.tab.dojim': 'Жабылған дожим',
+  'owner.leads.tab.inwork': 'Жұмыста',
+  'owner.leads.tab.consultations': 'Консультациялар',
+  'owner.leads.tab.refusals': 'Бас тартқандар',
+  'owner.leads.tab.refunds': 'Қайтарулар',
+  'owner.leads.empty': 'Таңдалған кезең үшін деректер жоқ',
+  'settings.dealCycle': 'Мәміле циклі (айлар)',
+  'settings.dealCycleTitle': 'Мәміле циклі',
+  'settings.dealCycleDesc': 'Лидтің «дожим» болу уақытын анықтайды. Лид сату күнінен {{n}} айдан бұрын жасалса — «Дожим» санатына жатады. Аз болса — жаңа сату.',
+  'settings.dealCycleHint': 'Лид {{n}} айдан бұрын жасалса, дожим деп есептеледі',
+  'settings.monthUnit': 'ай',
+  'settings.vatPayer': 'ҚҚС төлеушісі (16%)',
+  'settings.vatDesc': 'ҚҚС сату құнына кіреді. ҚҚС сомасы = сату сомасы × 16/116. Дашбордта «ҚҚС сомасы» жеке карточкасы пайда болады.',
 }
 
 // ── Store ────────────────────────────────────────────────────────────────────

@@ -55,7 +55,6 @@ export default function Sidebar({ onClose }: Props) {
       ...(user?.canManageGateways ? [{ to: '/gateways', label: t('nav.gateways'), icon: CreditCard }] : []),
       { to: '/users',         label: t('nav.users'),      icon: Users },
       { to: '/plans',         label: t('nav.plans'),      icon: Target },
-      { to: '/settings',      label: t('nav.settings'),   icon: Settings },
     ],
     MANAGER: isLider ? [
       { to: '/dashboard/manager',  label: t('nav.myOffice'),    icon: BarChart2 },
