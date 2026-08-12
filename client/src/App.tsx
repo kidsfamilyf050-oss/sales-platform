@@ -19,6 +19,7 @@ import PlansPage from './pages/PlansPage'
 import TrackingPage from './pages/TrackingPage'
 import MarketingPage from './pages/MarketingPage'
 import ROPLinksPage from './pages/ROPLinksPage'
+import OwnerLeadsPage from './pages/OwnerLeadsPage'
 import LiderLeadsPage from './pages/LiderLeadsPage'
 import LiderNotHappenedPage from './pages/LiderNotHappenedPage'
 import CloserLeadsPage from './pages/CloserLeadsPage'
@@ -81,6 +82,7 @@ export default function App() {
           <Route path="/marketing" element={<MarketingPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/rop/links" element={<ROPLinksPage />} />
+          <Route path="/owner/leads" element={<OwnerLeadsPage />} />
           <Route path="/lider/leads" element={<LiderLeadsPage />} />
           <Route path="/lider/not-happened" element={<LiderNotHappenedPage />} />
           <Route path="/closer/leads" element={<CloserLeadsPage />} />

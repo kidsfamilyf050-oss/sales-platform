@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { X, ExternalLink as ExtLink } from 'lucide-react'
+import { X } from 'lucide-react'
 import { api } from '../api/client'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 import StatCard from '../components/ui/StatCard'
@@ -49,103 +49,6 @@ function Funnel({ steps }: { steps: { label: string; value: number; color?: stri
           </div>
         )
       })}
-    </div>
-  )
-}
-
-type RopModalType = 'refunds' | 'refusals' | 'consultations' | 'inwork' | 'all-sales' | 'dojim-sales'
-
-const ROP_MODAL_TITLES: Record<RopModalType, string> = {
-  refunds:       'Возвраты',
-  refusals:      'Отказники',
-  consultations: 'Проведённые консультации',
-  inwork:        'Сделки в работе (дожим)',
-  'all-sales':   'Все продажи за период',
-  'dojim-sales': 'Дожим — закрытые сделки',
-}
-
-const STATUS_LABEL: Record<string, string> = { SOLD: 'Продажа', REFUSED: 'Отказ', IN_WORK: 'В работе' }
-
-function LeadListModal({ type, leads, loading, onClose }: {
-  type: RopModalType; leads: any[]; loading: boolean; onClose: () => void
-}) {
-  const isSaleLike = type === 'all-sales' || type === 'dojim-sales'
-  const netAmount  = (l: any) => Number(l.netAmount ?? l.amount) || 0
-  const total      = leads.reduce((s, l) => s + netAmount(l), 0)
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
-          <div>
-            <h3 className="font-bold text-gray-900">{ROP_MODAL_TITLES[type]}</h3>
-            {!loading && (
-              <span className="text-sm text-gray-500">
-                {leads.length} записей
-                {total > 0 && ` · ${type === 'refunds' ? '−' : ''}₸ ${total.toLocaleString('ru')}`}
-              </span>
-            )}
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="overflow-y-auto flex-1">
-          {loading ? (
-            <div className="p-8 text-center text-gray-400 text-sm">Загрузка...</div>
-          ) : leads.length === 0 ? (
-            <div className="p-8 text-center text-gray-400 text-sm">Нет данных</div>
-          ) : (
-            <div className="divide-y divide-gray-50">
-              {leads.map((l: any) => {
-                const amt = netAmount(l)
-                return (
-                  <div key={l.id} className="px-4 py-3 hover:bg-gray-50/60 transition-colors">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-semibold text-gray-900 text-sm">{l.clientName}</p>
-                          {isSaleLike && l.isDojim && (
-                            <span className="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700">ДОЖИМ</span>
-                          )}
-                          {type === 'consultations' && l.status && (
-                            <span className={`px-1.5 py-0.5 rounded-full font-medium text-[11px] ${l.status === 'SOLD' ? 'bg-green-100 text-green-700' : l.status === 'REFUSED' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
-                              {STATUS_LABEL[l.status] || l.status}
-                            </span>
-                          )}
-                        </div>
-                        {l.phone && <p className="text-xs text-gray-400">{l.phone}</p>}
-                      </div>
-                      <div className="text-right shrink-0">
-                        {amt > 0 && (
-                          <p className={`font-bold text-sm ${type === 'refunds' ? 'text-red-600' : isSaleLike ? 'text-green-700' : 'text-gray-700'}`}>
-                            {type === 'refunds' ? '−' : ''}₸ {amt.toLocaleString('ru')}
-                          </p>
-                        )}
-                        <p className="text-xs text-gray-400">{l.date}</p>
-                      </div>
-                    </div>
-                    <div className="mt-1.5 flex items-center gap-3 flex-wrap text-xs text-gray-500">
-                      {l.assignedTo && <span>👤 {l.assignedTo.name}</span>}
-                      {l.salesChannel && <span>📢 {l.salesChannel.name}</span>}
-                      {type === 'refusals' && l.lossReason && <span className="text-red-500">Причина: {l.lossReason?.name ?? l.lossReason}</span>}
-                      {type === 'refunds' && l.refundComment && <span className="text-orange-500 italic">{l.refundComment}</span>}
-                      {type === 'inwork' && l.createdAt && (
-                        <span className="text-amber-600">Создана: {new Date(l.createdAt).toLocaleDateString('ru-RU')}</span>
-                      )}
-                      {l.crmLink && (
-                        <a href={l.crmLink} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-                          className="flex items-center gap-1 text-blue-500 hover:underline ml-auto">
-                          <ExtLink className="w-3 h-3" /> CRM
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   )
 }
@@ -405,39 +308,6 @@ export default function ROPDashboard() {
   })
 
   const [expandedManagers, setExpandedManagers] = useState<Set<string>>(new Set())
-  const [modal, setModal] = useState<RopModalType | null>(null)
-
-  // Lazy modal queries — only fetch when modal is open
-  const { data: refundsList = [], isLoading: refundsLoading } = useQuery({
-    queryKey: ['rop-refunds', params],
-    queryFn: () => api.get(`/leads/refunds?${params}`).then(r => r.data),
-    enabled: modal === 'refunds',
-  })
-  const { data: refusalsList = [], isLoading: refusalsLoading } = useQuery({
-    queryKey: ['rop-refusals', params],
-    queryFn: () => api.get(`/leads/all?status=REFUSED&${params}`).then(r => r.data),
-    enabled: modal === 'refusals',
-  })
-  const { data: consultationsList = [], isLoading: consultationsLoading } = useQuery({
-    queryKey: ['rop-consultations', params],
-    queryFn: () => api.get(`/leads/all?consultationStatus=happened&${params}`).then(r => r.data),
-    enabled: modal === 'consultations',
-  })
-  const { data: inworkList = [], isLoading: inworkLoading } = useQuery({
-    queryKey: ['rop-inwork'],
-    queryFn: () => api.get('/leads/all?status=IN_WORK').then(r => r.data),
-    enabled: modal === 'inwork',
-  })
-  const { data: allSalesList = [], isLoading: allSalesLoading } = useQuery({
-    queryKey: ['rop-all-sales', params],
-    queryFn: () => api.get(`/leads/all?status=SOLD&${params}`).then(r => r.data),
-    enabled: modal === 'all-sales',
-  })
-  const { data: dojimSalesList = [], isLoading: dojimSalesLoading } = useQuery({
-    queryKey: ['rop-dojim-sales', params],
-    queryFn: () => api.get(`/leads/all?status=SOLD&isDojim=true&${params}`).then(r => r.data),
-    enabled: modal === 'dojim-sales',
-  })
 
   const toggleExpand = (id: string) => setExpandedManagers(prev => {
     const next = new Set(prev)
@@ -488,7 +358,7 @@ export default function ROPDashboard() {
         <StatCard label={t('dash.owner.newSales')} value={`₸ ${fmt(summary.factNetSales ?? 0)}`} color="blue"
           sub={`${summary.factSalesCount ?? 0} ${t('dash.sale.dealsShort')}`} />
         <div
-          onClick={() => setModal('refunds')}
+          onClick={() => navigate('/rop/links?tab=REFUND')}
           className="cursor-pointer group"
           title="Открыть список возвратов"
         >
@@ -507,7 +377,7 @@ export default function ROPDashboard() {
       {/* Row 2 (4): Performance */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-5">
         <StatCard label={t('dash.completion')} value={summary.planCompletion != null ? `${summary.planCompletion}%` : '—'} color={summary.planCompletion == null ? 'default' : summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
-        <div onClick={() => setModal('all-sales')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-200 rounded-xl transition-all duration-150">
+        <div onClick={() => navigate('/rop/links?tab=SOLD_ALL')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-200 rounded-xl transition-all duration-150">
           <StatCard label={t('dash.rop.deals')} value={summary.salesCount ?? 0}
             sub={`${t('dash.chart.newLabel')}: ${summary.factSalesCount ?? 0}`} />
         </div>
@@ -520,11 +390,11 @@ export default function ROPDashboard() {
           <StatCard label={t('dash.plannedPayments')} value={`₸ ${fmt(summary.plannedPaymentsAmount ?? 0)}`} color="purple"
             sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
         </div>
-        <div onClick={() => setModal('consultations')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-300 rounded-xl transition-all duration-150">
+        <div onClick={() => navigate('/rop/links?tab=CONSULTATION')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-300 rounded-xl transition-all duration-150">
           <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         </div>
         <div
-          onClick={() => setModal('refusals')}
+          onClick={() => navigate('/rop/links?tab=REFUSAL')}
           className="cursor-pointer group"
           title="Открыть список отказников"
         >
@@ -567,7 +437,7 @@ export default function ROPDashboard() {
           {/* В работе → IN_WORK leads */}
           <div
             className="text-center px-4 py-2 rounded-xl cursor-pointer hover:bg-amber-100 hover:shadow-sm transition-all"
-            onClick={() => setModal('inwork')}
+            onClick={() => navigate('/rop/links?tab=IN_WORK')}
             title="Список лидов в работе"
           >
             <p className="text-2xl font-bold text-amber-800">{summary.totalInWork ?? 0}</p>
@@ -578,7 +448,7 @@ export default function ROPDashboard() {
           {/* Закрытые дожимы → dojim SALES */}
           <div
             className="text-center px-4 py-2 rounded-xl cursor-pointer hover:bg-amber-100 hover:shadow-sm transition-all"
-            onClick={() => setModal('dojim-sales')}
+            onClick={() => navigate('/rop/links?tab=SOLD_DOJIM')}
             title="Список закрытых дожимов"
           >
             <p className="text-2xl font-bold text-amber-800">{carryover?.count ?? 0}</p>
@@ -587,7 +457,7 @@ export default function ROPDashboard() {
           </div>
           <div
             className="text-center px-4 py-2 rounded-xl cursor-pointer hover:bg-amber-100 hover:shadow-sm transition-all"
-            onClick={() => setModal('dojim-sales')}
+            onClick={() => navigate('/rop/links?tab=SOLD_DOJIM')}
             title="Список закрытых дожимов"
           >
             <p className="text-2xl font-bold text-amber-800">₸ {fmt(carryover?.revenue ?? 0)}</p>
@@ -857,14 +727,6 @@ export default function ROPDashboard() {
       </div>
 
       <AIInsights data={summary} managerRating={managerRating} liderRating={liderRating} funnel={funnel} productStats={productStats} period={period} />
-
-      {/* Drill-down modals */}
-      {modal === 'refunds'       && <LeadListModal type="refunds"       leads={refundsList}       loading={refundsLoading}       onClose={() => setModal(null)} />}
-      {modal === 'refusals'      && <LeadListModal type="refusals"      leads={refusalsList}      loading={refusalsLoading}      onClose={() => setModal(null)} />}
-      {modal === 'consultations' && <LeadListModal type="consultations" leads={consultationsList}  loading={consultationsLoading}  onClose={() => setModal(null)} />}
-      {modal === 'inwork'        && <LeadListModal type="inwork"        leads={inworkList}        loading={inworkLoading}        onClose={() => setModal(null)} />}
-      {modal === 'all-sales'     && <LeadListModal type="all-sales"     leads={allSalesList}      loading={allSalesLoading}      onClose={() => setModal(null)} />}
-      {modal === 'dojim-sales'   && <LeadListModal type="dojim-sales"   leads={dojimSalesList}    loading={dojimSalesLoading}    onClose={() => setModal(null)} />}
     </div>
   )
 }

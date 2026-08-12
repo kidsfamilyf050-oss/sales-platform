@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../api/client'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 import PeriodSelector from '../components/ui/PeriodSelector'
-import { ArrowLeft, Link2, ExternalLink, Phone, User, X, RotateCcw, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Link2, ExternalLink, Phone, User, X, ChevronRight } from 'lucide-react'
 
 function fmt(s: string) {
   if (!s) return ''
@@ -91,7 +91,25 @@ function LeadDetailModal({ lead, onClose }: { lead: any; onClose: () => void }) 
   )
 }
 
-type TabType = 'REFUSAL' | 'IN_WORK' | 'REFUND'
+type TabType = 'REFUSAL' | 'IN_WORK' | 'REFUND' | 'SOLD_ALL' | 'SOLD_DOJIM' | 'CONSULTATION'
+
+const TAB_CONFIG: { key: TabType; label: string; dotCls: string; activeCls: string }[] = [
+  { key: 'REFUSAL',     label: 'Отказники',       dotCls: 'bg-red-400',    activeCls: 'text-red-600' },
+  { key: 'IN_WORK',     label: 'Дожим',           dotCls: 'bg-amber-400',  activeCls: 'text-amber-600' },
+  { key: 'REFUND',      label: 'Возвраты',        dotCls: 'bg-orange-400', activeCls: 'text-orange-600' },
+  { key: 'CONSULTATION',label: 'Консультации',    dotCls: 'bg-teal-500',   activeCls: 'text-teal-600' },
+  { key: 'SOLD_ALL',    label: 'Все продажи',     dotCls: 'bg-blue-500',   activeCls: 'text-blue-600' },
+  { key: 'SOLD_DOJIM',  label: 'Закр. дожимы',   dotCls: 'bg-amber-600',  activeCls: 'text-amber-700' },
+]
+
+const CONSULT_LABEL: Record<string, string> = {
+  happened: 'Прошла', not_happened: 'Не прошла', planned: 'Запланирована',
+}
+const CONSULT_CLS: Record<string, string> = {
+  happened: 'bg-green-100 text-green-700',
+  not_happened: 'bg-red-100 text-red-700',
+  planned: 'bg-yellow-100 text-yellow-700',
+}
 
 export default function ROPLinksPage() {
   const navigate = useNavigate()
@@ -105,15 +123,16 @@ export default function ROPLinksPage() {
   const [filterManager, setFilterManager] = useState<string>('all')
   const [selectedLead, setSelectedLead] = useState<any | null>(null)
 
-  const status = tab === 'REFUSAL' ? 'REFUSED' : tab === 'IN_WORK' ? 'IN_WORK' : 'SOLD'
-
   const leadsQuery = useQuery({
     queryKey: ['rop-links-leads', params, tab],
     queryFn: () => {
-      if (tab === 'REFUND') {
-        return api.get(`/leads/refunds?${params}`).then(r => r.data)
-      }
-      return api.get(`/leads/all?${params}&status=${status}`).then(r => r.data)
+      if (tab === 'REFUND')       return api.get(`/leads/refunds?${params}`).then(r => r.data)
+      if (tab === 'REFUSAL')      return api.get(`/leads/all?status=REFUSED&${params}`).then(r => r.data)
+      if (tab === 'IN_WORK')      return api.get('/leads/all?status=IN_WORK').then(r => r.data)
+      if (tab === 'CONSULTATION') return api.get(`/leads/all?consultationStatus=happened&${params}`).then(r => r.data)
+      if (tab === 'SOLD_DOJIM')   return api.get(`/leads/all?status=SOLD&isDojim=true&${params}`).then(r => r.data)
+      // SOLD_ALL
+      return api.get(`/leads/all?status=SOLD&${params}`).then(r => r.data)
     },
     refetchInterval: 30000,
   })
@@ -145,10 +164,12 @@ export default function ROPLinksPage() {
   }
   const managerGroups = Object.entries(byManager)
 
-  const tabLabel = tab === 'REFUSAL' ? 'отказников' : tab === 'IN_WORK' ? 'в дожиме' : 'возвратов'
+  const isSaleTab = tab === 'SOLD_ALL' || tab === 'SOLD_DOJIM'
+  const isRefund = tab === 'REFUND'
 
-  // Refund totals for summary
-  const refundTotal = tab === 'REFUND'
+  const totalAmount = isSaleTab
+    ? filtered.reduce((s, l) => s + (Number(l.netAmount ?? l.amount) || 0), 0)
+    : isRefund
     ? filtered.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
     : 0
 
@@ -168,32 +189,25 @@ export default function ROPLinksPage() {
         </div>
       </div>
 
-      {/* Period selector + tabs */}
+      {/* Period selector */}
       <div className="flex items-center gap-3 flex-wrap">
         <PeriodSelector />
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
+        {TAB_CONFIG.map(({ key, label, dotCls, activeCls }) => (
           <button
-            onClick={() => { setTab('REFUSAL'); setFilterManager('all') }}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${tab === 'REFUSAL' ? 'bg-white text-red-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            key={key}
+            onClick={() => { setTab(key); setFilterManager('all') }}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap ${
+              tab === key ? `bg-white ${activeCls} shadow-sm` : 'text-gray-500 hover:text-gray-700'
+            }`}
           >
-            <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
-            Отказники
+            <span className={`w-2 h-2 rounded-full ${dotCls} shrink-0`} />
+            {label}
           </button>
-          <button
-            onClick={() => { setTab('IN_WORK'); setFilterManager('all') }}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${tab === 'IN_WORK' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-            Дожим
-          </button>
-          <button
-            onClick={() => { setTab('REFUND'); setFilterManager('all') }}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${tab === 'REFUND' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            <RotateCcw className="w-3 h-3 shrink-0" />
-            Возвраты
-          </button>
-        </div>
+        ))}
       </div>
 
       {/* Toolbar */}
@@ -208,9 +222,11 @@ export default function ROPLinksPage() {
           </select>
         )}
         <span className="ml-auto text-sm text-gray-400 flex items-center gap-2">
-          {filtered.length} {tabLabel}
-          {tab === 'REFUND' && refundTotal > 0 && (
-            <span className="text-red-600 font-semibold">· −₸ {fmtMoney(refundTotal)}</span>
+          {filtered.length} записей
+          {totalAmount > 0 && (
+            <span className={`font-semibold ${isRefund ? 'text-red-600' : 'text-green-700'}`}>
+              · {isRefund ? '−' : ''}₸ {fmtMoney(totalAmount)}
+            </span>
           )}
         </span>
       </div>
@@ -224,11 +240,7 @@ export default function ROPLinksPage() {
       {!leadsQuery.isLoading && filtered.length === 0 && (
         <div className="card text-center py-12">
           <Link2 className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-          <p className="text-gray-400 font-medium">
-            {tab === 'REFUSAL' ? 'Нет отказников за выбранный период'
-              : tab === 'IN_WORK' ? 'Нет лидов в дожиме'
-              : 'Нет возвратов за выбранный период'}
-          </p>
+          <p className="text-gray-400 font-medium">Нет данных за выбранный период</p>
         </div>
       )}
 
@@ -236,7 +248,9 @@ export default function ROPLinksPage() {
       {!leadsQuery.isLoading && managerGroups.length > 0 && (
         <div className="space-y-4">
           {managerGroups.map(([managerId, mgr]) => {
-            const mgrRefundTotal = tab === 'REFUND'
+            const mgrTotal = isSaleTab
+              ? mgr.items.reduce((s, l) => s + (Number(l.netAmount ?? l.amount) || 0), 0)
+              : isRefund
               ? mgr.items.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
               : 0
             return (
@@ -249,77 +263,99 @@ export default function ROPLinksPage() {
                     </div>
                     <span className="font-semibold text-gray-800 text-sm">{mgr.name}</span>
                     <span className="text-xs text-gray-400 bg-gray-200 px-1.5 py-0.5 rounded-full">{mgr.items.length}</span>
-                    {tab === 'REFUND' && mgrRefundTotal > 0 && (
-                      <span className="text-xs text-red-600 font-semibold">−₸ {fmtMoney(mgrRefundTotal)}</span>
+                    {mgrTotal > 0 && (
+                      <span className={`text-xs font-semibold ${isRefund ? 'text-red-600' : 'text-green-700'}`}>
+                        {isRefund ? '−' : ''}₸ {fmtMoney(mgrTotal)}
+                      </span>
                     )}
                   </div>
                 </div>
 
                 {/* Leads */}
                 <div className="divide-y divide-gray-50">
-                  {mgr.items.map((lead: any) => (
-                    <div
-                      key={lead.id}
-                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors group ${
-                        tab === 'REFUND' ? 'bg-red-50/20 hover:bg-red-50/60' : 'bg-white hover:bg-gray-50/60'
-                      }`}
-                      onClick={() => setSelectedLead(lead)}
-                    >
-                      <div className="flex-1 min-w-0 space-y-1">
-                        {/* Client name */}
-                        <div className="flex items-center gap-2">
-                          <User className="w-3.5 h-3.5 text-gray-300 shrink-0" />
-                          <span className="text-sm font-semibold text-gray-800">{lead.clientName || 'Без имени'}</span>
-                          <span className="text-xs text-gray-400">{fmt(lead.date)}</span>
-                          {tab === 'REFUND' && lead.amount != null && (
-                            <span className="ml-auto text-sm font-bold text-red-600 shrink-0">−₸ {fmtMoney(lead.amount)}</span>
+                  {mgr.items.map((lead: any) => {
+                    const netAmt = Number(lead.netAmount ?? lead.amount) || 0
+                    const grossAmt = Number(lead.amount) || 0
+                    return (
+                      <div
+                        key={lead.id}
+                        className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors group ${
+                          isRefund ? 'bg-red-50/20 hover:bg-red-50/60' : 'bg-white hover:bg-gray-50/60'
+                        }`}
+                        onClick={() => setSelectedLead(lead)}
+                      >
+                        <div className="flex-1 min-w-0 space-y-1">
+                          {/* Client name + amount */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <User className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                            <span className="text-sm font-semibold text-gray-800">{lead.clientName || 'Без имени'}</span>
+                            <span className="text-xs text-gray-400">{fmt(lead.date)}</span>
+                            {isSaleTab && netAmt > 0 && (
+                              <span className="ml-auto text-sm font-bold text-green-700 shrink-0">₸ {fmtMoney(netAmt)}</span>
+                            )}
+                            {isRefund && grossAmt > 0 && (
+                              <span className="ml-auto text-sm font-bold text-red-600 shrink-0">−₸ {fmtMoney(grossAmt)}</span>
+                            )}
+                          </div>
+                          {/* Phone */}
+                          {lead.phone && (
+                            <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                              <Phone className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                              <a href={`tel:${lead.phone}`} className="text-sm text-blue-600 hover:underline">{lead.phone}</a>
+                            </div>
+                          )}
+                          {/* Badges */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {isSaleTab && lead.isDojim && (
+                              <span className="text-xs font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">ДОЖИМ</span>
+                            )}
+                            {isSaleTab && lead.product?.name && (
+                              <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">📦 {lead.product.name}</span>
+                            )}
+                            {tab === 'REFUSAL' && lead.lossReason && (
+                              <span className="text-xs text-red-600 font-medium bg-red-50 px-2 py-0.5 rounded-full">
+                                {lead.lossReason.name}
+                              </span>
+                            )}
+                            {isRefund && lead.refundComment && (
+                              <span className="text-xs text-orange-600 italic">{lead.refundComment}</span>
+                            )}
+                            {tab === 'CONSULTATION' && lead.consultationStatus && (
+                              <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${CONSULT_CLS[lead.consultationStatus] || 'bg-gray-100 text-gray-600'}`}>
+                                {CONSULT_LABEL[lead.consultationStatus] || lead.consultationStatus}
+                              </span>
+                            )}
+                            {tab === 'CONSULTATION' && lead.status === 'SOLD' && netAmt > 0 && (
+                              <span className="text-xs font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
+                                Продажа · ₸ {fmtMoney(netAmt)}
+                              </span>
+                            )}
+                          </div>
+                          {/* CRM link */}
+                          {lead.crmLink ? (
+                            <a
+                              href={lead.crmLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={e => e.stopPropagation()}
+                              className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium group/link w-fit"
+                            >
+                              <Link2 className="w-3.5 h-3.5 shrink-0" />
+                              <span className="truncate max-w-xs">{lead.crmLink}</span>
+                              <ExternalLink className="w-3 h-3 shrink-0 opacity-0 group-hover/link:opacity-100 transition-opacity" />
+                            </a>
+                          ) : (
+                            <span className="text-xs text-gray-300 italic">Нет CRM-ссылки</span>
+                          )}
+                          {lead.comment && (
+                            <p className="text-xs text-gray-500 italic">{lead.comment}</p>
                           )}
                         </div>
-                        {/* Phone */}
-                        {lead.phone && (
-                          <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                            <Phone className="w-3.5 h-3.5 text-gray-300 shrink-0" />
-                            <a href={`tel:${lead.phone}`} className="text-sm text-blue-600 hover:underline">{lead.phone}</a>
-                          </div>
-                        )}
-                        {/* Loss reason */}
-                        {tab === 'REFUSAL' && lead.lossReason && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-400">Причина:</span>
-                            <span className="text-xs text-red-600 font-medium bg-red-50 px-2 py-0.5 rounded-full">{lead.lossReason.name}</span>
-                          </div>
-                        )}
-                        {/* Refund comment */}
-                        {tab === 'REFUND' && lead.refundComment && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-400">Причина:</span>
-                            <span className="text-xs text-orange-600 font-medium italic">{lead.refundComment}</span>
-                          </div>
-                        )}
-                        {/* CRM link */}
-                        {lead.crmLink ? (
-                          <a
-                            href={lead.crmLink}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={e => e.stopPropagation()}
-                            className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium group/link w-fit"
-                          >
-                            <Link2 className="w-3.5 h-3.5 shrink-0" />
-                            <span className="truncate max-w-xs">{lead.crmLink}</span>
-                            <ExternalLink className="w-3 h-3 shrink-0 opacity-0 group-hover/link:opacity-100 transition-opacity" />
-                          </a>
-                        ) : (
-                          <span className="text-xs text-gray-300 italic">Нет CRM-ссылки</span>
-                        )}
-                        {lead.comment && (
-                          <p className="text-xs text-gray-500 italic">{lead.comment}</p>
-                        )}
+                        {/* Arrow hint */}
+                        <ChevronRight className="w-4 h-4 text-gray-300 shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
-                      {/* Arrow hint */}
-                      <ChevronRight className="w-4 h-4 text-gray-300 shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )
