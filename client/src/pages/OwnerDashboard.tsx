@@ -8,7 +8,7 @@ import ProgressBar from '../components/ui/ProgressBar'
 import AIInsights from '../components/ui/AIInsights'
 import GatewayAnalytics from '../components/ui/GatewayAnalytics'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { ChevronDown, ArrowRight, TrendingUp, Users, ExternalLink } from 'lucide-react'
+import { ChevronDown, ArrowRight, TrendingUp, Users, ExternalLink, X } from 'lucide-react'
 import { useT } from '../i18n'
 
 function fmt(n: number) { return n.toLocaleString('ru-RU') }
@@ -177,12 +177,87 @@ function ManagerSalesDetail({ m }: { m: any }) {
   )
 }
 
+type OwnerModalType = 'sales' | 'refunds' | 'refusals'
+
+function LeadListModal({ type, leads, loading, onClose }: {
+  type: OwnerModalType; leads: any[]; loading: boolean; onClose: () => void
+}) {
+  const titles: Record<OwnerModalType, string> = { sales: 'Новые продажи', refunds: 'Возвраты', refusals: 'Отказники' }
+  const netAmount = (l: any) => Number(l.netAmount ?? l.amount) || 0
+  const total = leads.reduce((s, l) => s + netAmount(l), 0)
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
+          <div>
+            <h3 className="font-bold text-gray-900">{titles[type]}</h3>
+            {!loading && (
+              <span className="text-sm text-gray-500">
+                {leads.length} записей
+                {total > 0 && ` · ${type === 'refunds' ? '−' : ''}₸ ${fmt(total)}`}
+              </span>
+            )}
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="overflow-y-auto flex-1">
+          {loading ? (
+            <div className="p-8 text-center text-gray-400 text-sm">Загрузка...</div>
+          ) : leads.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-sm">Нет данных за период</div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {leads.map((l: any) => {
+                const amt = netAmount(l)
+                return (
+                  <div key={l.id} className="px-4 py-3 hover:bg-gray-50/60 transition-colors">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm">{l.clientName}</p>
+                        {l.phone && <p className="text-xs text-gray-400">{l.phone}</p>}
+                      </div>
+                      <div className="text-right shrink-0">
+                        {amt > 0 && (
+                          <p className={`font-bold text-sm ${type === 'refunds' ? 'text-red-600' : type === 'refusals' ? 'text-gray-700' : 'text-green-700'}`}>
+                            {type === 'refunds' ? '−' : ''}₸ {fmt(amt)}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-400">{l.date}</p>
+                      </div>
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-3 flex-wrap text-xs text-gray-500">
+                      {l.assignedTo && <span>👤 {l.assignedTo.name}</span>}
+                      {l.salesChannel && <span>📢 {l.salesChannel.name}</span>}
+                      {type === 'refusals' && l.lossReason && <span className="text-red-500">Причина: {l.lossReason}</span>}
+                      {type === 'refunds' && l.refundComment && <span className="text-orange-500 italic">{l.refundComment}</span>}
+                      {type === 'sales' && l.paymentMethod && <span>{PAYMENT_METHOD_LABEL[l.paymentMethod] || l.paymentMethod}</span>}
+                      {l.crmLink && (
+                        <a href={l.crmLink} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
+                          className="flex items-center gap-1 text-blue-500 hover:underline ml-auto">
+                          <ExternalLink className="w-3 h-3" /> CRM
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function OwnerDashboard() {
   const { t } = useT()
   const navigate = useNavigate()
   const periodState = usePeriodStore()
   const { monthOffset } = periodState
   const [expandedManager, setExpandedManager] = useState<string | null>(null)
+  const [modal, setModal] = useState<OwnerModalType | null>(null)
 
   // Build query params — uses global period + monthOffset from store
   const queryParams = buildPeriodParams(periodState)
@@ -191,6 +266,23 @@ export default function OwnerDashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard-owner', queryParams],
     queryFn: () => api.get(`/dashboard/owner?${queryParams}`).then(r => r.data),
+  })
+
+  // Lazy modal queries — only fetch when modal is open
+  const { data: salesList = [], isLoading: salesLoading } = useQuery({
+    queryKey: ['owner-sales', queryParams],
+    queryFn: () => api.get(`/leads/all?status=SOLD&${queryParams}`).then(r => r.data),
+    enabled: modal === 'sales',
+  })
+  const { data: refundsList = [], isLoading: refundsLoading } = useQuery({
+    queryKey: ['owner-refunds', queryParams],
+    queryFn: () => api.get(`/leads/refunds?${queryParams}`).then(r => r.data),
+    enabled: modal === 'refunds',
+  })
+  const { data: refusalsList = [], isLoading: refusalsLoading } = useQuery({
+    queryKey: ['owner-refusals', queryParams],
+    queryFn: () => api.get(`/leads/all?status=REFUSED&${queryParams}`).then(r => r.data),
+    enabled: modal === 'refusals',
   })
 
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
@@ -233,11 +325,15 @@ export default function OwnerDashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-5">
         <StatCard label={t('dash.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
         <StatCard label={t('dash.salesFact')} value={`₸ ${fmt(summary.totalNetSales ?? summary.totalSalesAmount)}`} color="blue" />
-        <StatCard label={t('dash.owner.newSales')} value={`₸ ${fmt(summary.factNetSales ?? 0)}`} color="blue"
-          sub={`${summary.factSalesCount ?? 0} ${t('dash.sale.dealsShort')}`} />
-        <StatCard label={t('dash.owner.refunds')} value={`${summary.totalRefundCount ?? 0} шт.`}
-          color={summary.totalRefundCount > 0 ? 'red' : 'default'}
-          sub={summary.totalRefundCount > 0 ? `−₸ ${fmt(summary.totalRefundAmount)}` : undefined} />
+        <div onClick={() => setModal('sales')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-300 rounded-xl transition-all duration-150">
+          <StatCard label={t('dash.owner.newSales')} value={`₸ ${fmt(summary.factNetSales ?? 0)}`} color="blue"
+            sub={`${summary.factSalesCount ?? 0} ${t('dash.sale.dealsShort')}`} />
+        </div>
+        <div onClick={() => setModal('refunds')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-red-300 rounded-xl transition-all duration-150">
+          <StatCard label={t('dash.owner.refunds')} value={`${summary.totalRefundCount ?? 0} шт.`}
+            color={summary.totalRefundCount > 0 ? 'red' : 'default'}
+            sub={summary.totalRefundCount > 0 ? `−₸ ${fmt(summary.totalRefundAmount)}` : undefined} />
+        </div>
       </div>
       {/* ── Row 2 (4): Performance ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-5">
@@ -256,8 +352,10 @@ export default function OwnerDashboard() {
             sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
         </div>
         <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
-        <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red"
-          sub={summary.totalRefusalsAmount > 0 ? `−₸ ${fmt(summary.totalRefusalsAmount)}` : undefined} />
+        <div onClick={() => setModal('refusals')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-red-300 rounded-xl transition-all duration-150">
+          <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red"
+            sub={summary.totalRefusalsAmount > 0 ? `−₸ ${fmt(summary.totalRefusalsAmount)}` : undefined} />
+        </div>
       </div>
 
       {/* НДС */}
@@ -651,6 +749,11 @@ export default function OwnerDashboard() {
         productStats={productStats}
         period={periodState.period}
       />
+
+      {/* Drill-down modals */}
+      {modal === 'sales' && <LeadListModal type="sales" leads={salesList} loading={salesLoading} onClose={() => setModal(null)} />}
+      {modal === 'refunds' && <LeadListModal type="refunds" leads={refundsList} loading={refundsLoading} onClose={() => setModal(null)} />}
+      {modal === 'refusals' && <LeadListModal type="refusals" leads={refusalsList} loading={refusalsLoading} onClose={() => setModal(null)} />}
     </div>
   )
 }

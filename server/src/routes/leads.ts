@@ -446,7 +446,7 @@ router.get('/sold', authenticate, async (req: AuthRequest, res: Response) => {
 
 /// ── GET /api/leads/all — ROP/OWNER: all leads in company ─────────────────────
 router.get('/all', authenticate, async (req: AuthRequest, res: Response) => {
-  const { from, to, period = 'month', status } = req.query
+  const { from, to, period = 'month', status, consultationStatus } = req.query
   const { fromStr, toStr } = getPeriodStr(period as string, from as string, to as string)
   const role = req.user!.role
   if (role !== 'ROP' && role !== 'OWNER') return res.status(403).json({ error: 'Forbidden' })
@@ -456,6 +456,7 @@ router.get('/all', authenticate, async (req: AuthRequest, res: Response) => {
       deletedAt: null,
     }
     if (status) where.status = status
+    if (consultationStatus) where.consultationStatus = consultationStatus
     // IN_WORK (дожим) leads can be from ANY period — don't filter by creation date.
     // For all other statuses, filter by lead creation date (current period).
     if (status !== 'IN_WORK') {

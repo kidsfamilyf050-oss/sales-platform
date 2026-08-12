@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { X, RotateCcw, ExternalLink as ExtLink } from 'lucide-react'
+import { X, ExternalLink as ExtLink } from 'lucide-react'
 import { api } from '../api/client'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 import StatCard from '../components/ui/StatCard'
@@ -53,58 +53,87 @@ function Funnel({ steps }: { steps: { label: string; value: number; color?: stri
   )
 }
 
-// Refunds drill-down modal
-function RefundsModal({ leads, onClose }: { leads: any[]; onClose: () => void }) {
-  const { t } = useT()
-  const total = leads.reduce((s, l) => s + (l.amount ?? l.netAmount ?? 0), 0)
+type RopModalType = 'refunds' | 'refusals' | 'consultations' | 'carryover'
+
+const ROP_MODAL_TITLES: Record<RopModalType, string> = {
+  refunds: 'Возвраты',
+  refusals: 'Отказники',
+  consultations: 'Проведённые консультации',
+  carryover: 'Сделки на дожиме',
+}
+
+const STATUS_LABEL: Record<string, string> = { SOLD: 'Продажа', REFUSED: 'Отказ', IN_WORK: 'В работе' }
+
+function LeadListModal({ type, leads, loading, onClose }: {
+  type: RopModalType; leads: any[]; loading: boolean; onClose: () => void
+}) {
+  const netAmount = (l: any) => Number(l.netAmount ?? l.amount) || 0
+  const total = leads.reduce((s, l) => s + netAmount(l), 0)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
-          <div className="flex items-center gap-2">
-            <RotateCcw className="w-4 h-4 text-red-500" />
-            <h3 className="font-bold text-gray-900">{t('dash.rop.refundTitle')}</h3>
-            <span className="text-sm text-red-600 font-semibold bg-red-50 px-2 py-0.5 rounded-full">
-              {leads.length} шт. · −₸ {total.toLocaleString('ru')}
-            </span>
+          <div>
+            <h3 className="font-bold text-gray-900">{ROP_MODAL_TITLES[type]}</h3>
+            {!loading && (
+              <span className="text-sm text-gray-500">
+                {leads.length} записей
+                {total > 0 && ` · ${type === 'refunds' ? '−' : ''}₸ ${total.toLocaleString('ru')}`}
+              </span>
+            )}
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="overflow-y-auto flex-1">
-          {leads.length === 0 ? (
-            <div className="p-8 text-center text-gray-400 text-sm">Возвратов нет</div>
+          {loading ? (
+            <div className="p-8 text-center text-gray-400 text-sm">Загрузка...</div>
+          ) : leads.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-sm">Нет данных</div>
           ) : (
             <div className="divide-y divide-gray-50">
-              {leads.map((l: any) => (
-                <div key={l.id} className="px-4 py-3 hover:bg-red-50/40 transition-colors">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900 text-sm">{l.clientName}</p>
-                      {l.phone && <p className="text-xs text-gray-400">{l.phone}</p>}
+              {leads.map((l: any) => {
+                const amt = netAmount(l)
+                return (
+                  <div key={l.id} className="px-4 py-3 hover:bg-gray-50/60 transition-colors">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm">{l.clientName}</p>
+                        {l.phone && <p className="text-xs text-gray-400">{l.phone}</p>}
+                      </div>
+                      <div className="text-right shrink-0">
+                        {amt > 0 && (
+                          <p className={`font-bold text-sm ${type === 'refunds' ? 'text-red-600' : type === 'consultations' && l.status === 'SOLD' ? 'text-green-700' : 'text-gray-700'}`}>
+                            {type === 'refunds' ? '−' : ''}₸ {amt.toLocaleString('ru')}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-400">{l.date}</p>
+                      </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-bold text-red-600 text-sm">−₸ {(l.amount ?? l.netAmount ?? 0).toLocaleString('ru')}</p>
-                      <p className="text-xs text-gray-400">{l.date}</p>
+                    <div className="mt-1.5 flex items-center gap-3 flex-wrap text-xs text-gray-500">
+                      {l.assignedTo && <span>👤 {l.assignedTo.name}</span>}
+                      {l.salesChannel && <span>📢 {l.salesChannel.name}</span>}
+                      {type === 'consultations' && l.status && (
+                        <span className={`px-1.5 py-0.5 rounded-full font-medium ${l.status === 'SOLD' ? 'bg-green-100 text-green-700' : l.status === 'REFUSED' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {STATUS_LABEL[l.status] || l.status}
+                        </span>
+                      )}
+                      {type === 'refusals' && l.lossReason && <span className="text-red-500">Причина: {l.lossReason}</span>}
+                      {type === 'refunds' && l.refundComment && <span className="text-orange-500 italic">{l.refundComment}</span>}
+                      {type === 'carryover' && l.createdAt && (
+                        <span className="text-amber-600">Создана: {new Date(l.createdAt).toLocaleDateString('ru-RU')}</span>
+                      )}
+                      {l.crmLink && (
+                        <a href={l.crmLink} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
+                          className="flex items-center gap-1 text-blue-500 hover:underline ml-auto">
+                          <ExtLink className="w-3 h-3" /> CRM
+                        </a>
+                      )}
                     </div>
                   </div>
-                  <div className="mt-1.5 flex items-center gap-3 flex-wrap text-xs text-gray-500">
-                    {l.assignedTo && <span>👤 {l.assignedTo.name}</span>}
-                    {l.salesChannel && <span>📢 {l.salesChannel.name}</span>}
-                    {l.refundComment && (
-                      <span className="text-red-500 italic">💬 {l.refundComment}</span>
-                    )}
-                    {l.crmLink && (
-                      <a href={l.crmLink} target="_blank" rel="noreferrer"
-                        className="flex items-center gap-1 text-blue-500 hover:underline ml-auto"
-                        onClick={e => e.stopPropagation()}>
-                        <ExtLink className="w-3 h-3" /> CRM
-                      </a>
-                    )}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -368,6 +397,29 @@ export default function ROPDashboard() {
   })
 
   const [expandedManagers, setExpandedManagers] = useState<Set<string>>(new Set())
+  const [modal, setModal] = useState<RopModalType | null>(null)
+
+  // Lazy modal queries — only fetch when modal is open
+  const { data: refundsList = [], isLoading: refundsLoading } = useQuery({
+    queryKey: ['rop-refunds', params],
+    queryFn: () => api.get(`/leads/refunds?${params}`).then(r => r.data),
+    enabled: modal === 'refunds',
+  })
+  const { data: refusalsList = [], isLoading: refusalsLoading } = useQuery({
+    queryKey: ['rop-refusals', params],
+    queryFn: () => api.get(`/leads/all?status=REFUSED&${params}`).then(r => r.data),
+    enabled: modal === 'refusals',
+  })
+  const { data: consultationsList = [], isLoading: consultationsLoading } = useQuery({
+    queryKey: ['rop-consultations', params],
+    queryFn: () => api.get(`/leads/all?consultationStatus=happened&${params}`).then(r => r.data),
+    enabled: modal === 'consultations',
+  })
+  const { data: carryoverList = [], isLoading: carryoverLoading } = useQuery({
+    queryKey: ['rop-carryover'],
+    queryFn: () => api.get('/leads/all?status=IN_WORK').then(r => r.data),
+    enabled: modal === 'carryover',
+  })
 
   const toggleExpand = (id: string) => setExpandedManagers(prev => {
     const next = new Set(prev)
@@ -418,7 +470,7 @@ export default function ROPDashboard() {
         <StatCard label={t('dash.owner.newSales')} value={`₸ ${fmt(summary.factNetSales ?? 0)}`} color="blue"
           sub={`${summary.factSalesCount ?? 0} ${t('dash.sale.dealsShort')}`} />
         <div
-          onClick={() => navigate('/rop/links?tab=REFUND')}
+          onClick={() => setModal('refunds')}
           className="cursor-pointer group"
           title="Открыть список возвратов"
         >
@@ -448,11 +500,13 @@ export default function ROPDashboard() {
           <StatCard label={t('dash.plannedPayments')} value={`₸ ${fmt(summary.plannedPaymentsAmount ?? 0)}`} color="purple"
             sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
         </div>
-        <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
+        <div onClick={() => setModal('consultations')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-300 rounded-xl transition-all duration-150">
+          <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
+        </div>
         <div
-          onClick={() => navigate('/rop/links?tab=REFUSAL')}
+          onClick={() => setModal('refusals')}
           className="cursor-pointer group"
-          title="Открыть CRM-ссылки отказников"
+          title="Открыть список отказников"
         >
           <div className="card text-center items-center transition-all duration-150 group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent">
             <p className="text-xs text-gray-400 group-hover:text-red-500 transition-colors font-medium uppercase tracking-wide mb-1">{t('dash.refusals')}</p>
@@ -460,7 +514,7 @@ export default function ROPDashboard() {
             {summary.totalRefusalsAmount > 0 && (
               <p className="text-xs text-red-400 font-medium mt-0.5">−₸ {summary.totalRefusalsAmount.toLocaleString('ru')}</p>
             )}
-            <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">нажмите → CRM-ссылки</p>
+            <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">нажмите →</p>
           </div>
         </div>
       </div>
@@ -484,17 +538,18 @@ export default function ROPDashboard() {
       {summary.planCompletion != null && <ProgressBar value={summary.planCompletion} label={t('dash.rop.planCompletion')} />}
 
       {/* Carryover sales (дожим) */}
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4">
+      <div
+        className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:shadow-md hover:border-amber-400 transition-all"
+        onClick={() => setModal('carryover')}
+        title="Открыть список сделок на дожиме"
+      >
         <div>
           <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-0.5">{t('dash.carryover.title')}</p>
           <p className="text-sm text-amber-600">{t('dash.carryover.subtitle')}</p>
+          <p className="text-xs text-amber-400 mt-1">нажмите → список</p>
         </div>
         <div className="ml-auto flex items-center gap-6 shrink-0">
-          <div
-            className="text-center cursor-pointer hover:opacity-70 transition-opacity"
-            onClick={() => navigate('/rop/links?tab=IN_WORK')}
-            title="Открыть CRM-ссылки сделок в работе"
-          >
+          <div className="text-center">
             <p className="text-2xl font-bold text-amber-800">{summary.totalInWork ?? 0}</p>
             <p className="text-xs text-amber-500">{t('dash.inWork')}</p>
           </div>
@@ -769,6 +824,12 @@ export default function ROPDashboard() {
       </div>
 
       <AIInsights data={summary} managerRating={managerRating} liderRating={liderRating} funnel={funnel} productStats={productStats} period={period} />
+
+      {/* Drill-down modals */}
+      {modal === 'refunds' && <LeadListModal type="refunds" leads={refundsList} loading={refundsLoading} onClose={() => setModal(null)} />}
+      {modal === 'refusals' && <LeadListModal type="refusals" leads={refusalsList} loading={refusalsLoading} onClose={() => setModal(null)} />}
+      {modal === 'consultations' && <LeadListModal type="consultations" leads={consultationsList} loading={consultationsLoading} onClose={() => setModal(null)} />}
+      {modal === 'carryover' && <LeadListModal type="carryover" leads={carryoverList} loading={carryoverLoading} onClose={() => setModal(null)} />}
     </div>
   )
 }
