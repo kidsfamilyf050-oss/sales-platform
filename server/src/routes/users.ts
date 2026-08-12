@@ -52,6 +52,14 @@ router.post('/invite', authenticate, requireRole('OWNER', 'ROP'), async (req: Au
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) return res.status(400).json({ error: 'Email already registered' })
 
+    // ── Trial plan: max 3 users ──────────────────────────────────────────────
+    if (!company?.subscriptionPlan || company.subscriptionPlan === 'trial') {
+      const userCount = await prisma.user.count({ where: { companyId: req.user!.companyId } })
+      if (userCount >= 3) {
+        return res.status(403).json({ error: 'TRIAL_LIMIT', message: 'Триальный план ограничен 3 пользователями. Перейдите на платный тариф для добавления сотрудников.' })
+      }
+    }
+
     const inviteToken = uuidv4()
     const user = await prisma.user.create({
       data: {

@@ -114,7 +114,12 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-gray-400 mt-3">{t('register.agreement')}</p>
+        <p className="text-center text-xs text-gray-400 mt-3">
+          Нажимая «Создать аккаунт», вы соглашаетесь с{' '}
+          <a href="/oferta" target="_blank" className="text-blue-500 hover:underline">офертой</a>
+          {' '}и{' '}
+          <a href="/privacy" target="_blank" className="text-blue-500 hover:underline">политикой конфиденциальности</a>
+        </p>
 
         <div className="mt-6 flex items-center justify-between text-sm">
           <Link to="/" className="flex items-center gap-1 text-gray-500 hover:text-gray-700 transition-colors">

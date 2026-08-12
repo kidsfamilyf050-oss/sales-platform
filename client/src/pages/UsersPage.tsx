@@ -41,6 +41,10 @@ export default function UsersPage() {
       setShowForm(false)
       setForm(emptyForm)
     },
+    onError: (e: any) => {
+      const msg = e?.response?.data?.message || e?.response?.data?.error || t('common.error')
+      alert(msg)
+    },
   })
 
   const updateUser = useMutation({
