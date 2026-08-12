@@ -467,7 +467,21 @@ router.get('/all', authenticate, async (req: AuthRequest, res: Response) => {
       include: INCLUDE_FULL,
       orderBy: { createdAt: 'desc' },
     })
-    res.json(leads)
+    // For SOLD leads: compute isDojim flag (lead created before dealCycleMonths before period start)
+    let result: any[] = leads
+    if ((status as string) === 'SOLD') {
+      const companySettings = await prisma.company.findUnique({
+        where: { id: req.user!.companyId },
+        select: { dealCycleMonths: true }
+      }).catch(() => null)
+      const dealCycleMonths = (companySettings as any)?.dealCycleMonths ?? 1
+      const cutoff = new Date(fromStr)
+      cutoff.setMonth(cutoff.getMonth() - dealCycleMonths)
+      result = leads.map(l => ({ ...l, isDojim: new Date((l as any).date) < cutoff }))
+      if (req.query.isDojim === 'true')  result = result.filter(l => (l as any).isDojim)
+      if (req.query.isDojim === 'false') result = result.filter(l => !(l as any).isDojim)
+    }
+    res.json(result)
   } catch (e) {
     console.error(e); res.status(500).json({ error: 'Server error' })
   }

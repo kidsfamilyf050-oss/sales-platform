@@ -177,24 +177,37 @@ function ManagerSalesDetail({ m }: { m: any }) {
   )
 }
 
-type OwnerModalType = 'sales' | 'refunds' | 'refusals'
+type OwnerModalType = 'sales' | 'refunds' | 'refusals' | 'all-sales' | 'dojim-sales' | 'inwork' | 'consultations'
+
+const OWNER_MODAL_TITLES: Record<OwnerModalType, string> = {
+  'sales':         'Новые продажи',
+  'refunds':       'Возвраты',
+  'refusals':      'Отказники',
+  'all-sales':     'Все продажи за период',
+  'dojim-sales':   'Дожим — закрытые сделки',
+  'inwork':        'Сделки в работе (дожим)',
+  'consultations': 'Консультации',
+}
+
+const STATUS_LABEL_OWNER: Record<string, string> = { SOLD: 'Продажа', REFUSED: 'Отказ', IN_WORK: 'В работе', NEW: 'Новый' }
 
 function LeadListModal({ type, leads, loading, onClose }: {
   type: OwnerModalType; leads: any[]; loading: boolean; onClose: () => void
 }) {
-  const titles: Record<OwnerModalType, string> = { sales: 'Новые продажи', refunds: 'Возвраты', refusals: 'Отказники' }
-  const netAmount = (l: any) => Number(l.netAmount ?? l.amount) || 0
-  const total = leads.reduce((s, l) => s + netAmount(l), 0)
+  const isSaleLike = type === 'sales' || type === 'all-sales' || type === 'dojim-sales'
+  const isRefund   = type === 'refunds'
+  const netAmount  = (l: any) => Number(l.netAmount ?? l.amount) || 0
+  const total      = leads.reduce((s, l) => s + netAmount(l), 0)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
           <div>
-            <h3 className="font-bold text-gray-900">{titles[type]}</h3>
+            <h3 className="font-bold text-gray-900">{OWNER_MODAL_TITLES[type]}</h3>
             {!loading && (
               <span className="text-sm text-gray-500">
                 {leads.length} записей
-                {total > 0 && ` · ${type === 'refunds' ? '−' : ''}₸ ${fmt(total)}`}
+                {total > 0 && ` · ${isRefund ? '−' : ''}₸ ${fmt(total)}`}
               </span>
             )}
           </div>
@@ -215,13 +228,23 @@ function LeadListModal({ type, leads, loading, onClose }: {
                   <div key={l.id} className="px-4 py-3 hover:bg-gray-50/60 transition-colors">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 text-sm">{l.clientName}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-gray-900 text-sm">{l.clientName}</p>
+                          {isSaleLike && l.isDojim && (
+                            <span className="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700">ДОЖИМ</span>
+                          )}
+                          {type === 'consultations' && l.status && (
+                            <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-medium ${l.status === 'SOLD' ? 'bg-green-100 text-green-700' : l.status === 'REFUSED' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                              {STATUS_LABEL_OWNER[l.status] || l.status}
+                            </span>
+                          )}
+                        </div>
                         {l.phone && <p className="text-xs text-gray-400">{l.phone}</p>}
                       </div>
                       <div className="text-right shrink-0">
                         {amt > 0 && (
-                          <p className={`font-bold text-sm ${type === 'refunds' ? 'text-red-600' : type === 'refusals' ? 'text-gray-700' : 'text-green-700'}`}>
-                            {type === 'refunds' ? '−' : ''}₸ {fmt(amt)}
+                          <p className={`font-bold text-sm ${isRefund ? 'text-red-600' : type === 'refusals' ? 'text-gray-700' : 'text-green-700'}`}>
+                            {isRefund ? '−' : ''}₸ {fmt(amt)}
                           </p>
                         )}
                         <p className="text-xs text-gray-400">{l.date}</p>
@@ -230,9 +253,9 @@ function LeadListModal({ type, leads, loading, onClose }: {
                     <div className="mt-1.5 flex items-center gap-3 flex-wrap text-xs text-gray-500">
                       {l.assignedTo && <span>👤 {l.assignedTo.name}</span>}
                       {l.salesChannel && <span>📢 {l.salesChannel.name}</span>}
-                      {type === 'refusals' && l.lossReason && <span className="text-red-500">Причина: {l.lossReason}</span>}
-                      {type === 'refunds' && l.refundComment && <span className="text-orange-500 italic">{l.refundComment}</span>}
-                      {type === 'sales' && l.paymentMethod && <span>{PAYMENT_METHOD_LABEL[l.paymentMethod] || l.paymentMethod}</span>}
+                      {type === 'refusals' && l.lossReason && <span className="text-red-500">Причина: {l.lossReason?.name ?? l.lossReason}</span>}
+                      {isRefund && l.refundComment && <span className="text-orange-500 italic">{l.refundComment}</span>}
+                      {isSaleLike && l.paymentMethod && <span>{PAYMENT_METHOD_LABEL[l.paymentMethod] || l.paymentMethod}</span>}
                       {l.crmLink && (
                         <a href={l.crmLink} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
                           className="flex items-center gap-1 text-blue-500 hover:underline ml-auto">
@@ -272,7 +295,7 @@ export default function OwnerDashboard() {
   const { data: salesList = [], isLoading: salesLoading } = useQuery({
     queryKey: ['owner-sales', queryParams],
     queryFn: () => api.get(`/leads/all?status=SOLD&${queryParams}`).then(r => r.data),
-    enabled: modal === 'sales',
+    enabled: modal === 'sales' || modal === 'all-sales',
   })
   const { data: refundsList = [], isLoading: refundsLoading } = useQuery({
     queryKey: ['owner-refunds', queryParams],
@@ -283,6 +306,21 @@ export default function OwnerDashboard() {
     queryKey: ['owner-refusals', queryParams],
     queryFn: () => api.get(`/leads/all?status=REFUSED&${queryParams}`).then(r => r.data),
     enabled: modal === 'refusals',
+  })
+  const { data: dojimSalesList = [], isLoading: dojimSalesLoading } = useQuery({
+    queryKey: ['owner-dojim-sales', queryParams],
+    queryFn: () => api.get(`/leads/all?status=SOLD&isDojim=true&${queryParams}`).then(r => r.data),
+    enabled: modal === 'dojim-sales',
+  })
+  const { data: inworkList = [], isLoading: inworkLoading } = useQuery({
+    queryKey: ['owner-inwork'],
+    queryFn: () => api.get('/leads/all?status=IN_WORK').then(r => r.data),
+    enabled: modal === 'inwork',
+  })
+  const { data: consultationsList = [], isLoading: consultationsLoading } = useQuery({
+    queryKey: ['owner-consultations', queryParams],
+    queryFn: () => api.get(`/leads/all?consultationStatus=happened&${queryParams}`).then(r => r.data),
+    enabled: modal === 'consultations',
   })
 
   if (isLoading) return <div className="flex items-center justify-center h-64 text-gray-400">{t('common.loading')}</div>
@@ -342,7 +380,9 @@ export default function OwnerDashboard() {
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`}
           sub={summary.totalMeetingsAttended > 0 ? t('dash.owner.conversionSubMeetings') : t('dash.owner.conversionSubClients')}
           color={summary.conversion >= 20 ? 'green' : summary.conversion >= 10 ? 'yellow' : 'red'} />
-        <StatCard label={t('dash.salesCount')} value={summary.totalSalesCount ?? 0} />
+        <div onClick={() => setModal('all-sales')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-200 rounded-xl transition-all duration-150">
+          <StatCard label={t('dash.salesCount')} value={summary.totalSalesCount ?? 0} />
+        </div>
         <StatCard label={t('dash.owner.avgCheckFact')} value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
       </div>
       {/* ── Row 3 (3): Additional metrics ── */}
@@ -351,10 +391,16 @@ export default function OwnerDashboard() {
           <StatCard label={t('dash.plannedPayments')} value={`₸ ${fmt(summary.plannedPaymentsAmount ?? 0)}`} color="purple"
             sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
         </div>
-        <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
-        <div onClick={() => setModal('refusals')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-red-300 rounded-xl transition-all duration-150">
-          <StatCard label={t('dash.refusals')} value={summary.totalRefusals ?? 0} color="red"
-            sub={summary.totalRefusalsAmount > 0 ? `−₸ ${fmt(summary.totalRefusalsAmount)}` : undefined} />
+        <div onClick={() => setModal('consultations')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-200 rounded-xl transition-all duration-150">
+          <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
+        </div>
+        <div onClick={() => setModal('refusals')} className="cursor-pointer group">
+          <div className="card text-center items-center transition-all duration-150 group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent">
+            <p className="text-xs font-medium uppercase tracking-wide mb-1 text-gray-400 group-hover:text-red-500 transition-colors">{t('dash.refusals')}</p>
+            <p className={`text-2xl font-bold ${(summary.totalRefusals ?? 0) > 0 ? 'text-red-500' : 'text-gray-900'}`}>{summary.totalRefusals ?? 0}</p>
+            {summary.totalRefusalsAmount > 0 && <p className="text-xs text-red-400 font-medium mt-0.5">−₸ {fmt(summary.totalRefusalsAmount)}</p>}
+            <p className="text-xs text-gray-300 group-hover:text-red-400 mt-1 transition-colors">нажмите →</p>
+          </div>
         </div>
       </div>
 
@@ -382,18 +428,36 @@ export default function OwnerDashboard() {
           <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-0.5">{t('dash.carryover.title')}</p>
           <p className="text-sm text-amber-600">{t('dash.carryover.subtitle')}</p>
         </div>
-        <div className="ml-auto flex items-center gap-6 shrink-0">
-          <div className="text-center">
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          {/* В работе — click to see IN_WORK leads */}
+          <div
+            className="text-center px-4 py-2 rounded-xl cursor-pointer hover:bg-amber-100 hover:shadow-sm transition-all"
+            onClick={() => setModal('inwork')}
+            title="Список лидов в работе"
+          >
             <p className="text-2xl font-bold text-amber-800">{summary.totalInWork ?? 0}</p>
             <p className="text-xs text-amber-500">{t('dash.inWork')}</p>
+            <p className="text-[10px] text-amber-400 mt-0.5">нажмите →</p>
           </div>
-          <div className="text-center">
+          <div className="w-px h-10 bg-amber-200" />
+          {/* Закрытые дожимы — click to see dojim SALES */}
+          <div
+            className="text-center px-4 py-2 rounded-xl cursor-pointer hover:bg-amber-100 hover:shadow-sm transition-all"
+            onClick={() => setModal('dojim-sales')}
+            title="Список закрытых дожимов"
+          >
             <p className="text-2xl font-bold text-amber-800">{carryover?.count ?? 0}</p>
             <p className="text-xs text-amber-500">{t('dash.carryover.deals')}</p>
+            <p className="text-[10px] text-amber-400 mt-0.5">нажмите →</p>
           </div>
-          <div className="text-center">
+          <div
+            className="text-center px-4 py-2 rounded-xl cursor-pointer hover:bg-amber-100 hover:shadow-sm transition-all"
+            onClick={() => setModal('dojim-sales')}
+            title="Список закрытых дожимов"
+          >
             <p className="text-2xl font-bold text-amber-800">₸ {fmt(carryover?.revenue ?? 0)}</p>
             <p className="text-xs text-amber-500">{t('dash.carryover.revenue')}</p>
+            <p className="text-[10px] text-amber-400 mt-0.5">нажмите →</p>
           </div>
         </div>
       </div>
@@ -751,9 +815,13 @@ export default function OwnerDashboard() {
       />
 
       {/* Drill-down modals */}
-      {modal === 'sales' && <LeadListModal type="sales" leads={salesList} loading={salesLoading} onClose={() => setModal(null)} />}
-      {modal === 'refunds' && <LeadListModal type="refunds" leads={refundsList} loading={refundsLoading} onClose={() => setModal(null)} />}
-      {modal === 'refusals' && <LeadListModal type="refusals" leads={refusalsList} loading={refusalsLoading} onClose={() => setModal(null)} />}
+      {modal === 'sales'         && <LeadListModal type="sales"         leads={salesList}          loading={salesLoading}         onClose={() => setModal(null)} />}
+      {modal === 'all-sales'     && <LeadListModal type="all-sales"     leads={salesList}          loading={salesLoading}         onClose={() => setModal(null)} />}
+      {modal === 'refunds'       && <LeadListModal type="refunds"       leads={refundsList}        loading={refundsLoading}       onClose={() => setModal(null)} />}
+      {modal === 'refusals'      && <LeadListModal type="refusals"      leads={refusalsList}       loading={refusalsLoading}      onClose={() => setModal(null)} />}
+      {modal === 'dojim-sales'   && <LeadListModal type="dojim-sales"   leads={dojimSalesList}     loading={dojimSalesLoading}    onClose={() => setModal(null)} />}
+      {modal === 'inwork'        && <LeadListModal type="inwork"        leads={inworkList}         loading={inworkLoading}        onClose={() => setModal(null)} />}
+      {modal === 'consultations' && <LeadListModal type="consultations" leads={consultationsList}  loading={consultationsLoading} onClose={() => setModal(null)} />}
     </div>
   )
 }

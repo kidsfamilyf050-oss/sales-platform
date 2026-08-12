@@ -53,13 +53,15 @@ function Funnel({ steps }: { steps: { label: string; value: number; color?: stri
   )
 }
 
-type RopModalType = 'refunds' | 'refusals' | 'consultations' | 'carryover'
+type RopModalType = 'refunds' | 'refusals' | 'consultations' | 'inwork' | 'all-sales' | 'dojim-sales'
 
 const ROP_MODAL_TITLES: Record<RopModalType, string> = {
-  refunds: 'Возвраты',
-  refusals: 'Отказники',
+  refunds:       'Возвраты',
+  refusals:      'Отказники',
   consultations: 'Проведённые консультации',
-  carryover: 'Сделки на дожиме',
+  inwork:        'Сделки в работе (дожим)',
+  'all-sales':   'Все продажи за период',
+  'dojim-sales': 'Дожим — закрытые сделки',
 }
 
 const STATUS_LABEL: Record<string, string> = { SOLD: 'Продажа', REFUSED: 'Отказ', IN_WORK: 'В работе' }
@@ -67,8 +69,9 @@ const STATUS_LABEL: Record<string, string> = { SOLD: 'Продажа', REFUSED: 
 function LeadListModal({ type, leads, loading, onClose }: {
   type: RopModalType; leads: any[]; loading: boolean; onClose: () => void
 }) {
-  const netAmount = (l: any) => Number(l.netAmount ?? l.amount) || 0
-  const total = leads.reduce((s, l) => s + netAmount(l), 0)
+  const isSaleLike = type === 'all-sales' || type === 'dojim-sales'
+  const netAmount  = (l: any) => Number(l.netAmount ?? l.amount) || 0
+  const total      = leads.reduce((s, l) => s + netAmount(l), 0)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
@@ -99,12 +102,22 @@ function LeadListModal({ type, leads, loading, onClose }: {
                   <div key={l.id} className="px-4 py-3 hover:bg-gray-50/60 transition-colors">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 text-sm">{l.clientName}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-gray-900 text-sm">{l.clientName}</p>
+                          {isSaleLike && l.isDojim && (
+                            <span className="px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700">ДОЖИМ</span>
+                          )}
+                          {type === 'consultations' && l.status && (
+                            <span className={`px-1.5 py-0.5 rounded-full font-medium text-[11px] ${l.status === 'SOLD' ? 'bg-green-100 text-green-700' : l.status === 'REFUSED' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                              {STATUS_LABEL[l.status] || l.status}
+                            </span>
+                          )}
+                        </div>
                         {l.phone && <p className="text-xs text-gray-400">{l.phone}</p>}
                       </div>
                       <div className="text-right shrink-0">
                         {amt > 0 && (
-                          <p className={`font-bold text-sm ${type === 'refunds' ? 'text-red-600' : type === 'consultations' && l.status === 'SOLD' ? 'text-green-700' : 'text-gray-700'}`}>
+                          <p className={`font-bold text-sm ${type === 'refunds' ? 'text-red-600' : isSaleLike ? 'text-green-700' : 'text-gray-700'}`}>
                             {type === 'refunds' ? '−' : ''}₸ {amt.toLocaleString('ru')}
                           </p>
                         )}
@@ -114,14 +127,9 @@ function LeadListModal({ type, leads, loading, onClose }: {
                     <div className="mt-1.5 flex items-center gap-3 flex-wrap text-xs text-gray-500">
                       {l.assignedTo && <span>👤 {l.assignedTo.name}</span>}
                       {l.salesChannel && <span>📢 {l.salesChannel.name}</span>}
-                      {type === 'consultations' && l.status && (
-                        <span className={`px-1.5 py-0.5 rounded-full font-medium ${l.status === 'SOLD' ? 'bg-green-100 text-green-700' : l.status === 'REFUSED' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {STATUS_LABEL[l.status] || l.status}
-                        </span>
-                      )}
-                      {type === 'refusals' && l.lossReason && <span className="text-red-500">Причина: {l.lossReason}</span>}
+                      {type === 'refusals' && l.lossReason && <span className="text-red-500">Причина: {l.lossReason?.name ?? l.lossReason}</span>}
                       {type === 'refunds' && l.refundComment && <span className="text-orange-500 italic">{l.refundComment}</span>}
-                      {type === 'carryover' && l.createdAt && (
+                      {type === 'inwork' && l.createdAt && (
                         <span className="text-amber-600">Создана: {new Date(l.createdAt).toLocaleDateString('ru-RU')}</span>
                       )}
                       {l.crmLink && (
@@ -415,10 +423,20 @@ export default function ROPDashboard() {
     queryFn: () => api.get(`/leads/all?consultationStatus=happened&${params}`).then(r => r.data),
     enabled: modal === 'consultations',
   })
-  const { data: carryoverList = [], isLoading: carryoverLoading } = useQuery({
-    queryKey: ['rop-carryover'],
+  const { data: inworkList = [], isLoading: inworkLoading } = useQuery({
+    queryKey: ['rop-inwork'],
     queryFn: () => api.get('/leads/all?status=IN_WORK').then(r => r.data),
-    enabled: modal === 'carryover',
+    enabled: modal === 'inwork',
+  })
+  const { data: allSalesList = [], isLoading: allSalesLoading } = useQuery({
+    queryKey: ['rop-all-sales', params],
+    queryFn: () => api.get(`/leads/all?status=SOLD&${params}`).then(r => r.data),
+    enabled: modal === 'all-sales',
+  })
+  const { data: dojimSalesList = [], isLoading: dojimSalesLoading } = useQuery({
+    queryKey: ['rop-dojim-sales', params],
+    queryFn: () => api.get(`/leads/all?status=SOLD&isDojim=true&${params}`).then(r => r.data),
+    enabled: modal === 'dojim-sales',
   })
 
   const toggleExpand = (id: string) => setExpandedManagers(prev => {
@@ -489,8 +507,10 @@ export default function ROPDashboard() {
       {/* Row 2 (4): Performance */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-5">
         <StatCard label={t('dash.completion')} value={summary.planCompletion != null ? `${summary.planCompletion}%` : '—'} color={summary.planCompletion == null ? 'default' : summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
-        <StatCard label={t('dash.rop.deals')} value={summary.salesCount ?? 0}
-          sub={`${t('dash.chart.newLabel')}: ${summary.factSalesCount ?? 0}`} />
+        <div onClick={() => setModal('all-sales')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-200 rounded-xl transition-all duration-150">
+          <StatCard label={t('dash.rop.deals')} value={summary.salesCount ?? 0}
+            sub={`${t('dash.chart.newLabel')}: ${summary.factSalesCount ?? 0}`} />
+        </div>
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`} sub={t('dash.rop.conversionSub')} />
         <StatCard label={t('dash.owner.avgCheckFact')} value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
       </div>
@@ -538,28 +558,41 @@ export default function ROPDashboard() {
       {summary.planCompletion != null && <ProgressBar value={summary.planCompletion} label={t('dash.rop.planCompletion')} />}
 
       {/* Carryover sales (дожим) */}
-      <div
-        className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:shadow-md hover:border-amber-400 transition-all"
-        onClick={() => setModal('carryover')}
-        title="Открыть список сделок на дожиме"
-      >
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4">
         <div>
           <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-0.5">{t('dash.carryover.title')}</p>
           <p className="text-sm text-amber-600">{t('dash.carryover.subtitle')}</p>
-          <p className="text-xs text-amber-400 mt-1">нажмите → список</p>
         </div>
-        <div className="ml-auto flex items-center gap-6 shrink-0">
-          <div className="text-center">
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          {/* В работе → IN_WORK leads */}
+          <div
+            className="text-center px-4 py-2 rounded-xl cursor-pointer hover:bg-amber-100 hover:shadow-sm transition-all"
+            onClick={() => setModal('inwork')}
+            title="Список лидов в работе"
+          >
             <p className="text-2xl font-bold text-amber-800">{summary.totalInWork ?? 0}</p>
             <p className="text-xs text-amber-500">{t('dash.inWork')}</p>
+            <p className="text-[10px] text-amber-400 mt-0.5">нажмите →</p>
           </div>
-          <div className="text-center">
+          <div className="w-px h-10 bg-amber-200" />
+          {/* Закрытые дожимы → dojim SALES */}
+          <div
+            className="text-center px-4 py-2 rounded-xl cursor-pointer hover:bg-amber-100 hover:shadow-sm transition-all"
+            onClick={() => setModal('dojim-sales')}
+            title="Список закрытых дожимов"
+          >
             <p className="text-2xl font-bold text-amber-800">{carryover?.count ?? 0}</p>
             <p className="text-xs text-amber-500">{t('dash.carryover.deals')}</p>
+            <p className="text-[10px] text-amber-400 mt-0.5">нажмите →</p>
           </div>
-          <div className="text-center">
+          <div
+            className="text-center px-4 py-2 rounded-xl cursor-pointer hover:bg-amber-100 hover:shadow-sm transition-all"
+            onClick={() => setModal('dojim-sales')}
+            title="Список закрытых дожимов"
+          >
             <p className="text-2xl font-bold text-amber-800">₸ {fmt(carryover?.revenue ?? 0)}</p>
             <p className="text-xs text-amber-500">{t('dash.carryover.revenue')}</p>
+            <p className="text-[10px] text-amber-400 mt-0.5">нажмите →</p>
           </div>
         </div>
       </div>
@@ -826,10 +859,12 @@ export default function ROPDashboard() {
       <AIInsights data={summary} managerRating={managerRating} liderRating={liderRating} funnel={funnel} productStats={productStats} period={period} />
 
       {/* Drill-down modals */}
-      {modal === 'refunds' && <LeadListModal type="refunds" leads={refundsList} loading={refundsLoading} onClose={() => setModal(null)} />}
-      {modal === 'refusals' && <LeadListModal type="refusals" leads={refusalsList} loading={refusalsLoading} onClose={() => setModal(null)} />}
-      {modal === 'consultations' && <LeadListModal type="consultations" leads={consultationsList} loading={consultationsLoading} onClose={() => setModal(null)} />}
-      {modal === 'carryover' && <LeadListModal type="carryover" leads={carryoverList} loading={carryoverLoading} onClose={() => setModal(null)} />}
+      {modal === 'refunds'       && <LeadListModal type="refunds"       leads={refundsList}       loading={refundsLoading}       onClose={() => setModal(null)} />}
+      {modal === 'refusals'      && <LeadListModal type="refusals"      leads={refusalsList}      loading={refusalsLoading}      onClose={() => setModal(null)} />}
+      {modal === 'consultations' && <LeadListModal type="consultations" leads={consultationsList}  loading={consultationsLoading}  onClose={() => setModal(null)} />}
+      {modal === 'inwork'        && <LeadListModal type="inwork"        leads={inworkList}        loading={inworkLoading}        onClose={() => setModal(null)} />}
+      {modal === 'all-sales'     && <LeadListModal type="all-sales"     leads={allSalesList}      loading={allSalesLoading}      onClose={() => setModal(null)} />}
+      {modal === 'dojim-sales'   && <LeadListModal type="dojim-sales"   leads={dojimSalesList}    loading={dojimSalesLoading}    onClose={() => setModal(null)} />}
     </div>
   )
 }
