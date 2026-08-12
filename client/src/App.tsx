@@ -31,6 +31,8 @@ import MarketerTasksPage from './pages/MarketerTasksPage'
 import ProductsPage from './pages/ProductsPage'
 import GatewaysPage from './pages/GatewaysPage'
 import PlannedPaymentsPage from './pages/PlannedPaymentsPage'
+import OfertaPage from './pages/OfertaPage'
+import PrivacyPage from './pages/PrivacyPage'
 // Admin
 import AdminLoginPage from './pages/admin/AdminLoginPage'
 import AdminLayout from './pages/admin/AdminLayout'
@@ -69,6 +71,8 @@ export default function App() {
       <Routes>
         {/* Public */}
         <Route path="/" element={<LandingPage />} />
+        <Route path="/oferta" element={<OfertaPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
