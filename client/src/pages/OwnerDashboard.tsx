@@ -233,11 +233,11 @@ export default function OwnerDashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-5">
         <StatCard label={t('dash.salesPlan')} value={`₸ ${fmt(summary.salesPlan)}`} />
         <StatCard label={t('dash.salesFact')} value={`₸ ${fmt(summary.totalNetSales ?? summary.totalSalesAmount)}`} color="blue" />
-        <div onClick={() => navigate('/owner/leads?tab=new-sales')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-300 rounded-xl transition-all duration-150">
+        <div onClick={() => navigate('/owner/leads?tab=new-sales')} className="h-full cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-300 rounded-xl transition-all duration-150">
           <StatCard label={t('dash.owner.newSales')} value={`₸ ${fmt(summary.factNetSales ?? 0)}`} color="blue"
             sub={`${summary.factSalesCount ?? 0} ${t('dash.sale.dealsShort')}`} />
         </div>
-        <div onClick={() => navigate('/owner/leads?tab=refunds')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-red-300 rounded-xl transition-all duration-150">
+        <div onClick={() => navigate('/owner/leads?tab=refunds')} className="h-full cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-red-300 rounded-xl transition-all duration-150">
           <StatCard label={t('dash.owner.refunds')} value={`${summary.totalRefundCount ?? 0} шт.`}
             color={summary.totalRefundCount > 0 ? 'red' : 'default'}
             sub={summary.totalRefundCount > 0 ? `−₸ ${fmt(summary.totalRefundAmount)}` : undefined} />
@@ -250,22 +250,22 @@ export default function OwnerDashboard() {
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`}
           sub={summary.totalMeetingsAttended > 0 ? t('dash.owner.conversionSubMeetings') : t('dash.owner.conversionSubClients')}
           color={summary.conversion >= 20 ? 'green' : summary.conversion >= 10 ? 'yellow' : 'red'} />
-        <div onClick={() => navigate('/owner/leads?tab=all-sales')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-200 rounded-xl transition-all duration-150">
+        <div onClick={() => navigate('/owner/leads?tab=all-sales')} className="h-full cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-200 rounded-xl transition-all duration-150">
           <StatCard label={t('dash.salesCount')} value={summary.totalSalesCount ?? 0} />
         </div>
         <StatCard label={t('dash.owner.avgCheckFact')} value={`₸ ${fmt(summary.avgCheck ?? 0)}`} />
       </div>
       {/* ── Row 3 (3): Additional metrics ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-5">
-        <div onClick={() => navigate('/planned-payments')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-purple-300 rounded-xl transition-all duration-150">
+        <div onClick={() => navigate('/planned-payments')} className="h-full cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-purple-300 rounded-xl transition-all duration-150">
           <StatCard label={t('dash.plannedPayments')} value={`₸ ${fmt(summary.plannedPaymentsAmount ?? 0)}`} color="purple"
             sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
         </div>
-        <div onClick={() => navigate('/owner/leads?tab=consultations')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-200 rounded-xl transition-all duration-150">
+        <div onClick={() => navigate('/owner/leads?tab=consultations')} className="h-full cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-200 rounded-xl transition-all duration-150">
           <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         </div>
-        <div onClick={() => navigate('/owner/leads?tab=refusals')} className="cursor-pointer group">
-          <div className="card text-center items-center transition-all duration-150 group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent">
+        <div onClick={() => navigate('/owner/leads?tab=refusals')} className="h-full cursor-pointer group">
+          <div className="h-full card text-center flex flex-col items-center justify-center transition-all duration-150 group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent">
             <p className="text-xs font-medium uppercase tracking-wide mb-1 text-gray-400 group-hover:text-red-500 transition-colors">{t('dash.refusals')}</p>
             <p className={`text-2xl font-bold ${(summary.totalRefusals ?? 0) > 0 ? 'text-red-500' : 'text-gray-900'}`}>{summary.totalRefusals ?? 0}</p>
             {summary.totalRefusalsAmount > 0 && <p className="text-xs text-red-400 font-medium mt-0.5">−₸ {fmt(summary.totalRefusalsAmount)}</p>}

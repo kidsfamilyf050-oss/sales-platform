@@ -35,7 +35,7 @@
     @apply block text-sm font-medium text-gray-700 mb-1;
   }
   .stat-card {
-    @apply card flex flex-col gap-1;
+    @apply card flex flex-col gap-1 h-full justify-center;
   }
   .stat-label {
     @apply text-sm text-gray-500;

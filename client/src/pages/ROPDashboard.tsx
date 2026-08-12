@@ -359,10 +359,10 @@ export default function ROPDashboard() {
           sub={`${summary.factSalesCount ?? 0} ${t('dash.sale.dealsShort')}`} />
         <div
           onClick={() => navigate('/rop/links?tab=REFUND')}
-          className="cursor-pointer group"
+          className="h-full cursor-pointer group"
           title="Открыть список возвратов"
         >
-          <div className="card text-center items-center transition-all duration-150 group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent">
+          <div className="h-full card text-center flex flex-col items-center justify-center transition-all duration-150 group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent">
             <p className="text-xs font-medium uppercase tracking-wide mb-1 text-gray-400 group-hover:text-red-500 transition-colors">{t('dash.owner.refunds')}</p>
             <p className={`text-2xl font-bold ${summary.refundCount > 0 ? 'text-red-500' : 'text-gray-900'}`}>
               {summary.refundCount ?? 0} шт.
@@ -377,7 +377,7 @@ export default function ROPDashboard() {
       {/* Row 2 (4): Performance */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 md:gap-5">
         <StatCard label={t('dash.completion')} value={summary.planCompletion != null ? `${summary.planCompletion}%` : '—'} color={summary.planCompletion == null ? 'default' : summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
-        <div onClick={() => navigate('/rop/links?tab=SOLD_ALL')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-200 rounded-xl transition-all duration-150">
+        <div onClick={() => navigate('/rop/links?tab=SOLD_ALL')} className="h-full cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-200 rounded-xl transition-all duration-150">
           <StatCard label={t('dash.rop.deals')} value={summary.salesCount ?? 0}
             sub={`${t('dash.chart.newLabel')}: ${summary.factSalesCount ?? 0}`} />
         </div>
@@ -386,19 +386,19 @@ export default function ROPDashboard() {
       </div>
       {/* Row 3 (3): Additional metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-5">
-        <div onClick={() => navigate('/planned-payments')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-purple-300 rounded-xl transition-all duration-150">
+        <div onClick={() => navigate('/planned-payments')} className="h-full cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-purple-300 rounded-xl transition-all duration-150">
           <StatCard label={t('dash.plannedPayments')} value={`₸ ${fmt(summary.plannedPaymentsAmount ?? 0)}`} color="purple"
             sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
         </div>
-        <div onClick={() => navigate('/rop/links?tab=CONSULTATION')} className="cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-300 rounded-xl transition-all duration-150">
+        <div onClick={() => navigate('/rop/links?tab=CONSULTATION')} className="h-full cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-300 rounded-xl transition-all duration-150">
           <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
         </div>
         <div
           onClick={() => navigate('/rop/links?tab=REFUSAL')}
-          className="cursor-pointer group"
+          className="h-full cursor-pointer group"
           title="Открыть список отказников"
         >
-          <div className="card text-center items-center transition-all duration-150 group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent">
+          <div className="h-full card text-center flex flex-col items-center justify-center transition-all duration-150 group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent">
             <p className="text-xs text-gray-400 group-hover:text-red-500 transition-colors font-medium uppercase tracking-wide mb-1">{t('dash.refusals')}</p>
             <p className="text-2xl font-bold text-red-500">{summary.totalRefusals ?? 0}</p>
             {summary.totalRefusalsAmount > 0 && (
