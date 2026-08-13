@@ -361,7 +361,7 @@ router.get('/refused', authenticate, async (req: AuthRequest, res: Response) => 
     const where: any = {
       assignedToId: req.user!.id,
       status: 'REFUSED',
-      consultationStatus: { not: 'not_happened' }, // exclude not_happened — those belong to lider
+      OR: [{ consultationStatus: null }, { consultationStatus: { not: 'not_happened' } }], // exclude only not_happened (lider flow); include null (closer direct refusals)
       deletedAt: null,
     }
     if (all !== 'true') {

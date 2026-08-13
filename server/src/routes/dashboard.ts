@@ -868,7 +868,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         prisma.lead.count({ where: { assignedToId: userId, status: 'ASSIGNED' } }),
         prisma.lead.count({ where: { assignedToId: userId, status: 'IN_WORK' } }),
         prisma.leadTask.count({ where: { userId, completed: false } }),
-        prisma.lead.count({ where: { assignedToId: userId, status: 'REFUSED', consultationStatus: { not: 'not_happened' }, date: { gte: fromStr, lte: toStr } } }),
+        prisma.lead.count({ where: { assignedToId: userId, status: 'REFUSED', date: { gte: fromStr, lte: toStr }, OR: [{ consultationStatus: null }, { consultationStatus: { not: 'not_happened' } }] } }),
         prisma.lead.count({ where: { assignedToId: userId, status: 'SOLD', isRefund: false, updatedAt: { gte: periodStart, lte: periodEnd } } }),
         prisma.lead.findMany({
           where: { assignedToId: userId, status: 'SOLD', isRefund: true, updatedAt: { gte: periodStart, lte: periodEnd } },
