@@ -7,56 +7,61 @@ import { useAuthStore } from '../store/auth'
 import { useT } from '../i18n'
 import LanguageSwitcher from '../components/ui/LanguageSwitcher'
 
-// ── Owner Dashboard mockup ──────────────────────────────────────────────────
+// ── Owner Dashboard mockup (light) ─────────────────────────────────────────
 function DashboardMockup() {
   return (
-    <div className="w-full rounded-2xl overflow-hidden shadow-2xl shadow-blue-100 border border-gray-200 bg-[#0f1117] select-none">
-      <div className="flex items-center gap-1.5 px-4 py-3 bg-[#1a1d27] border-b border-white/5">
+    <div className="w-full rounded-2xl overflow-hidden shadow-2xl shadow-blue-100 border border-gray-200 bg-white select-none">
+      {/* Title bar */}
+      <div className="flex items-center gap-1.5 px-4 py-3 bg-gray-50 border-b border-gray-200">
         <span className="w-3 h-3 rounded-full bg-red-400" />
         <span className="w-3 h-3 rounded-full bg-yellow-400" />
         <span className="w-3 h-3 rounded-full bg-green-400" />
-        <span className="flex-1 text-center text-xs text-white/30 mx-4">SalesPlatform — Дашборд собственника</span>
+        <span className="flex-1 text-center text-xs text-gray-400 mx-4">SalesPlatform — Дашборд собственника</span>
       </div>
       <div className="flex">
-        <div className="w-14 bg-[#13151f] border-r border-white/5 py-4 flex flex-col items-center gap-3">
+        {/* Sidebar */}
+        <div className="w-14 bg-white border-r border-gray-100 py-4 flex flex-col items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
             <BarChart2 className="w-4 h-4 text-white" />
           </div>
           {[BarChart2, Users, Target, TrendingUp, BarChart].map((Icon, i) => (
-            <div key={i} className={`w-9 h-9 rounded-xl flex items-center justify-center ${i === 0 ? 'bg-blue-600/20' : ''}`}>
-              <Icon className={`w-4 h-4 ${i === 0 ? 'text-blue-400' : 'text-white/20'}`} />
+            <div key={i} className={`w-9 h-9 rounded-xl flex items-center justify-center ${i === 0 ? 'bg-blue-50' : ''}`}>
+              <Icon className={`w-4 h-4 ${i === 0 ? 'text-blue-600' : 'text-gray-300'}`} />
             </div>
           ))}
         </div>
-        <div className="flex-1 p-4 space-y-3 min-w-0">
+        {/* Main */}
+        <div className="flex-1 p-4 space-y-3 min-w-0 bg-gray-50/50">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-semibold text-white">Дашборд собственника</div>
-              <div className="text-xs text-white/40">Август 2026</div>
+              <div className="text-sm font-semibold text-gray-800">Дашборд собственника</div>
+              <div className="text-xs text-gray-400">Август 2026</div>
             </div>
             <div className="flex gap-2 pointer-events-none">
               {['Сегодня','Неделя','Месяц'].map((l, i) => (
-                <span key={l} className={`text-xs px-2.5 py-1 rounded-lg ${i === 2 ? 'bg-blue-600 text-white' : 'bg-white/5 text-white/40'}`}>{l}</span>
+                <span key={l} className={`text-xs px-2.5 py-1 rounded-lg ${i === 2 ? 'bg-blue-600 text-white' : 'bg-white text-gray-400 border border-gray-200'}`}>{l}</span>
               ))}
             </div>
           </div>
+          {/* KPI cards */}
           <div className="grid grid-cols-4 gap-2">
             {[
-              { label: 'Факт продаж', value: '₸18.4 млн', sub: '73% от плана', vc: 'text-emerald-400' },
-              { label: 'Конверсия',   value: '34%',        sub: '+4% к прошлому', vc: 'text-blue-400' },
-              { label: 'Ср. чек',     value: '₸460К',      sub: '40 сделок', vc: 'text-purple-400' },
-              { label: 'Стоим. лида', value: '₸12 800',    sub: '144 лида', vc: 'text-amber-400' },
+              { label: 'Факт продаж', value: '₸18.4 млн', sub: '73% от плана', vc: 'text-emerald-600' },
+              { label: 'Конверсия',   value: '34%',        sub: '+4% к прошлому', vc: 'text-blue-600' },
+              { label: 'Ср. чек',     value: '₸460К',      sub: '40 сделок', vc: 'text-purple-600' },
+              { label: 'Стоим. лида', value: '₸12 800',    sub: '144 лида', vc: 'text-amber-600' },
             ].map(c => (
-              <div key={c.label} className="bg-white/5 rounded-xl p-3 border border-white/5">
-                <div className="text-[10px] text-white/40 mb-1">{c.label}</div>
+              <div key={c.label} className="bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
+                <div className="text-[10px] text-gray-400 mb-1">{c.label}</div>
                 <div className={`text-sm font-bold ${c.vc}`}>{c.value}</div>
-                <div className="text-[10px] text-white/30">{c.sub}</div>
+                <div className="text-[10px] text-gray-400">{c.sub}</div>
               </div>
             ))}
           </div>
           <div className="grid grid-cols-5 gap-2">
-            <div className="col-span-2 bg-white/5 rounded-xl p-3 border border-white/5">
-              <div className="text-[10px] text-white/40 mb-2">Воронка продаж</div>
+            {/* Funnel */}
+            <div className="col-span-2 bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
+              <div className="text-[10px] text-gray-500 font-medium mb-2">Воронка продаж</div>
               {[
                 { label: 'Лиды', val: 144, pct: 100, color: 'bg-purple-500' },
                 { label: 'Квалиф.', val: 98, pct: 68, color: 'bg-blue-500' },
@@ -64,42 +69,44 @@ function DashboardMockup() {
                 { label: 'Продажи', val: 40, pct: 28, color: 'bg-emerald-500' },
               ].map(f => (
                 <div key={f.label} className="flex items-center gap-2 mb-1.5">
-                  <div className="text-[9px] text-white/30 w-11 text-right shrink-0">{f.label}</div>
-                  <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                  <div className="text-[9px] text-gray-400 w-11 text-right shrink-0">{f.label}</div>
+                  <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div className={`h-full ${f.color} rounded-full`} style={{ width: `${f.pct}%` }} />
                   </div>
-                  <div className="text-[9px] text-white/50 w-5 shrink-0">{f.val}</div>
+                  <div className="text-[9px] text-gray-500 w-5 shrink-0">{f.val}</div>
                 </div>
               ))}
             </div>
-            <div className="col-span-3 bg-white/5 rounded-xl p-3 border border-white/5">
-              <div className="text-[10px] text-white/40 mb-2">Продажи по дням</div>
+            {/* Bar chart */}
+            <div className="col-span-3 bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
+              <div className="text-[10px] text-gray-500 font-medium mb-2">Продажи по дням</div>
               <div className="flex items-end gap-1 h-16">
                 {[55,72,48,91,63,80,45,95,70,88,55,73,92,68].map((h, i) => (
                   <div key={i} className="flex-1 flex items-end">
-                    <div className={`w-full rounded-sm ${i===13?'bg-blue-500':'bg-blue-600/40'}`} style={{ height:`${h}%` }} />
+                    <div className={`w-full rounded-sm ${i===13?'bg-blue-600':'bg-blue-200'}`} style={{ height:`${h}%` }} />
                   </div>
                 ))}
               </div>
             </div>
           </div>
-          <div className="bg-white/5 rounded-xl border border-white/5 overflow-hidden">
-            <div className="flex text-[9px] text-white/30 px-3 py-2 border-b border-white/5">
+          {/* Manager table */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex text-[9px] text-gray-400 px-3 py-2 border-b border-gray-100 font-medium">
               <span className="flex-1">Клоузер</span>
               <span className="w-16 text-right">Продажи</span>
               <span className="w-16 text-right">Выполн.</span>
               <span className="w-16 text-right">Конверсия</span>
             </div>
             {[
-              { name: 'Айгерим К.', sales: '₸5.2М', pct: 104, conv: '42%', color: 'text-emerald-400' },
-              { name: 'Данияр М.',  sales: '₸4.8М', pct: 96,  conv: '38%', color: 'text-blue-400' },
-              { name: 'Асель Н.',   sales: '₸3.9М', pct: 78,  conv: '31%', color: 'text-amber-400' },
+              { name: 'Айгерим К.', sales: '₸5.2М', pct: 104, conv: '42%', color: 'text-emerald-600' },
+              { name: 'Данияр М.',  sales: '₸4.8М', pct: 96,  conv: '38%', color: 'text-blue-600' },
+              { name: 'Асель Н.',   sales: '₸3.9М', pct: 78,  conv: '31%', color: 'text-amber-600' },
             ].map((m, i) => (
-              <div key={i} className="flex items-center px-3 py-2 text-[10px] border-b border-white/5 last:border-0">
-                <span className="flex-1 text-white/70">{m.name}</span>
-                <span className="w-16 text-right text-white/50">{m.sales}</span>
+              <div key={i} className="flex items-center px-3 py-2 text-[10px] border-b border-gray-50 last:border-0">
+                <span className="flex-1 text-gray-700">{m.name}</span>
+                <span className="w-16 text-right text-gray-500">{m.sales}</span>
                 <span className={`w-16 text-right font-bold ${m.color}`}>{m.pct}%</span>
-                <span className="w-16 text-right text-white/40">{m.conv}</span>
+                <span className="w-16 text-right text-gray-400">{m.conv}</span>
               </div>
             ))}
           </div>
@@ -111,15 +118,15 @@ function DashboardMockup() {
 
 function ROPMockup() {
   return (
-    <div className="rounded-2xl overflow-hidden border border-gray-200 bg-[#0f1117] shadow-lg select-none">
-      <div className="flex items-center gap-1.5 px-3 py-2.5 bg-[#1a1d27] border-b border-white/5">
+    <div className="rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-lg select-none">
+      <div className="flex items-center gap-1.5 px-3 py-2.5 bg-gray-50 border-b border-gray-200">
         <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
         <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
         <span className="w-2.5 h-2.5 rounded-full bg-green-400" />
-        <span className="text-[10px] text-white/30 ml-2">Кабинет РОПа</span>
+        <span className="text-[10px] text-gray-400 ml-2">Кабинет РОПа</span>
       </div>
-      <div className="p-3 space-y-2">
-        <div className="text-[11px] font-semibold text-white/70 mb-1">Воронка отдела</div>
+      <div className="p-3 space-y-2 bg-gray-50/50">
+        <div className="text-[11px] font-semibold text-gray-700 mb-1">Воронка отдела</div>
         {[
           { label: 'Лидов получено', v: 144, color: 'bg-purple-500' },
           { label: 'Квалифицировано', v: 98, color: 'bg-blue-500' },
@@ -144,33 +151,33 @@ function ROPMockup() {
 
 function ManagerMockup() {
   return (
-    <div className="rounded-2xl overflow-hidden border border-gray-200 bg-[#0f1117] shadow-lg select-none">
-      <div className="flex items-center gap-1.5 px-3 py-2.5 bg-[#1a1d27] border-b border-white/5">
+    <div className="rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-lg select-none">
+      <div className="flex items-center gap-1.5 px-3 py-2.5 bg-gray-50 border-b border-gray-200">
         <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
         <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
         <span className="w-2.5 h-2.5 rounded-full bg-green-400" />
-        <span className="text-[10px] text-white/30 ml-2">Мой кабинет — Данияр</span>
+        <span className="text-[10px] text-gray-400 ml-2">Мой кабинет — Данияр</span>
       </div>
-      <div className="p-3 space-y-2">
-        <div className="text-[11px] font-semibold text-white/70">Мои показатели</div>
+      <div className="p-3 space-y-2 bg-gray-50/50">
+        <div className="text-[11px] font-semibold text-gray-700">Мои показатели</div>
         <div className="grid grid-cols-2 gap-1.5">
           {[
-            { l:'Продажи', v:'₸4.8М', c:'text-emerald-400' },
-            { l:'Выполн.', v:'96%', c:'text-blue-400' },
-            { l:'Сделок', v:'18', c:'text-purple-400' },
-            { l:'Конверсия', v:'38%', c:'text-amber-400' },
+            { l:'Продажи', v:'₸4.8М', c:'text-emerald-600' },
+            { l:'Выполн.', v:'96%', c:'text-blue-600' },
+            { l:'Сделок', v:'18', c:'text-purple-600' },
+            { l:'Конверсия', v:'38%', c:'text-amber-600' },
           ].map(m => (
-            <div key={m.l} className="bg-white/5 rounded-xl p-2 border border-white/5">
-              <div className="text-[9px] text-white/30">{m.l}</div>
+            <div key={m.l} className="bg-white rounded-xl p-2 border border-gray-100 shadow-sm">
+              <div className="text-[9px] text-gray-400">{m.l}</div>
               <div className={`text-sm font-bold ${m.c}`}>{m.v}</div>
             </div>
           ))}
         </div>
-        <div className="bg-white/5 rounded-xl p-2 border border-white/5">
-          <div className="flex justify-between text-[9px] text-white/40 mb-1.5">
+        <div className="bg-white rounded-xl p-2 border border-gray-100 shadow-sm">
+          <div className="flex justify-between text-[9px] text-gray-400 mb-1.5">
             <span>План: ₸5 000 000</span><span>96%</span>
           </div>
-          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
             <div className="h-full bg-blue-500 rounded-full" style={{ width:'96%' }} />
           </div>
         </div>

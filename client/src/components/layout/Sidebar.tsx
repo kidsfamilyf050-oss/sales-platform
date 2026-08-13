@@ -122,7 +122,7 @@ export default function Sidebar({ onClose }: Props) {
 
   // ── Mobile: full-width drawer ────────────────────────────────────────────────
   const MobileNav = () => (
-    <aside className="md:hidden w-64 h-full bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 flex flex-col shadow-lg">
+    <aside className="md:hidden w-64 h-full bg-white border-r border-gray-100 flex flex-col shadow-lg">
       {/* Logo */}
       <div className="h-14 flex items-center justify-between px-4 border-b border-gray-100 shrink-0">
         <div className="flex items-center gap-2">
@@ -157,7 +157,7 @@ export default function Sidebar({ onClose }: Props) {
   //   Each nav item's icon is in a w-16 span → text starts at exactly 64px → clipped.
   const DesktopNav = () => (
     <aside
-      className={`hidden md:flex fixed top-0 left-0 h-full z-50 flex-col bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 shadow-md overflow-hidden transition-[width] duration-200 ease-in-out ${expanded ? 'w-60' : 'w-16'}`}
+      className={`hidden md:flex fixed top-0 left-0 h-full z-50 flex-col bg-white border-r border-gray-100 shadow-md overflow-hidden transition-[width] duration-200 ease-in-out ${expanded ? 'w-60' : 'w-16'}`}
       onMouseEnter={() => setExpanded(true)}
       onMouseLeave={() => setExpanded(false)}
     >
