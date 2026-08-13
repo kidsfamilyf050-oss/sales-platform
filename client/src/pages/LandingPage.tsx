@@ -79,34 +79,66 @@ function DashboardMockup() {
             </div>
             {/* Bar chart */}
             <div className="col-span-3 bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
-              <div className="text-[10px] text-gray-500 font-medium mb-2">Продажи по дням</div>
-              <div className="flex items-end gap-1 h-16">
-                {[55,72,48,91,63,80,45,95,70,88,55,73,92,68].map((h, i) => (
-                  <div key={i} className="flex-1 flex items-end">
-                    <div className={`w-full rounded-sm ${i===13?'bg-blue-600':'bg-blue-200'}`} style={{ height:`${h}%` }} />
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[10px] text-gray-500 font-medium">Продажи по дням, ₸млн</div>
+                <div className="text-[9px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded-full">↑ +18%</div>
+              </div>
+              <div className="flex items-end gap-0.5 h-14 px-0.5">
+                {[
+                  {h:42,v:'2.1'},{h:58,v:'2.9'},{h:35,v:'1.7'},{h:72,v:'3.6'},
+                  {h:51,v:'2.5'},{h:65,v:'3.2'},{h:38,v:'1.9'},{h:80,v:'4.0'},
+                  {h:60,v:'3.0'},{h:74,v:'3.7'},{h:45,v:'2.2'},{h:62,v:'3.1'},
+                  {h:85,v:'4.2'},{h:55,v:'2.7'},
+                ].map(({h,v}, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center justify-end gap-0.5 group">
+                    <div
+                      className={`w-full rounded-t-sm transition-all ${i===12?'bg-blue-600':'bg-blue-400/70 group-hover:bg-blue-500'}`}
+                      style={{ height:`${h}%` }}
+                    />
                   </div>
                 ))}
               </div>
+              <div className="flex justify-between mt-1">
+                <span className="text-[8px] text-gray-300">1 авг</span>
+                <span className="text-[8px] text-gray-300">14 авг</span>
+              </div>
             </div>
           </div>
-          {/* Manager table */}
+          {/* Manager table — rich version */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="flex text-[9px] text-gray-400 px-3 py-2 border-b border-gray-100 font-medium">
-              <span className="flex-1">Клоузер</span>
-              <span className="w-16 text-right">Продажи</span>
-              <span className="w-16 text-right">Выполн.</span>
-              <span className="w-16 text-right">Конверсия</span>
+            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
+              <div className="text-[10px] font-semibold text-gray-600">Рейтинг клоузеров</div>
+              <div className="text-[9px] text-blue-600 font-medium">Август 2026</div>
             </div>
             {[
-              { name: 'Айгерим К.', sales: '₸5.2М', pct: 104, conv: '42%', color: 'text-emerald-600' },
-              { name: 'Данияр М.',  sales: '₸4.8М', pct: 96,  conv: '38%', color: 'text-blue-600' },
-              { name: 'Асель Н.',   sales: '₸3.9М', pct: 78,  conv: '31%', color: 'text-amber-600' },
-            ].map((m, i) => (
-              <div key={i} className="flex items-center px-3 py-2 text-[10px] border-b border-gray-50 last:border-0">
-                <span className="flex-1 text-gray-700">{m.name}</span>
-                <span className="w-16 text-right text-gray-500">{m.sales}</span>
-                <span className={`w-16 text-right font-bold ${m.color}`}>{m.pct}%</span>
-                <span className="w-16 text-right text-gray-400">{m.conv}</span>
+              { rank:1, name:'Айгерим К.', dept:'Отдел А', sales:'₸5.2М', plan:'₸5.0М', pct:104, conv:'42%', deals:21, trend:'+12%', pctBar:100, tc:'text-emerald-600', bg:'bg-emerald-500', rankBg:'bg-emerald-100 text-emerald-700' },
+              { rank:2, name:'Данияр М.',  dept:'Отдел А', sales:'₸4.8М', plan:'₸5.0М', pct:96,  conv:'38%', deals:18, trend:'+5%',  pctBar:92,  tc:'text-blue-600',   bg:'bg-blue-500',   rankBg:'bg-blue-100 text-blue-700' },
+              { rank:3, name:'Асель Н.',   dept:'Отдел Б', sales:'₸3.9М', plan:'₸5.0М', pct:78,  conv:'31%', deals:14, trend:'-3%',  pctBar:75,  tc:'text-amber-600',  bg:'bg-amber-500',  rankBg:'bg-amber-100 text-amber-700' },
+            ].map((m) => (
+              <div key={m.rank} className="px-3 py-2.5 border-b border-gray-50 last:border-0 hover:bg-gray-50/50">
+                <div className="flex items-center gap-2">
+                  <span className={`w-5 h-5 rounded-lg text-[9px] font-bold flex items-center justify-center flex-none ${m.rankBg}`}>{m.rank}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-semibold text-gray-800">{m.name}</span>
+                      <span className="text-[8px] text-gray-400">{m.dept}</span>
+                    </div>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className={`h-full ${m.bg} rounded-full`} style={{ width:`${m.pctBar}%` }} />
+                      </div>
+                      <span className={`text-[9px] font-bold ${m.tc}`}>{m.pct}%</span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-[10px] font-bold text-gray-800">{m.sales}</div>
+                    <div className="text-[8px] text-gray-400">{m.deals} сделок</div>
+                  </div>
+                  <div className="text-right shrink-0 w-10">
+                    <div className="text-[9px] text-gray-500">{m.conv}</div>
+                    <div className={`text-[8px] font-semibold ${m.trend.startsWith('+') ? 'text-emerald-500' : 'text-red-400'}`}>{m.trend}</div>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -438,7 +470,7 @@ export default function LandingPage() {
                   className={`block text-center py-3 rounded-xl text-sm font-semibold transition-colors ${
                     p.highlight
                       ? 'bg-white text-blue-600 hover:bg-blue-50'
-                      : 'bg-gray-900 text-white hover:bg-gray-800'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
                 >
                   {p.nameKey === 'landing.pricing.trial.name' ? t('landing.pricing.startFree') : t('landing.pricing.choose')}
