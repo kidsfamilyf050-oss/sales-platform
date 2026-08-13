@@ -396,7 +396,7 @@ export default function ROPDashboard() {
             sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
         </div>
         <div onClick={() => navigate('/rop/links?tab=CONSULTATION')} className="h-full cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-300 rounded-xl transition-all duration-150">
-          <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
+          <StatCard label={sc.tracking.consultations} value={summary.totalConsultations ?? 0} />
         </div>
         <div
           onClick={() => navigate('/rop/links?tab=REFUSAL')}
@@ -544,7 +544,7 @@ export default function ROPDashboard() {
                   <th className="pb-2 font-medium text-center">{t('dash.carryover.title')}</th>
                   <th className="pb-2 font-medium text-center">{t('dash.table.avgCheck')}</th>
                   <th className="pb-2 font-medium text-center">{t('dash.table.conversion')}</th>
-                  <th className="pb-2 font-medium text-center">{t('dash.consultations')}</th>
+                  <th className="pb-2 font-medium text-center">{sc.tracking.consultations}</th>
                   <th className="pb-2 font-medium text-center">{t('dash.refusals')}</th>
                   <th className="pb-2 font-medium text-center">{t('dash.inWork')}</th>
                 </tr>

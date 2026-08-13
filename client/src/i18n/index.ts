@@ -2794,16 +2794,16 @@ export function useT() {
   return { t, lang, setLang }
 }
 
-// Spheres list helper
-export function getSpheres(t: (k: any) => string) {
+// Spheres list helper — returns { key, label } so option value = sphere key (not translated name)
+export function getSpheres(t: (k: any) => string): { key: string; label: string }[] {
   return [
-    t('sphere.edu'),
-    t('sphere.med'),
-    t('sphere.realty'),
-    t('sphere.it'),
-    t('sphere.retail'),
-    t('sphere.services'),
-    t('sphere.construction'),
-    t('sphere.other'),
+    { key: 'edu',          label: t('sphere.edu') },
+    { key: 'med',          label: t('sphere.med') },
+    { key: 'realty',       label: t('sphere.realty') },
+    { key: 'it',           label: t('sphere.it') },
+    { key: 'retail',       label: t('sphere.retail') },
+    { key: 'services',     label: t('sphere.services') },
+    { key: 'construction', label: t('sphere.construction') },
+    { key: 'other',        label: t('sphere.other') },
   ]
 }

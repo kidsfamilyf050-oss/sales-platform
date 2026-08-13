@@ -266,7 +266,7 @@ export default function OwnerDashboard() {
             sub={`${summary.plannedPaymentsCount ?? 0} ${t('dash.sale.dealsShort')}`} />
         </div>
         <div onClick={() => navigate('/owner/leads?tab=consultations')} className="h-full cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-200 rounded-xl transition-all duration-150">
-          <StatCard label={t('dash.consultations')} value={summary.totalConsultations ?? 0} />
+          <StatCard label={sc.tracking.consultations} value={summary.totalConsultations ?? 0} />
         </div>
         <div onClick={() => navigate('/owner/leads?tab=refusals')} className="h-full cursor-pointer group">
           <div className="h-full card text-center flex flex-col items-center justify-center transition-all duration-150 group-hover:shadow-md group-hover:border-red-200 group-hover:bg-red-50/40 border border-transparent">
@@ -508,7 +508,7 @@ export default function OwnerDashboard() {
                   <th className="pb-2 font-medium text-right">{t('dash.carryover.title')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.avgCheck')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.conversion')}</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.consultations')}</th>
+                  <th className="pb-2 font-medium text-right">{sc.tracking.consultations}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.refusals')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.inWork')}</th>
                 </tr>

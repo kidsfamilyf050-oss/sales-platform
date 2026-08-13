@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { ChevronRight, ChevronLeft, Check } from 'lucide-react'
 import { useT, getSpheres } from '../i18n'
+import { useAuthStore } from '../store/auth'
 
 interface Step1 { companyName: string }
 interface Step2 { sphere: string }
@@ -13,6 +14,7 @@ interface Step5 { liders: number; closers: number; rops: number }
 export default function OnboardingPage() {
   const navigate = useNavigate()
   const { t } = useT()
+  const { user, setUser } = useAuthStore()
   const [step, setStep] = useState(1)
   const [s1, setS1] = useState<Step1>({ companyName: '' })
   const [s2, setS2] = useState<Step2>({ sphere: '' })
@@ -32,7 +34,11 @@ export default function OnboardingPage() {
 
   const finish = async () => {
     setLoading(true)
-    try { await api.put('/company', { name: s1.companyName || 'Моя компания', businessSphere: s2.sphere }) }
+    try {
+      await api.put('/company', { name: s1.companyName || 'Моя компания', businessSphere: s2.sphere })
+      // Update auth store so sphere-aware labels apply immediately without re-login
+      if (user) setUser({ ...user, businessSphere: s2.sphere || null })
+    }
     catch (e) { console.error('company:', e) }
 
     try {
@@ -100,8 +106,8 @@ export default function OnboardingPage() {
               <p className="text-gray-500 text-sm mb-5">{t('onboarding.s2.subtitle')}</p>
               <div className="grid grid-cols-2 gap-2">
                 {spheres.map(s => (
-                  <button key={s} onClick={() => setS2({ sphere: s })} className={`p-3 rounded-lg border text-sm text-left transition-colors ${s2.sphere === s ? 'border-blue-500 bg-blue-50 text-blue-700 font-medium' : 'border-gray-200 hover:border-gray-300'}`}>
-                    {s}
+                  <button key={s.key} onClick={() => setS2({ sphere: s.key })} className={`p-3 rounded-lg border text-sm text-left transition-colors ${s2.sphere === s.key ? 'border-blue-500 bg-blue-50 text-blue-700 font-medium' : 'border-gray-200 hover:border-gray-300'}`}>
+                    {s.label}
                   </button>
                 ))}
               </div>

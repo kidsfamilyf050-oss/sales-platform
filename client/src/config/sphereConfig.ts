@@ -338,10 +338,37 @@ const SPHERES: Record<SphereKey, SphereConfig> = {
 
 // ─── Public helpers ──────────────────────────────────────────────────────────
 
-/** Get the sphere config for a given sphere key (falls back to 'edu' for null/unknown) */
+/**
+ * Backward-compat map: old DB values may have been stored as translated display names
+ * (e.g. "Розничная торговля" instead of "retail"). Map them back to keys.
+ */
+const DISPLAY_TO_KEY: Record<string, SphereKey> = {
+  // Russian names
+  'Образование': 'edu',
+  'Образование / EdTech': 'edu',
+  'Медицинский центр': 'med',
+  'Недвижимость': 'realty',
+  'IT и технологии': 'it',
+  'Розничная торговля': 'retail',
+  'Услуги': 'services',
+  'Строительство': 'construction',
+  'Другое': 'other',
+  // Kazakh names
+  'Білім': 'edu',
+  'Медициналық орталық': 'med',
+  'Жылжымайтын мүлік': 'realty',
+  'АТ және технологиялар': 'it',
+  'Бөлшек сауда': 'retail',
+  'Қызметтер': 'services',
+  'Құрылыс': 'construction',
+  'Басқа': 'other',
+}
+
+/** Get the sphere config for a given sphere key (falls back to 'other' for null/unknown) */
 export function getSphereConfig(sphere: string | null | undefined): SphereConfig {
-  const key = (sphere || 'edu') as SphereKey
-  return SPHERES[key] ?? SPHERES.edu
+  if (!sphere) return SPHERES.other
+  const normalized = (DISPLAY_TO_KEY[sphere] ?? sphere) as SphereKey
+  return SPHERES[normalized] ?? SPHERES.other
 }
 
 export default SPHERES

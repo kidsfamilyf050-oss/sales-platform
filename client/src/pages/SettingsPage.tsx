@@ -104,10 +104,14 @@ export default function SettingsPage() {
     }
   }, [company])
 
+  const { setUser } = useAuthStore()
+
   const save = useMutation({
     mutationFn: () => api.put('/company', form),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['company'] })
+      // Update auth store so sphere-aware labels apply immediately without re-login
+      if (user) setUser({ ...user, businessSphere: form.businessSphere || null })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     },
@@ -128,7 +132,7 @@ export default function SettingsPage() {
           <label className="label">{t('settings.businessSphere')}</label>
           <select className="input" value={form.businessSphere} onChange={e => setForm(f => ({ ...f, businessSphere: e.target.value }))}>
             <option value="">{t('common.choose')}</option>
-            {spheres.map(s => <option key={s} value={s}>{s}</option>)}
+            {spheres.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
           </select>
         </div>
         <div>
