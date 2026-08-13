@@ -15,7 +15,7 @@ type DealLinkItem = { id?: string; link: string; note: string }
 export default function ReportPage() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
-  const { t } = useT()
+  const { t, lang } = useT()
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
@@ -30,7 +30,7 @@ export default function ReportPage() {
   const isLider = !isMarketer && user?.managerType === 'LIDER'
 
   // Sphere-specific labels
-  const sc = getSphereConfig(user?.businessSphere)
+  const sc = getSphereConfig(user?.businessSphere, lang)
 
   const [closer, setCloser] = useState({ consultations: '', refusals: '', comment: '' })
   const [lider, setLider] = useState({ leadsReceived: '', processed: '', qualifiedLeads: '', meetingsScheduled: '', meetingsAttended: '', comment: '' })

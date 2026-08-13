@@ -161,7 +161,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const totalBudget    = marketerReports.reduce((s, r) => s + (Number((r.data as any).adBudget) || Number((r.data as any).budget) || 0), 0)
 
     // ── Lider funnel (Lead model — live per-lead data) ────────────────────
-    const [allLiderLeads, companyRefundedLeads] = await Promise.all([
+    const [allLiderLeads, companyRefundedLeads, ownerRefusedLeads] = await Promise.all([
       prisma.lead.findMany({
         where: { createdBy: { companyId: req.user!.companyId }, date: { gte: fromStr, lte: toStr } },
         select: { isQualified: true, assignedToId: true, status: true, consultationStatus: true, amount: true, netAmount: true },
@@ -170,6 +170,17 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         // Use updatedAt so dojim refunds (lead.date in prev period) are captured
         where: { createdBy: { companyId: req.user!.companyId }, status: 'SOLD', isRefund: true, updatedAt: { gte: periodStart, lte: periodEnd } },
         select: { id: true, netAmount: true, amount: true, assignedToId: true, date: true },
+      }),
+      // Refused leads: filter by updatedAt (when refused), not date (when created)
+      // This matches the refusals page which shows all=true (no date filter on creation)
+      prisma.lead.findMany({
+        where: {
+          createdBy: { companyId: req.user!.companyId },
+          status: 'REFUSED',
+          updatedAt: { gte: periodStart, lte: periodEnd },
+          OR: [{ consultationStatus: null }, { consultationStatus: { not: 'not_happened' } }],
+        },
+        select: { assignedToId: true, netAmount: true, amount: true },
       }),
     ])
 
@@ -207,8 +218,9 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
     const totalMeetingsAttended  = allLiderLeads.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length // "Консультация состоялась"
     // Lead model is source of truth for consultations/refusals/inWork
     const totalConsultations = allLiderLeads.filter(l => l.consultationStatus === 'happened' || l.status === 'SOLD').length
-    const totalRefusals      = allLiderLeads.filter(l => l.status === 'REFUSED' && l.consultationStatus !== 'not_happened').length
-    const totalRefusalsAmount = allLiderLeads.filter(l => l.status === 'REFUSED' && l.consultationStatus !== 'not_happened').reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
+    // Refusals: use ownerRefusedLeads (filtered by updatedAt = when refused, not when created)
+    const totalRefusals      = ownerRefusedLeads.length
+    const totalRefusalsAmount = ownerRefusedLeads.reduce((s, l) => s + (l.netAmount ?? l.amount ?? 0), 0)
     // IN_WORK (дожим) leads — NO date filter: these come from any previous period
     const totalInWork = await prisma.lead.count({ where: { createdBy: { companyId: req.user!.companyId }, status: 'IN_WORK' } })
 
@@ -291,9 +303,10 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
       if (l.consultationStatus === 'happened' || l.status === 'SOLD') {
         consultationsByUser[uid] = (consultationsByUser[uid] || 0) + 1
       }
-      if (l.status === 'REFUSED' && l.consultationStatus !== 'not_happened') {
-        refusalsByUser[uid] = (refusalsByUser[uid] || 0) + 1
-      }
+    }
+    // refusalsByUser: use ownerRefusedLeads (by updatedAt, not creation date)
+    for (const l of ownerRefusedLeads) {
+      if (l.assignedToId) refusalsByUser[l.assignedToId] = (refusalsByUser[l.assignedToId] || 0) + 1
     }
 
     // IN_WORK per manager — NO date filter: дожим leads from any previous period
@@ -473,7 +486,7 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
   const todayEnd    = new Date(todayStr + 'T23:59:59+05:00')
 
   try {
-    const [managers, plans, closerReports, marketerReports, todayReports, periodSales, todaySales, ropLiderLeadsFull, allCompanyLeads, closerLeads] = await Promise.all([
+    const [managers, plans, closerReports, marketerReports, todayReports, periodSales, todaySales, ropLiderLeadsFull, allCompanyLeads, closerLeads, ropRefusedLeads] = await Promise.all([
       prisma.user.findMany({ where: { companyId: req.user!.companyId, departmentId: deptId || undefined, status: 'ACTIVE', role: 'MANAGER' } }),
       prisma.plan.findMany({ where: { companyId: req.user!.companyId, period: periodKey } }),
       prisma.report.findMany({ where: { user: { companyId: req.user!.companyId, departmentId: deptId || undefined }, type: 'CLOSER', date: { gte: start, lte: end } }, include: { user: { select: { id: true, name: true, managerType: true } } } }),
@@ -497,6 +510,16 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
       prisma.lead.findMany({
         where: { assignedTo: { companyId: req.user!.companyId }, date: { gte: fromStr, lte: toStr } },
         select: { assignedToId: true, status: true, consultationStatus: true },
+      }),
+      // Refused leads: filter by updatedAt (when refused), not date (when created)
+      prisma.lead.findMany({
+        where: {
+          createdBy: { companyId: req.user!.companyId },
+          status: 'REFUSED',
+          updatedAt: { gte: periodStart, lte: periodEnd },
+          OR: [{ consultationStatus: null }, { consultationStatus: { not: 'not_happened' } }],
+        },
+        select: { assignedToId: true, netAmount: true, amount: true },
       }),
     ])
 
@@ -602,13 +625,15 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
 
     // Per-manager metrics from Lead model (source of truth — no manual reports needed)
     const consultationsByManager: Record<string, number> = {}
-    const refusalsByManager: Record<string, number> = {}
     for (const l of closerLeads) {
       if (!l.assignedToId) continue
       if (l.consultationStatus === 'happened' || l.status === 'SOLD')
         consultationsByManager[l.assignedToId] = (consultationsByManager[l.assignedToId] || 0) + 1
-      if (l.status === 'REFUSED' && l.consultationStatus !== 'not_happened')
-        refusalsByManager[l.assignedToId] = (refusalsByManager[l.assignedToId] || 0) + 1
+    }
+    // Refusals per manager: use ropRefusedLeads (filtered by updatedAt) to avoid NULL-exclusion bug and date mismatch
+    const refusalsByManager: Record<string, number> = {}
+    for (const l of ropRefusedLeads) {
+      if (l.assignedToId) refusalsByManager[l.assignedToId] = (refusalsByManager[l.assignedToId] || 0) + 1
     }
 
     // IN_WORK (дожим) leads — NO date filter: these are from any previous period
@@ -624,8 +649,8 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
     // Company-level totals from Lead model
     // totalConsultations uses same source+filter as funnel.meetingsAttended so both cards show identical numbers
     const totalConsultations = meetingsAttended
-    const totalRefusals = allCompanyLeads.filter(l => l.status === 'REFUSED' && (l as any).consultationStatus !== 'not_happened').length
-    const totalRefusalsAmount = allCompanyLeads.filter(l => l.status === 'REFUSED' && (l as any).consultationStatus !== 'not_happened').reduce((s, l) => s + ((l as any).netAmount ?? (l as any).amount ?? 0), 0)
+    const totalRefusals = ropRefusedLeads.length
+    const totalRefusalsAmount = ropRefusedLeads.reduce((s, l) => s + ((l as any).netAmount ?? (l as any).amount ?? 0), 0)
     const totalInWork = inWorkLeads.length
 
     // Per-manager refunds map for ROP (using ropRefundedLeads fetched above)
@@ -868,7 +893,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         prisma.lead.count({ where: { assignedToId: userId, status: 'ASSIGNED' } }),
         prisma.lead.count({ where: { assignedToId: userId, status: 'IN_WORK' } }),
         prisma.leadTask.count({ where: { userId, completed: false } }),
-        prisma.lead.count({ where: { assignedToId: userId, status: 'REFUSED', date: { gte: fromStr, lte: toStr }, OR: [{ consultationStatus: null }, { consultationStatus: { not: 'not_happened' } }] } }),
+        prisma.lead.count({ where: { assignedToId: userId, status: 'REFUSED', updatedAt: { gte: periodStart, lte: periodEnd }, OR: [{ consultationStatus: null }, { consultationStatus: { not: 'not_happened' } }] } }),
         prisma.lead.count({ where: { assignedToId: userId, status: 'SOLD', isRefund: false, updatedAt: { gte: periodStart, lte: periodEnd } } }),
         prisma.lead.findMany({
           where: { assignedToId: userId, status: 'SOLD', isRefund: true, updatedAt: { gte: periodStart, lte: periodEnd } },

@@ -119,9 +119,9 @@ function LeadModal({ leadId, onClose }: { leadId: string; onClose: () => void })
 
 // Expanded manager row — shows period sales and today's report
 function ManagerDetail({ m }: { m: any }) {
-  const { t } = useT()
+  const { t, lang } = useT()
   const { user } = useAuthStore()
-  const sc = getSphereConfig(user?.businessSphere)
+  const sc = getSphereConfig(user?.businessSphere, lang)
   const [expandedSales, setExpandedSales] = useState<Set<string>>(new Set())
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   // m.sales = period sales (matches selected period); m.todaySales = today only (for status)
@@ -251,9 +251,9 @@ function ManagerDetail({ m }: { m: any }) {
 
 // Lider expanded row
 function LiderDetail({ m }: { m: any }) {
-  const { t } = useT()
+  const { t, lang } = useT()
   const { user } = useAuthStore()
-  const sc = getSphereConfig(user?.businessSphere)
+  const sc = getSphereConfig(user?.businessSphere, lang)
   const report = m.todayReport
   if (!report) return (
     <tr>
@@ -312,7 +312,7 @@ export default function ROPDashboard() {
     refetchInterval: 60000,
   })
   const { user } = useAuthStore()
-  const sc = getSphereConfig(user?.businessSphere)
+  const sc = getSphereConfig(user?.businessSphere, lang)
 
   const [expandedManagers, setExpandedManagers] = useState<Set<string>>(new Set())
 

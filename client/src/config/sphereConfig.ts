@@ -336,6 +336,259 @@ const SPHERES: Record<SphereKey, SphereConfig> = {
   },
 }
 
+// ─── Kazakh sphere definitions ───────────────────────────────────────────────
+
+const SPHERES_KK: Record<SphereKey, SphereConfig> = {
+  edu: {
+    name: 'Білім / EdTech',
+    closer: {
+      clients:           'Кіріс өтінімдер',
+      consultations:     'Өткізілген консультациялар',
+      refusals:          'Бас тартулар',
+      commentPlaceholder:'Не кедергі болды? Қандай қиындықтар?',
+      hint:              'Сатулар бөлек енгізіледі — кабинеттегі «+ Сату» түймесі. Мұнда тек күн статистикасы.',
+    },
+    lider: {
+      leadsReceived:     'Лидтер алынды',
+      processed:         'Өңделген лидтер',
+      qualified:         'Квалификацияланды',
+      meetingScheduled:  'Консультацияға жазылды',
+      meetingAttended:   'Консультация өтті',
+      commentPlaceholder:'Лидтер сапасы, көздер, ескертулер...',
+    },
+    tracking: {
+      clients:           'Кіріс өтінімдер',
+      consultations:     'Консультациялар',
+      meetingsScheduled: 'Жазылды',
+      meetingsAttended:  'Консультациялар',
+    },
+    funnel: {
+      leads:             'Лидтер алынды',
+      qualified:         'Квалификацияланды',
+      meetingsScheduled: 'Консультацияға жазылды',
+      meetingsAttended:  'Консультациялар өтті',
+      sales:             'Сатулар',
+    },
+  },
+  med: {
+    name: 'Медициналық орталық',
+    closer: {
+      clients:           'Пациенттер жүгінді',
+      consultations:     'Өткізілген қабылдаулар',
+      refusals:          'Емделуден бас тарту',
+      commentPlaceholder:'Жазбалар сапасы, күрделі жағдайлар...',
+      hint:              'Төлемдер / емделу тағайындаулары бөлек енгізіледі — «+ Сату» түймесі.',
+    },
+    lider: {
+      leadsReceived:     'Өтінімдер алынды',
+      processed:         'Өңделген өтінімдер',
+      qualified:         'Квалификацияланды',
+      meetingScheduled:  'Қабылдауға жазылды',
+      meetingAttended:   'Қабылдауға келді',
+      commentPlaceholder:'Өтінімдер сапасы, көздер, мәселелер...',
+    },
+    tracking: {
+      clients:           'Пациенттер',
+      consultations:     'Қабылдаулар',
+      meetingsScheduled: 'Жазылды',
+      meetingsAttended:  'Келді',
+    },
+    funnel: {
+      leads:             'Өтінімдер алынды',
+      qualified:         'Квалификацияланды',
+      meetingsScheduled: 'Қабылдауға жазылды',
+      meetingsAttended:  'Қабылдауға келді',
+      sales:             'Тағайындалған емделулер',
+    },
+  },
+  realty: {
+    name: 'Жылжымайтын мүлік',
+    closer: {
+      clients:           'Кіріс өтініштер',
+      consultations:     'Нысан көрсетулері',
+      refusals:          'Бас тартулар',
+      commentPlaceholder:'Қарсылықтар, клиенттер таңдаулары, нысандар...',
+      hint:              'Мәмілелер / аванстар бөлек енгізіледі — «+ Сату» түймесі.',
+    },
+    lider: {
+      leadsReceived:     'Лидтер алынды',
+      processed:         'Өңделген лидтер',
+      qualified:         'Квалификацияланды',
+      meetingScheduled:  'Көрсету жоспарланды',
+      meetingAttended:   'Көрсету өтті',
+      commentPlaceholder:'Лидтер сапасы, нысандар таңдаулары...',
+    },
+    tracking: {
+      clients:           'Өтініштер',
+      consultations:     'Көрсетулер',
+      meetingsScheduled: 'Көрсет. жосп.',
+      meetingsAttended:  'Көрсет. факт.',
+    },
+    funnel: {
+      leads:             'Лидтер алынды',
+      qualified:         'Квалификацияланды',
+      meetingsScheduled: 'Көрсетулер жоспарланды',
+      meetingsAttended:  'Көрсетулер өтті',
+      sales:             'Жабылған мәмілелер',
+    },
+  },
+  it: {
+    name: 'АТ және технологиялар',
+    closer: {
+      clients:           'Лидтер / сұраулар',
+      consultations:     'Демо / қоңыраулар',
+      refusals:          'Бас тартулар',
+      commentPlaceholder:'Қарсылықтар, техникалық сұрақтар, келесі қадамдар...',
+      hint:              'Шарттар / төлемдер бөлек енгізіледі — «+ Сату» түймесі.',
+    },
+    lider: {
+      leadsReceived:     'Лидтер алынды',
+      processed:         'Өңделген лидтер',
+      qualified:         'Квалификацияланды',
+      meetingScheduled:  'Демоға жазылу',
+      meetingAttended:   'Демо өтті',
+      commentPlaceholder:'Лидтер сапасы, көздер, техникалық мәліметтер...',
+    },
+    tracking: {
+      clients:           'Лидтер',
+      consultations:     'Демо / қоңыраулар',
+      meetingsScheduled: 'Демоға жазылу',
+      meetingsAttended:  'Демо факт.',
+    },
+    funnel: {
+      leads:             'Лидтер алынды',
+      qualified:         'Квалификацияланды',
+      meetingsScheduled: 'Демоға жазылу',
+      meetingsAttended:  'Демо өтті',
+      sales:             'Қол қойылған шарттар',
+    },
+  },
+  retail: {
+    name: 'Бөлшек сауда',
+    closer: {
+      clients:           'Келушілер',
+      consultations:     'Қызмет көрсетілген сатып алушылар',
+      refusals:          'Сатып алмай кетті',
+      commentPlaceholder:'Танымал тауарлар, қарсылықтар, науқандар...',
+      hint:              'Чектер / сатулар бөлек енгізіледі — «+ Сату» түймесі.',
+    },
+    lider: {
+      leadsReceived:     'Өтінімдер алынды',
+      processed:         'Өңделді',
+      qualified:         'Қызығушылық танытты',
+      meetingScheduled:  'Визит жоспарланды',
+      meetingAttended:   'Визит өтті',
+      commentPlaceholder:'Трафик сапасы, көздер, науқандар...',
+    },
+    tracking: {
+      clients:           'Келушілер',
+      consultations:     'Қызмет көрсетілді',
+      meetingsScheduled: 'Визиттер жосп.',
+      meetingsAttended:  'Визиттер факт.',
+    },
+    funnel: {
+      leads:             'Өтінімдер',
+      qualified:         'Қызығушылық танытты',
+      meetingsScheduled: 'Визиттер жосп.',
+      meetingsAttended:  'Визиттер факт.',
+      sales:             'Сатулар / чектер',
+    },
+  },
+  services: {
+    name: 'Қызметтер',
+    closer: {
+      clients:           'Өтінімдер алынды',
+      consultations:     'КҰ жіберілді / кездесулер',
+      refusals:          'Бас тартулар',
+      commentPlaceholder:'Қарсылықтар, жиі сұрақтар, бас тарту себептері...',
+      hint:              'Шарттар / төлемдер бөлек енгізіледі — «+ Сату» түймесі.',
+    },
+    lider: {
+      leadsReceived:     'Лидтер алынды',
+      processed:         'Өңделген лидтер',
+      qualified:         'Квалификацияланды',
+      meetingScheduled:  'Кездесу жоспарланды',
+      meetingAttended:   'Кездесу өтті',
+      commentPlaceholder:'Лидтер сапасы, көздер, ескертулер...',
+    },
+    tracking: {
+      clients:           'Өтінімдер',
+      consultations:     'КҰ / кездесулер',
+      meetingsScheduled: 'Кездесу жосп.',
+      meetingsAttended:  'Кездесу факт.',
+    },
+    funnel: {
+      leads:             'Лидтер алынды',
+      qualified:         'Квалификацияланды',
+      meetingsScheduled: 'Кездесулер жоспарланды',
+      meetingsAttended:  'Кездесулер өтті',
+      sales:             'Жасалған шарттар',
+    },
+  },
+  construction: {
+    name: 'Құрылыс',
+    closer: {
+      clients:           'Өтініштер',
+      consultations:     'Шығулар / өлшемдер',
+      refusals:          'Бас тартулар',
+      commentPlaceholder:'Нысан түрі, бюджет, мерзімдер, қарсылықтар...',
+      hint:              'Шарттар / аванстар бөлек енгізіледі — «+ Сату» түймесі.',
+    },
+    lider: {
+      leadsReceived:     'Өтінімдер алынды',
+      processed:         'Өңделді',
+      qualified:         'Квалификацияланды',
+      meetingScheduled:  'Шығу / өлшем жоспарланды',
+      meetingAttended:   'Шығу / өлшем өтті',
+      commentPlaceholder:'Өтінімдер сапасы, нысан түрлері, ескертулер...',
+    },
+    tracking: {
+      clients:           'Өтініштер',
+      consultations:     'Шығулар / өлшемдер',
+      meetingsScheduled: 'Шығулар жосп.',
+      meetingsAttended:  'Шығулар факт.',
+    },
+    funnel: {
+      leads:             'Өтінімдер алынды',
+      qualified:         'Квалификацияланды',
+      meetingsScheduled: 'Шығулар / өлшемдер жосп.',
+      meetingsAttended:  'Шығулар / өлшемдер факт.',
+      sales:             'Қол қойылған шарттар',
+    },
+  },
+  other: {
+    name: 'Басқа',
+    closer: {
+      clients:           'Клиенттер / өтінімдер',
+      consultations:     'Кездесулер / презентациялар',
+      refusals:          'Бас тартулар',
+      commentPlaceholder:'Күн қорытындысы бойынша ескертулер...',
+      hint:              'Сатулар бөлек енгізіледі — «+ Сату» түймесі.',
+    },
+    lider: {
+      leadsReceived:     'Лидтер алынды',
+      processed:         'Өңделді',
+      qualified:         'Квалификацияланды',
+      meetingScheduled:  'Кездесу жоспарланды',
+      meetingAttended:   'Кездесу өтті',
+      commentPlaceholder:'Лидтер сапасы, көздер, ескертулер...',
+    },
+    tracking: {
+      clients:           'Клиенттер',
+      consultations:     'Кездесулер',
+      meetingsScheduled: 'Кездесу жосп.',
+      meetingsAttended:  'Кездесу факт.',
+    },
+    funnel: {
+      leads:             'Лидтер алынды',
+      qualified:         'Квалификацияланды',
+      meetingsScheduled: 'Кездесулер жоспарланды',
+      meetingsAttended:  'Кездесулер өтті',
+      sales:             'Сатулар',
+    },
+  },
+}
+
 // ─── Public helpers ──────────────────────────────────────────────────────────
 
 /**
@@ -365,10 +618,11 @@ const DISPLAY_TO_KEY: Record<string, SphereKey> = {
 }
 
 /** Get the sphere config for a given sphere key (falls back to 'other' for null/unknown) */
-export function getSphereConfig(sphere: string | null | undefined): SphereConfig {
-  if (!sphere) return SPHERES.other
+export function getSphereConfig(sphere: string | null | undefined, lang: 'ru' | 'kk' = 'ru'): SphereConfig {
+  if (!sphere) return lang === 'kk' ? SPHERES_KK.other : SPHERES.other
   const normalized = (DISPLAY_TO_KEY[sphere] ?? sphere) as SphereKey
-  return SPHERES[normalized] ?? SPHERES.other
+  const dict = lang === 'kk' ? SPHERES_KK : SPHERES
+  return dict[normalized] ?? dict.other
 }
 
 export default SPHERES

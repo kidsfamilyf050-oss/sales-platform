@@ -58,8 +58,8 @@ function pct(fact: number, plan: number): number | null {
 
 // ─── Manager type config (sphere-aware) ─────────────────────────────────────
 
-function getCloserFields(sphere?: string | null) {
-  const sc = getSphereConfig(sphere)
+function getCloserFields(sphere?: string | null, lang: 'ru' | 'kk' = 'ru') {
+  const sc = getSphereConfig(sphere, lang)
   return [
     { key: 'salesAmount',   label: 'Сумма продаж',            unit: '₸'  },
     { key: 'salesCount',    label: 'Кол-во продаж',           unit: 'шт' },
@@ -68,8 +68,8 @@ function getCloserFields(sphere?: string | null) {
   ]
 }
 
-function getLiderFields(sphere?: string | null) {
-  const sc = getSphereConfig(sphere)
+function getLiderFields(sphere?: string | null, lang: 'ru' | 'kk' = 'ru') {
+  const sc = getSphereConfig(sphere, lang)
   return [
     { key: 'leads',             label: 'Лидов получено',              unit: 'шт' },
     { key: 'qualifiedLeads',    label: 'Квалифицировано',             unit: 'шт' },
@@ -86,10 +86,10 @@ function getMarketerFields() {
   ]
 }
 
-function getFields(managerType: string | null, role: string, sphere?: string | null) {
+function getFields(managerType: string | null, role: string, sphere?: string | null, lang: 'ru' | 'kk' = 'ru') {
   if (role === 'MARKETER') return getMarketerFields()
-  if (managerType === 'LIDER') return getLiderFields(sphere)
-  return getCloserFields(sphere)
+  if (managerType === 'LIDER') return getLiderFields(sphere, lang)
+  return getCloserFields(sphere, lang)
 }
 function getReportType(managerType: string | null, role: string) {
   if (role === 'MARKETER') return 'MARKETER'
@@ -132,11 +132,11 @@ function pctBg(p: number | null): string {
 // ─── Entry form for one manager ──────────────────────────────────────────────
 
 function ManagerEntryCard({
-  user, date, existingData, onSave, saving, t, sphere
+  user, date, existingData, onSave, saving, t, sphere, lang
 }: {
-  user: any; date: string; existingData: any; onSave: (data: any) => void; saving: boolean; t: (k: any) => string; sphere?: string | null
+  user: any; date: string; existingData: any; onSave: (data: any) => void; saving: boolean; t: (k: any) => string; sphere?: string | null; lang?: 'ru' | 'kk'
 }) {
-  const fields = getFields(user.managerType, user.role, sphere)
+  const fields = getFields(user.managerType, user.role, sphere, lang ?? 'ru')
   const [vals, setVals] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {}
     fields.forEach(f => { init[f.key] = existingData?.[f.key]?.toString() || '' })
@@ -205,7 +205,7 @@ function ManagerEntryCard({
 
 export default function TrackingPage() {
   const { user } = useAuthStore()
-  const { t } = useT()
+  const { t, lang } = useT()
   if (user && user.role !== 'OWNER' && user.role !== 'ROP') {
     return <Navigate to="/" replace />
   }
@@ -355,6 +355,7 @@ export default function TrackingPage() {
             onSave={({ data, comment }) => saveReport(u.id, u.managerType, u.role, data, comment)}
             t={t}
             sphere={user?.businessSphere}
+            lang={lang}
           />
         )
       })
@@ -502,7 +503,7 @@ export default function TrackingPage() {
 
     // ── Per-manager scrollable table ────────────────────────────────────────
     const renderManagerTable = (u: any) => {
-      const fields = getFields(u.managerType, u.role, user?.businessSphere)
+      const fields = getFields(u.managerType, u.role, user?.businessSphere, lang)
       const primaryKey = getPrimaryKey(u.managerType, u.role)
       const primaryUnit = getPrimaryUnit(u.managerType, u.role)
       const planType = getPlanType(u.managerType, u.role)
@@ -653,7 +654,7 @@ export default function TrackingPage() {
         {closers.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">{t('tracking.tabs.closers')}</h2>
-            {renderGroupSummary(closers, getCloserFields(user?.businessSphere), 'salesAmount', '₸', 'SALES_AMOUNT', 'blue', t('tracking.tabs.closers'))}
+            {renderGroupSummary(closers, getCloserFields(user?.businessSphere, lang), 'salesAmount', '₸', 'SALES_AMOUNT', 'blue', t('tracking.tabs.closers'))}
             <div className="space-y-6">{closers.map(renderManagerTable)}</div>
           </div>
         )}
@@ -661,7 +662,7 @@ export default function TrackingPage() {
         {liders.length > 0 && (
           <div className="space-y-4">
             <h2 className="text-sm font-bold text-purple-400 uppercase tracking-wider">{t('tracking.tabs.liders')}</h2>
-            {renderGroupSummary(liders, getLiderFields(user?.businessSphere), 'leads', 'шт', 'LEADS', 'purple', t('tracking.tabs.liders'))}
+            {renderGroupSummary(liders, getLiderFields(user?.businessSphere, lang), 'leads', 'шт', 'LEADS', 'purple', t('tracking.tabs.liders'))}
             <div className="space-y-6">{liders.map(renderManagerTable)}</div>
           </div>
         )}

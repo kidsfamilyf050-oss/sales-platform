@@ -151,7 +151,7 @@ export default function ManagerDashboard() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { user } = useAuthStore()
-  const sc = getSphereConfig(user?.businessSphere)
+  const sc = getSphereConfig(user?.businessSphere, lang)
 
   const params = buildPeriodParams(periodStore)
 

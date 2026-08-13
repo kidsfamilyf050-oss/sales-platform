@@ -180,12 +180,12 @@ function ManagerSalesDetail({ m }: { m: any }) {
 }
 
 export default function OwnerDashboard() {
-  const { t } = useT()
+  const { t, lang } = useT()
   const navigate = useNavigate()
   const periodState = usePeriodStore()
   const { monthOffset } = periodState
   const { user } = useAuthStore()
-  const sc = getSphereConfig(user?.businessSphere)
+  const sc = getSphereConfig(user?.businessSphere, lang)
   const [expandedManager, setExpandedManager] = useState<string | null>(null)
 
   // Build query params — uses global period + monthOffset from store
