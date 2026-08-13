@@ -77,55 +77,48 @@ function DashboardMockup() {
                 </div>
               ))}
             </div>
-            {/* Area chart */}
-            <div className="col-span-3 bg-white rounded-xl p-3 border border-gray-100 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between mb-1">
-                <div className="text-[10px] text-gray-500 font-medium">Продажи по дням, ₸млн</div>
-                <div className="text-[9px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded-full">↑ +18%</div>
-              </div>
-              {/* Grid labels */}
-              <div className="flex justify-between mb-0.5">
-                {['4.0','3.0','2.0'].map(v=>(
-                  <span key={v} className="text-[7px] text-gray-300">{v}</span>
-                ))}
-              </div>
-              <svg viewBox="0 0 280 72" className="w-full" style={{height:72}} preserveAspectRatio="none">
-                {/* Grid lines */}
-                {[18,36,54].map(y=>(
-                  <line key={y} x1="0" y1={y} x2="280" y2={y} stroke="#f3f4f6" strokeWidth="1"/>
-                ))}
-                {/* Area fill */}
-                <defs>
-                  <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25"/>
-                    <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.03"/>
-                  </linearGradient>
-                </defs>
-                <path
-                  d="M0,45 L20,38 L40,52 L60,28 L80,40 L100,32 L120,48 L140,20 L160,36 L180,22 L200,44 L220,30 L240,14 L260,34 L280,26 L280,72 L0,72 Z"
-                  fill="url(#areaGrad)"
-                />
-                {/* Line */}
-                <polyline
-                  points="0,45 20,38 40,52 60,28 80,40 100,32 120,48 140,20 160,36 180,22 200,44 220,30 240,14 260,34 280,26"
-                  fill="none"
-                  stroke="#3b82f6"
-                  strokeWidth="1.8"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
-                {/* Highlight dot — peak */}
-                <circle cx="240" cy="14" r="3" fill="#3b82f6" stroke="white" strokeWidth="1.5"/>
-                {/* Value label at peak */}
-                <rect x="224" y="3" width="28" height="9" rx="4" fill="#3b82f6"/>
-                <text x="238" y="10" textAnchor="middle" fill="white" fontSize="5.5" fontWeight="bold">₸4.2М</text>
-              </svg>
-              <div className="flex justify-between mt-0.5">
-                {['1','4','7','10','13'].map(d=>(
-                  <span key={d} className="text-[7px] text-gray-300">{d} авг</span>
-                ))}
-              </div>
-            </div>
+            {/* Bar chart */}
+            {(() => {
+              const bars = [
+                {v:2.1,d:'1'},{v:2.9,d:'2'},{v:1.7,d:'3'},{v:3.6,d:'4'},
+                {v:2.5,d:'5'},{v:3.2,d:'6'},{v:1.9,d:'7'},{v:4.0,d:'8'},
+                {v:3.0,d:'9'},{v:3.7,d:'10'},{v:2.2,d:'11'},{v:3.1,d:'12'},
+                {v:4.2,d:'13'},{v:2.7,d:'14'},
+              ]
+              const max = 4.2
+              return (
+                <div className="col-span-3 bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-[10px] text-gray-500 font-medium">Продажи по дням</div>
+                    <div className="text-[9px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded-full">↑ +18%</div>
+                  </div>
+                  <div className="flex items-end gap-1" style={{height:60}}>
+                    {bars.map((b,i) => {
+                      const pct = b.v / max
+                      const isToday = i === 12
+                      return (
+                        <div key={i} className="flex-1 flex flex-col items-center justify-end gap-0.5">
+                          {isToday && (
+                            <div className="text-[7px] font-bold text-blue-600 leading-none">₸{b.v}М</div>
+                          )}
+                          <div
+                            className={`w-full rounded-t-sm ${isToday ? 'bg-blue-600' : 'bg-blue-200'}`}
+                            style={{height: `${Math.round(pct * 52)}px`}}
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="flex mt-1">
+                    {bars.map((b,i) => (
+                      <div key={i} className={`flex-1 text-center text-[7px] ${i===12?'text-blue-600 font-bold':'text-gray-300'}`}>
+                        {i % 3 === 0 || i === 12 ? b.d : ''}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
           </div>
           {/* Manager table — rich version */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
