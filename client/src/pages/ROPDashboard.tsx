@@ -11,6 +11,7 @@ import GatewayAnalytics from '../components/ui/GatewayAnalytics'
 import { useT } from '../i18n'
 import { ChevronDown, ChevronRight, ExternalLink, Download } from 'lucide-react'
 import { useAuthStore } from '../store/auth'
+import { getSphereConfig } from '../config/sphereConfig'
 
 function fmt(n: number) { return n.toLocaleString('ru') }
 
@@ -249,6 +250,8 @@ function ManagerDetail({ m }: { m: any }) {
 // Lider expanded row
 function LiderDetail({ m }: { m: any }) {
   const { t } = useT()
+  const { user } = useAuthStore()
+  const sc = getSphereConfig(user?.businessSphere)
   const report = m.todayReport
   if (!report) return (
     <tr>
@@ -265,10 +268,10 @@ function LiderDetail({ m }: { m: any }) {
         <div className="ml-6 mr-2 bg-gray-50 rounded-xl border border-gray-100 p-3">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{t('dash.rop.dayStats')}</p>
           <div className="flex gap-6 text-xs flex-wrap">
-            <span className="text-gray-500">{t('dash.funnel.leadsReceived')}: <span className="font-bold text-gray-900">{report.leadsReceived || report.leads || 0}</span></span>
-            <span className="text-gray-500">{t('dash.rop.funnelStepQual')}: <span className="font-bold text-gray-900">{report.qualifiedLeads || 0}</span></span>
-            <span className="text-gray-500">{t('dash.funnel.scheduled')}: <span className="font-bold text-gray-900">{report.meetingsScheduled || 0}</span></span>
-            <span className="text-gray-500">{t('dash.funnel.attended')} <span className="text-gray-400 font-normal text-[10px]">{t('dash.funnel.attendedNote')}</span>: <span className="font-bold text-gray-900">{report.meetingsAttended || 0}</span></span>
+            <span className="text-gray-500">{sc.funnel.leads}: <span className="font-bold text-gray-900">{report.leadsReceived || report.leads || 0}</span></span>
+            <span className="text-gray-500">{sc.funnel.qualified}: <span className="font-bold text-gray-900">{report.qualifiedLeads || 0}</span></span>
+            <span className="text-gray-500">{sc.funnel.meetingsScheduled}: <span className="font-bold text-gray-900">{report.meetingsScheduled || 0}</span></span>
+            <span className="text-gray-500">{sc.funnel.meetingsAttended}: <span className="font-bold text-gray-900">{report.meetingsAttended || 0}</span></span>
             {report.comment && <span className="text-gray-400 italic">💬 {report.comment}</span>}
           </div>
         </div>
@@ -306,6 +309,8 @@ export default function ROPDashboard() {
     queryFn: () => api.get(`/dashboard/rop?${params}`).then(r => r.data),
     refetchInterval: 60000,
   })
+  const { user } = useAuthStore()
+  const sc = getSphereConfig(user?.businessSphere)
 
   const [expandedManagers, setExpandedManagers] = useState<Set<string>>(new Set())
 
@@ -327,11 +332,11 @@ export default function ROPDashboard() {
   const { summary, funnel, marketing, managerRating, liderRating, productStats = [], gatewayAnalytics = [], carryover } = data as any
 
   const funnelSteps = [
-    { label: t('dash.rop.funnelStepLeads'),       value: funnel.leadsReceived,    color: 'bg-purple-400' },
-    { label: t('dash.rop.funnelStepQual'),        value: funnel.qualifiedLeads,   color: 'bg-purple-500' },
-    { label: t('dash.rop.funnelStepTransferred'), value: funnel.meetingsScheduled,color: 'bg-blue-400' },
-    { label: t('dash.rop.funnelStepInWork'),      value: funnel.meetingsAttended, color: 'bg-blue-500' },
-    { label: t('dash.rop.funnelStepSales'),       value: funnel.salesCount,       color: 'bg-green-500' },
+    { label: sc.funnel.leads,              value: funnel.leadsReceived,    color: 'bg-purple-400' },
+    { label: sc.funnel.qualified,          value: funnel.qualifiedLeads,   color: 'bg-purple-500' },
+    { label: sc.funnel.meetingsScheduled,  value: funnel.meetingsScheduled,color: 'bg-blue-400' },
+    { label: sc.funnel.meetingsAttended,   value: funnel.meetingsAttended, color: 'bg-blue-500' },
+    { label: sc.funnel.sales,              value: funnel.salesCount,       color: 'bg-green-500' },
   ]
 
   return (
@@ -621,8 +626,8 @@ export default function ROPDashboard() {
                   <th className="pb-2 font-medium text-center">{t('dash.table.qualPctCol')}</th>
                   <th className="pb-2 font-medium text-center">{t('dash.table.qualified')}</th>
                   <th className="pb-2 font-medium text-center">{t('dash.table.pctTransferred')}</th>
-                  <th className="pb-2 font-medium text-center">{t('dash.table.transferred')}</th>
-                  <th className="pb-2 font-medium text-center">{t('dash.table.pctInWork')}</th>
+                  <th className="pb-2 font-medium text-center">{sc.tracking.meetingsScheduled}</th>
+                  <th className="pb-2 font-medium text-center">% {sc.tracking.meetingsAttended.toLowerCase()}</th>
                 </tr>
               </thead>
               <tbody>

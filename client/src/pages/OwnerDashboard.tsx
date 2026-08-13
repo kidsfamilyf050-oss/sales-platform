@@ -10,6 +10,8 @@ import GatewayAnalytics from '../components/ui/GatewayAnalytics'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { ChevronDown, ArrowRight, TrendingUp, Users, ExternalLink } from 'lucide-react'
 import { useT } from '../i18n'
+import { useAuthStore } from '../store/auth'
+import { getSphereConfig } from '../config/sphereConfig'
 
 function fmt(n: number) { return n.toLocaleString('ru-RU') }
 function pct(a: number, b: number) {
@@ -182,6 +184,8 @@ export default function OwnerDashboard() {
   const navigate = useNavigate()
   const periodState = usePeriodStore()
   const { monthOffset } = periodState
+  const { user } = useAuthStore()
+  const sc = getSphereConfig(user?.businessSphere)
   const [expandedManager, setExpandedManager] = useState<string | null>(null)
 
   // Build query params — uses global period + monthOffset from store
@@ -360,28 +364,28 @@ export default function OwnerDashboard() {
           {hasFunnel ? (
             <>
               <div className="flex items-start gap-1 overflow-x-auto pb-2 flex-nowrap">
-                <FunnelStep label={t('dash.funnel.leadsReceived')} value={summary.totalLiderLeads} color="text-blue-600" />
+                <FunnelStep label={sc.funnel.leads} value={summary.totalLiderLeads} color="text-blue-600" />
                 <FunnelArrow pctVal={leadsToQual} />
-                <FunnelStep label={t('dash.rop.funnelStepQual')} value={summary.totalQualifiedLeads}
+                <FunnelStep label={sc.funnel.qualified} value={summary.totalQualifiedLeads}
                   color="text-purple-600" />
                 {summary.totalMeetingsScheduled > 0 && (
                   <>
                     <FunnelArrow pctVal={qualToScheduled} />
-                    <FunnelStep label={t('dash.funnel.scheduled')} value={summary.totalMeetingsScheduled} color="text-orange-500" />
+                    <FunnelStep label={sc.funnel.meetingsScheduled} value={summary.totalMeetingsScheduled} color="text-orange-500" />
                     <FunnelArrow pctVal={scheduledToAtt} />
-                    <FunnelStep label={t('dash.funnel.attended')} value={summary.totalMeetingsAttended}
-                      sub={t('dash.funnel.attendedNote')} color="text-orange-600" />
+                    <FunnelStep label={sc.funnel.meetingsAttended} value={summary.totalMeetingsAttended}
+                      color="text-orange-600" />
                   </>
                 )}
                 <FunnelArrow pctVal={summary.totalMeetingsAttended > 0 ? attToSale : leadsToSale} />
-                <FunnelStep label={t('dash.funnel.sales')} value={factSalesCount}
+                <FunnelStep label={sc.funnel.sales} value={factSalesCount}
                   sub={`₸ ${fmt(summary.factNetSales ?? summary.factSalesAmount ?? summary.totalSalesAmount)}`} color="text-green-600" />
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                 {[
                   { label: t('dash.funnel.leadsQual'), val: leadsToQual },
-                  { label: t('dash.funnel.qualMeet'), val: qualToScheduled },
-                  { label: t('dash.funnel.meetSales'), val: attToSale },
+                  { label: `Квалиф. → ${sc.tracking.meetingsScheduled.toLowerCase()}`, val: qualToScheduled },
+                  { label: `→ ${sc.funnel.sales.toLowerCase()}`, val: attToSale },
                 ].map(item => (
                   <div key={item.label} className="bg-gray-50 rounded-lg p-2">
                     <div className={`text-base font-bold ${item.val >= 50 ? 'text-green-600' : item.val >= 25 ? 'text-amber-500' : 'text-red-500'}`}>
@@ -581,7 +585,7 @@ export default function OwnerDashboard() {
                   <th className="pb-2 font-medium text-right">План (лидов)</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.leadsCol')}</th>
                   <th className="pb-2 font-medium text-right">% выполн.</th>
-                  <th className="pb-2 font-medium text-right">{t('dash.table.scheduledCol')}</th>
+                  <th className="pb-2 font-medium text-right">{sc.tracking.meetingsScheduled}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.qualified')}</th>
                   <th className="pb-2 font-medium text-right">{t('dash.table.pctQual')}</th>
                 </tr>

@@ -10,6 +10,7 @@ import { format } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useT } from '../i18n'
 import { useAuthStore } from '../store/auth'
+import { getSphereConfig } from '../config/sphereConfig'
 import { usePeriodStore, buildPeriodParams } from '../components/ui/PeriodSelector'
 import GatewayAnalytics from '../components/ui/GatewayAnalytics'
 import AIInsights from '../components/ui/AIInsights'
@@ -149,6 +150,8 @@ export default function ManagerDashboard() {
   const periodStore = usePeriodStore()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { user } = useAuthStore()
+  const sc = getSphereConfig(user?.businessSphere)
 
   const params = buildPeriodParams(periodStore)
 
@@ -762,10 +765,10 @@ export default function ManagerDashboard() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 md:gap-5">
             <StatCard label={t('dash.manager.leads')} value={summary.leads} sub={summary.leadsplan > 0 ? `${t('dash.plan')} ${summary.leadsplan}` : undefined} />
             <StatCard label={t('dash.manager.qualified')} value={summary.qualifiedLeads} sub={`${summary.qualRate}% ${t('common.qualShort')}`} />
-            <StatCard label={t('dash.manager.meetings')} value={summary.meetingsScheduled} />
-            <StatCard label={t('dash.manager.attended')} value={summary.meetingsAttended} color="blue" />
+            <StatCard label={sc.tracking.meetingsScheduled} value={summary.meetingsScheduled} />
+            <StatCard label={sc.tracking.meetingsAttended} value={summary.meetingsAttended} color="blue" />
             <StatCard label={t('dash.manager.schedToAtt')} value={summary.meetingsScheduled > 0 ? `${Math.round(summary.meetingsAttended / summary.meetingsScheduled * 100)}%` : '—'} color="yellow" />
-            <StatCard label={t('dash.manager.meetingsPlan')} value={summary.meetingsScheduledPlan} sub={summary.planCompletion != null && summary.planCompletion > 0 ? `${summary.planCompletion}% ${t('common.completionShort')}` : undefined} />
+            <StatCard label={`План: ${sc.tracking.meetingsScheduled}`} value={summary.meetingsScheduledPlan} sub={summary.planCompletion != null && summary.planCompletion > 0 ? `${summary.planCompletion}% ${t('common.completionShort')}` : undefined} />
           </div>
 
           {/* Несостоявшиеся — lider's own metric */}
@@ -791,7 +794,7 @@ export default function ManagerDashboard() {
           <div className="card">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-blue-500" /> {t('dash.lider.consultToday')}
+                <Calendar className="w-4 h-4 text-blue-500" /> {sc.lider.meetingScheduled} — сегодня
               </h3>
               <span className={`text-xs font-bold rounded-full px-2.5 py-1 ${todayAppointments.length > 0 ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
                 {todayAppointments.length}
@@ -939,14 +942,14 @@ export default function ManagerDashboard() {
                 <span className="text-gray-500 w-24 shrink-0">{format(new Date(r.date), 'd MMM', { locale: ru })}</span>
                 {isCloser ? (
                   <div className="flex gap-4 text-right flex-wrap">
-                    <span className="text-gray-500">{t('dash.rop.consultationsLabel')}: <span className="font-medium text-gray-900">{(r.data as any).consultations || 0}</span></span>
+                    <span className="text-gray-500">{sc.tracking.consultations}: <span className="font-medium text-gray-900">{(r.data as any).consultations || 0}</span></span>
                     <span className="text-gray-500">{t('dash.rop.refusalsLabel')}: <span className="font-medium text-gray-900">{(r.data as any).refusals || 0}</span></span>
                   </div>
                 ) : (
                   <div className="flex gap-6 text-right">
                     <span className="text-gray-500">{t('dash.manager.leadsLabel')} <span className="font-medium text-gray-900">{(r.data as any).leads || (r.data as any).leadsReceived || 0}</span></span>
                     <span className="text-gray-500">{t('dash.manager.qualLabel')} <span className="font-medium text-gray-900">{(r.data as any).qualifiedLeads || 0}</span></span>
-                    <span className="text-gray-500">{t('dash.manager.attendedLabel')} <span className="font-medium text-gray-900">{(r.data as any).meetingsAttended || 0}</span></span>
+                    <span className="text-gray-500">{sc.tracking.meetingsAttended}: <span className="font-medium text-gray-900">{(r.data as any).meetingsAttended || 0}</span></span>
                   </div>
                 )}
               </div>
