@@ -361,12 +361,15 @@ router.get('/refused', authenticate, async (req: AuthRequest, res: Response) => 
     const where: any = {
       assignedToId: req.user!.id,
       status: 'REFUSED',
-      OR: [{ consultationStatus: null }, { consultationStatus: { not: 'not_happened' } }], // exclude only not_happened (lider flow); include null (closer direct refusals)
+      // Count ALL refused leads regardless of consultationStatus:
+      // not_happened = consultation was scheduled but client didn't show — still a real refusal.
       deletedAt: null,
     }
     if (all !== 'true') {
       const { fromStr, toStr } = getPeriodStr(period as string, from as string, to as string)
-      where.date = { gte: fromStr, lte: toStr }
+      const periodStart = new Date(fromStr + 'T00:00:00+05:00')
+      const periodEnd   = new Date(toStr   + 'T23:59:59+05:00')
+      where.updatedAt = { gte: periodStart, lte: periodEnd }
     }
     const leads = await prisma.lead.findMany({
       where,
@@ -457,9 +460,14 @@ router.get('/all', authenticate, async (req: AuthRequest, res: Response) => {
     }
     if (status) where.status = status
     if (consultationStatus) where.consultationStatus = consultationStatus
-    // IN_WORK (дожим) leads can be from ANY period — don't filter by creation date.
-    // For all other statuses, filter by lead creation date (current period).
-    if (status !== 'IN_WORK') {
+    // IN_WORK (дожим) leads can be from ANY period — no date filter.
+    // REFUSED leads: filter by updatedAt (when refused) — matches dashboard refusal count.
+    // All other statuses: filter by lead creation date (current period).
+    if (status === 'REFUSED') {
+      const periodStart = new Date(fromStr + 'T00:00:00+05:00')
+      const periodEnd   = new Date(toStr   + 'T23:59:59+05:00')
+      where.updatedAt = { gte: periodStart, lte: periodEnd }
+    } else if (status !== 'IN_WORK') {
       where.date = { gte: fromStr, lte: toStr }
     }
     const leads = await prisma.lead.findMany({

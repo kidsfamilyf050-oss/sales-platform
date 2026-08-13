@@ -171,14 +171,13 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
         where: { createdBy: { companyId: req.user!.companyId }, status: 'SOLD', isRefund: true, updatedAt: { gte: periodStart, lte: periodEnd } },
         select: { id: true, netAmount: true, amount: true, assignedToId: true, date: true },
       }),
-      // Refused leads: filter by updatedAt (when refused), not date (when created)
-      // This matches the refusals page which shows all=true (no date filter on creation)
+      // Refused leads: filter by updatedAt (when refused). Count ALL refused leads regardless
+      // of consultationStatus — not_happened IS a real refusal (consultation scheduled but missed).
       prisma.lead.findMany({
         where: {
           createdBy: { companyId: req.user!.companyId },
           status: 'REFUSED',
           updatedAt: { gte: periodStart, lte: periodEnd },
-          OR: [{ consultationStatus: null }, { consultationStatus: { not: 'not_happened' } }],
         },
         select: { assignedToId: true, netAmount: true, amount: true },
       }),
@@ -511,13 +510,13 @@ router.get('/rop', authenticate, async (req: AuthRequest, res: Response) => {
         where: { assignedTo: { companyId: req.user!.companyId }, date: { gte: fromStr, lte: toStr } },
         select: { assignedToId: true, status: true, consultationStatus: true },
       }),
-      // Refused leads: filter by updatedAt (when refused), not date (when created)
+      // Refused leads: filter by updatedAt (when refused). Count ALL refused leads regardless
+      // of consultationStatus — not_happened IS a real refusal.
       prisma.lead.findMany({
         where: {
           createdBy: { companyId: req.user!.companyId },
           status: 'REFUSED',
           updatedAt: { gte: periodStart, lte: periodEnd },
-          OR: [{ consultationStatus: null }, { consultationStatus: { not: 'not_happened' } }],
         },
         select: { assignedToId: true, netAmount: true, amount: true },
       }),
@@ -893,7 +892,7 @@ router.get('/manager', authenticate, async (req: AuthRequest, res: Response) => 
         prisma.lead.count({ where: { assignedToId: userId, status: 'ASSIGNED' } }),
         prisma.lead.count({ where: { assignedToId: userId, status: 'IN_WORK' } }),
         prisma.leadTask.count({ where: { userId, completed: false } }),
-        prisma.lead.count({ where: { assignedToId: userId, status: 'REFUSED', updatedAt: { gte: periodStart, lte: periodEnd }, OR: [{ consultationStatus: null }, { consultationStatus: { not: 'not_happened' } }] } }),
+        prisma.lead.count({ where: { assignedToId: userId, status: 'REFUSED', updatedAt: { gte: periodStart, lte: periodEnd } } }),
         prisma.lead.count({ where: { assignedToId: userId, status: 'SOLD', isRefund: false, updatedAt: { gte: periodStart, lte: periodEnd } } }),
         prisma.lead.findMany({
           where: { assignedToId: userId, status: 'SOLD', isRefund: true, updatedAt: { gte: periodStart, lte: periodEnd } },
