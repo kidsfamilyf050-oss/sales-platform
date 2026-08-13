@@ -71,10 +71,11 @@ router.post('/login', async (req: Request, res: Response) => {
         userAgent: req.headers['user-agent'] || null,
       },
     }).catch(() => {}) // non-critical
+    const company = await prisma.company.findUnique({ where: { id: user.companyId }, select: { businessSphere: true } })
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: JWT_EXPIRES })
     res.json({
       token,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, managerType: user.managerType, companyId: user.companyId, departmentId: user.departmentId, canManageGateways: user.canManageGateways },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, managerType: user.managerType, companyId: user.companyId, departmentId: user.departmentId, canManageGateways: user.canManageGateways, businessSphere: company?.businessSphere ?? null },
     })
   } catch (e) {
     console.error(e)
@@ -120,10 +121,11 @@ router.post('/accept-invite', async (req: Request, res: Response) => {
       data: { passwordHash, inviteToken: null },
     })
 
+    const company = await prisma.company.findUnique({ where: { id: updated.companyId }, select: { businessSphere: true } })
     const jwtToken = jwt.sign({ userId: updated.id }, JWT_SECRET, { expiresIn: JWT_EXPIRES })
     res.json({
       token: jwtToken,
-      user: { id: updated.id, name: updated.name, email: updated.email, role: updated.role, managerType: updated.managerType, companyId: updated.companyId, departmentId: updated.departmentId, canManageGateways: (updated as any).canManageGateways },
+      user: { id: updated.id, name: updated.name, email: updated.email, role: updated.role, managerType: updated.managerType, companyId: updated.companyId, departmentId: updated.departmentId, canManageGateways: (updated as any).canManageGateways, businessSphere: company?.businessSphere ?? null },
     })
   } catch (e) {
     console.error(e)
@@ -195,7 +197,9 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
       where: { id: req.user!.id },
       select: { id: true, name: true, email: true, phone: true, role: true, managerType: true, companyId: true, departmentId: true, canManageGateways: true, status: true, lastLoginAt: true },
     })
-    res.json(user)
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    const company = await prisma.company.findUnique({ where: { id: user.companyId }, select: { businessSphere: true } })
+    res.json({ ...user, businessSphere: company?.businessSphere ?? null })
   } catch (e) {
     res.status(500).json({ error: 'Server error' })
   }

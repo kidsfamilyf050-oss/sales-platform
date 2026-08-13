@@ -4,6 +4,7 @@ import { api } from '../api/client'
 import { useAuthStore } from '../store/auth'
 import { CheckCircle, Calendar, Plus, Trash2 } from 'lucide-react'
 import { useT } from '../i18n'
+import { getSphereConfig } from '../config/sphereConfig'
 
 function localDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -27,6 +28,9 @@ export default function ReportPage() {
   const isMarketer = user?.role === 'MARKETER'
   const isCloser = !isMarketer && user?.managerType === 'CLOSER'
   const isLider = !isMarketer && user?.managerType === 'LIDER'
+
+  // Sphere-specific labels
+  const sc = getSphereConfig(user?.businessSphere)
 
   const [closer, setCloser] = useState({ consultations: '', refusals: '', comment: '' })
   const [lider, setLider] = useState({ leadsReceived: '', processed: '', qualifiedLeads: '', meetingsScheduled: '', meetingsAttended: '', comment: '' })
@@ -259,15 +263,15 @@ export default function ReportPage() {
           {isCloser && (
             <div className="card space-y-4">
               <p className="text-xs text-gray-400 bg-blue-50 rounded-lg px-3 py-2">
-                💡 Продажи вносятся отдельно — кнопка «+ Продажа» в кабинете. Здесь только статистика дня.
+                💡 {sc.closer.hint}
               </p>
               <div>
-                <label className="label">{t('report.closer.consultations')}</label>
+                <label className="label">{sc.closer.consultations}</label>
                 <input type="number" className="input" min="0" value={closer.consultations}
                   onChange={e => setCloser(f => ({ ...f, consultations: e.target.value }))} required />
               </div>
               <div>
-                <label className="label">{t('report.closer.refusals')}</label>
+                <label className="label">{sc.closer.refusals}</label>
                 <input type="number" className="input" min="0" value={closer.refusals}
                   onChange={e => setCloser(f => ({ ...f, refusals: e.target.value }))} />
               </div>
@@ -275,7 +279,7 @@ export default function ReportPage() {
                 <label className="label">{t('common.comment')}</label>
                 <textarea className="input" rows={3} value={closer.comment}
                   onChange={e => setCloser(f => ({ ...f, comment: e.target.value }))}
-                  placeholder={t('report.closer.commentPlaceholder')} />
+                  placeholder={sc.closer.commentPlaceholder} />
               </div>
 
               {error && <p className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</p>}
@@ -292,19 +296,19 @@ export default function ReportPage() {
           {isLider && (
             <div className="card space-y-4">
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="label">{t('report.lider.leadsReceived')}</label>
+                <div><label className="label">{sc.lider.leadsReceived}</label>
                   <input type="number" className="input" min="0" value={lider.leadsReceived} onChange={e => setLider(f => ({ ...f, leadsReceived: e.target.value }))} required /></div>
-                <div><label className="label">{t('report.lider.processed')}</label>
+                <div><label className="label">{sc.lider.processed}</label>
                   <input type="number" className="input" min="0" value={lider.processed} onChange={e => setLider(f => ({ ...f, processed: e.target.value }))} /></div>
-                <div><label className="label">{t('report.lider.qualified')}</label>
+                <div><label className="label">{sc.lider.qualified}</label>
                   <input type="number" className="input" min="0" value={lider.qualifiedLeads} onChange={e => setLider(f => ({ ...f, qualifiedLeads: e.target.value }))} required /></div>
-                <div><label className="label">Записано на встречу</label>
+                <div><label className="label">{sc.lider.meetingScheduled}</label>
                   <input type="number" className="input" min="0" value={lider.meetingsScheduled} onChange={e => setLider(f => ({ ...f, meetingsScheduled: e.target.value }))} /></div>
-                <div><label className="label">Проведено консультаций</label>
+                <div><label className="label">{sc.lider.meetingAttended}</label>
                   <input type="number" className="input" min="0" value={lider.meetingsAttended} onChange={e => setLider(f => ({ ...f, meetingsAttended: e.target.value }))} /></div>
               </div>
               <div><label className="label">{t('common.comment')}</label>
-                <textarea className="input" rows={3} value={lider.comment} onChange={e => setLider(f => ({ ...f, comment: e.target.value }))} placeholder={t('report.lider.commentPlaceholder')} /></div>
+                <textarea className="input" rows={3} value={lider.comment} onChange={e => setLider(f => ({ ...f, comment: e.target.value }))} placeholder={sc.lider.commentPlaceholder} /></div>
 
               {error && <p className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</p>}
               <div className="flex gap-3 pt-1">

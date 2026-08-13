@@ -10,6 +10,8 @@ export interface User {
   companyId: string
   departmentId: string | null
   canManageGateways?: boolean
+  /** Company's business sphere: 'edu' | 'med' | 'realty' | 'it' | 'retail' | 'services' | 'construction' | 'other' */
+  businessSphere?: string | null
 }
 
 interface AuthState {
