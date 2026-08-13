@@ -23,7 +23,7 @@ export default function OfertaPage() {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Публичная оферта</h1>
         <p className="text-sm text-gray-400 mb-10">Дата вступления в силу: 1 января 2025 года</p>
 
-        <div className="prose prose-gray max-w-none space-y-8 text-gray-700 leading-relaxed">
+        <div className="max-w-none space-y-8 text-gray-700 leading-relaxed">
 
           <section>
             <h2 className="text-lg font-bold text-gray-900 mb-3">1. Общие положения</h2>

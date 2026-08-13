@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Menu, Calendar, AlertCircle, Clock, CalendarCheck, ChevronRight } from 'lucide-react'
+import { Bell, Menu, Calendar, AlertCircle, Clock, CalendarCheck, ChevronRight, Sun, Moon } from 'lucide-react'
 import { api } from '../../api/client'
 import PeriodSelector from '../ui/PeriodSelector'
 import LanguageSwitcher from '../ui/LanguageSwitcher'
 import { useT } from '../../i18n'
+import { useThemeStore } from '../../store/theme'
 
 interface Alert { type: string; title: string; count: number; url: string; color: string }
 interface AlertsData { alerts: Alert[]; total: number }
@@ -25,6 +26,7 @@ export default function Header({ onMenuClick }: Props) {
   const { t, lang } = useT()
   const [open, setOpen] = useState(false)
   const dropRef = useRef<HTMLDivElement>(null)
+  const { dark, toggle } = useThemeStore()
 
   const { data } = useQuery<AlertsData>({
     queryKey: ['smart-alerts', lang],
@@ -44,7 +46,7 @@ export default function Header({ onMenuClick }: Props) {
   }, [])
 
   return (
-    <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-3 md:px-6 gap-2">
+    <header className="h-14 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-3 md:px-6 gap-2">
       <button onClick={onMenuClick}
         className="md:hidden p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg shrink-0"
         aria-label="Меню">
@@ -56,6 +58,15 @@ export default function Header({ onMenuClick }: Props) {
       </div>
 
       <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
+        {/* Dark mode toggle */}
+        <button
+          onClick={toggle}
+          className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800 transition-colors"
+          title={dark ? 'Светлая тема' : 'Тёмная тема'}
+        >
+          {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </button>
+
         <LanguageSwitcher />
 
         {/* Smart alert bell */}

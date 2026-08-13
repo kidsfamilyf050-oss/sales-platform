@@ -11,6 +11,8 @@ export default function RegisterPage() {
   const { setAuth } = useAuthStore()
   const { t } = useT()
   const [form, setForm] = useState({ name: '', companyType: 'ТОО', companyShortName: '', email: '', password: '', secret: '' })
+  const [agreedOferta, setAgreedOferta] = useState(false)
+  const [agreedPrivacy, setAgreedPrivacy] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -20,6 +22,7 @@ export default function RegisterPage() {
     e.preventDefault()
     if (!form.companyShortName.trim()) return setError(t('register.companyError'))
     if (form.password.length < 6) return setError(t('register.passwordError'))
+    if (!agreedOferta || !agreedPrivacy) return setError('Необходимо принять оферту и политику конфиденциальности')
     setError('')
     setLoading(true)
     try {
@@ -107,19 +110,49 @@ export default function RegisterPage() {
             />
           </div>
 
+          {/* Согласие с офертой */}
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={agreedOferta}
+              onChange={e => setAgreedOferta(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer flex-shrink-0"
+            />
+            <span className="text-xs text-gray-500 leading-relaxed">
+              Я ознакомлен(а) и соглашаюсь с{' '}
+              <a href="/oferta" target="_blank" className="text-blue-500 hover:underline font-medium" onClick={e => e.stopPropagation()}>
+                публичной офертой
+              </a>
+            </span>
+          </label>
+
+          {/* Согласие с политикой */}
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={agreedPrivacy}
+              onChange={e => setAgreedPrivacy(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer flex-shrink-0"
+            />
+            <span className="text-xs text-gray-500 leading-relaxed">
+              Я ознакомлен(а) с{' '}
+              <a href="/privacy" target="_blank" className="text-blue-500 hover:underline font-medium" onClick={e => e.stopPropagation()}>
+                политикой конфиденциальности
+              </a>
+              {' '}и даю согласие на обработку персональных данных
+            </span>
+          </label>
+
           {error && <p className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">{error}</p>}
 
-          <button type="submit" className="btn-primary w-full py-2.5" disabled={loading}>
+          <button
+            type="submit"
+            className="btn-primary w-full py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || !agreedOferta || !agreedPrivacy}
+          >
             {loading ? t('register.loading') : t('register.submit')}
           </button>
         </form>
-
-        <p className="text-center text-xs text-gray-400 mt-3">
-          Нажимая «Создать аккаунт», вы соглашаетесь с{' '}
-          <a href="/oferta" target="_blank" className="text-blue-500 hover:underline">офертой</a>
-          {' '}и{' '}
-          <a href="/privacy" target="_blank" className="text-blue-500 hover:underline">политикой конфиденциальности</a>
-        </p>
 
         <div className="mt-6 flex items-center justify-between text-sm">
           <Link to="/" className="flex items-center gap-1 text-gray-500 hover:text-gray-700 transition-colors">
