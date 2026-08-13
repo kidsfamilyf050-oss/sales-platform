@@ -120,6 +120,8 @@ function LeadModal({ leadId, onClose }: { leadId: string; onClose: () => void })
 // Expanded manager row — shows period sales and today's report
 function ManagerDetail({ m }: { m: any }) {
   const { t } = useT()
+  const { user } = useAuthStore()
+  const sc = getSphereConfig(user?.businessSphere)
   const [expandedSales, setExpandedSales] = useState<Set<string>>(new Set())
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   // m.sales = period sales (matches selected period); m.todaySales = today only (for status)
@@ -229,8 +231,8 @@ function ManagerDetail({ m }: { m: any }) {
             <div className="border-t border-gray-100 pt-3">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{t('dash.rop.dayStats')}</p>
               <div className="flex gap-6 text-xs flex-wrap">
-                <span className="text-gray-500">{t('dash.rop.clientsLabel')}: <span className="font-bold text-gray-900">{report.clientsReceived || 0}</span></span>
-                <span className="text-gray-500">{t('dash.rop.consultationsLabel')}: <span className="font-bold text-gray-900">{report.consultations || 0}</span></span>
+                <span className="text-gray-500">{sc.tracking.clients}: <span className="font-bold text-gray-900">{report.clientsReceived || 0}</span></span>
+                <span className="text-gray-500">{sc.tracking.consultations}: <span className="font-bold text-gray-900">{report.consultations || 0}</span></span>
                 <span className="text-gray-500">{t('dash.rop.refusalsLabel')}: <span className="font-bold text-gray-900">{report.refusals || 0}</span></span>
                 {report.comment && <span className="text-gray-400 italic">💬 {report.comment}</span>}
               </div>

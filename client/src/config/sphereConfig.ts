@@ -208,7 +208,7 @@ const SPHERES: Record<SphereKey, SphereConfig> = {
     name: 'Розничная торговля',
     closer: {
       clients:           'Посетителей',
-      consultations:     'Консультаций / подборок',
+      consultations:     'Обслужено покупателей',
       refusals:          'Ушли без покупки',
       commentPlaceholder:'Популярные товары, возражения, акции...',
       hint:              'Чеки / продажи вносятся отдельно — кнопка «+ Продажа» в кабинете.',
@@ -216,14 +216,14 @@ const SPHERES: Record<SphereKey, SphereConfig> = {
     lider: {
       leadsReceived:     'Обращений получено',
       processed:         'Обработано',
-      qualified:         'Квалифицировано',
-      meetingScheduled:  'Встреча / визит запланированы',
+      qualified:         'Заинтересованных',
+      meetingScheduled:  'Визит запланирован',
       meetingAttended:   'Визит состоялся',
       commentPlaceholder:'Качество трафика, источники, акции...',
     },
     tracking: {
       clients:           'Посетителей',
-      consultations:     'Консультаций',
+      consultations:     'Обслужено',
       meetingsScheduled: 'Визитов план.',
       meetingsAttended:  'Визитов факт.',
     },
