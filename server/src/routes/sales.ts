@@ -41,7 +41,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     })
     const soldLeadIds = soldLeadsToday.map(l => l.id)
     const salesByUpdatedAt = soldLeadIds.length > 0
-      ? await prisma.sale.findMany({ where: { leadId: { in: soldLeadIds } }, orderBy: { createdAt: 'asc' } })
+      ? await prisma.sale.findMany({ where: { leadId: { in: soldLeadIds }, userId: req.user!.id }, orderBy: { createdAt: 'asc' } })
       : []
     // Merge, deduplicate by sale id
     const saleMap = new Map<string, any>()
