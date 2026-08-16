@@ -207,7 +207,7 @@ router.post('/companies', requireSuperAdmin, async (req: AdminRequest, res: Resp
     const existing = await prisma.user.findUnique({ where: { email: ownerEmail } })
     if (existing) return res.status(400).json({ error: 'Email already taken' })
 
-    const passwordHash = await bcrypt.hash(ownerPassword, 10)
+    const passwordHash = await bcrypt.hash(ownerPassword, 12)
     const company = await prisma.company.create({
       data: {
         name: companyName,
@@ -271,7 +271,7 @@ router.patch('/users/:id', requireSuperAdmin, async (req: AdminRequest, res: Res
     })
 
     let passwordHash: string | undefined
-    if (newPassword) passwordHash = await bcrypt.hash(newPassword, 10)
+    if (newPassword) passwordHash = await bcrypt.hash(newPassword, 12)
 
     if (email) {
       const existing = await prisma.user.findUnique({ where: { email } })
