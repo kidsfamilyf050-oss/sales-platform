@@ -7,14 +7,71 @@ import { authenticate, AuthRequest } from '../middleware/auth'
 const router = Router()
 const prisma = new PrismaClient()
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secret' // fallback for safety; set JWT_SECRET in Railway env!
-const JWT_EXPIRES = '30d'
+const JWT_SECRET = process.env.JWT_SECRET!  // must be set in Railway env vars — server refuses to start without it
+const JWT_EXPIRES = '7d'
+
+// ─── Password strength validation ────────────────────────────────────────────
+function validatePasswordStrength(password: string): string | null {
+  if (password.length < 8) return 'Пароль должен быть минимум 8 символов'
+  if (!/[0-9]/.test(password)) return 'Пароль должен содержать хотя бы одну цифру'
+  return null
+}
+
+// ─── Per-email brute-force protection ────────────────────────────────────────
+// In-memory store; resets on server restart. Upgrade to Redis for multi-instance setups.
+interface LoginRecord { count: number; firstAttempt: number; lockedUntil?: number }
+const loginAttempts = new Map<string, LoginRecord>()
+const MAX_ATTEMPTS  = 10
+const WINDOW_MS     = 15 * 60 * 1000  // 15 minutes
+const LOCKOUT_MS    = 30 * 60 * 1000  // 30-minute lockout after MAX_ATTEMPTS
+
+function checkLoginAllowed(email: string): { allowed: boolean; retryAfterMs?: number } {
+  const now  = Date.now()
+  const key  = email.toLowerCase()
+  const rec  = loginAttempts.get(key)
+  if (!rec) return { allowed: true }
+  // Locked out?
+  if (rec.lockedUntil && now < rec.lockedUntil) {
+    return { allowed: false, retryAfterMs: rec.lockedUntil - now }
+  }
+  // Window expired — reset
+  if (now - rec.firstAttempt > WINDOW_MS) {
+    loginAttempts.delete(key)
+    return { allowed: true }
+  }
+  return { allowed: true }
+}
+
+function recordLoginFailure(email: string) {
+  const now = Date.now()
+  const key = email.toLowerCase()
+  const rec = loginAttempts.get(key)
+  if (!rec) {
+    loginAttempts.set(key, { count: 1, firstAttempt: now })
+    return
+  }
+  // Reset window if expired
+  if (now - rec.firstAttempt > WINDOW_MS) {
+    loginAttempts.set(key, { count: 1, firstAttempt: now })
+    return
+  }
+  rec.count++
+  if (rec.count >= MAX_ATTEMPTS) {
+    rec.lockedUntil = now + LOCKOUT_MS
+  }
+}
+
+function clearLoginFailures(email: string) {
+  loginAttempts.delete(email.toLowerCase())
+}
 
 // Register (Owner creates company + account)
 // Protected by REGISTRATION_SECRET env variable if set
 router.post('/register', async (req: Request, res: Response) => {
   const { name, email, password, companyName, secret } = req.body
   if (!name || !email || !password) return res.status(400).json({ error: 'Missing fields' })
+  const pwErr = validatePasswordStrength(password)
+  if (pwErr) return res.status(400).json({ error: pwErr })
 
   const registrationSecret = process.env.REGISTRATION_SECRET
   if (registrationSecret && secret !== registrationSecret) {
@@ -36,7 +93,7 @@ router.post('/register', async (req: Request, res: Response) => {
         trialEndsAt,
       },
     })
-    const passwordHash = await bcrypt.hash(password, 10)
+    const passwordHash = await bcrypt.hash(password, 12)
     const user = await prisma.user.create({
       data: { name, email, passwordHash, role: 'OWNER', companyId: company.id },
     })
@@ -54,13 +111,27 @@ router.post('/login', async (req: Request, res: Response) => {
   const { email, password } = req.body
   if (!email || !password) return res.status(400).json({ error: 'Missing fields' })
 
+  // Per-email lockout check (guards against distributed brute-force across IPs)
+  const lock = checkLoginAllowed(email)
+  if (!lock.allowed) {
+    const mins = Math.ceil((lock.retryAfterMs ?? LOCKOUT_MS) / 60000)
+    return res.status(429).json({ error: `Слишком много неудачных попыток. Повторите через ${mins} мин.` })
+  }
+
   try {
     const user = await prisma.user.findUnique({ where: { email } })
-    if (!user || !user.passwordHash) return res.status(401).json({ error: 'Invalid credentials' })
+    if (!user || !user.passwordHash) {
+      recordLoginFailure(email)
+      return res.status(401).json({ error: 'Invalid credentials' })
+    }
     if (user.status === 'ARCHIVED') return res.status(401).json({ error: 'Account archived' })
 
     const valid = await bcrypt.compare(password, user.passwordHash)
-    if (!valid) return res.status(401).json({ error: 'Invalid credentials' })
+    if (!valid) {
+      recordLoginFailure(email)
+      return res.status(401).json({ error: 'Invalid credentials' })
+    }
+    clearLoginFailures(email)
 
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
     // Track session
@@ -104,6 +175,8 @@ router.get('/invite-info', async (req: Request, res: Response) => {
 router.post('/accept-invite', async (req: Request, res: Response) => {
   const { token, password } = req.body
   if (!token || !password) return res.status(400).json({ error: 'Missing fields' })
+  const pwErr = validatePasswordStrength(password)
+  if (pwErr) return res.status(400).json({ error: pwErr })
 
   try {
     const user = await prisma.user.findUnique({ where: { inviteToken: token } })
@@ -115,7 +188,7 @@ router.post('/accept-invite', async (req: Request, res: Response) => {
       return res.status(410).json({ error: 'Ссылка устарела. Попросите администратора сгенерировать новую.' })
     }
 
-    const passwordHash = await bcrypt.hash(password, 10)
+    const passwordHash = await bcrypt.hash(password, 12)
     const updated = await prisma.user.update({
       where: { id: user.id },
       data: { passwordHash, inviteToken: null },
@@ -158,8 +231,9 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 
     res.json({
       message: 'Инструкции по сбросу пароля сгенерированы.',
-      // Only expose resetUrl in response if SMTP is not configured (dev/staging only)
-      ...(process.env.NODE_ENV !== 'production' && !process.env.SMTP_HOST && { resetUrl, note: 'Email-провайдер не настроен. Скопируйте ссылку и передайте пользователю.' }),
+      // Expose resetUrl ONLY in local development (NODE_ENV=development).
+      // In production (Railway sets NODE_ENV=production) this is always omitted — configure SMTP instead.
+      ...(process.env.NODE_ENV === 'development' && { resetUrl, note: 'DEV ONLY: Скопируйте ссылку и передайте пользователю.' }),
     })
   } catch (e) {
     console.error(e)
@@ -171,12 +245,13 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 router.post('/reset-password', async (req: Request, res: Response) => {
   const { token, password } = req.body
   if (!token || !password) return res.status(400).json({ error: 'Missing fields' })
-  if (password.length < 8) return res.status(400).json({ error: 'Пароль должен быть минимум 8 символов' })
+  const resetPwErr = validatePasswordStrength(password)
+  if (resetPwErr) return res.status(400).json({ error: resetPwErr })
   try {
     const payload = jwt.verify(token, JWT_SECRET) as { userId: string; purpose: string }
     if (payload.purpose !== 'reset-password') return res.status(400).json({ error: 'Invalid token' })
 
-    const passwordHash = await bcrypt.hash(password, 10)
+    const passwordHash = await bcrypt.hash(password, 12)
     const user = await prisma.user.update({
       where: { id: payload.userId },
       data: { passwordHash },

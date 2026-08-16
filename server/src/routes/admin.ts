@@ -5,7 +5,7 @@ import { PrismaClient } from '@prisma/client'
 
 const router = Router()
 const prisma = new PrismaClient()
-const JWT_SECRET = process.env.JWT_SECRET || 'secret' // fallback for safety; set JWT_SECRET in Railway env!
+const JWT_SECRET = process.env.JWT_SECRET!  // must be set in Railway env vars — server refuses to start without it
 
 // ─── Super Admin Auth Middleware ───────────────────────────────────────────────
 interface AdminRequest extends Request {
@@ -48,7 +48,7 @@ router.post('/login', async (req: Request, res: Response) => {
     const valid = await bcrypt.compare(password, admin.passwordHash)
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' })
 
-    const token = jwt.sign({ adminId: admin.id, adminEmail: admin.email, superAdmin: true }, JWT_SECRET, { expiresIn: '7d' })
+    const token = jwt.sign({ adminId: admin.id, adminEmail: admin.email, superAdmin: true }, JWT_SECRET, { expiresIn: '24h' })
     res.json({ token, admin: { id: admin.id, email: admin.email } })
   } catch (e) {
     console.error(e)

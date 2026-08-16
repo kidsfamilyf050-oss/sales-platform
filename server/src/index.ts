@@ -6,9 +6,10 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-// ─── Guard: warn if JWT_SECRET is missing (set it in Railway env vars!) ───────
+// ─── Guard: crash immediately if JWT_SECRET is missing ───────────────────────
 if (!process.env.JWT_SECRET) {
-  console.warn('WARNING: JWT_SECRET is not set — using insecure fallback. Set it in Railway env vars immediately!')
+  console.error('FATAL: JWT_SECRET env var is not set. Set it in Railway → Variables before deploying.')
+  process.exit(1)
 }
 
 import authRoutes from './routes/auth'
@@ -42,6 +43,7 @@ app.use(helmet({
 // ─── CORS — allow our client origins ─────────────────────────────────────────
 const ALLOWED_ORIGINS = [
   process.env.CLIENT_URL,           // set this in Railway env vars!
+  process.env.ADMIN_URL,            // optional separate admin URL
   'http://localhost:5173',
   'http://localhost:4173',
 ].filter(Boolean) as string[]
@@ -50,28 +52,27 @@ app.use(cors({
   origin: (origin, cb) => {
     // Allow server-to-server (no origin header)
     if (!origin) return cb(null, true)
-    // Allow whitelisted origins
-    if (ALLOWED_ORIGINS.some(o => origin.startsWith(o))) return cb(null, true)
-    // Allow *.railway.app as a safe fallback (our own infra)
-    if (origin.endsWith('.railway.app')) return cb(null, true)
-    // Allow localhost in any form
-    if (origin.includes('localhost') || origin.includes('127.0.0.1')) return cb(null, true)
+    // Allow whitelisted origins (exact match or prefix)
+    if (ALLOWED_ORIGINS.some(o => origin === o || origin.startsWith(o + '/'))) return cb(null, true)
+    // Allow localhost in dev
+    if (process.env.NODE_ENV !== 'production' && (origin.includes('localhost') || origin.includes('127.0.0.1'))) return cb(null, true)
     cb(new Error(`CORS: origin ${origin} not allowed`))
   },
   credentials: true,
 }))
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
-// Strict limit on auth endpoints (login, register, password reset)
+// Tightest: login / register / password endpoints — 10 attempts per 15 min per IP
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20,                   // max 20 attempts per IP per window
+  windowMs: 15 * 60 * 1000,
+  max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Слишком много попыток. Повторите через 15 минут.' },
+  skipSuccessfulRequests: true, // only count failures toward the limit
 })
 
-// General API limit — prevent scraping / DoS
+// Broad: all other authenticated API calls — prevent scraping / DoS
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 300,
@@ -82,8 +83,11 @@ const apiLimiter = rateLimit({
 
 app.use(express.json({ limit: '2mb' })) // cap request body size
 
-app.use('/api/auth', authLimiter, authRoutes)  // strict rate limit on auth
-app.use('/api/admin', apiLimiter, adminRoutes) // admin panel also rate-limited
+// Global API rate limit — covers ALL /api/* routes
+app.use('/api', apiLimiter)
+
+app.use('/api/auth', authLimiter, authRoutes)  // stricter limit on auth
+app.use('/api/admin', authLimiter, adminRoutes) // admin panel uses same strict limit
 app.use('/api/company', companyRoutes)
 app.use('/api/users', usersRoutes)
 app.use('/api/reports', reportsRoutes)
