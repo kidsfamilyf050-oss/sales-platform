@@ -687,7 +687,7 @@ const ru = {
   'dash.conversionSub': 'лиды → продажи',
   'dash.owner.conversionSubMeetings': 'встречи → продажи',
   'dash.owner.conversionSubClients': 'клиенты → продажи',
-  'dash.rop.conversionSub': 'клиенты → продажи',
+  'dash.rop.conversionSub': 'встречи → продажи',
 
   // Funnel steps (short labels for Owner dashboard)
   'dash.funnel.leadsReceived': 'Лидов получено',
@@ -2064,7 +2064,7 @@ const kk: typeof ru = {
   'dash.conversionSub': 'лидтер → сатылым',
   'dash.owner.conversionSubMeetings': 'кездесулер → сатылым',
   'dash.owner.conversionSubClients': 'клиенттер → сатылым',
-  'dash.rop.conversionSub': 'клиенттер → сатылым',
+  'dash.rop.conversionSub': 'кездесулер → сатылым',
 
   // Funnel steps (short labels for Owner dashboard)
   'dash.funnel.leadsReceived': 'Лидтер алынды',

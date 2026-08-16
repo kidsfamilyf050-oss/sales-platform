@@ -252,7 +252,7 @@ export default function OwnerDashboard() {
         <StatCard label={t('dash.completion')} value={summary.planCompletion != null ? `${summary.planCompletion}%` : '—'}
           color={summary.planCompletion == null ? 'default' : summary.planCompletion >= 75 ? 'green' : summary.planCompletion >= 50 ? 'yellow' : 'red'} />
         <StatCard label={t('dash.conversion')} value={`${summary.conversion}%`}
-          sub={summary.totalMeetingsAttended > 0 ? t('dash.owner.conversionSubMeetings') : t('dash.owner.conversionSubClients')}
+          sub={t('dash.owner.conversionSubMeetings')}
           color={summary.conversion >= 20 ? 'green' : summary.conversion >= 10 ? 'yellow' : 'red'} />
         <div onClick={() => navigate('/owner/leads?tab=all-sales')} className="h-full cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:ring-2 hover:ring-blue-200 rounded-xl transition-all duration-150">
           <StatCard label={t('dash.salesCount')} value={summary.totalSalesCount ?? 0} />

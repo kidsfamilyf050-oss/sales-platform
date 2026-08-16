@@ -408,7 +408,7 @@ router.get('/owner', authenticate, async (req: AuthRequest, res: Response) => {
 
     // Fact = total sales minus dojim (carryover) — leads created THIS period
     const factSalesAmount    = totalSalesAmount - ownerCarryoverRevenue
-    const factSalesCount     = Math.max(0, totalSalesCount - ownerCarryoverCount)
+    const factSalesCount     = Math.max(0, totalSalesCount - ownerCarryoverCount - ownerFactRefundLeads.length)
     const factNetSales         = factSalesAmount - ownerFactRefundTotal   // only fact refunds reduce fact
     const ownerDojimNetRevenue = ownerCarryoverRevenue - ownerDojimRefundTotal  // dojim refunds reduce dojim
     const ownerDojimNetCount   = Math.max(0, ownerCarryoverCount - ownerDojimRefundLeads.length)
