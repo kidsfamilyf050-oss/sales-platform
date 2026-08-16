@@ -473,7 +473,7 @@ router.get('/all', authenticate, async (req: AuthRequest, res: Response) => {
     const leads = await prisma.lead.findMany({
       where,
       include: INCLUDE_FULL,
-      orderBy: { createdAt: 'desc' },
+      orderBy: status === 'REFUSED' ? { updatedAt: 'desc' } : { createdAt: 'desc' },
     })
     // For SOLD leads: compute isDojim flag (lead created before dealCycleMonths before period start)
     let result: any[] = leads

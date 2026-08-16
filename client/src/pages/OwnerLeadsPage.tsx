@@ -12,6 +12,11 @@ function fmtDate(s: string) {
   const d = new Date(s + 'T12:00:00')
   return d.toLocaleDateString('ru', { day: 'numeric', month: 'short', year: 'numeric' })
 }
+function fmtISO(s: string) {
+  if (!s) return ''
+  const d = new Date(s)
+  return d.toLocaleDateString('ru', { day: 'numeric', month: 'short', year: 'numeric' })
+}
 function fmtMoney(n: number) { return n.toLocaleString('ru') }
 function daysAgo(dateStr: string) {
   const d = new Date(dateStr + 'T12:00:00')
@@ -180,6 +185,11 @@ function LeadRow({ lead, tab, onSelect }: { lead: any; tab: TabType; onSelect: (
           {tab === 'consultations' && lead.status === 'SOLD' && netAmt > 0 && (
             <span className="text-xs font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
               Продажа · ₸ {fmtMoney(netAmt)}
+            </span>
+          )}
+          {tab === 'refusals' && lead.updatedAt && (
+            <span className="text-xs text-red-500 font-medium bg-red-50 px-1.5 py-0.5 rounded-full">
+              Отказ: {fmtISO(lead.updatedAt)}
             </span>
           )}
           {tab === 'refusals' && lead.lossReason && (
