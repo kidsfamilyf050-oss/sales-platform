@@ -13,13 +13,15 @@ async function main() {
     process.exit(1)
   }
 
+  const passwordHash = await bcrypt.hash(password, 12)
   const existing = await prisma.superAdmin.findUnique({ where: { email } })
   if (!existing) {
-    const passwordHash = await bcrypt.hash(password, 12)
     await prisma.superAdmin.create({ data: { email, passwordHash } })
     console.log(`✅ Super admin created: ${email}`)
   } else {
-    console.log(`ℹ️  Super admin already exists: ${email}`)
+    // Always update the hash — keeps DB in sync with current env var password
+    await prisma.superAdmin.update({ where: { email }, data: { passwordHash } })
+    console.log(`✅ Super admin password updated: ${email}`)
   }
 }
 
