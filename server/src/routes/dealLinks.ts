@@ -97,7 +97,7 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   if (!link) return res.status(400).json({ error: 'link required' })
   try {
     const dl = await prisma.dealLink.findUnique({ where: { id: req.params.id } })
-    if (!dl) return res.status(404).json({ error: 'Not found' })
+    if (!dl || dl.companyId !== req.user!.companyId) return res.status(404).json({ error: 'Not found' })
     if (dl.userId !== req.user!.id && req.user!.role !== 'OWNER' && req.user!.role !== 'ROP') {
       return res.status(403).json({ error: 'Forbidden' })
     }
@@ -115,7 +115,7 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const dl = await prisma.dealLink.findUnique({ where: { id: req.params.id } })
-    if (!dl) return res.status(404).json({ error: 'Not found' })
+    if (!dl || dl.companyId !== req.user!.companyId) return res.status(404).json({ error: 'Not found' })
     if (dl.userId !== req.user!.id && req.user!.role !== 'OWNER' && req.user!.role !== 'ROP') {
       return res.status(403).json({ error: 'Forbidden' })
     }

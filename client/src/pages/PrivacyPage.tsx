@@ -1,17 +1,22 @@
 import { Link } from 'react-router-dom'
 import { ArrowLeft, BarChart2 } from 'lucide-react'
 
+const EFFECTIVE_DATE = '1 сентября 2026 г.'
+const SERVICE_NAME   = 'SalesPlatform'
+const CONTACT_EMAIL  = 'support@salesplatform.kz'   // TODO: замените на реальный email
+const COMPANY_NAME   = '[НАЗВАНИЕ КОМПАНИИ / ИП]'   // TODO: заполните после регистрации юрлица
+
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Nav */}
+      {/* Навигация */}
       <nav className="border-b border-gray-100 sticky top-0 bg-white/90 backdrop-blur z-10">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
               <BarChart2 className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-gray-900">SalesPlatform</span>
+            <span className="font-bold text-gray-900">{SERVICE_NAME}</span>
           </div>
           <Link to="/" className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors">
             <ArrowLeft className="w-4 h-4" /> На главную
@@ -19,165 +24,257 @@ export default function PrivacyPage() {
         </div>
       </nav>
 
-      <main className="max-w-3xl mx-auto px-6 py-12">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Политика конфиденциальности</h1>
-        <p className="text-sm text-gray-400 mb-10">Дата вступления в силу: 1 января 2025 года</p>
+      <div className="max-w-3xl mx-auto px-6 py-12">
+        {/* Заголовок */}
+        <div className="mb-10">
+          <p className="text-sm text-blue-600 font-medium uppercase tracking-wide mb-2">Правовые документы</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-3">Политика конфиденциальности</h1>
+          <p className="text-gray-500 text-sm">Дата вступления в силу: {EFFECTIVE_DATE}</p>
+        </div>
 
-        <div className="max-w-none space-y-8 text-gray-700 leading-relaxed">
+        {/* Вводный блок */}
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-8">
+          <p className="text-blue-800 text-sm leading-relaxed">
+            Мы серьёзно относимся к защите данных. Этот документ объясняет, какие данные мы собираем,
+            зачем и как защищаем. Если у вас есть вопросы — пишите на{' '}
+            <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium underline">{CONTACT_EMAIL}</a>.
+          </p>
+        </div>
 
+        <div className="space-y-8 text-[15px] leading-relaxed">
+
+          {/* 1 */}
           <section>
-            <h2 className="text-lg font-bold text-gray-900 mb-3">1. Общие положения</h2>
-            <p>
-              Настоящая Политика конфиденциальности (далее — «Политика») описывает, какие персональные данные
-              собирает SalesPlatform (далее — «Оператор»), как они используются, хранятся и защищаются.
-              Политика распространяется на всех пользователей сервиса SalesPlatform.
-            </p>
-            <p className="mt-3">
-              Используя Сервис, вы выражаете согласие с условиями настоящей Политики.
-              Если вы не согласны с её условиями, пожалуйста, прекратите использование Сервиса.
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">1. Кто мы</h2>
+            <p className="text-gray-700">
+              {COMPANY_NAME} (далее — «мы», «Оператор») управляет сервисом {SERVICE_NAME} —
+              CRM-платформой для управления продажами, доступной по адресу в сети интернет.
+              Мы являемся оператором персональных данных в соответствии с Законом Республики Казахстан
+              «О персональных данных и их защите» от 21 мая 2013 года № 94-V (далее — Закон о ПД).
             </p>
           </section>
 
+          {/* 2 */}
           <section>
-            <h2 className="text-lg font-bold text-gray-900 mb-3">2. Какие данные мы собираем</h2>
-            <p className="font-medium text-gray-800 mb-2">Данные, которые вы предоставляете напрямую:</p>
-            <ul className="list-disc pl-5 space-y-1.5">
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">2. Какие данные мы собираем</h2>
+
+            <p className="text-gray-700 font-medium mb-2">2.1 Данные учётной записи</p>
+            <ul className="list-disc ml-6 space-y-1 text-gray-700">
               <li>Имя и фамилия</li>
               <li>Адрес электронной почты</li>
-              <li>Номер телефона (при указании)</li>
+              <li>Номер телефона (необязательно)</li>
               <li>Название компании</li>
-              <li>Данные об отделе продаж (планы, результаты, показатели)</li>
+              <li>Хэшированный пароль (мы не знаем ваш пароль в открытом виде)</li>
             </ul>
-            <p className="font-medium text-gray-800 mb-2 mt-4">Данные, собираемые автоматически:</p>
-            <ul className="list-disc pl-5 space-y-1.5">
-              <li>IP-адрес и тип браузера</li>
-              <li>Страницы Сервиса, которые вы посещаете</li>
-              <li>Время и дата действий в Сервисе</li>
-              <li>Технические данные устройства</li>
+
+            <p className="text-gray-700 font-medium mt-4 mb-2">2.2 Рабочие данные (вносятся вами)</p>
+            <ul className="list-disc ml-6 space-y-1 text-gray-700">
+              <li>Данные ваших клиентов (имена, телефоны, суммы сделок)</li>
+              <li>Данные ваших сотрудников, добавленных вами в систему</li>
+              <li>История сделок, лидов, задач</li>
+            </ul>
+            <p className="text-gray-600 text-sm mt-2">
+              Эти данные принадлежат вам. Мы обрабатываем их исключительно для предоставления вам сервиса.
+            </p>
+
+            <p className="text-gray-700 font-medium mt-4 mb-2">2.3 Технические данные</p>
+            <ul className="list-disc ml-6 space-y-1 text-gray-700">
+              <li>IP-адрес при входе в систему</li>
+              <li>User-agent браузера</li>
+              <li>Дата и время последнего входа</li>
+              <li>Журналы активности (для безопасности)</li>
             </ul>
           </section>
 
+          {/* 3 */}
           <section>
-            <h2 className="text-lg font-bold text-gray-900 mb-3">3. Как мы используем данные</h2>
-            <ul className="list-disc pl-5 space-y-2">
-              <li>Предоставление и улучшение функциональности Сервиса.</li>
-              <li>Аутентификация пользователей и защита аккаунтов.</li>
-              <li>Обработка платежей и выставление счетов.</li>
-              <li>Отправка уведомлений, связанных с работой Сервиса.</li>
-              <li>Техническая поддержка и ответы на запросы.</li>
-              <li>Анализ использования для улучшения продукта (в обезличенном виде).</li>
-            </ul>
-            <p className="mt-3">
-              Мы не используем ваши данные для продажи рекламы и не передаём их
-              рекламным сетям.
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">3. Для чего мы используем данные</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="text-left p-3 border border-gray-200 font-medium text-gray-700">Цель</th>
+                    <th className="text-left p-3 border border-gray-200 font-medium text-gray-700">Основание</th>
+                  </tr>
+                </thead>
+                <tbody className="text-gray-700">
+                  <tr>
+                    <td className="p-3 border border-gray-200">Идентификация и вход в систему</td>
+                    <td className="p-3 border border-gray-200">Исполнение договора</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="p-3 border border-gray-200">Отображение ваших данных в интерфейсе</td>
+                    <td className="p-3 border border-gray-200">Исполнение договора</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 border border-gray-200">Отправка системных уведомлений</td>
+                    <td className="p-3 border border-gray-200">Исполнение договора</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="p-3 border border-gray-200">Восстановление пароля</td>
+                    <td className="p-3 border border-gray-200">Исполнение договора</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 border border-gray-200">Защита от несанкционированного доступа</td>
+                    <td className="p-3 border border-gray-200">Законный интерес</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="p-3 border border-gray-200">Техническая поддержка</td>
+                    <td className="p-3 border border-gray-200">Исполнение договора</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="text-gray-700 mt-3">
+              Мы не используем ваши данные для рекламы, не продаём их и не передаём третьим лицам
+              в маркетинговых целях.
             </p>
           </section>
 
+          {/* 4 */}
           <section>
-            <h2 className="text-lg font-bold text-gray-900 mb-3">4. Хранение и защита данных</h2>
-            <p>
-              Данные хранятся на защищённых серверах с применением современных методов шифрования
-              (TLS/HTTPS для передачи, шифрование на уровне базы данных для хранения).
-              Мы проводим регулярное резервное копирование.
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">4. Кому мы передаём данные</h2>
+            <p className="text-gray-700">
+              Мы можем передавать данные только следующим категориям получателей:
             </p>
-            <p className="mt-3">
-              Срок хранения данных — в течение всего срока действия договора и 1 год после его расторжения,
-              если иное не предусмотрено законодательством Республики Казахстан.
-            </p>
-            <p className="mt-3">
-              После истечения срока хранения данные удаляются или обезличиваются.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-lg font-bold text-gray-900 mb-3">5. Передача данных третьим лицам</h2>
-            <p>Мы не продаём и не передаём ваши персональные данные третьим лицам, за исключением:</p>
-            <ul className="list-disc pl-5 space-y-2 mt-3">
+            <ul className="list-disc ml-6 mt-2 space-y-2 text-gray-700">
               <li>
-                <strong>Поставщики инфраструктуры</strong> — облачные провайдеры для хранения данных
-                и обеспечения работы Сервиса (только в объёме, необходимом для оказания услуг).
+                <span className="font-medium">Инфраструктурные провайдеры</span> — облачный хостинг
+                (Railway / обработчик БД). Данные хранятся на защищённых серверах. Провайдеры не имеют
+                доступа к содержимому данных.
               </li>
               <li>
-                <strong>Платёжные системы</strong> — при обработке оплаты (данные карт нам не передаются).
+                <span className="font-medium">Почтовый провайдер</span> — для отправки системных писем
+                (приглашения, сброс пароля). Передаётся только email-адрес.
               </li>
               <li>
-                <strong>Требования законодательства</strong> — если это обязательно по закону или
-                по запросу уполномоченных органов Республики Казахстан.
+                <span className="font-medium">Государственные органы</span> — исключительно по законному
+                требованию в рамках законодательства РК.
               </li>
             </ul>
           </section>
 
+          {/* 5 */}
           <section>
-            <h2 className="text-lg font-bold text-gray-900 mb-3">6. Ваши права</h2>
-            <p>Вы вправе в любой момент:</p>
-            <ul className="list-disc pl-5 space-y-2 mt-3">
-              <li>Запросить доступ к своим персональным данным.</li>
-              <li>Исправить неточные или неполные данные.</li>
-              <li>Запросить удаление своих данных (в разумных пределах, установленных законом).</li>
-              <li>Экспортировать данные, внесённые в Сервис.</li>
-              <li>Отозвать согласие на обработку данных, прекратив использование Сервиса.</li>
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">5. Как мы защищаем данные</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+              {[
+                { icon: '🔐', title: 'Шифрование паролей', desc: 'Пароли хранятся в виде bcrypt-хэша. Мы никогда не знаем ваш пароль.' },
+                { icon: '🔑', title: 'JWT-токены', desc: 'Сессии защищены токенами с ограниченным сроком действия (7 дней).' },
+                { icon: '🛡️', title: 'HTTPS', desc: 'Все соединения шифруются по протоколу TLS.' },
+                { icon: '🚫', title: 'Защита от перебора', desc: 'Блокировка входа после 10 неудачных попыток в течение 15 минут.' },
+                { icon: '🔒', title: 'Изоляция данных', desc: 'Данные каждой компании строго изолированы — другие клиенты не имеют к ним доступа.' },
+                { icon: '📋', title: 'Журнал действий', desc: 'Все административные действия записываются в журнал аудита.' },
+              ].map(item => (
+                <div key={item.title} className="bg-gray-50 rounded-xl p-4">
+                  <p className="font-medium text-gray-900 mb-1">{item.icon} {item.title}</p>
+                  <p className="text-sm text-gray-600">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* 6 */}
+          <section>
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">6. Сроки хранения данных</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="text-left p-3 border border-gray-200 font-medium text-gray-700">Тип данных</th>
+                    <th className="text-left p-3 border border-gray-200 font-medium text-gray-700">Срок хранения</th>
+                  </tr>
+                </thead>
+                <tbody className="text-gray-700">
+                  <tr>
+                    <td className="p-3 border border-gray-200">Данные учётной записи</td>
+                    <td className="p-3 border border-gray-200">До удаления аккаунта + 30 дней</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="p-3 border border-gray-200">Данные лидов и сделок</td>
+                    <td className="p-3 border border-gray-200">До расторжения договора + 30 дней</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 border border-gray-200">Журналы безопасности (IP, user-agent)</td>
+                    <td className="p-3 border border-gray-200">90 дней</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="p-3 border border-gray-200">Журналы аудита</td>
+                    <td className="p-3 border border-gray-200">1 год</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* 7 */}
+          <section>
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">7. Ваши права как субъекта данных</h2>
+            <p className="text-gray-700 mb-3">
+              В соответствии с Законом РК о персональных данных вы имеете право:
+            </p>
+            <ul className="list-disc ml-6 space-y-2 text-gray-700">
+              <li><span className="font-medium">Доступ</span> — запросить, какие данные мы храним о вас.</li>
+              <li><span className="font-medium">Исправление</span> — потребовать исправить неточные данные.</li>
+              <li><span className="font-medium">Удаление</span> — потребовать удалить ваши данные (право на забвение).</li>
+              <li><span className="font-medium">Экспорт</span> — получить ваши данные в машиночитаемом формате.</li>
+              <li><span className="font-medium">Ограничение</span> — потребовать приостановить обработку ваших данных.</li>
+              <li><span className="font-medium">Отзыв согласия</span> — в случаях, когда обработка основана на согласии.</li>
             </ul>
-            <p className="mt-3">
-              Для реализации прав направьте запрос на адрес: <strong>support@salesplatform.kz</strong>
+            <p className="text-gray-700 mt-3">
+              Для реализации прав направьте запрос на{' '}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="text-blue-600 hover:underline">{CONTACT_EMAIL}</a>.
+              Мы рассмотрим обращение в течение 15 рабочих дней.
             </p>
           </section>
 
+          {/* 8 */}
           <section>
-            <h2 className="text-lg font-bold text-gray-900 mb-3">7. Cookies</h2>
-            <p>
-              Сервис использует cookies — небольшие текстовые файлы, сохраняемые в вашем браузере.
-              Cookies применяются для:
-            </p>
-            <ul className="list-disc pl-5 space-y-1.5 mt-3">
-              <li>Поддержания сессии авторизации (обязательные cookies).</li>
-              <li>Сохранения пользовательских настроек (язык интерфейса и др.).</li>
-            </ul>
-            <p className="mt-3">
-              Мы не используем рекламные или трекинговые cookies. Вы можете отключить cookies
-              в настройках браузера, однако это может нарушить работу Сервиса.
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">8. Cookie и аналитика</h2>
+            <p className="text-gray-700">
+              Сервис использует только технически необходимые cookie для поддержания сессии пользователя.
+              Мы не устанавливаем аналитических, рекламных или маркетинговых cookie. Сторонние трекеры
+              не подключены.
             </p>
           </section>
 
+          {/* 9 */}
           <section>
-            <h2 className="text-lg font-bold text-gray-900 mb-3">8. Дети</h2>
-            <p>
-              Сервис предназначен для использования лицами, достигшими 18 лет.
-              Мы не собираем намеренно персональные данные лиц, не достигших этого возраста.
-              Если вам стало известно о предоставлении несовершеннолетним своих данных, просим
-              незамедлительно уведомить нас.
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">9. Изменения политики</h2>
+            <p className="text-gray-700">
+              Мы можем обновлять настоящую политику. О существенных изменениях мы уведомим вас по
+              электронной почте не менее чем за 15 дней. Актуальная версия всегда доступна по адресу
+              /privacy на сайте сервиса.
             </p>
           </section>
 
+          {/* 10 */}
           <section>
-            <h2 className="text-lg font-bold text-gray-900 mb-3">9. Изменения в Политике</h2>
-            <p>
-              Оператор вправе периодически обновлять настоящую Политику. О существенных изменениях
-              мы уведомим вас по электронной почте или через интерфейс Сервиса. Продолжение
-              использования Сервиса после уведомления означает ваше согласие с обновлённой Политикой.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-lg font-bold text-gray-900 mb-3">10. Контакты</h2>
-            <p>По вопросам, связанным с обработкой персональных данных, обращайтесь:</p>
-            <ul className="list-none mt-3 space-y-1">
-              <li><strong>Email:</strong> support@salesplatform.kz</li>
-              <li><strong>Сайт:</strong> salesplatform.kz</li>
-            </ul>
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">10. Контакты</h2>
+            <div className="bg-gray-50 rounded-xl p-5 space-y-2 text-sm text-gray-700">
+              <p><span className="font-medium">Оператор персональных данных:</span> {COMPANY_NAME}</p>
+              <p>
+                <span className="font-medium">Email:</span>{' '}
+                <a href={`mailto:${CONTACT_EMAIL}`} className="text-blue-600 hover:underline">{CONTACT_EMAIL}</a>
+              </p>
+              <p className="text-gray-500 text-xs pt-1">
+                По вопросам защиты персональных данных вы также вправе обратиться в уполномоченный
+                орган — Министерство цифрового развития, инноваций и аэрокосмической промышленности РК.
+              </p>
+            </div>
           </section>
 
         </div>
-      </main>
 
-      <footer className="border-t border-gray-100 py-6 px-6 mt-8">
-        <div className="max-w-3xl mx-auto flex items-center justify-between text-sm text-gray-400 flex-wrap gap-3">
-          <span>© {new Date().getFullYear()} SalesPlatform. Все права защищены.</span>
-          <div className="flex items-center gap-4">
-            <Link to="/" className="hover:text-gray-700 transition-colors">На главную</Link>
-            <Link to="/oferta" className="hover:text-gray-700 transition-colors">Оферта</Link>
+        {/* Подвал */}
+        <div className="mt-12 pt-8 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-400">
+          <p>© {new Date().getFullYear()} {SERVICE_NAME}. Все права защищены.</p>
+          <div className="flex gap-6">
+            <Link to="/oferta" className="hover:text-gray-600 transition-colors">Оферта</Link>
+            <Link to="/privacy" className="hover:text-gray-600 transition-colors font-medium text-gray-600">Политика конфиденциальности</Link>
           </div>
         </div>
-      </footer>
+      </div>
     </div>
   )
 }

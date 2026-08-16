@@ -137,8 +137,8 @@ router.get('/planned-payments', authenticate, async (req: AuthRequest, res: Resp
 // PUT /api/lead-tasks/:id — update (toggle complete, change title/date)
 router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const task = await prisma.leadTask.findUnique({ where: { id: req.params.id } })
-    if (!task) return res.status(404).json({ error: 'Not found' })
+    const task = await prisma.leadTask.findUnique({ where: { id: req.params.id }, include: { user: { select: { companyId: true } } } })
+    if (!task || task.user.companyId !== req.user!.companyId) return res.status(404).json({ error: 'Not found' })
     // Allow: assignee, creator (ROP), OWNER/ROP
     const isAllowed = task.userId === req.user!.id
       || task.createdById === req.user!.id
@@ -165,8 +165,8 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 // DELETE /api/lead-tasks/:id
 router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const task = await prisma.leadTask.findUnique({ where: { id: req.params.id } })
-    if (!task) return res.status(404).json({ error: 'Not found' })
+    const task = await prisma.leadTask.findUnique({ where: { id: req.params.id }, include: { user: { select: { companyId: true } } } })
+    if (!task || task.user.companyId !== req.user!.companyId) return res.status(404).json({ error: 'Not found' })
     const isAllowed = task.userId === req.user!.id
       || task.createdById === req.user!.id
       || req.user!.role === 'OWNER'

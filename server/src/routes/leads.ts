@@ -572,7 +572,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
-    if (!lead) return res.status(404).json({ error: 'Not found' })
+    if (!lead || lead.companyId !== req.user!.companyId) return res.status(404).json({ error: 'Not found' })
 
     const role = req.user!.role
     const isCreator = lead.createdById === req.user!.id
@@ -644,7 +644,7 @@ router.put('/:id/assign', authenticate, async (req: AuthRequest, res: Response) 
   if (!assignedToId) return res.status(400).json({ error: 'assignedToId required' })
   try {
     const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
-    if (!lead) return res.status(404).json({ error: 'Not found' })
+    if (!lead || lead.companyId !== req.user!.companyId) return res.status(404).json({ error: 'Not found' })
     if (lead.createdById !== req.user!.id && req.user!.role !== 'OWNER' && req.user!.role !== 'ROP') {
       return res.status(403).json({ error: 'Forbidden' })
     }
@@ -665,7 +665,7 @@ router.put('/:id/transfer', authenticate, async (req: AuthRequest, res: Response
   if (!newCloserId) return res.status(400).json({ error: 'newCloserId required' })
   try {
     const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
-    if (!lead) return res.status(404).json({ error: 'Not found' })
+    if (!lead || lead.companyId !== req.user!.companyId) return res.status(404).json({ error: 'Not found' })
     // Current assignee OR admin can transfer
     const role = req.user!.role
     if (lead.assignedToId !== req.user!.id && role !== 'OWNER' && role !== 'ROP') {
@@ -686,7 +686,7 @@ router.put('/:id/transfer', authenticate, async (req: AuthRequest, res: Response
 router.put('/:id/accept', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
-    if (!lead) return res.status(404).json({ error: 'Not found' })
+    if (!lead || lead.companyId !== req.user!.companyId) return res.status(404).json({ error: 'Not found' })
     if (lead.assignedToId !== req.user!.id) return res.status(403).json({ error: 'Forbidden' })
     if (lead.status !== 'ASSIGNED') return res.status(400).json({ error: 'Lead is not in ASSIGNED state' })
     const updated = await prisma.lead.update({
@@ -710,7 +710,7 @@ router.put('/:id/consult-result', authenticate, async (req: AuthRequest, res: Re
   }
   try {
     const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
-    if (!lead) return res.status(404).json({ error: 'Not found' })
+    if (!lead || lead.companyId !== req.user!.companyId) return res.status(404).json({ error: 'Not found' })
     if (lead.assignedToId !== req.user!.id) return res.status(403).json({ error: 'Forbidden' })
     const updated = await prisma.lead.update({
       where: { id: req.params.id },
@@ -731,7 +731,7 @@ router.put('/:id/refuse', authenticate, async (req: AuthRequest, res: Response) 
   const { crmLink, lossReasonId } = req.body
   try {
     const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
-    if (!lead) return res.status(404).json({ error: 'Not found' })
+    if (!lead || lead.companyId !== req.user!.companyId) return res.status(404).json({ error: 'Not found' })
     if (lead.assignedToId !== req.user!.id) return res.status(403).json({ error: 'Forbidden' })
     const finalCrmLink = crmLink?.trim() || lead.crmLink
     if (!finalCrmLink) return res.status(400).json({ error: 'Нужна CRM-ссылка для отказа' })
@@ -761,7 +761,7 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
   }
   try {
     const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
-    if (!lead) return res.status(404).json({ error: 'Not found' })
+    if (!lead || lead.companyId !== req.user!.companyId) return res.status(404).json({ error: 'Not found' })
     if (lead.assignedToId !== req.user!.id) return res.status(403).json({ error: 'Forbidden' })
 
     const numAmount = Number(amount)
@@ -852,7 +852,7 @@ router.put('/:id/sell', authenticate, async (req: AuthRequest, res: Response) =>
 router.put('/:id/restore', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
-    if (!lead) return res.status(404).json({ error: 'Not found' })
+    if (!lead || lead.companyId !== req.user!.companyId) return res.status(404).json({ error: 'Not found' })
     if (lead.assignedToId !== req.user!.id && req.user!.role !== 'OWNER' && req.user!.role !== 'ROP') {
       return res.status(403).json({ error: 'Forbidden' })
     }
@@ -871,7 +871,7 @@ router.put('/:id/restore', authenticate, async (req: AuthRequest, res: Response)
 router.put('/:id/qualify', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
-    if (!lead) return res.status(404).json({ error: 'Not found' })
+    if (!lead || lead.companyId !== req.user!.companyId) return res.status(404).json({ error: 'Not found' })
     if (lead.createdById !== req.user!.id && req.user!.role !== 'OWNER' && req.user!.role !== 'ROP') {
       return res.status(403).json({ error: 'Forbidden' })
     }
@@ -891,7 +891,7 @@ router.put('/:id/qualify', authenticate, async (req: AuthRequest, res: Response)
 router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
-    if (!lead) return res.status(404).json({ error: 'Not found' })
+    if (!lead || lead.companyId !== req.user!.companyId) return res.status(404).json({ error: 'Not found' })
     const role = req.user!.role
     const isAssigned = lead.assignedToId === req.user!.id
     const isCreator  = lead.createdById === req.user!.id
@@ -913,7 +913,7 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 router.put('/:id/undelete', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
-    if (!lead) return res.status(404).json({ error: 'Not found' })
+    if (!lead || lead.companyId !== req.user!.companyId) return res.status(404).json({ error: 'Not found' })
     const role = req.user!.role
     const isAssigned = lead.assignedToId === req.user!.id
     const isCreator  = lead.createdById === req.user!.id
@@ -935,7 +935,7 @@ router.put('/:id/undelete', authenticate, async (req: AuthRequest, res: Response
 router.put('/:id/refund', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const lead = await prisma.lead.findUnique({ where: { id: req.params.id } })
-    if (!lead) return res.status(404).json({ error: 'Not found' })
+    if (!lead || lead.companyId !== req.user!.companyId) return res.status(404).json({ error: 'Not found' })
     if (lead.assignedToId !== req.user!.id && req.user!.role !== 'OWNER' && req.user!.role !== 'ROP') {
       return res.status(403).json({ error: 'Forbidden' })
     }
