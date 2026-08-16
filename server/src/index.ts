@@ -54,9 +54,13 @@ app.use(cors({
     if (!origin) return cb(null, true)
     // Allow whitelisted origins (exact match or prefix)
     if (ALLOWED_ORIGINS.some(o => origin === o || origin.startsWith(o + '/'))) return cb(null, true)
-    // Allow localhost in dev
-    if (process.env.NODE_ENV !== 'production' && (origin.includes('localhost') || origin.includes('127.0.0.1'))) return cb(null, true)
-    cb(new Error(`CORS: origin ${origin} not allowed`))
+    // Allow *.railway.app — our own infrastructure (frontend + API are both on Railway)
+    if (origin.endsWith('.railway.app')) return cb(null, true)
+    // Allow localhost in any form
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) return cb(null, true)
+    // Reject unknown origins with 403 (not 500 — never throw from CORS callback)
+    console.warn(`[CORS] blocked origin: ${origin}`)
+    cb(null, false)
   },
   credentials: true,
 }))
