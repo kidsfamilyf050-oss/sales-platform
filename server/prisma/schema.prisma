@@ -26,6 +26,9 @@ model Company {
   subscriptionPlan String?   // "trial", "starter", "pro"
   trialEndsAt      DateTime?
   notes            String?
+  paidAt           DateTime? // дата последней оплаты
+  paidAmount       Float?    // сумма оплаты в тенге
+  paymentNote      String?   // произвольная заметка об оплате (напр. "Kaspi перевод")
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
