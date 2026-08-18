@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   BarChart2, TrendingUp, Users, Target, CheckCircle, ArrowRight,
-  Zap, Shield, BarChart, Clock, Eye, XCircle, ChevronDown, ChevronRight,
+  Zap, BarChart, XCircle, ChevronDown, ChevronRight,
   AlertTriangle, Phone, MessageSquare, X, Check,
 } from 'lucide-react'
 import { useAuthStore } from '../store/auth'
@@ -11,13 +11,38 @@ import LanguageSwitcher from '../components/ui/LanguageSwitcher'
 
 // ── Dashboard Mockup ────────────────────────────────────────────────────────
 function DashboardMockup() {
+  const { t } = useT()
+  const periods = [t('mock.period.today' as any), t('mock.period.week' as any), t('mock.period.month' as any)]
+  const kpis = [
+    { label: t('mock.kpi.sales' as any), value: '₸18.4 млн', sub: t('mock.kpi.sales.sub' as any), vc: 'text-emerald-600' },
+    { label: t('mock.kpi.conv' as any),  value: '34%',        sub: t('mock.kpi.conv.sub' as any),  vc: 'text-blue-600' },
+    { label: t('mock.kpi.check' as any), value: '₸460К',      sub: t('mock.kpi.check.sub' as any), vc: 'text-purple-600' },
+    { label: t('mock.kpi.lead' as any),  value: '₸12 800',    sub: t('mock.kpi.lead.sub' as any),  vc: 'text-amber-600' },
+  ]
+  const funnel = [
+    { label: t('mock.funnel.leads' as any), val: 144, pct: 100, color: 'bg-purple-500' },
+    { label: t('mock.funnel.qual' as any),  val: 98,  pct: 68,  color: 'bg-blue-500' },
+    { label: t('mock.funnel.meet' as any),  val: 61,  pct: 42,  color: 'bg-blue-400' },
+    { label: t('mock.funnel.sales' as any), val: 40,  pct: 28,  color: 'bg-emerald-500' },
+  ]
+  const managers = [
+    { rank: 1, name: 'Айгерим К.', dept: t('mock.dept.a' as any), sales: '₸5.2М', pct: 104, deals: 21, trend: '+12%', pctBar: 100, tc: 'text-emerald-600', bg: 'bg-emerald-500', rankBg: 'bg-emerald-100 text-emerald-700' },
+    { rank: 2, name: 'Данияр М.',  dept: t('mock.dept.a' as any), sales: '₸4.8М', pct: 96,  deals: 18, trend: '+5%',  pctBar: 92,  tc: 'text-blue-600',   bg: 'bg-blue-500',   rankBg: 'bg-blue-100 text-blue-700' },
+    { rank: 3, name: 'Асель Н.',   dept: t('mock.dept.b' as any), sales: '₸3.9М', pct: 78,  deals: 14, trend: '-3%',  pctBar: 75,  tc: 'text-amber-600',  bg: 'bg-amber-500',  rankBg: 'bg-amber-100 text-amber-700' },
+  ]
+  const bars = [
+    {v:2.1},{v:2.9},{v:1.7},{v:3.6},{v:2.5},{v:3.2},{v:1.9},{v:4.0},
+    {v:3.0},{v:3.7},{v:2.2},{v:3.1},{v:4.2},{v:2.7},
+  ]
+  const maxBar = 4.2
+
   return (
     <div className="w-full rounded-2xl overflow-hidden shadow-2xl shadow-blue-100 border border-gray-200 bg-white select-none">
       <div className="flex items-center gap-1.5 px-4 py-3 bg-gray-50 border-b border-gray-200">
         <span className="w-3 h-3 rounded-full bg-red-400" />
         <span className="w-3 h-3 rounded-full bg-yellow-400" />
         <span className="w-3 h-3 rounded-full bg-green-400" />
-        <span className="flex-1 text-center text-xs text-gray-400 mx-4">SalesPlatform — Дашборд собственника</span>
+        <span className="flex-1 text-center text-xs text-gray-400 mx-4">{t('mock.dashboard.tab' as any)}</span>
       </div>
       <div className="flex">
         <div className="w-14 bg-white border-r border-gray-100 py-4 flex flex-col items-center gap-3">
@@ -33,22 +58,17 @@ function DashboardMockup() {
         <div className="flex-1 p-4 space-y-3 min-w-0 bg-gray-50/50">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-semibold text-gray-800">Дашборд собственника</div>
-              <div className="text-xs text-gray-400">Август 2026</div>
+              <div className="text-sm font-semibold text-gray-800">{t('mock.dashboard.title' as any)}</div>
+              <div className="text-xs text-gray-400">{t('mock.dashboard.period' as any)}</div>
             </div>
             <div className="flex gap-2 pointer-events-none">
-              {['Сегодня','Неделя','Месяц'].map((l, i) => (
-                <span key={l} className={`text-xs px-2.5 py-1 rounded-lg ${i === 2 ? 'bg-blue-600 text-white' : 'bg-white text-gray-400 border border-gray-200'}`}>{l}</span>
+              {periods.map((l, i) => (
+                <span key={i} className={`text-xs px-2.5 py-1 rounded-lg ${i === 2 ? 'bg-blue-600 text-white' : 'bg-white text-gray-400 border border-gray-200'}`}>{l}</span>
               ))}
             </div>
           </div>
           <div className="grid grid-cols-4 gap-2">
-            {[
-              { label: 'Факт продаж', value: '₸18.4 млн', sub: '73% от плана', vc: 'text-emerald-600' },
-              { label: 'Конверсия',   value: '34%',        sub: '+4% к прошлому', vc: 'text-blue-600' },
-              { label: 'Ср. чек',     value: '₸460К',      sub: '40 сделок', vc: 'text-purple-600' },
-              { label: 'Стоим. лида', value: '₸12 800',    sub: '144 лида', vc: 'text-amber-600' },
-            ].map(c => (
+            {kpis.map(c => (
               <div key={c.label} className="bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
                 <div className="text-[10px] text-gray-400 mb-1">{c.label}</div>
                 <div className={`text-sm font-bold ${c.vc}`}>{c.value}</div>
@@ -58,13 +78,8 @@ function DashboardMockup() {
           </div>
           <div className="grid grid-cols-5 gap-2">
             <div className="col-span-2 bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
-              <div className="text-[10px] text-gray-500 font-medium mb-2">Воронка продаж</div>
-              {[
-                { label: 'Лиды', val: 144, pct: 100, color: 'bg-purple-500' },
-                { label: 'Квалиф.', val: 98, pct: 68, color: 'bg-blue-500' },
-                { label: 'Встречи', val: 61, pct: 42, color: 'bg-blue-400' },
-                { label: 'Продажи', val: 40, pct: 28, color: 'bg-emerald-500' },
-              ].map(f => (
+              <div className="text-[10px] text-gray-500 font-medium mb-2">{t('mock.funnel.title' as any)}</div>
+              {funnel.map(f => (
                 <div key={f.label} className="flex items-center gap-2 mb-1.5">
                   <div className="text-[9px] text-gray-400 w-11 text-right shrink-0">{f.label}</div>
                   <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -74,46 +89,30 @@ function DashboardMockup() {
                 </div>
               ))}
             </div>
-            {(() => {
-              const bars = [
-                {v:2.1,d:'1'},{v:2.9,d:'2'},{v:1.7,d:'3'},{v:3.6,d:'4'},
-                {v:2.5,d:'5'},{v:3.2,d:'6'},{v:1.9,d:'7'},{v:4.0,d:'8'},
-                {v:3.0,d:'9'},{v:3.7,d:'10'},{v:2.2,d:'11'},{v:3.1,d:'12'},
-                {v:4.2,d:'13'},{v:2.7,d:'14'},
-              ]
-              const max = 4.2
-              return (
-                <div className="col-span-3 bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-[10px] text-gray-500 font-medium">Продажи по дням</div>
-                    <div className="text-[9px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded-full">↑ +18%</div>
-                  </div>
-                  <div className="flex items-end gap-1" style={{height:60}}>
-                    {bars.map((b,i) => {
-                      const pct = b.v / max
-                      const isToday = i === 12
-                      return (
-                        <div key={i} className="flex-1 flex flex-col items-center justify-end gap-0.5">
-                          {isToday && <div className="text-[7px] font-bold text-blue-600 leading-none">₸{b.v}М</div>}
-                          <div className={`w-full rounded-t-sm ${isToday ? 'bg-blue-600' : 'bg-blue-200'}`} style={{height: `${Math.round(pct * 52)}px`}} />
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )
-            })()}
+            <div className="col-span-3 bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[10px] text-gray-500 font-medium">{t('mock.chart.title' as any)}</div>
+                <div className="text-[9px] text-emerald-600 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded-full">↑ +18%</div>
+              </div>
+              <div className="flex items-end gap-1" style={{ height: 60 }}>
+                {bars.map((b, i) => {
+                  const isToday = i === 12
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center justify-end gap-0.5">
+                      {isToday && <div className="text-[7px] font-bold text-blue-600 leading-none">₸{b.v}М</div>}
+                      <div className={`w-full rounded-t-sm ${isToday ? 'bg-blue-600' : 'bg-blue-200'}`} style={{ height: `${Math.round((b.v / maxBar) * 52)}px` }} />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           </div>
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
-              <div className="text-[10px] font-semibold text-gray-600">Рейтинг клоузеров</div>
-              <div className="text-[9px] text-blue-600 font-medium">Август 2026</div>
+              <div className="text-[10px] font-semibold text-gray-600">{t('mock.rating.title' as any)}</div>
+              <div className="text-[9px] text-blue-600 font-medium">{t('mock.rating.period' as any)}</div>
             </div>
-            {[
-              { rank:1, name:'Айгерим К.', dept:'Отдел А', sales:'₸5.2М', pct:104, conv:'42%', deals:21, trend:'+12%', pctBar:100, tc:'text-emerald-600', bg:'bg-emerald-500', rankBg:'bg-emerald-100 text-emerald-700' },
-              { rank:2, name:'Данияр М.',  dept:'Отдел А', sales:'₸4.8М', pct:96,  conv:'38%', deals:18, trend:'+5%',  pctBar:92,  tc:'text-blue-600',   bg:'bg-blue-500',   rankBg:'bg-blue-100 text-blue-700' },
-              { rank:3, name:'Асель Н.',   dept:'Отдел Б', sales:'₸3.9М', pct:78,  conv:'31%', deals:14, trend:'-3%',  pctBar:75,  tc:'text-amber-600',  bg:'bg-amber-500',  rankBg:'bg-amber-100 text-amber-700' },
-            ].map((m) => (
+            {managers.map(m => (
               <div key={m.rank} className="px-3 py-2.5 border-b border-gray-50 last:border-0">
                 <div className="flex items-center gap-2">
                   <span className={`w-5 h-5 rounded-lg text-[9px] font-bold flex items-center justify-center flex-none ${m.rankBg}`}>{m.rank}</span>
@@ -124,17 +123,16 @@ function DashboardMockup() {
                     </div>
                     <div className="flex items-center gap-1 mt-0.5">
                       <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className={`h-full ${m.bg} rounded-full`} style={{ width:`${m.pctBar}%` }} />
+                        <div className={`h-full ${m.bg} rounded-full`} style={{ width: `${m.pctBar}%` }} />
                       </div>
                       <span className={`text-[9px] font-bold ${m.tc}`}>{m.pct}%</span>
                     </div>
                   </div>
                   <div className="text-right shrink-0">
                     <div className="text-[10px] font-bold text-gray-800">{m.sales}</div>
-                    <div className="text-[8px] text-gray-400">{m.deals} сделок</div>
+                    <div className="text-[8px] text-gray-400">{m.deals} {t('mock.deals' as any)}</div>
                   </div>
                   <div className="text-right shrink-0 w-10">
-                    <div className="text-[9px] text-gray-500">{m.conv}</div>
                     <div className={`text-[8px] font-semibold ${m.trend.startsWith('+') ? 'text-emerald-500' : 'text-red-400'}`}>{m.trend}</div>
                   </div>
                 </div>
@@ -148,27 +146,30 @@ function DashboardMockup() {
 }
 
 function ROPMockup() {
+  const { t } = useT()
+  const funnelItems = [
+    { label: t('mock.rop.f1' as any), v: 144 },
+    { label: t('mock.rop.f2' as any), v: 98 },
+    { label: t('mock.rop.f3' as any), v: 72 },
+    { label: t('mock.rop.f4' as any), v: 61 },
+    { label: t('mock.rop.f5' as any), v: 40 },
+  ]
+  const colors = ['bg-purple-500', 'bg-blue-500', 'bg-blue-400', 'bg-indigo-400', 'bg-emerald-500']
   return (
     <div className="rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-lg select-none">
       <div className="flex items-center gap-1.5 px-3 py-2.5 bg-gray-50 border-b border-gray-200">
         <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
         <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
         <span className="w-2.5 h-2.5 rounded-full bg-green-400" />
-        <span className="text-[10px] text-gray-400 ml-2">Кабинет РОПа</span>
+        <span className="text-[10px] text-gray-400 ml-2">{t('mock.rop.tab' as any)}</span>
       </div>
       <div className="p-3 space-y-2 bg-gray-50/50">
-        <div className="text-[11px] font-semibold text-gray-700 mb-1">Воронка отдела</div>
-        {[
-          { label: 'Лидов получено', v: 144, color: 'bg-purple-500' },
-          { label: 'Квалифицировано', v: 98, color: 'bg-blue-500' },
-          { label: 'Передано клоузеру', v: 72, color: 'bg-blue-400' },
-          { label: 'В работе', v: 61, color: 'bg-indigo-400' },
-          { label: 'Продажи', v: 40, color: 'bg-emerald-500' },
-        ].map((f, i, arr) => (
-          <div key={f.label} className="flex items-center gap-2">
+        <div className="text-[11px] font-semibold text-gray-700 mb-1">{t('mock.rop.funnel' as any)}</div>
+        {funnelItems.map((f, i) => (
+          <div key={i} className="flex items-center gap-2">
             <div
-              className={`${f.color} rounded-lg flex items-center justify-between px-2 h-7 text-white`}
-              style={{ width: `${(f.v/arr[0].v)*100}%`, minWidth: '60%' }}
+              className={`${colors[i]} rounded-lg flex items-center justify-between px-2 h-7 text-white`}
+              style={{ width: `${(f.v / funnelItems[0].v) * 100}%`, minWidth: '60%' }}
             >
               <span className="text-[9px] font-medium truncate">{f.label}</span>
               <span className="text-[9px] font-bold ml-1 shrink-0">{f.v}</span>
@@ -181,23 +182,25 @@ function ROPMockup() {
 }
 
 function ManagerMockup() {
+  const { t } = useT()
+  const metrics = [
+    { l: t('mock.mgr.m1' as any), v: '₸4.8М', c: 'text-emerald-600' },
+    { l: t('mock.mgr.m2' as any), v: '96%',    c: 'text-blue-600' },
+    { l: t('mock.mgr.m3' as any), v: '18',      c: 'text-purple-600' },
+    { l: t('mock.mgr.m4' as any), v: '38%',     c: 'text-amber-600' },
+  ]
   return (
     <div className="rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-lg select-none">
       <div className="flex items-center gap-1.5 px-3 py-2.5 bg-gray-50 border-b border-gray-200">
         <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
         <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
         <span className="w-2.5 h-2.5 rounded-full bg-green-400" />
-        <span className="text-[10px] text-gray-400 ml-2">Мой кабинет — Данияр</span>
+        <span className="text-[10px] text-gray-400 ml-2">{t('mock.mgr.tab' as any)}</span>
       </div>
       <div className="p-3 space-y-2 bg-gray-50/50">
-        <div className="text-[11px] font-semibold text-gray-700">Мои показатели</div>
+        <div className="text-[11px] font-semibold text-gray-700">{t('mock.mgr.title' as any)}</div>
         <div className="grid grid-cols-2 gap-1.5">
-          {[
-            { l:'Продажи', v:'₸4.8М', c:'text-emerald-600' },
-            { l:'Выполн.', v:'96%', c:'text-blue-600' },
-            { l:'Сделок', v:'18', c:'text-purple-600' },
-            { l:'Конверсия', v:'38%', c:'text-amber-600' },
-          ].map(m => (
+          {metrics.map(m => (
             <div key={m.l} className="bg-white rounded-xl p-2 border border-gray-100 shadow-sm">
               <div className="text-[9px] text-gray-400">{m.l}</div>
               <div className={`text-sm font-bold ${m.c}`}>{m.v}</div>
@@ -206,10 +209,10 @@ function ManagerMockup() {
         </div>
         <div className="bg-white rounded-xl p-2 border border-gray-100 shadow-sm">
           <div className="flex justify-between text-[9px] text-gray-400 mb-1.5">
-            <span>План: ₸5 000 000</span><span>96%</span>
+            <span>{t('mock.mgr.plan' as any)} ₸5 000 000</span><span>96%</span>
           </div>
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full bg-blue-500 rounded-full" style={{ width:'96%' }} />
+            <div className="h-full bg-blue-500 rounded-full" style={{ width: '96%' }} />
           </div>
         </div>
       </div>
@@ -240,16 +243,6 @@ function FAQ({ items }: { items: { q: string; a: string }[] }) {
       ))}
     </div>
   )
-}
-
-const ROLE_LABELS: Record<string, string> = {
-  OWNER: 'Собственник', ROP: 'РОП', MANAGER: 'Менеджер', MARKETER: 'Маркетолог',
-}
-const ROLE_COLORS: Record<string, string> = {
-  OWNER: 'bg-purple-100 text-purple-700',
-  ROP: 'bg-blue-100 text-blue-700',
-  MANAGER: 'bg-green-100 text-green-700',
-  MARKETER: 'bg-orange-100 text-orange-700',
 }
 
 export default function LandingPage() {
@@ -288,6 +281,17 @@ export default function LandingPage() {
     },
   ]
 
+  const painScenarios = [
+    { icon: Phone,          bg: 'bg-red-50',    border: 'border-red-100',    ic: 'text-red-500',
+      scene: t('landing.pain.s1.scene' as any), result: t('landing.pain.s1.result' as any) },
+    { icon: MessageSquare,  bg: 'bg-amber-50',  border: 'border-amber-100',  ic: 'text-amber-500',
+      scene: t('landing.pain.s2.scene' as any), result: t('landing.pain.s2.result' as any) },
+    { icon: AlertTriangle,  bg: 'bg-orange-50', border: 'border-orange-100', ic: 'text-orange-500',
+      scene: t('landing.pain.s3.scene' as any), result: t('landing.pain.s3.result' as any) },
+    { icon: XCircle,        bg: 'bg-purple-50', border: 'border-purple-100', ic: 'text-purple-500',
+      scene: t('landing.pain.s4.scene' as any), result: t('landing.pain.s4.result' as any) },
+  ]
+
   const compareRows = [
     { b: t('landing.compare.r1.b' as any), a: t('landing.compare.r1.a' as any) },
     { b: t('landing.compare.r2.b' as any), a: t('landing.compare.r2.a' as any) },
@@ -314,7 +318,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white text-gray-900">
 
-      {/* ── Nav ─────────────────────────────────────────────────────────────── */}
+      {/* Nav */}
       <nav className="fixed top-0 inset-x-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -343,7 +347,7 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* ── Hero ─────────────────────────────────────────────────────────────── */}
+      {/* Hero */}
       <section className="pt-28 pb-0 px-6 bg-gradient-to-b from-blue-50/60 to-white overflow-hidden">
         <div className="max-w-7xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-600 px-4 py-1.5 rounded-full text-sm font-semibold mb-8">
@@ -360,7 +364,7 @@ export default function LandingPage() {
             {t('landing.hero.desc')}
           </p>
           <div className="flex items-center justify-center gap-4 flex-wrap mb-5">
-            <Link to="/register" className="flex items-center gap-2 bg-blue-600 text-white px-8 py-4 rounded-xl text-base font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-200 hover:-translate-y-0.5">
+            <Link to="/register" className="flex items-center gap-2 bg-blue-600 text-white px-8 py-4 rounded-xl text-base font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 hover:shadow-xl hover:-translate-y-0.5">
               {t('landing.cta.btn' as any)} <ArrowRight className="w-5 h-5" />
             </Link>
             <Link to="/login" className="flex items-center gap-2 border border-gray-200 text-gray-700 px-8 py-4 rounded-xl text-base font-semibold hover:bg-gray-50 transition-colors">
@@ -375,7 +379,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Stats (честные) ──────────────────────────────────────────────────── */}
+      {/* Stats */}
       <section className="py-14 border-y border-gray-100 bg-gray-50/50">
         <div className="max-w-3xl mx-auto px-6 grid grid-cols-3 gap-6 text-center">
           {[
@@ -391,42 +395,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Pain — сценарии, в которых узнают себя ───────────────────────────── */}
+      {/* Pain - сценарии */}
       <section className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="max-w-2xl mb-14">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">{t('landing.pain.title')}</h2>
             <p className="text-gray-500 leading-relaxed">{t('landing.pain.subtitle')}</p>
           </div>
-
-          {/* Сценарии — конкретные, узнаваемые */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-            {[
-              {
-                icon: Phone,
-                bg: 'bg-red-50', border: 'border-red-100', ic: 'text-red-500',
-                scene: 'Вы звоните менеджеру, чтобы узнать сколько сделок сегодня',
-                result: 'Потому что другого способа узнать — нет',
-              },
-              {
-                icon: MessageSquare,
-                bg: 'bg-amber-50', border: 'border-amber-100', ic: 'text-amber-500',
-                scene: 'РОП собирает отчёт в WhatsApp 2 часа в конце дня',
-                result: 'Вместо того чтобы управлять командой',
-              },
-              {
-                icon: AlertTriangle,
-                bg: 'bg-orange-50', border: 'border-orange-100', ic: 'text-orange-500',
-                scene: 'Видите, что план провален — только 25-го числа',
-                result: 'Когда уже ничего изменить нельзя',
-              },
-              {
-                icon: Eye,
-                bg: 'bg-purple-50', border: 'border-purple-100', ic: 'text-purple-500',
-                scene: 'Не знаете, на каком этапе воронки срываются сделки',
-                result: 'На квалификации? На встречах? На закрытии?',
-              },
-            ].map((p, i) => (
+            {painScenarios.map((p, i) => (
               <div key={i} className={`bg-white border ${p.border} rounded-2xl p-6 flex gap-4 shadow-sm`}>
                 <div className={`w-10 h-10 ${p.bg} rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5`}>
                   <p.icon className={`w-5 h-5 ${p.ic}`} />
@@ -438,30 +415,28 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-
           <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 flex items-center gap-5">
             <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
               <CheckCircle className="w-6 h-6 text-white" />
             </div>
             <div>
-              <div className="font-bold text-gray-900 mb-1">Если хотя бы один пункт — про вас, SalesPlatform создан именно для вас</div>
-              <div className="text-sm text-gray-500">Живые дашборды вместо ручного сбора. Воронка в реальном времени. Без CRM-хаоса.</div>
+              <div className="font-bold text-gray-900 mb-1">{t('landing.pain.callout' as any)}</div>
+              <div className="text-sm text-gray-500">{t('landing.pain.callout.sub' as any)}</div>
             </div>
             <Link to="/register" className="ml-auto flex-shrink-0 flex items-center gap-1.5 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors whitespace-nowrap">
-              Попробовать <ArrowRight className="w-4 h-4" />
+              {t('landing.hero.startFree')} <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* ── Before / After ───────────────────────────────────────────────────── */}
+      {/* Before / After */}
       <section className="py-24 px-6 bg-gray-50">
         <div className="max-w-5xl mx-auto">
           <div className="max-w-xl mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">{t('landing.compare.title' as any)}</h2>
           </div>
           <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
-            {/* Header */}
             <div className="grid grid-cols-2 bg-gray-900">
               <div className="px-6 py-4 flex items-center gap-2">
                 <X className="w-4 h-4 text-red-400" />
@@ -472,7 +447,6 @@ export default function LandingPage() {
                 <span className="font-semibold text-white text-sm">{t('landing.compare.after' as any)}</span>
               </div>
             </div>
-            {/* Rows */}
             {compareRows.map((row, i) => (
               <div key={i} className={`grid grid-cols-2 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
                 <div className="px-6 py-4 flex items-start gap-3 border-r border-gray-100">
@@ -489,7 +463,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── How it works ─────────────────────────────────────────────────────── */}
+      {/* How it works */}
       <section className="py-24 px-6">
         <div className="max-w-5xl mx-auto">
           <div className="max-w-xl mb-14">
@@ -513,12 +487,12 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Roles + mockups ──────────────────────────────────────────────────── */}
+      {/* Roles + mockups */}
       <section className="py-24 px-6 bg-gray-50">
         <div className="max-w-6xl mx-auto">
           <div className="max-w-xl mb-14">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">{t('landing.roles.title')}</h2>
-            <p className="text-gray-500">Каждая роль видит именно то, что нужно. Не больше, не меньше.</p>
+            <p className="text-gray-500">{t('landing.roles.sub' as any)}</p>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
             <div className="lg:col-span-2 space-y-3">
@@ -544,7 +518,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Features ─────────────────────────────────────────────────────────── */}
+      {/* Features */}
       <section className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="max-w-xl mb-14">
@@ -565,16 +539,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Testimonials ─────────────────────────────────────────────────────── */}
+      {/* Testimonials */}
       <section className="py-24 px-6 bg-gray-50">
         <div className="max-w-6xl mx-auto">
           <div className="max-w-xl mb-14">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">{t('landing.social.title' as any)}</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {testimonials.map((t2, i) => (
+            {testimonials.map((item, i) => (
               <div key={i} className="bg-white border border-gray-100 rounded-2xl p-7 shadow-sm flex flex-col">
-                {/* Stars */}
                 <div className="flex gap-1 mb-5">
                   {[...Array(5)].map((_, s) => (
                     <svg key={s} className="w-4 h-4 text-amber-400 fill-current" viewBox="0 0 20 20">
@@ -582,14 +555,14 @@ export default function LandingPage() {
                     </svg>
                   ))}
                 </div>
-                <p className="text-gray-600 text-sm leading-relaxed flex-1 mb-6">"{t2.text}"</p>
+                <p className="text-gray-600 text-sm leading-relaxed flex-1 mb-6">"{item.text}"</p>
                 <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
                   <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                    {t2.name.charAt(0)}
+                    {item.name.charAt(0)}
                   </div>
                   <div>
-                    <div className="font-semibold text-gray-900 text-sm">{t2.name}</div>
-                    <div className="text-xs text-gray-400">{t2.role}</div>
+                    <div className="font-semibold text-gray-900 text-sm">{item.name}</div>
+                    <div className="text-xs text-gray-400">{item.role}</div>
                   </div>
                 </div>
               </div>
@@ -598,7 +571,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Pricing ──────────────────────────────────────────────────────────── */}
+      {/* Pricing */}
       <section className="py-24 px-6">
         <div className="max-w-5xl mx-auto">
           <div className="max-w-xl mb-14">
@@ -629,9 +602,7 @@ export default function LandingPage() {
                 <Link
                   to="/register"
                   className={`block text-center py-3 rounded-xl text-sm font-semibold transition-colors ${
-                    p.highlight
-                      ? 'bg-white text-blue-600 hover:bg-blue-50'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                    p.highlight ? 'bg-white text-blue-600 hover:bg-blue-50' : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
                 >
                   {p.nameKey === 'landing.pricing.trial.name' ? t('landing.pricing.startFree') : t('landing.pricing.choose')}
@@ -639,11 +610,11 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-          <p className="text-center text-sm text-gray-400 mt-6">Карта не нужна · Отмена в любой момент · Данные сохраняются</p>
+          <p className="text-center text-sm text-gray-400 mt-6">{t('landing.pricing.note' as any)}</p>
         </div>
       </section>
 
-      {/* ── FAQ ──────────────────────────────────────────────────────────────── */}
+      {/* FAQ */}
       <section className="py-24 px-6 bg-gray-50">
         <div className="max-w-3xl mx-auto">
           <div className="mb-12">
@@ -653,13 +624,11 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Final CTA ────────────────────────────────────────────────────────── */}
+      {/* Final CTA */}
       <section className="py-24 px-6 bg-blue-600">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-4xl font-bold text-white mb-4">{t('landing.cta.title' as any)}</h2>
           <p className="text-blue-100 mb-10 leading-relaxed text-lg">{t('landing.cta.desc' as any)}</p>
-
-          {/* Steps */}
           <div className="flex items-center justify-center gap-3 mb-10 flex-wrap">
             {[
               t('landing.cta.step1' as any),
@@ -675,7 +644,6 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-
           <Link to="/register" className="inline-flex items-center gap-2 bg-white text-blue-600 font-bold px-10 py-4 rounded-xl hover:bg-blue-50 transition-all shadow-xl hover:-translate-y-0.5 text-base">
             {t('landing.cta.btn' as any)} <ArrowRight className="w-5 h-5" />
           </Link>
@@ -683,7 +651,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Footer ───────────────────────────────────────────────────────────── */}
+      {/* Footer */}
       <footer className="py-10 px-6 border-t border-gray-100 bg-white">
         <div className="max-w-6xl mx-auto flex items-center justify-between flex-wrap gap-6">
           <div className="flex items-center gap-2">
@@ -693,10 +661,10 @@ export default function LandingPage() {
             <span className="font-semibold text-gray-700">SalesPlatform</span>
           </div>
           <div className="flex items-center gap-6 text-sm text-gray-400 flex-wrap">
-            <Link to="/login"   className="hover:text-gray-700 transition-colors">{t('landing.footer.login')}</Link>
-            <Link to="/register"className="hover:text-gray-700 transition-colors">{t('landing.footer.register')}</Link>
-            <Link to="/oferta"  className="hover:text-gray-700 transition-colors">{t('landing.footer.oferta')}</Link>
-            <Link to="/privacy" className="hover:text-gray-700 transition-colors">{t('landing.footer.privacy')}</Link>
+            <Link to="/login"    className="hover:text-gray-700 transition-colors">{t('landing.footer.login')}</Link>
+            <Link to="/register" className="hover:text-gray-700 transition-colors">{t('landing.footer.register')}</Link>
+            <Link to="/oferta"   className="hover:text-gray-700 transition-colors">{t('landing.footer.oferta')}</Link>
+            <Link to="/privacy"  className="hover:text-gray-700 transition-colors">{t('landing.footer.privacy')}</Link>
           </div>
           <div className="text-sm text-gray-400">© {new Date().getFullYear()} SalesPlatform. {t('landing.footer.rights')}</div>
         </div>
