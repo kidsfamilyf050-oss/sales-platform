@@ -1,17 +1,18 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   BarChart2, TrendingUp, Users, Target, CheckCircle, ArrowRight,
-  Zap, Shield, BarChart, Clock, Eye, XCircle,
+  Zap, Shield, BarChart, Clock, Eye, XCircle, ChevronDown, ChevronRight,
+  AlertTriangle, Phone, MessageSquare, X, Check,
 } from 'lucide-react'
 import { useAuthStore } from '../store/auth'
 import { useT } from '../i18n'
 import LanguageSwitcher from '../components/ui/LanguageSwitcher'
 
-// ── Owner Dashboard mockup (light) ─────────────────────────────────────────
+// ── Dashboard Mockup ────────────────────────────────────────────────────────
 function DashboardMockup() {
   return (
     <div className="w-full rounded-2xl overflow-hidden shadow-2xl shadow-blue-100 border border-gray-200 bg-white select-none">
-      {/* Title bar */}
       <div className="flex items-center gap-1.5 px-4 py-3 bg-gray-50 border-b border-gray-200">
         <span className="w-3 h-3 rounded-full bg-red-400" />
         <span className="w-3 h-3 rounded-full bg-yellow-400" />
@@ -19,7 +20,6 @@ function DashboardMockup() {
         <span className="flex-1 text-center text-xs text-gray-400 mx-4">SalesPlatform — Дашборд собственника</span>
       </div>
       <div className="flex">
-        {/* Sidebar */}
         <div className="w-14 bg-white border-r border-gray-100 py-4 flex flex-col items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
             <BarChart2 className="w-4 h-4 text-white" />
@@ -30,7 +30,6 @@ function DashboardMockup() {
             </div>
           ))}
         </div>
-        {/* Main */}
         <div className="flex-1 p-4 space-y-3 min-w-0 bg-gray-50/50">
           <div className="flex items-center justify-between">
             <div>
@@ -43,7 +42,6 @@ function DashboardMockup() {
               ))}
             </div>
           </div>
-          {/* KPI cards */}
           <div className="grid grid-cols-4 gap-2">
             {[
               { label: 'Факт продаж', value: '₸18.4 млн', sub: '73% от плана', vc: 'text-emerald-600' },
@@ -59,7 +57,6 @@ function DashboardMockup() {
             ))}
           </div>
           <div className="grid grid-cols-5 gap-2">
-            {/* Funnel */}
             <div className="col-span-2 bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
               <div className="text-[10px] text-gray-500 font-medium mb-2">Воронка продаж</div>
               {[
@@ -77,7 +74,6 @@ function DashboardMockup() {
                 </div>
               ))}
             </div>
-            {/* Bar chart */}
             {(() => {
               const bars = [
                 {v:2.1,d:'1'},{v:2.9,d:'2'},{v:1.7,d:'3'},{v:3.6,d:'4'},
@@ -98,40 +94,27 @@ function DashboardMockup() {
                       const isToday = i === 12
                       return (
                         <div key={i} className="flex-1 flex flex-col items-center justify-end gap-0.5">
-                          {isToday && (
-                            <div className="text-[7px] font-bold text-blue-600 leading-none">₸{b.v}М</div>
-                          )}
-                          <div
-                            className={`w-full rounded-t-sm ${isToday ? 'bg-blue-600' : 'bg-blue-200'}`}
-                            style={{height: `${Math.round(pct * 52)}px`}}
-                          />
+                          {isToday && <div className="text-[7px] font-bold text-blue-600 leading-none">₸{b.v}М</div>}
+                          <div className={`w-full rounded-t-sm ${isToday ? 'bg-blue-600' : 'bg-blue-200'}`} style={{height: `${Math.round(pct * 52)}px`}} />
                         </div>
                       )
                     })}
-                  </div>
-                  <div className="flex mt-1">
-                    {bars.map((b,i) => (
-                      <div key={i} className={`flex-1 text-center text-[7px] ${i===12?'text-blue-600 font-bold':'text-gray-300'}`}>
-                        {i % 3 === 0 || i === 12 ? b.d : ''}
-                      </div>
-                    ))}
                   </div>
                 </div>
               )
             })()}
           </div>
-          {/* Manager table — rich version */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
               <div className="text-[10px] font-semibold text-gray-600">Рейтинг клоузеров</div>
               <div className="text-[9px] text-blue-600 font-medium">Август 2026</div>
             </div>
             {[
-              { rank:1, name:'Айгерим К.', dept:'Отдел А', sales:'₸5.2М', plan:'₸5.0М', pct:104, conv:'42%', deals:21, trend:'+12%', pctBar:100, tc:'text-emerald-600', bg:'bg-emerald-500', rankBg:'bg-emerald-100 text-emerald-700' },
-              { rank:2, name:'Данияр М.',  dept:'Отдел А', sales:'₸4.8М', plan:'₸5.0М', pct:96,  conv:'38%', deals:18, trend:'+5%',  pctBar:92,  tc:'text-blue-600',   bg:'bg-blue-500',   rankBg:'bg-blue-100 text-blue-700' },
-              { rank:3, name:'Асель Н.',   dept:'Отдел Б', sales:'₸3.9М', plan:'₸5.0М', pct:78,  conv:'31%', deals:14, trend:'-3%',  pctBar:75,  tc:'text-amber-600',  bg:'bg-amber-500',  rankBg:'bg-amber-100 text-amber-700' },
+              { rank:1, name:'Айгерим К.', dept:'Отдел А', sales:'₸5.2М', pct:104, conv:'42%', deals:21, trend:'+12%', pctBar:100, tc:'text-emerald-600', bg:'bg-emerald-500', rankBg:'bg-emerald-100 text-emerald-700' },
+              { rank:2, name:'Данияр М.',  dept:'Отдел А', sales:'₸4.8М', pct:96,  conv:'38%', deals:18, trend:'+5%',  pctBar:92,  tc:'text-blue-600',   bg:'bg-blue-500',   rankBg:'bg-blue-100 text-blue-700' },
+              { rank:3, name:'Асель Н.',   dept:'Отдел Б', sales:'₸3.9М', pct:78,  conv:'31%', deals:14, trend:'-3%',  pctBar:75,  tc:'text-amber-600',  bg:'bg-amber-500',  rankBg:'bg-amber-100 text-amber-700' },
             ].map((m) => (
-              <div key={m.rank} className="px-3 py-2.5 border-b border-gray-50 last:border-0 hover:bg-gray-50/50">
+              <div key={m.rank} className="px-3 py-2.5 border-b border-gray-50 last:border-0">
                 <div className="flex items-center gap-2">
                   <span className={`w-5 h-5 rounded-lg text-[9px] font-bold flex items-center justify-center flex-none ${m.rankBg}`}>{m.rank}</span>
                   <div className="flex-1 min-w-0">
@@ -234,6 +217,41 @@ function ManagerMockup() {
   )
 }
 
+// ── FAQ Accordion ───────────────────────────────────────────────────────────
+function FAQ({ items }: { items: { q: string; a: string }[] }) {
+  const [open, setOpen] = useState<number | null>(null)
+  return (
+    <div className="space-y-3">
+      {items.map((item, i) => (
+        <div key={i} className="border border-gray-200 rounded-2xl overflow-hidden">
+          <button
+            className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-gray-50 transition-colors"
+            onClick={() => setOpen(open === i ? null : i)}
+          >
+            <span className="font-semibold text-gray-900 text-sm pr-4">{item.q}</span>
+            <ChevronDown className={`w-5 h-5 text-gray-400 flex-shrink-0 transition-transform ${open === i ? 'rotate-180' : ''}`} />
+          </button>
+          {open === i && (
+            <div className="px-6 pb-5 text-gray-500 text-sm leading-relaxed border-t border-gray-100 pt-4">
+              {item.a}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  OWNER: 'Собственник', ROP: 'РОП', MANAGER: 'Менеджер', MARKETER: 'Маркетолог',
+}
+const ROLE_COLORS: Record<string, string> = {
+  OWNER: 'bg-purple-100 text-purple-700',
+  ROP: 'bg-blue-100 text-blue-700',
+  MANAGER: 'bg-green-100 text-green-700',
+  MARKETER: 'bg-orange-100 text-orange-700',
+}
+
 export default function LandingPage() {
   const user = useAuthStore(s => s.user)
   const { t } = useT()
@@ -268,6 +286,29 @@ export default function LandingPage() {
       highlight: false,
       featKeys: ['landing.pricing.pro.f1','landing.pricing.pro.f2','landing.pricing.pro.f3','landing.pricing.pro.f4'],
     },
+  ]
+
+  const compareRows = [
+    { b: t('landing.compare.r1.b' as any), a: t('landing.compare.r1.a' as any) },
+    { b: t('landing.compare.r2.b' as any), a: t('landing.compare.r2.a' as any) },
+    { b: t('landing.compare.r3.b' as any), a: t('landing.compare.r3.a' as any) },
+    { b: t('landing.compare.r4.b' as any), a: t('landing.compare.r4.a' as any) },
+    { b: t('landing.compare.r5.b' as any), a: t('landing.compare.r5.a' as any) },
+  ]
+
+  const testimonials = [
+    { text: t('landing.social.t1.text' as any), name: t('landing.social.t1.name' as any), role: t('landing.social.t1.role' as any) },
+    { text: t('landing.social.t2.text' as any), name: t('landing.social.t2.name' as any), role: t('landing.social.t2.role' as any) },
+    { text: t('landing.social.t3.text' as any), name: t('landing.social.t3.name' as any), role: t('landing.social.t3.role' as any) },
+  ]
+
+  const faqItems = [
+    { q: t('landing.faq.q1' as any), a: t('landing.faq.a1' as any) },
+    { q: t('landing.faq.q2' as any), a: t('landing.faq.a2' as any) },
+    { q: t('landing.faq.q3' as any), a: t('landing.faq.a3' as any) },
+    { q: t('landing.faq.q4' as any), a: t('landing.faq.a4' as any) },
+    { q: t('landing.faq.q5' as any), a: t('landing.faq.a5' as any) },
+    { q: t('landing.faq.q6' as any), a: t('landing.faq.a6' as any) },
   ]
 
   return (
@@ -319,16 +360,14 @@ export default function LandingPage() {
             {t('landing.hero.desc')}
           </p>
           <div className="flex items-center justify-center gap-4 flex-wrap mb-5">
-            <Link to="/register" className="flex items-center gap-2 bg-blue-600 text-white px-8 py-4 rounded-xl text-base font-semibold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200">
-              {t('landing.hero.startFree')} <ArrowRight className="w-5 h-5" />
+            <Link to="/register" className="flex items-center gap-2 bg-blue-600 text-white px-8 py-4 rounded-xl text-base font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 hover:shadow-xl hover:shadow-blue-200 hover:-translate-y-0.5">
+              {t('landing.cta.btn' as any)} <ArrowRight className="w-5 h-5" />
             </Link>
             <Link to="/login" className="flex items-center gap-2 border border-gray-200 text-gray-700 px-8 py-4 rounded-xl text-base font-semibold hover:bg-gray-50 transition-colors">
               {t('landing.hero.login')}
             </Link>
           </div>
           <p className="text-sm text-gray-400 mb-16">{t('landing.hero.regNote')}</p>
-
-          {/* Dashboard mockup */}
           <div className="relative mx-auto max-w-5xl">
             <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-3/4 h-12 bg-blue-200/50 blur-3xl rounded-full" />
             <DashboardMockup />
@@ -336,13 +375,13 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Stats ────────────────────────────────────────────────────────────── */}
+      {/* ── Stats (честные) ──────────────────────────────────────────────────── */}
       <section className="py-14 border-y border-gray-100 bg-gray-50/50">
         <div className="max-w-3xl mx-auto px-6 grid grid-cols-3 gap-6 text-center">
           {[
-            { value: '50+',     labelKey: 'landing.stats.companies' },
-            { value: '10 000+', labelKey: 'landing.stats.reports' },
-            { value: '+35%',    labelKey: 'landing.stats.conversion' },
+            { value: '50+',    labelKey: 'landing.stats.companies' },
+            { value: '1 день', labelKey: 'landing.stats.launch' },
+            { value: '+35%',   labelKey: 'landing.stats.conversion' },
           ].map(s => (
             <div key={s.labelKey}>
               <div className="text-4xl font-extrabold text-blue-600 mb-1">{s.value}</div>
@@ -352,25 +391,122 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Pain points ──────────────────────────────────────────────────────── */}
+      {/* ── Pain — сценарии, в которых узнают себя ───────────────────────────── */}
       <section className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
-          <div className="max-w-xl mb-14">
+          <div className="max-w-2xl mb-14">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">{t('landing.pain.title')}</h2>
             <p className="text-gray-500 leading-relaxed">{t('landing.pain.subtitle')}</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+          {/* Сценарии — конкретные, узнаваемые */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             {[
-              { icon: Clock,   bg: 'bg-red-50',    ic: 'text-red-500',    border: 'border-red-100',    titleKey: 'landing.pain.p1.title', descKey: 'landing.pain.p1.desc' },
-              { icon: XCircle, bg: 'bg-amber-50',  ic: 'text-amber-500',  border: 'border-amber-100',  titleKey: 'landing.pain.p2.title', descKey: 'landing.pain.p2.desc' },
-              { icon: Eye,     bg: 'bg-purple-50', ic: 'text-purple-500', border: 'border-purple-100', titleKey: 'landing.pain.p3.title', descKey: 'landing.pain.p3.desc' },
-            ].map(p => (
-              <div key={p.titleKey} className={`bg-white border ${p.border} rounded-2xl p-7 shadow-sm`}>
-                <div className={`w-11 h-11 ${p.bg} rounded-xl flex items-center justify-center mb-5`}>
+              {
+                icon: Phone,
+                bg: 'bg-red-50', border: 'border-red-100', ic: 'text-red-500',
+                scene: 'Вы звоните менеджеру, чтобы узнать сколько сделок сегодня',
+                result: 'Потому что другого способа узнать — нет',
+              },
+              {
+                icon: MessageSquare,
+                bg: 'bg-amber-50', border: 'border-amber-100', ic: 'text-amber-500',
+                scene: 'РОП собирает отчёт в WhatsApp 2 часа в конце дня',
+                result: 'Вместо того чтобы управлять командой',
+              },
+              {
+                icon: AlertTriangle,
+                bg: 'bg-orange-50', border: 'border-orange-100', ic: 'text-orange-500',
+                scene: 'Видите, что план провален — только 25-го числа',
+                result: 'Когда уже ничего изменить нельзя',
+              },
+              {
+                icon: Eye,
+                bg: 'bg-purple-50', border: 'border-purple-100', ic: 'text-purple-500',
+                scene: 'Не знаете, на каком этапе воронки срываются сделки',
+                result: 'На квалификации? На встречах? На закрытии?',
+              },
+            ].map((p, i) => (
+              <div key={i} className={`bg-white border ${p.border} rounded-2xl p-6 flex gap-4 shadow-sm`}>
+                <div className={`w-10 h-10 ${p.bg} rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5`}>
                   <p.icon className={`w-5 h-5 ${p.ic}`} />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-3">{t(p.titleKey as any)}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{t(p.descKey as any)}</p>
+                <div>
+                  <div className="font-semibold text-gray-900 mb-1">{p.scene}</div>
+                  <div className="text-sm text-gray-400">{p.result}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 flex items-center gap-5">
+            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0">
+              <CheckCircle className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <div className="font-bold text-gray-900 mb-1">Если хотя бы один пункт — про вас, SalesPlatform создан именно для вас</div>
+              <div className="text-sm text-gray-500">Живые дашборды вместо ручного сбора. Воронка в реальном времени. Без CRM-хаоса.</div>
+            </div>
+            <Link to="/register" className="ml-auto flex-shrink-0 flex items-center gap-1.5 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors whitespace-nowrap">
+              Попробовать <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Before / After ───────────────────────────────────────────────────── */}
+      <section className="py-24 px-6 bg-gray-50">
+        <div className="max-w-5xl mx-auto">
+          <div className="max-w-xl mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">{t('landing.compare.title' as any)}</h2>
+          </div>
+          <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+            {/* Header */}
+            <div className="grid grid-cols-2 bg-gray-900">
+              <div className="px-6 py-4 flex items-center gap-2">
+                <X className="w-4 h-4 text-red-400" />
+                <span className="font-semibold text-gray-300 text-sm">{t('landing.compare.before' as any)}</span>
+              </div>
+              <div className="px-6 py-4 flex items-center gap-2 bg-blue-600">
+                <Check className="w-4 h-4 text-white" />
+                <span className="font-semibold text-white text-sm">{t('landing.compare.after' as any)}</span>
+              </div>
+            </div>
+            {/* Rows */}
+            {compareRows.map((row, i) => (
+              <div key={i} className={`grid grid-cols-2 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                <div className="px-6 py-4 flex items-start gap-3 border-r border-gray-100">
+                  <XCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                  <span className="text-sm text-gray-500">{row.b}</span>
+                </div>
+                <div className="px-6 py-4 flex items-start gap-3">
+                  <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <span className="text-sm font-medium text-gray-800">{row.a}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── How it works ─────────────────────────────────────────────────────── */}
+      <section className="py-24 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="max-w-xl mb-14">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">{t('landing.how.title')}</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-10">
+            {[
+              { num: '01', titleKey: 'landing.how.s1.title', descKey: 'landing.how.s1.desc', color: 'bg-blue-600' },
+              { num: '02', titleKey: 'landing.how.s2.title', descKey: 'landing.how.s2.desc', color: 'bg-blue-500' },
+              { num: '03', titleKey: 'landing.how.s3.title', descKey: 'landing.how.s3.desc', color: 'bg-blue-400' },
+            ].map(step => (
+              <div key={step.titleKey}>
+                <div className={`w-12 h-12 rounded-2xl ${step.color} flex items-center justify-center mb-5 shadow-md`}>
+                  <span className="text-white font-extrabold">{step.num}</span>
+                </div>
+                <h3 className="font-bold text-gray-900 text-lg mb-2">{t(step.titleKey as any)}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">{t(step.descKey as any)}</p>
               </div>
             ))}
           </div>
@@ -408,32 +544,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── How it works ─────────────────────────────────────────────────────── */}
-      <section className="py-24 px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="max-w-xl mb-14">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">{t('landing.how.title')}</h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-10">
-            {[
-              { num: '01', titleKey: 'landing.how.s1.title', descKey: 'landing.how.s1.desc', color: 'bg-blue-600' },
-              { num: '02', titleKey: 'landing.how.s2.title', descKey: 'landing.how.s2.desc', color: 'bg-blue-500' },
-              { num: '03', titleKey: 'landing.how.s3.title', descKey: 'landing.how.s3.desc', color: 'bg-blue-400' },
-            ].map(step => (
-              <div key={step.titleKey}>
-                <div className={`w-12 h-12 rounded-2xl ${step.color} flex items-center justify-center mb-5 shadow-md`}>
-                  <span className="text-white font-extrabold">{step.num}</span>
-                </div>
-                <h3 className="font-bold text-gray-900 text-lg mb-2">{t(step.titleKey as any)}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{t(step.descKey as any)}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── Features ─────────────────────────────────────────────────────────── */}
-      <section className="py-24 px-6 bg-gray-50">
+      <section className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="max-w-xl mb-14">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">{t('landing.features.title')}</h2>
@@ -447,6 +559,39 @@ export default function LandingPage() {
                 </div>
                 <h3 className="font-bold text-gray-900 text-lg mb-2">{t(f.titleKey as any)}</h3>
                 <p className="text-gray-500 text-sm leading-relaxed">{t(f.descKey as any)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Testimonials ─────────────────────────────────────────────────────── */}
+      <section className="py-24 px-6 bg-gray-50">
+        <div className="max-w-6xl mx-auto">
+          <div className="max-w-xl mb-14">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">{t('landing.social.title' as any)}</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {testimonials.map((t2, i) => (
+              <div key={i} className="bg-white border border-gray-100 rounded-2xl p-7 shadow-sm flex flex-col">
+                {/* Stars */}
+                <div className="flex gap-1 mb-5">
+                  {[...Array(5)].map((_, s) => (
+                    <svg key={s} className="w-4 h-4 text-amber-400 fill-current" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                  ))}
+                </div>
+                <p className="text-gray-600 text-sm leading-relaxed flex-1 mb-6">"{t2.text}"</p>
+                <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
+                  <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                    {t2.name.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900 text-sm">{t2.name}</div>
+                    <div className="text-xs text-gray-400">{t2.role}</div>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -494,19 +639,47 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+          <p className="text-center text-sm text-gray-400 mt-6">Карта не нужна · Отмена в любой момент · Данные сохраняются</p>
         </div>
       </section>
 
-      {/* ── Trust CTA ────────────────────────────────────────────────────────── */}
+      {/* ── FAQ ──────────────────────────────────────────────────────────────── */}
+      <section className="py-24 px-6 bg-gray-50">
+        <div className="max-w-3xl mx-auto">
+          <div className="mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">{t('landing.faq.title' as any)}</h2>
+          </div>
+          <FAQ items={faqItems} />
+        </div>
+      </section>
+
+      {/* ── Final CTA ────────────────────────────────────────────────────────── */}
       <section className="py-24 px-6 bg-blue-600">
         <div className="max-w-3xl mx-auto text-center">
-          <Shield className="w-12 h-12 text-blue-200 mx-auto mb-6" />
-          <h2 className="text-3xl font-bold text-white mb-4">{t('landing.trust.title')}</h2>
-          <p className="text-blue-100 mb-10 leading-relaxed">{t('landing.trust.desc')}</p>
-          <Link to="/register" className="inline-flex items-center gap-2 bg-white text-blue-600 font-semibold px-8 py-4 rounded-xl hover:bg-blue-50 transition-colors shadow-lg">
-            {t('landing.trust.btn')} <ArrowRight className="w-4 h-4" />
+          <h2 className="text-4xl font-bold text-white mb-4">{t('landing.cta.title' as any)}</h2>
+          <p className="text-blue-100 mb-10 leading-relaxed text-lg">{t('landing.cta.desc' as any)}</p>
+
+          {/* Steps */}
+          <div className="flex items-center justify-center gap-3 mb-10 flex-wrap">
+            {[
+              t('landing.cta.step1' as any),
+              t('landing.cta.step2' as any),
+              t('landing.cta.step3' as any),
+            ].map((step, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="flex items-center gap-2 bg-white/10 rounded-xl px-4 py-2">
+                  <span className="w-6 h-6 bg-white text-blue-600 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                  <span className="text-white text-sm font-medium">{step}</span>
+                </div>
+                {i < 2 && <ChevronRight className="w-4 h-4 text-blue-300 flex-shrink-0 hidden sm:block" />}
+              </div>
+            ))}
+          </div>
+
+          <Link to="/register" className="inline-flex items-center gap-2 bg-white text-blue-600 font-bold px-10 py-4 rounded-xl hover:bg-blue-50 transition-all shadow-xl hover:-translate-y-0.5 text-base">
+            {t('landing.cta.btn' as any)} <ArrowRight className="w-5 h-5" />
           </Link>
-          <p className="text-sm text-blue-200/60 mt-5">{t('landing.hero.regNote')}</p>
+          <p className="text-sm text-blue-200/70 mt-5">{t('landing.hero.regNote')}</p>
         </div>
       </section>
 
