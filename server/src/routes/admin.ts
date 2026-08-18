@@ -123,6 +123,7 @@ router.get('/companies/:id', requireSuperAdmin, async (req: AdminRequest, res: R
           select: {
             id: true, name: true, email: true, role: true, managerType: true,
             status: true, lastLoginAt: true, lastSeenAt: true, createdAt: true,
+            accessExpiresAt: true,
             sessions: { orderBy: { loginAt: 'desc' }, take: 5 },
           },
         },
@@ -263,11 +264,11 @@ router.get('/users', requireSuperAdmin, async (req: AdminRequest, res: Response)
 
 // ─── PATCH /api/admin/users/:id ───────────────────────────────────────────────
 router.patch('/users/:id', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
-  const { status, role, name, email, phone, managerType, newPassword } = req.body
+  const { status, role, name, email, phone, managerType, newPassword, accessExpiresAt } = req.body
   try {
     const before = await prisma.user.findUnique({
       where: { id: req.params.id },
-      select: { name: true, email: true, role: true, status: true, managerType: true, company: { select: { id: true, name: true } } },
+      select: { name: true, email: true, role: true, status: true, managerType: true, accessExpiresAt: true, company: { select: { id: true, name: true } } },
     })
 
     let passwordHash: string | undefined
@@ -290,10 +291,12 @@ router.patch('/users/:id', requireSuperAdmin, async (req: AdminRequest, res: Res
         ...(phone !== undefined && { phone }),
         ...(managerType !== undefined && { managerType: managerType || null }),
         ...(passwordHash !== undefined && { passwordHash }),
+        ...(accessExpiresAt !== undefined && { accessExpiresAt: accessExpiresAt ? new Date(accessExpiresAt) : null }),
       },
       select: {
         id: true, name: true, email: true, role: true, managerType: true,
         status: true, phone: true, lastLoginAt: true, lastSeenAt: true, createdAt: true,
+        accessExpiresAt: true,
         company: { select: { id: true, name: true, isActive: true } },
       },
     })
@@ -336,6 +339,19 @@ router.patch('/users/:id', requireSuperAdmin, async (req: AdminRequest, res: Res
         oldValue: before?.name, newValue: name,
         companyId, companyName,
       })
+    }
+    if (accessExpiresAt !== undefined) {
+      const oldVal = before?.accessExpiresAt ? before.accessExpiresAt.toISOString().slice(0, 10) : 'без ограничений'
+      const newVal = accessExpiresAt ? String(accessExpiresAt).slice(0, 10) : 'без ограничений'
+      if (oldVal !== newVal) {
+        await writeAudit({
+          action: 'USER_ACCESS_EXPIRY_CHANGED',
+          description: `Изменил срок доступа пользователя "${before?.name || ''}" (${before?.email || ''}): ${oldVal} → ${newVal}`,
+          adminEmail, targetId: req.params.id, targetType: 'user',
+          oldValue: oldVal, newValue: newVal,
+          companyId, companyName,
+        })
+      }
     }
 
     res.json(user)

@@ -130,7 +130,14 @@ export default function AdminCompanyDetailPage() {
     setEditUserId(u.id)
     setEditError('')
     setShowPwd(false)
-    setEditForm({ name: u.name || '', email: u.email || '', role: u.role, managerType: u.managerType || '', newPassword: '' })
+    setEditForm({
+      name: u.name || '',
+      email: u.email || '',
+      role: u.role,
+      managerType: u.managerType || '',
+      newPassword: '',
+      accessExpiresAt: u.accessExpiresAt ? u.accessExpiresAt.slice(0, 10) : '',
+    })
   }
 
   const saveEditUser = async () => {
@@ -141,6 +148,7 @@ export default function AdminCompanyDetailPage() {
         name: editForm.name, email: editForm.email,
         role: editForm.role,
         managerType: editForm.role === 'MANAGER' ? (editForm.managerType || 'CLOSER') : '',
+        accessExpiresAt: editForm.accessExpiresAt || null,
       }
       if (editForm.newPassword) payload.newPassword = editForm.newPassword
       await adminApi.patch(`/api/admin/users/${editUserId}`, payload)
@@ -335,6 +343,26 @@ export default function AdminCompanyDetailPage() {
                         {new Date(u.lastSeenAt || u.lastLoginAt).toLocaleString('ru')}
                       </div>
                     )}
+                    {u.accessExpiresAt && (() => {
+                      const exp = new Date(u.accessExpiresAt)
+                      const now = new Date()
+                      const daysLeft = Math.ceil((exp.getTime() - now.getTime()) / 86400000)
+                      if (daysLeft < 0) return (
+                        <div className="text-xs text-red-400 flex items-center gap-1 mt-0.5">
+                          ⛔ Инд. доступ истёк {Math.abs(daysLeft)} дн. назад
+                        </div>
+                      )
+                      if (daysLeft <= 7) return (
+                        <div className="text-xs text-amber-400 flex items-center gap-1 mt-0.5">
+                          ⚠ Инд. доступ истекает через {daysLeft} дн.
+                        </div>
+                      )
+                      return (
+                        <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                          Инд. доступ до {exp.toLocaleDateString('ru')}
+                        </div>
+                      )
+                    })()}
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     <button
@@ -404,7 +432,31 @@ export default function AdminCompanyDetailPage() {
                           </select>
                         </div>
                       )}
-                      <div className={editForm.role === 'MANAGER' ? '' : 'col-span-2'}>
+                      <div>
+                        <label className="text-xs text-gray-400 mb-1 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> Доступ до (инд.)
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="date"
+                            className="flex-1 bg-gray-700 border border-gray-600 text-white rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:border-blue-500"
+                            value={editForm.accessExpiresAt}
+                            onChange={e => setEditForm((f: any) => ({ ...f, accessExpiresAt: e.target.value }))}
+                          />
+                          {editForm.accessExpiresAt && (
+                            <button
+                              type="button"
+                              onClick={() => setEditForm((f: any) => ({ ...f, accessExpiresAt: '' }))}
+                              className="text-gray-500 hover:text-red-400 transition-colors"
+                              title="Снять ограничение"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-600 mt-0.5">Пусто = срок компании</p>
+                      </div>
+                      <div>
                         <label className="text-xs text-gray-400 mb-1 flex items-center gap-1">
                           <KeyRound className="w-3 h-3" /> Новый пароль
                         </label>

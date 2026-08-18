@@ -25,7 +25,7 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       where: { id: decoded.userId },
       select: {
         id: true, email: true, role: true, managerType: true,
-        companyId: true, departmentId: true, status: true,
+        companyId: true, departmentId: true, status: true, accessExpiresAt: true,
         company: { select: { isActive: true, trialEndsAt: true } },
       },
     })
@@ -38,6 +38,10 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       }
       if (user.company.trialEndsAt && new Date(user.company.trialEndsAt) < new Date()) {
         return res.status(403).json({ error: 'TRIAL_EXPIRED', message: 'Пробный период истёк. Обратитесь к руководителю для продления.' })
+      }
+      // Per-user expiry — blocks this user even if company subscription is still active
+      if (user.accessExpiresAt && new Date(user.accessExpiresAt) < new Date()) {
+        return res.status(403).json({ error: 'USER_ACCESS_EXPIRED', message: 'Ваш индивидуальный доступ истёк. Обратитесь к руководителю.' })
       }
     }
 
