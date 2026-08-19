@@ -79,8 +79,21 @@ export default function AdminCompaniesPage() {
 
   // Pay modal
   const [payTarget, setPayTarget] = useState<Company | null>(null)
-  const [payForm, setPayForm] = useState({ paidAt: '', paidAmount: '', paymentNote: '' })
+  const [payForm, setPayForm] = useState({ paidAt: '', paidAmount: '', paymentNote: '', months: 1 })
   const [paying, setPaying] = useState(false)
+
+  const PERIOD_PRICES: Record<string, Record<number, number>> = {
+    starter: { 1: 59900, 6: 299900, 12: 499900 },
+    pro:     { 1: 99900, 6: 499900, 12: 799900 },
+    trial:   { 1: 0, 6: 0, 12: 0 },
+  }
+
+  const calcPeriodTo = (from: string, months: number) => {
+    if (!from) return ''
+    const d = new Date(from)
+    d.setMonth(d.getMonth() + months)
+    return d.toLocaleDateString('ru')
+  }
 
   const load = () => {
     setLoading(true)
@@ -166,6 +179,7 @@ export default function AdminCompaniesPage() {
         paidAt: payForm.paidAt,
         paidAmount: payForm.paidAmount ? Number(payForm.paidAmount) : null,
         paymentNote: payForm.paymentNote || null,
+        months: payForm.months,
       })
       setPayTarget(null)
       load()
@@ -183,10 +197,13 @@ export default function AdminCompaniesPage() {
 
   const openPay = (c: Company) => {
     setPayTarget(c)
+    const plan = c.subscriptionPlan || 'starter'
+    const defaultPrice = PERIOD_PRICES[plan]?.[1] || 59900
     setPayForm({
       paidAt: new Date().toISOString().slice(0, 10),
-      paidAmount: c.paidAmount ? String(c.paidAmount) : '',
-      paymentNote: c.paymentNote || '',
+      paidAmount: String(defaultPrice),
+      paymentNote: '',
+      months: 1,
     })
   }
 
@@ -344,32 +361,96 @@ export default function AdminCompaniesPage() {
       {/* Record Payment Modal */}
       {payTarget && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-sm">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-emerald-400" /> Зафиксировать оплату
               </h2>
               <button onClick={() => setPayTarget(null)} className="text-gray-500 hover:text-white"><X className="w-4 h-4" /></button>
             </div>
-            <p className="text-gray-400 text-sm mb-4">Компания: <span className="text-white font-medium">{payTarget.name}</span></p>
+            <p className="text-gray-400 text-sm mb-1">Компания: <span className="text-white font-medium">{payTarget.name}</span></p>
+            {payTarget.trialEndsAt && (
+              <p className="text-xs text-gray-500 mb-4">
+                Текущий период до: <span className="text-amber-400">{new Date(payTarget.trialEndsAt).toLocaleDateString('ru')}</span>
+                {' '}— новый период продолжится с этой даты
+              </p>
+            )}
             <form onSubmit={recordPayment} className="space-y-4">
+              {/* Период */}
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Дата оплаты</label>
-                <input
-                  type="date" required
-                  className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
-                  value={payForm.paidAt}
-                  onChange={e => setPayForm(f => ({ ...f, paidAt: e.target.value }))}
-                />
+                <label className="block text-sm text-gray-400 mb-2">Период оплаты</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { months: 1,  label: '1 месяц' },
+                    { months: 6,  label: '6 месяцев' },
+                    { months: 12, label: '1 год' },
+                  ] as const).map(opt => {
+                    const plan = payTarget.subscriptionPlan || 'starter'
+                    const price = PERIOD_PRICES[plan]?.[opt.months]
+                    return (
+                      <button
+                        key={opt.months}
+                        type="button"
+                        onClick={() => {
+                          const p = PERIOD_PRICES[plan]?.[opt.months]
+                          setPayForm(f => ({
+                            ...f,
+                            months: opt.months,
+                            paidAmount: p ? String(p) : f.paidAmount,
+                          }))
+                        }}
+                        className={`p-3 rounded-xl border text-sm font-medium transition-colors text-center ${
+                          payForm.months === opt.months
+                            ? 'border-emerald-500 bg-emerald-900/30 text-emerald-300'
+                            : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600'
+                        }`}
+                      >
+                        <div>{opt.label}</div>
+                        {price ? <div className="text-xs mt-0.5 opacity-70">₸{price.toLocaleString('ru')}</div> : null}
+                      </button>
+                    )
+                  })}
+                </div>
+                {/* Итоговый период */}
+                {payForm.paidAt && (
+                  <div className="mt-2 text-xs text-gray-500 bg-gray-800 rounded-lg px-3 py-2">
+                    Период: <span className="text-white">
+                      {payTarget.trialEndsAt && new Date(payTarget.trialEndsAt) > new Date()
+                        ? new Date(payTarget.trialEndsAt).toLocaleDateString('ru')
+                        : new Date(payForm.paidAt).toLocaleDateString('ru')
+                      }
+                    </span>
+                    {' '}→ <span className="text-emerald-400 font-medium">
+                      {calcPeriodTo(
+                        payTarget.trialEndsAt && new Date(payTarget.trialEndsAt) > new Date()
+                          ? payTarget.trialEndsAt.slice(0, 10)
+                          : payForm.paidAt,
+                        payForm.months
+                      )}
+                    </span>
+                  </div>
+                )}
               </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Сумма (₸)</label>
-                <input
-                  type="number" placeholder="59900"
-                  className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
-                  value={payForm.paidAmount}
-                  onChange={e => setPayForm(f => ({ ...f, paidAmount: e.target.value }))}
-                />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Дата оплаты</label>
+                  <input
+                    type="date" required
+                    className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+                    value={payForm.paidAt}
+                    onChange={e => setPayForm(f => ({ ...f, paidAt: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Сумма (₸)</label>
+                  <input
+                    type="number" placeholder="59900"
+                    className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500"
+                    value={payForm.paidAmount}
+                    onChange={e => setPayForm(f => ({ ...f, paidAmount: e.target.value }))}
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Заметка (необязательно)</label>
@@ -382,11 +463,11 @@ export default function AdminCompaniesPage() {
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="submit" disabled={paying}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
                 >
-                  {paying ? 'Сохраняем...' : '✓ Сохранить'}
+                  {paying ? 'Сохраняем...' : '✓ Сохранить и продлить доступ'}
                 </button>
-                <button type="button" onClick={() => setPayTarget(null)} className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 py-2 rounded-lg text-sm">
+                <button type="button" onClick={() => setPayTarget(null)} className="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 rounded-lg text-sm">
                   Отмена
                 </button>
               </div>

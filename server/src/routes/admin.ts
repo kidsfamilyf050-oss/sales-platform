@@ -60,13 +60,22 @@ router.post('/login', async (req: Request, res: Response) => {
 router.get('/stats', requireSuperAdmin, async (_req: AdminRequest, res: Response) => {
   try {
     const now = new Date()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
     const in7Days  = new Date(now.getTime() +  7 * 24 * 60 * 60 * 1000)
 
+    // Последние 6 месяцев для помесячной выручки
+    const monthsRange: { label: string; from: Date; to: Date }[] = []
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const from = new Date(d.getFullYear(), d.getMonth(), 1)
+      const to   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59)
+      const label = from.toLocaleString('ru', { month: 'long', year: 'numeric' })
+      monthsRange.push({ label, from, to })
+    }
+
     const [
       totalCompanies, activeCompanies, totalUsers, activeUsers, totalReports, recentSessions,
-      paidCompanies, companiesExpiringSoon, companiesExpired, revenueThisMonth, allPaidCompanies,
+      companiesExpiringSoon, companiesExpired,
     ] = await Promise.all([
       prisma.company.count(),
       prisma.company.count({ where: { isActive: true } }),
@@ -77,29 +86,53 @@ router.get('/stats', requireSuperAdmin, async (_req: AdminRequest, res: Response
         where: { loginAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
         select: { userId: true },
       }),
-      // Компании с оплатой (paidAt установлен и isActive)
-      prisma.company.count({ where: { paidAt: { not: null }, isActive: true } }),
-      // Истекают в ближайшие 30 дней (активные)
       prisma.company.findMany({
         where: { isActive: true, trialEndsAt: { gte: now, lte: in30Days } },
-        select: { id: true, name: true, trialEndsAt: true, subscriptionPlan: true, paidAt: true, paidAmount: true,
-          users: { where: { role: 'OWNER' }, select: { name: true, email: true }, take: 1 } },
+        select: {
+          id: true, name: true, trialEndsAt: true, subscriptionPlan: true, paidAt: true, paidAmount: true,
+          users: { where: { role: 'OWNER' }, select: { name: true, email: true }, take: 1 },
+          payments: { orderBy: { periodTo: 'desc' }, take: 1, select: { periodTo: true, amount: true, months: true } },
+        },
         orderBy: { trialEndsAt: 'asc' },
       }),
-      // Уже истекли но isActive=true (просроченные)
       prisma.company.count({ where: { isActive: true, trialEndsAt: { lt: now } } }),
-      // Выручка за текущий месяц
-      prisma.company.aggregate({ where: { paidAt: { gte: startOfMonth } }, _sum: { paidAmount: true } }),
-      // Все оплаченные — для подсчёта MRR
-      prisma.company.findMany({ where: { paidAt: { not: null }, isActive: true }, select: { paidAmount: true } }),
     ])
 
-    const uniqueActiveToday = new Set(recentSessions.map(s => s.userId)).size
-    const revenueThisMonthTotal = revenueThisMonth._sum.paidAmount || 0
-    // Простой MRR: сумма всех активных платящих клиентов (считаем как ежемесячный)
-    const mrr = allPaidCompanies.reduce((sum, c) => sum + (c.paidAmount || 0), 0)
+    // Помесячная выручка из Payment
+    const revenueByMonth = await Promise.all(monthsRange.map(async m => {
+      const agg = await prisma.payment.aggregate({
+        where: { paidAt: { gte: m.from, lte: m.to } },
+        _sum: { amount: true },
+        _count: true,
+      })
+      return { label: m.label, amount: agg._sum.amount || 0, count: agg._count }
+    }))
 
-    // Добавляем флаг urgent (истекает в 7 дней)
+    // Активные платящие клиенты (у которых есть хоть один Payment)
+    const paidCompanyIds = await prisma.payment.findMany({
+      distinct: ['companyId'],
+      select: { companyId: true },
+    })
+    const paidCompanies = paidCompanyIds.length
+
+    // MRR — сумма платежей за текущий месяц
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const revenueThisMonthAgg = await prisma.payment.aggregate({
+      where: { paidAt: { gte: startOfMonth } },
+      _sum: { amount: true },
+    })
+    const revenueThisMonth = revenueThisMonthAgg._sum.amount || 0
+
+    // ARR/MRR: сумма активных подписок (последний платёж каждой активной компании / месяцы * 1)
+    const latestPayments = await prisma.payment.findMany({
+      where: { company: { isActive: true } },
+      orderBy: { paidAt: 'desc' },
+      distinct: ['companyId'],
+      select: { amount: true, months: true },
+    })
+    const mrr = latestPayments.reduce((s, p) => s + (p.amount / (p.months || 1)), 0)
+
+    const uniqueActiveToday = new Set(recentSessions.map(s => s.userId)).size
     const expiringSoon = companiesExpiringSoon.map(c => ({
       ...c,
       urgent: c.trialEndsAt ? new Date(c.trialEndsAt) <= in7Days : false,
@@ -110,8 +143,8 @@ router.get('/stats', requireSuperAdmin, async (_req: AdminRequest, res: Response
       inactiveCompanies: totalCompanies - activeCompanies,
       totalUsers, activeUsers, totalReports, uniqueActiveToday,
       paidCompanies, companiesExpired,
-      revenueThisMonth: revenueThisMonthTotal,
-      mrr,
+      revenueThisMonth, mrr,
+      revenueByMonth,
       expiringSoon,
     })
   } catch (e) {
@@ -168,18 +201,63 @@ router.get('/companies/:id', requireSuperAdmin, async (req: AdminRequest, res: R
   }
 })
 
+// ─── GET /api/admin/companies/:id/payments ────────────────────────────────────
+router.get('/companies/:id/payments', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
+  try {
+    const payments = await prisma.payment.findMany({
+      where: { companyId: req.params.id },
+      orderBy: { paidAt: 'desc' },
+    })
+    res.json(payments)
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ─── DELETE /api/admin/companies/:id/payments/:paymentId ──────────────────────
+router.delete('/companies/:id/payments/:paymentId', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
+  try {
+    await prisma.payment.delete({ where: { id: req.params.paymentId } })
+    res.json({ ok: true })
+  } catch (e) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ─── PATCH /api/admin/companies/:id ───────────────────────────────────────────
 router.patch('/companies/:id', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
-  const { isActive, subscriptionPlan, trialEndsAt, notes, name, paidAt, paidAmount, paymentNote } = req.body
+  const { isActive, subscriptionPlan, trialEndsAt, notes, name, paidAt, paidAmount, paymentNote, months } = req.body
   try {
-    const before = await prisma.company.findUnique({ where: { id: req.params.id }, select: { name: true, isActive: true, subscriptionPlan: true, trialEndsAt: true, paidAt: true, paidAmount: true } })
+    const before = await prisma.company.findUnique({
+      where: { id: req.params.id },
+      select: { name: true, isActive: true, subscriptionPlan: true, trialEndsAt: true, paidAt: true, paidAmount: true },
+    })
+
+    // Если фиксируем оплату с указанием периода — автоматически продлеваем trialEndsAt
+    let newTrialEndsAt = trialEndsAt !== undefined ? (trialEndsAt ? new Date(trialEndsAt) : null) : undefined
+    let periodFrom: Date | undefined
+    let periodTo: Date | undefined
+
+    if (paidAt && months) {
+      const m = Number(months) || 1
+      // Начало периода = max(сегодня, текущий trialEndsAt)
+      const base = before?.trialEndsAt && new Date(before.trialEndsAt) > new Date()
+        ? new Date(before.trialEndsAt)
+        : new Date(paidAt)
+      periodFrom = base
+      periodTo = new Date(base)
+      periodTo.setMonth(periodTo.getMonth() + m)
+      // Автоматически обновляем trialEndsAt если не передан явно
+      if (trialEndsAt === undefined) newTrialEndsAt = periodTo
+    }
 
     const company = await prisma.company.update({
       where: { id: req.params.id },
       data: {
         ...(isActive !== undefined && { isActive }),
         ...(subscriptionPlan !== undefined && { subscriptionPlan }),
-        ...(trialEndsAt !== undefined && { trialEndsAt: trialEndsAt ? new Date(trialEndsAt) : null }),
+        ...(newTrialEndsAt !== undefined && { trialEndsAt: newTrialEndsAt }),
         ...(notes !== undefined && { notes }),
         ...(name !== undefined && { name }),
         ...(paidAt !== undefined && { paidAt: paidAt ? new Date(paidAt) : null }),
@@ -187,6 +265,21 @@ router.patch('/companies/:id', requireSuperAdmin, async (req: AdminRequest, res:
         ...(paymentNote !== undefined && { paymentNote }),
       },
     })
+
+    // Создаём запись в истории платежей
+    if (paidAt && paidAmount && periodFrom && periodTo) {
+      await prisma.payment.create({
+        data: {
+          companyId: company.id,
+          amount: Number(paidAmount),
+          paidAt: new Date(paidAt),
+          periodFrom,
+          periodTo,
+          months: Number(months) || 1,
+          note: paymentNote || null,
+        },
+      })
+    }
 
     // Audit logging
     const adminEmail = req.adminEmail || 'admin'

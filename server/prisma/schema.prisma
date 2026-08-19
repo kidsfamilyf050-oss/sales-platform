@@ -42,6 +42,20 @@ model Company {
   products        Product[]
   lossReasons     LossReason[]
   paymentGateways PaymentGateway[]
+  payments        Payment[]
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  amount      Float
+  paidAt      DateTime // дата получения оплаты
+  periodFrom  DateTime // начало оплаченного периода
+  periodTo    DateTime // конец оплаченного периода
+  months      Int      @default(1) // 1, 6 или 12
+  note        String?  // заметка (способ оплаты и т.д.)
+  createdAt   DateTime @default(now())
 }
 
 model Department {

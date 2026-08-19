@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { adminApi } from '../../api/adminClient'
 import {
   Building2, Users, FileText, Activity, TrendingUp, TrendingDown,
-  Trash2, AlertTriangle, CheckCircle, Clock, DollarSign, BarChart2, Plus,
+  Trash2, AlertTriangle, CheckCircle, Clock, DollarSign, BarChart2, Plus, Calendar,
 } from 'lucide-react'
 
 interface ExpiringSoon {
@@ -15,6 +15,13 @@ interface ExpiringSoon {
   paidAmount: number | null
   urgent: boolean
   users: { name: string; email: string }[]
+  payments: { periodTo: string; amount: number; months: number }[]
+}
+
+interface MonthRevenue {
+  label: string
+  amount: number
+  count: number
 }
 
 interface Stats {
@@ -29,19 +36,22 @@ interface Stats {
   companiesExpired: number
   revenueThisMonth: number
   mrr: number
+  revenueByMonth: MonthRevenue[]
   expiringSoon: ExpiringSoon[]
 }
 
-function fmt(n: number) {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + ' млн'
-  if (n >= 1_000) return (n / 1_000).toFixed(0) + ' тыс'
-  return String(n)
+function fmtMoney(n: number) {
+  if (n >= 1_000_000) return `₸${(n / 1_000_000).toFixed(1)} млн`
+  if (n >= 1_000) return `₸${Math.round(n / 1_000)} тыс`
+  return `₸${n}`
 }
 
 function daysLeft(dateStr: string) {
-  const diff = new Date(dateStr).getTime() - Date.now()
-  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+  return Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
 }
+
+const PLAN_LABELS: Record<string, string> = { trial: 'Триал', starter: 'Стартер', pro: 'Pro' }
+const MONTHS_LABEL: Record<number, string> = { 1: '1 мес', 6: '6 мес', 12: '1 год' }
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
@@ -81,7 +91,7 @@ export default function AdminDashboard() {
   )
 
   const s = stats!
-  const PLAN_LABELS: Record<string, string> = { trial: 'Триал', starter: 'Стартер', pro: 'Pro' }
+  const maxMonthRevenue = Math.max(...s.revenueByMonth.map(m => m.amount), 1)
 
   return (
     <div className="p-8 space-y-8">
@@ -90,44 +100,201 @@ export default function AdminDashboard() {
         <p className="text-gray-500 text-sm mt-1">Сводная статистика и контроль подписок</p>
       </div>
 
-      {/* ── Выручка ─────────────────────────────────────────── */}
+      {/* ── Выручка KPI ─────────────────────────────────────── */}
       <div>
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Выручка</h2>
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Финансы</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
             <div className="w-9 h-9 rounded-lg bg-emerald-700 flex items-center justify-center mb-4">
               <DollarSign className="w-5 h-5 text-white" />
             </div>
-            <div className="text-3xl font-bold text-white mb-1">₸{fmt(s.revenueThisMonth)}</div>
+            <div className="text-2xl font-bold text-white mb-1">{fmtMoney(s.revenueThisMonth)}</div>
             <div className="text-sm text-gray-400">Оплачено в этом месяце</div>
           </div>
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
             <div className="w-9 h-9 rounded-lg bg-blue-700 flex items-center justify-center mb-4">
               <BarChart2 className="w-5 h-5 text-white" />
             </div>
-            <div className="text-3xl font-bold text-white mb-1">₸{fmt(s.mrr)}</div>
-            <div className="text-sm text-gray-400">Сумма активных подписок</div>
+            <div className="text-2xl font-bold text-white mb-1">{fmtMoney(s.mrr)}</div>
+            <div className="text-sm text-gray-400">MRR (ежемес. выручка)</div>
+            <div className="text-xs text-gray-600 mt-1">по активным подпискам</div>
           </div>
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
             <div className="w-9 h-9 rounded-lg bg-purple-700 flex items-center justify-center mb-4">
               <CheckCircle className="w-5 h-5 text-white" />
             </div>
-            <div className="text-3xl font-bold text-white mb-1">{s.paidCompanies}</div>
+            <div className="text-2xl font-bold text-white mb-1">{s.paidCompanies}</div>
             <div className="text-sm text-gray-400">Платящих клиентов</div>
             <div className="text-xs text-gray-600 mt-1">из {s.activeCompanies} активных</div>
           </div>
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <div className={`bg-gray-900 border rounded-xl p-5 ${s.companiesExpired > 0 ? 'border-red-900/60' : 'border-gray-800'}`}>
             <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-4 ${s.companiesExpired > 0 ? 'bg-red-700' : 'bg-gray-700'}`}>
               <AlertTriangle className="w-5 h-5 text-white" />
             </div>
-            <div className={`text-3xl font-bold mb-1 ${s.companiesExpired > 0 ? 'text-red-400' : 'text-white'}`}>{s.companiesExpired}</div>
+            <div className={`text-2xl font-bold mb-1 ${s.companiesExpired > 0 ? 'text-red-400' : 'text-white'}`}>{s.companiesExpired}</div>
             <div className="text-sm text-gray-400">Просроченных</div>
             <div className="text-xs text-gray-600 mt-1">доступ истёк, но активны</div>
           </div>
         </div>
       </div>
 
-      {/* ── Компании и пользователи ──────────────────────────── */}
+      {/* ── Помесячная выручка ───────────────────────────────── */}
+      <div>
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <Calendar className="w-3.5 h-3.5" /> Выручка по месяцам
+        </h2>
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          {/* Бар-чарт */}
+          <div className="px-6 pt-5 pb-3 flex items-end gap-3" style={{ height: 120 }}>
+            {s.revenueByMonth.map((m, i) => {
+              const h = maxMonthRevenue > 0 ? Math.max(4, Math.round((m.amount / maxMonthRevenue) * 72)) : 4
+              const isCurrent = i === s.revenueByMonth.length - 1
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                  {m.amount > 0 && (
+                    <div className="text-[10px] text-gray-400 whitespace-nowrap">{fmtMoney(m.amount)}</div>
+                  )}
+                  <div
+                    className={`w-full rounded-t-md ${isCurrent ? 'bg-emerald-500' : 'bg-gray-700'}`}
+                    style={{ height: h }}
+                  />
+                </div>
+              )
+            })}
+          </div>
+          {/* Таблица */}
+          <table className="w-full text-sm border-t border-gray-800">
+            <thead>
+              <tr className="text-gray-500">
+                <th className="text-left px-6 py-2.5 font-medium">Месяц</th>
+                <th className="text-right px-4 py-2.5 font-medium">Платежей</th>
+                <th className="text-right px-4 py-2.5 font-medium">Сумма</th>
+                <th className="px-6 py-2.5 w-32" />
+              </tr>
+            </thead>
+            <tbody>
+              {s.revenueByMonth.map((m, i) => {
+                const isCurrent = i === s.revenueByMonth.length - 1
+                return (
+                  <tr key={i} className={`border-t border-gray-800/50 ${isCurrent ? 'bg-emerald-950/20' : ''}`}>
+                    <td className="px-6 py-2.5">
+                      <span className={`capitalize text-sm ${isCurrent ? 'text-white font-semibold' : 'text-gray-300'}`}>{m.label}</span>
+                      {isCurrent && <span className="ml-2 text-xs bg-emerald-900/50 text-emerald-400 px-1.5 py-0.5 rounded-full">текущий</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-gray-400">{m.count}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      <span className={m.amount > 0 ? 'text-emerald-400 font-semibold' : 'text-gray-600'}>
+                        {m.amount > 0 ? fmtMoney(m.amount) : '—'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-2.5">
+                      {m.amount > 0 && maxMonthRevenue > 0 && (
+                        <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${(m.amount / maxMonthRevenue) * 100}%` }} />
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-gray-700">
+                <td className="px-6 py-3 text-gray-400 text-sm font-medium">Итого за 6 месяцев</td>
+                <td className="px-4 py-3 text-right text-gray-400">{s.revenueByMonth.reduce((a, m) => a + m.count, 0)}</td>
+                <td className="px-4 py-3 text-right text-white font-bold">{fmtMoney(s.revenueByMonth.reduce((a, m) => a + m.amount, 0))}</td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Истекающие подписки ──────────────────────────────── */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+            <Clock className="w-3.5 h-3.5" />
+            Истекают в ближайшие 30 дней
+            {s.expiringSoon.length > 0 && (
+              <span className="bg-amber-500 text-black text-xs font-bold px-1.5 py-0.5 rounded-full">
+                {s.expiringSoon.length}
+              </span>
+            )}
+          </h2>
+        </div>
+        {s.expiringSoon.length === 0 ? (
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center text-gray-600 text-sm">
+            Нет истекающих подписок - всё под контролем
+          </div>
+        ) : (
+          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-800 text-gray-500">
+                  <th className="text-left px-5 py-3 font-medium">Компания</th>
+                  <th className="text-left px-4 py-3 font-medium">Тариф</th>
+                  <th className="text-left px-4 py-3 font-medium">Осталось</th>
+                  <th className="text-left px-4 py-3 font-medium">Оплачено до</th>
+                  <th className="text-left px-4 py-3 font-medium">Последний платёж</th>
+                  <th className="text-left px-4 py-3 font-medium">Статус оплаты</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {s.expiringSoon.map(c => {
+                  const days = daysLeft(c.trialEndsAt)
+                  const isPaid = !!c.paidAt
+                  const lastPayment = c.payments?.[0]
+                  return (
+                    <tr key={c.id} className={`border-b border-gray-800/50 last:border-0 ${c.urgent ? 'bg-red-950/20' : ''}`}>
+                      <td className="px-5 py-3.5">
+                        <div className="font-medium text-white">{c.name}</div>
+                        {c.users[0] && <div className="text-xs text-gray-500">{c.users[0].email}</div>}
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-gray-400">
+                        {PLAN_LABELS[c.subscriptionPlan || ''] || c.subscriptionPlan || '—'}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className={`text-sm font-semibold ${days <= 3 ? 'text-red-400' : days <= 7 ? 'text-amber-400' : 'text-yellow-300'}`}>
+                          {days <= 0 ? 'Истёк' : `${days} дн.`}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-sm text-gray-300">
+                        {new Date(c.trialEndsAt).toLocaleDateString('ru')}
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-gray-400">
+                        {lastPayment
+                          ? <span>{MONTHS_LABEL[lastPayment.months] || `${lastPayment.months} мес`} · {fmtMoney(lastPayment.amount)}</span>
+                          : '—'
+                        }
+                      </td>
+                      <td className="px-4 py-3.5">
+                        {isPaid ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-emerald-400 bg-emerald-900/30 border border-emerald-800 px-2 py-0.5 rounded-full">
+                            <CheckCircle className="w-3 h-3" /> Оплачено
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs text-amber-400 bg-amber-900/20 border border-amber-800 px-2 py-0.5 rounded-full">
+                            <AlertTriangle className="w-3 h-3" /> Не оплачено
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <Link to={`/admin/companies/${c.id}`} className="text-xs text-blue-400 hover:text-blue-300">
+                          Открыть →
+                        </Link>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ── Платформа ────────────────────────────────────────── */}
       <div>
         <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Платформа</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -164,91 +331,11 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* ── Истекающие подписки ──────────────────────────────── */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-            <Clock className="w-3.5 h-3.5" />
-            Истекают в ближайшие 30 дней
-            {s.expiringSoon.length > 0 && (
-              <span className="bg-amber-500 text-black text-xs font-bold px-1.5 py-0.5 rounded-full">
-                {s.expiringSoon.length}
-              </span>
-            )}
-          </h2>
-        </div>
-        {s.expiringSoon.length === 0 ? (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center text-gray-600 text-sm">
-            Нет истекающих подписок — всё под контролем
-          </div>
-        ) : (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-800">
-                  <th className="text-left px-5 py-3 text-gray-500 font-medium">Компания</th>
-                  <th className="text-left px-4 py-3 text-gray-500 font-medium">Тариф</th>
-                  <th className="text-left px-4 py-3 text-gray-500 font-medium">Истекает</th>
-                  <th className="text-left px-4 py-3 text-gray-500 font-medium">Оплата</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {s.expiringSoon.map((c, i) => {
-                  const days = daysLeft(c.trialEndsAt)
-                  const isPaid = !!c.paidAt
-                  return (
-                    <tr key={c.id} className={`border-b border-gray-800/50 last:border-0 ${c.urgent ? 'bg-red-950/20' : ''}`}>
-                      <td className="px-5 py-3.5">
-                        <div className="font-medium text-white">{c.name}</div>
-                        {c.users[0] && <div className="text-xs text-gray-500">{c.users[0].email}</div>}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <span className="text-xs text-gray-400">{PLAN_LABELS[c.subscriptionPlan || ''] || c.subscriptionPlan || '—'}</span>
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <div className={`text-sm font-semibold ${days <= 3 ? 'text-red-400' : days <= 7 ? 'text-amber-400' : 'text-yellow-300'}`}>
-                          {days <= 0 ? 'Истёк' : `${days} дн.`}
-                        </div>
-                        <div className="text-xs text-gray-500">{new Date(c.trialEndsAt).toLocaleDateString('ru')}</div>
-                      </td>
-                      <td className="px-4 py-3.5">
-                        {isPaid ? (
-                          <div>
-                            <span className="inline-flex items-center gap-1 text-xs text-emerald-400 bg-emerald-900/30 border border-emerald-800 px-2 py-0.5 rounded-full">
-                              <CheckCircle className="w-3 h-3" /> Оплачено
-                            </span>
-                            {c.paidAmount && <div className="text-xs text-gray-500 mt-0.5">₸{c.paidAmount.toLocaleString('ru')}</div>}
-                          </div>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-xs text-amber-400 bg-amber-900/20 border border-amber-800 px-2 py-0.5 rounded-full">
-                            <AlertTriangle className="w-3 h-3" /> Не оплачено
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 text-right">
-                        <Link
-                          to={`/admin/companies/${c.id}`}
-                          className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                        >
-                          Открыть →
-                        </Link>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
       {/* ── Активность + Быстрые действия ───────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
           <h2 className="text-white font-semibold mb-4 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-red-500" />
-            Активность сегодня
+            <Activity className="w-4 h-4 text-red-500" /> Активность сегодня
           </h2>
           <div className="flex items-center gap-4">
             <div>
@@ -261,25 +348,19 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
           <h2 className="text-white font-semibold mb-4">Быстрые действия</h2>
           <div className="space-y-2">
             <Link to="/admin/companies" className="flex items-center gap-3 p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-gray-300 text-sm">
-              <Building2 className="w-4 h-4 text-blue-400" />
-              Управление компаниями
+              <Building2 className="w-4 h-4 text-blue-400" /> Управление компаниями
             </Link>
             <Link to="/admin/users" className="flex items-center gap-3 p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-gray-300 text-sm">
-              <Users className="w-4 h-4 text-purple-400" />
-              Все пользователи
+              <Users className="w-4 h-4 text-purple-400" /> Все пользователи
             </Link>
             <Link to="/admin/companies/new" className="flex items-center gap-3 p-3 bg-blue-900/30 hover:bg-blue-900/50 border border-blue-800 rounded-lg transition-colors text-blue-300 text-sm">
-              <Plus className="w-4 h-4" />
-              Создать компанию вручную
+              <Plus className="w-4 h-4" /> Создать компанию вручную
             </Link>
-            <button
-              onClick={handleResetAll}
-              disabled={resetting}
+            <button onClick={handleResetAll} disabled={resetting}
               className="w-full flex items-center gap-3 p-3 bg-red-950/50 hover:bg-red-950 border border-red-700 rounded-lg transition-colors text-red-400 text-sm disabled:opacity-50"
             >
               <Trash2 className="w-4 h-4" />

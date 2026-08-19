@@ -1,7 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { adminApi } from '../../api/adminClient'
-import { ArrowLeft, CheckCircle, XCircle, Clock, User, Shield, Pencil, X, Check, KeyRound, Eye, EyeOff, Wifi, Infinity, CalendarPlus } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, Clock, User, Shield, Pencil, X, Check, KeyRound, Eye, EyeOff, Wifi, Infinity, CalendarPlus, DollarSign, Trash2 } from 'lucide-react'
+
+interface Payment {
+  id: string
+  amount: number
+  paidAt: string
+  periodFrom: string
+  periodTo: string
+  months: number
+  note: string | null
+}
+
+const MONTHS_LABEL: Record<number, string> = { 1: '1 месяц', 6: '6 месяцев', 12: '1 год' }
+function fmtMoney(n: number) { return `₸${n.toLocaleString('ru')}` }
 
 // Quick access presets
 const ACCESS_PRESETS = [
@@ -62,16 +75,23 @@ export default function AdminCompanyDetailPage() {
   const [editError, setEditError] = useState('')
   const [showPwd, setShowPwd] = useState(false)
 
+  const [payments, setPayments] = useState<Payment[]>([])
+  const [deletingPayment, setDeletingPayment] = useState<string | null>(null)
+
   const load = () => {
     setLoadError('')
-    adminApi.get(`/api/admin/companies/${id}`)
-      .then(r => {
-        setCompany(r.data)
+    Promise.all([
+      adminApi.get(`/api/admin/companies/${id}`),
+      adminApi.get(`/api/admin/companies/${id}/payments`),
+    ])
+      .then(([companyRes, paymentsRes]) => {
+        setCompany(companyRes.data)
+        setPayments(paymentsRes.data)
         setFields({
-          notes: r.data.notes || '',
-          subscriptionPlan: r.data.subscriptionPlan || 'trial',
-          trialEndsAt: r.data.trialEndsAt ? r.data.trialEndsAt.slice(0, 10) : '',
-          name: r.data.name,
+          notes: companyRes.data.notes || '',
+          subscriptionPlan: companyRes.data.subscriptionPlan || 'trial',
+          trialEndsAt: companyRes.data.trialEndsAt ? companyRes.data.trialEndsAt.slice(0, 10) : '',
+          name: companyRes.data.name,
         })
       })
       .catch(e => {
@@ -79,6 +99,17 @@ export default function AdminCompanyDetailPage() {
         setLoadError(e.response?.data?.error || `Ошибка ${e.response?.status || ''}: ${e.message}`)
       })
       .finally(() => setLoading(false))
+  }
+
+  const deletePayment = async (paymentId: string) => {
+    if (!window.confirm('Удалить запись об оплате?')) return
+    setDeletingPayment(paymentId)
+    try {
+      await adminApi.delete(`/api/admin/companies/${id}/payments/${paymentId}`)
+      setPayments(ps => ps.filter(p => p.id !== paymentId))
+    } finally {
+      setDeletingPayment(null)
+    }
   }
 
   useEffect(() => { load() }, [id])
@@ -499,6 +530,83 @@ export default function AdminCompanyDetailPage() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* ── История платежей ──────────────────────────────────── */}
+      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+          <h2 className="text-white font-semibold flex items-center gap-2">
+            <DollarSign className="w-4 h-4 text-emerald-400" />
+            История платежей
+          </h2>
+          {payments.length > 0 && (
+            <span className="text-xs text-gray-500">
+              Итого: {fmtMoney(payments.reduce((s, p) => s + p.amount, 0))}
+            </span>
+          )}
+        </div>
+
+        {payments.length === 0 ? (
+          <div className="px-5 py-8 text-center text-gray-600 text-sm">Платежей ещё нет</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-gray-500 border-b border-gray-800/50">
+                <th className="text-left px-5 py-3 font-medium">Дата оплаты</th>
+                <th className="text-left px-4 py-3 font-medium">Период</th>
+                <th className="text-left px-4 py-3 font-medium">Оплачено до</th>
+                <th className="text-left px-4 py-3 font-medium">Сумма</th>
+                <th className="text-left px-4 py-3 font-medium">Заметка</th>
+                <th className="px-4 py-3 w-8" />
+              </tr>
+            </thead>
+            <tbody>
+              {payments.map((p, i) => {
+                const isActive = new Date(p.periodTo) >= new Date()
+                return (
+                  <tr key={p.id} className={`border-b border-gray-800/30 last:border-0 ${isActive ? 'bg-emerald-950/10' : ''}`}>
+                    <td className="px-5 py-3.5 text-gray-300">
+                      {new Date(p.paidAt).toLocaleDateString('ru')}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded-full">
+                        {MONTHS_LABEL[p.months] || `${p.months} мес`}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-400">
+                          {new Date(p.periodFrom).toLocaleDateString('ru')} → {new Date(p.periodTo).toLocaleDateString('ru')}
+                        </span>
+                        {isActive && (
+                          <span className="text-xs text-emerald-400 bg-emerald-900/30 border border-emerald-800 px-1.5 py-0.5 rounded-full">
+                            активен
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 font-semibold text-emerald-400">
+                      {fmtMoney(p.amount)}
+                    </td>
+                    <td className="px-4 py-3.5 text-xs text-gray-500">
+                      {p.note || '—'}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <button
+                        onClick={() => deletePayment(p.id)}
+                        disabled={deletingPayment === p.id}
+                        className="text-gray-700 hover:text-red-400 transition-colors disabled:opacity-50"
+                        title="Удалить запись"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   )
