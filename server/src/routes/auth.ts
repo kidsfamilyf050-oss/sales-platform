@@ -260,8 +260,8 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       where: { id: payload.userId },
       data: { passwordHash },
     })
-    // Send confirmation email (non-blocking)
-    sendPasswordChangedEmail(user.email, user.name).catch(console.error)
+    // Send confirmation email with new password (non-blocking)
+    sendPasswordChangedEmail(user.email, user.name, password).catch(console.error)
     res.json({ message: 'Пароль успешно изменён', userId: user.id })
   } catch (e: any) {
     if (e.name === 'TokenExpiredError') return res.status(400).json({ error: 'Ссылка для сброса пароля истекла. Запросите новую.' })

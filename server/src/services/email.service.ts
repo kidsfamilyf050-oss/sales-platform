@@ -151,7 +151,7 @@ export const sendReportReminderEmail = async (email: string, name: string) => {
   })
 }
 
-export const sendPasswordChangedEmail = async (email: string, name: string) => {
+export const sendPasswordChangedEmail = async (email: string, name: string, newPassword: string) => {
   const loginUrl = process.env.CLIENT_URL || 'https://sirius-track.kz'
   await resend.emails.send({
     from: FROM,
@@ -170,8 +170,12 @@ export const sendPasswordChangedEmail = async (email: string, name: string) => {
               ✅ <strong>Ваш пароль был успешно изменён.</strong>
             </p>
           </div>
-          <p>Если вы не меняли пароль — немедленно обратитесь в поддержку.</p>
-          <p>По вопросам: <a href="mailto:info@sirius-track.kz">info@sirius-track.kz</a></p>
+          <p>Ваши новые данные для входа:</p>
+          <div style="background: white; border: 1px solid #d1d5db; border-radius: 6px; padding: 16px 20px; margin: 20px 0;">
+            <p style="margin: 4px 0;"><strong>Email:</strong> ${email}</p>
+            <p style="margin: 4px 0;"><strong>Новый пароль:</strong> ${newPassword}</p>
+          </div>
+          <p style="color: #6b7280; font-size: 13px;">Если вы не меняли пароль — немедленно обратитесь в поддержку: <a href="mailto:info@sirius-track.kz">info@sirius-track.kz</a></p>
           <a href="${loginUrl}/login" style="display: inline-block; padding: 12px 24px; background: #1e3a5f; color: white; text-decoration: none; border-radius: 6px; margin: 8px 0;">
             Войти в систему
           </a>
