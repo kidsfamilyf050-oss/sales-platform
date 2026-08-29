@@ -14,7 +14,7 @@ export const sendInviteEmail = async (email: string, name: string, inviteToken: 
   const inviteUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/accept-invite?token=${inviteToken}`
 
   await transporter.sendMail({
-    from: process.env.SMTP_FROM || 'noreply@salesplatform.com',
+    from: process.env.SMTP_FROM || 'Sirius Track <noreply@sirius-track.kz>',
     to: email,
     subject: `Приглашение в ${companyName}`,
     html: `
@@ -112,7 +112,7 @@ export const sendAccessApprovedEmail = async (
 
 export const sendReportReminderEmail = async (email: string, name: string) => {
   await transporter.sendMail({
-    from: process.env.SMTP_FROM || 'noreply@salesplatform.com',
+    from: process.env.SMTP_FROM || 'Sirius Track <noreply@sirius-track.kz>',
     to: email,
     subject: 'Напоминание: не заполнен ежедневный отчёт',
     html: `
