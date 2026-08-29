@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Header from './Header'
+import TrialBanner from './TrialBanner'
 import { useHeartbeat } from '../../hooks/useHeartbeat'
 import { useAuthStore } from '../../store/auth'
 import { api } from '../../api/client'
@@ -46,6 +47,7 @@ export default function Layout() {
 
       {/* Main content: md:pl-16 reserves 64px for the collapsed icon-strip sidebar */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0 md:pl-16">
+        <TrialBanner />
         <Header onMenuClick={() => setSidebarOpen(o => !o)} />
         <main className="flex-1 overflow-y-auto">
           <Outlet />
