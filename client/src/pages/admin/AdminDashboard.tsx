@@ -281,7 +281,7 @@ export default function AdminDashboard() {
                         )}
                       </td>
                       <td className="px-4 py-3.5 text-right">
-                        <Link to={`/admin/companies/${c.id}`} className="text-xs text-blue-400 hover:text-blue-300">
+                        <Link to={`/sys-ctl-9x7/companies/${c.id}`} className="text-xs text-blue-400 hover:text-blue-300">
                           Открыть →
                         </Link>
                       </td>
@@ -351,13 +351,13 @@ export default function AdminDashboard() {
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
           <h2 className="text-white font-semibold mb-4">Быстрые действия</h2>
           <div className="space-y-2">
-            <Link to="/admin/companies" className="flex items-center gap-3 p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-gray-300 text-sm">
+            <Link to="/sys-ctl-9x7/companies" className="flex items-center gap-3 p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-gray-300 text-sm">
               <Building2 className="w-4 h-4 text-blue-400" /> Управление компаниями
             </Link>
-            <Link to="/admin/users" className="flex items-center gap-3 p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-gray-300 text-sm">
+            <Link to="/sys-ctl-9x7/users" className="flex items-center gap-3 p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors text-gray-300 text-sm">
               <Users className="w-4 h-4 text-purple-400" /> Все пользователи
             </Link>
-            <Link to="/admin/companies/new" className="flex items-center gap-3 p-3 bg-blue-900/30 hover:bg-blue-900/50 border border-blue-800 rounded-lg transition-colors text-blue-300 text-sm">
+            <Link to="/sys-ctl-9x7/companies/new" className="flex items-center gap-3 p-3 bg-blue-900/30 hover:bg-blue-900/50 border border-blue-800 rounded-lg transition-colors text-blue-300 text-sm">
               <Plus className="w-4 h-4" /> Создать компанию вручную
             </Link>
             <button onClick={handleResetAll} disabled={resetting}

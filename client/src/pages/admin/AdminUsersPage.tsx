@@ -166,7 +166,7 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="py-3 px-4">
                       {u.company ? (
-                        <Link to={`/admin/companies/${u.company.id}`} className="text-gray-400 hover:text-white flex items-center gap-1 text-xs">
+                        <Link to={`/sys-ctl-9x7/companies/${u.company.id}`} className="text-gray-400 hover:text-white flex items-center gap-1 text-xs">
                           {u.company.name}
                           <ExternalLink className="w-3 h-3" />
                         </Link>

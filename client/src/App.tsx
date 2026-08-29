@@ -106,9 +106,9 @@ export default function App() {
           <Route path="/gateways" element={<GatewaysPage />} />
           <Route path="/planned-payments" element={<PlannedPaymentsPage />} />
         </Route>
-        {/* Super Admin Panel */}
-        <Route path="/admin/login" element={<AdminLoginPage />} />
-        <Route path="/admin" element={<AdminLayout />}>
+        {/* Super Admin Panel — hidden URL */}
+        <Route path="/sys-ctl-9x7/login" element={<AdminLoginPage />} />
+        <Route path="/sys-ctl-9x7" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
           <Route path="companies" element={<AdminCompaniesPage />} />
           <Route path="companies/:id" element={<AdminCompanyDetailPage />} />

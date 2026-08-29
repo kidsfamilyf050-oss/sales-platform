@@ -565,7 +565,7 @@ export default function AdminCompaniesPage() {
                   >
                     {c.isActive ? <><CheckCircle className="w-3 h-3" /> Активна</> : <><XCircle className="w-3 h-3" /> Заблок.</>}
                   </button>
-                  <Link to={`/admin/companies/${c.id}`} className="flex items-center gap-1 text-gray-500 hover:text-white transition-colors text-sm">
+                  <Link to={`/sys-ctl-9x7/companies/${c.id}`} className="flex items-center gap-1 text-gray-500 hover:text-white transition-colors text-sm">
                     <ChevronRight className="w-4 h-4" />
                   </Link>
                 </div>

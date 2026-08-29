@@ -20,7 +20,7 @@ function NavItem({ to, icon: Icon, label }: { to: string; icon: any; label: stri
 
 export default function AdminLayout() {
   const { token, admin, logout } = useAdminStore()
-  if (!token) return <Navigate to="/admin/login" replace />
+  if (!token) return <Navigate to="/sys-ctl-9x7/login" replace />
 
   return (
     <div className="min-h-screen bg-gray-950 flex">
@@ -33,15 +33,15 @@ export default function AdminLayout() {
           <span className="text-white font-bold text-sm">Admin Panel</span>
         </div>
         <nav className="flex-1 space-y-1">
-          <NavItem to="/admin" icon={BarChart2} label="Статистика" />
-          <NavItem to="/admin/companies" icon={Building2} label="Компании" />
-          <NavItem to="/admin/users" icon={Users} label="Пользователи" />
-          <NavItem to="/admin/audit" icon={History} label="История" />
+          <NavItem to="/sys-ctl-9x7" icon={BarChart2} label="Статистика" />
+          <NavItem to="/sys-ctl-9x7/companies" icon={Building2} label="Компании" />
+          <NavItem to="/sys-ctl-9x7/users" icon={Users} label="Пользователи" />
+          <NavItem to="/sys-ctl-9x7/audit" icon={History} label="История" />
         </nav>
         <div className="border-t border-gray-800 pt-4 mt-4">
           <div className="text-xs text-gray-500 px-1 mb-3 truncate">{admin?.email}</div>
           <button
-            onClick={() => { logout(); window.location.href = '/admin/login' }}
+            onClick={() => { logout(); window.location.href = '/sys-ctl-9x7/login' }}
             className="flex items-center gap-2 text-sm text-gray-400 hover:text-red-400 transition-colors px-1"
           >
             <LogOut className="w-4 h-4" />

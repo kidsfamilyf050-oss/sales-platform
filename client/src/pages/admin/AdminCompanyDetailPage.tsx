@@ -201,7 +201,7 @@ export default function AdminCompanyDetailPage() {
 
   if (loadError) return (
     <div className="p-8">
-      <Link to="/admin/companies" className="text-gray-500 hover:text-white flex items-center gap-2 mb-4">
+      <Link to="/sys-ctl-9x7/companies" className="text-gray-500 hover:text-white flex items-center gap-2 mb-4">
         <ArrowLeft className="w-4 h-4" /> Назад
       </Link>
       <div className="bg-red-900/20 border border-red-800 rounded-xl p-4 text-red-400 text-sm">
@@ -216,7 +216,7 @@ export default function AdminCompanyDetailPage() {
   return (
     <div className="p-8 max-w-5xl">
       <div className="flex items-center gap-3 mb-6">
-        <Link to="/admin/companies" className="text-gray-500 hover:text-white transition-colors">
+        <Link to="/sys-ctl-9x7/companies" className="text-gray-500 hover:text-white transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
