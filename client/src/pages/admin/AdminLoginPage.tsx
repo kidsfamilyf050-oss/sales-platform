@@ -19,7 +19,7 @@ export default function AdminLoginPage() {
     try {
       const res = await adminApi.post('/api/admin/login', { email, password })
       setAuth(res.data.token, res.data.admin)
-      navigate('/admin')
+      navigate('/sys-ctl-9x7')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Ошибка входа')
     } finally {
