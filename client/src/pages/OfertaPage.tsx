@@ -4,7 +4,7 @@ import { ArrowLeft, BarChart2 } from 'lucide-react'
 const EFFECTIVE_DATE = '1 сентября 2026 г.'
 const SERVICE_NAME   = 'Sirius Track'
 const CONTACT_EMAIL  = 'info@sirius-track.kz'
-const COMPANY_NAME   = '[НАЗВАНИЕ КОМПАНИИ / ИП]'   // TODO: заполните после регистрации юрлица
+const COMPANY_NAME   = 'ТОО «Sirius Track»'
 const COMPANY_BIN    = '[БИН]'                       // TODO: заполните после регистрации
 const COMPANY_ADDR   = '[ЮРИДИЧЕСКИЙ АДРЕС]'         // TODO: заполните после регистрации
 
