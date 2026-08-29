@@ -85,6 +85,15 @@ const apiLimiter = rateLimit({
   message: { error: 'Слишком много запросов. Пожалуйста, подождите.' },
 })
 
+// AI endpoint — strict limit to prevent burning API credits
+const aiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 10, // max 10 AI requests per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Слишком много запросов к AI. Подождите минуту.' },
+})
+
 app.use(express.json({ limit: '2mb' })) // cap request body size
 
 // Global API rate limit — covers ALL /api/* routes
@@ -97,7 +106,7 @@ app.use('/api/users', usersRoutes)
 app.use('/api/reports', reportsRoutes)
 app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/plans', plansRoutes)
-app.use('/api/ai', aiRoutes)
+app.use('/api/ai', aiLimiter, aiRoutes)
 app.use('/api/notifications', notificationsRoutes)
 app.use('/api/sales', salesRoutes)
 app.use('/api/export', exportRoutes)
