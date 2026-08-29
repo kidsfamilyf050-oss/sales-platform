@@ -1,20 +1,15 @@
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.yandex.ru',
-  port: parseInt(process.env.SMTP_PORT || '465'),
-  secure: process.env.SMTP_SECURE !== 'false', // true by default for port 465
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-})
+// Resend HTTP API — works on Railway (SMTP ports are blocked, HTTP is not)
+const resend = new Resend(process.env.RESEND_API_KEY || process.env.SMTP_PASS)
+
+const FROM = process.env.SMTP_FROM || 'Sirius Track <noreply@sirius-track.kz>'
 
 export const sendInviteEmail = async (email: string, name: string, inviteToken: string, companyName: string) => {
   const inviteUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/accept-invite?token=${inviteToken}`
 
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM || 'Sirius Track <noreply@sirius-track.kz>',
+  await resend.emails.send({
+    from: FROM,
     to: email,
     subject: `Приглашение в ${companyName}`,
     html: `
@@ -39,8 +34,8 @@ export const sendWelcomeEmail = async (
   companyName: string,
 ) => {
   const loginUrl = process.env.CLIENT_URL || 'https://sirius-track.kz'
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM || 'Sirius Track <noreply@sirius-track.kz>',
+  await resend.emails.send({
+    from: FROM,
     to: email,
     subject: 'Добро пожаловать в Sirius Track — ваш аккаунт создан',
     html: `
@@ -80,8 +75,8 @@ export const sendAccessApprovedEmail = async (
   companyName: string,
 ) => {
   const loginUrl = process.env.CLIENT_URL || 'https://sirius-track.kz'
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM || 'Sirius Track <noreply@sirius-track.kz>',
+  await resend.emails.send({
+    from: FROM,
     to: email,
     subject: '✅ Ваш доступ к Sirius Track открыт',
     html: `
@@ -111,8 +106,8 @@ export const sendAccessApprovedEmail = async (
 }
 
 export const sendResetPasswordEmail = async (email: string, name: string, resetUrl: string) => {
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM || 'Sirius Track <noreply@sirius-track.kz>',
+  await resend.emails.send({
+    from: FROM,
     to: email,
     subject: '🔑 Сброс пароля — Sirius Track',
     html: `
@@ -139,8 +134,8 @@ export const sendResetPasswordEmail = async (email: string, name: string, resetU
 }
 
 export const sendReportReminderEmail = async (email: string, name: string) => {
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM || 'Sirius Track <noreply@sirius-track.kz>',
+  await resend.emails.send({
+    from: FROM,
     to: email,
     subject: 'Напоминание: не заполнен ежедневный отчёт',
     html: `

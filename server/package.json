@@ -29,6 +29,7 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^6.9.14",
+    "resend": "^4.0.0",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
