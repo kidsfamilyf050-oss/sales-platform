@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { PrismaClient } from '@prisma/client'
 import { authenticate, AuthRequest } from '../middleware/auth'
-import { sendWelcomeEmail } from '../services/email.service'
+import { sendWelcomeEmail, sendResetPasswordEmail } from '../services/email.service'
 
 const router = Router()
 const prisma = new PrismaClient()
@@ -234,8 +234,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
     console.log(`[RESET PASSWORD] request for ${email}`)
 
     // Send reset email
-    const { sendResetPasswordEmail } = await import('../services/email.service')
-    await sendResetPasswordEmail(email, user.name, resetUrl).catch((err) => {
+    sendResetPasswordEmail(email, user.name, resetUrl).catch((err) => {
       console.error('[EMAIL] Reset password email failed:', err)
     })
 
