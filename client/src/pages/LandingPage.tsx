@@ -651,6 +651,49 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* SEO Text Block */}
+      <section className="py-16 px-6 bg-white border-t border-gray-100">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            Держите руку на пульсе вашего отдела продаж
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-gray-500 text-sm leading-relaxed">
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-2">Что такое «Рука на пульсе» в продажах?</h3>
+              <p>
+                «Рука на пульсе» — это когда руководитель отдела продаж (РОП) и собственник бизнеса видят
+                все ключевые показатели в реальном времени: количество лидов, воронку, план vs факт,
+                рейтинг менеджеров. Sirius Track создан именно для этого — не CRM, а живая аналитика.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-2">Управление отделом продаж в Казахстане</h3>
+              <p>
+                Платформа для управления отделом продаж малого и среднего бизнеса в Казахстане.
+                Контроль менеджеров, лидорубов и клоузеров. Аналитика каналов привлечения,
+                стоимость лида, конверсия — всё в одном дашборде.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-2">Замена таблицам Excel для отдела продаж</h3>
+              <p>
+                Многие компании ведут учёт продаж в Excel или Google Sheets. Sirius Track —
+                это современная замена: автоматические отчёты, дашборды вместо таблиц,
+                мгновенный доступ с любого устройства.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-700 mb-2">CRM или платформа аналитики продаж?</h3>
+              <p>
+                Sirius Track — не CRM. Это инструмент для руководителя: держать руку на пульсе
+                без погружения в карточки клиентов. Если нужен контроль показателей отдела продаж —
+                это решение для вас.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-10 px-6 border-t border-gray-100 bg-white">
         <div className="max-w-6xl mx-auto flex items-center justify-between flex-wrap gap-6">
