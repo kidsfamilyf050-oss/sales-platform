@@ -586,6 +586,85 @@ router.delete('/audit-logs', requireSuperAdmin, async (req: AdminRequest, res: R
   }
 })
 
+// ─── GET /api/admin/admins ────────────────────────────────────────────────────
+router.get('/admins', requireSuperAdmin, async (_req: AdminRequest, res: Response) => {
+  try {
+    const admins = await prisma.superAdmin.findMany({
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, email: true, createdAt: true },
+    })
+    res.json(admins)
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ─── POST /api/admin/admins ───────────────────────────────────────────────────
+router.post('/admins', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
+  const { email, password } = req.body
+  if (!email || !password) return res.status(400).json({ error: 'Заполните все поля' })
+  if (password.length < 8) return res.status(400).json({ error: 'Пароль минимум 8 символов' })
+  try {
+    const existing = await prisma.superAdmin.findUnique({ where: { email } })
+    if (existing) return res.status(400).json({ error: 'Email уже используется' })
+    const passwordHash = await bcrypt.hash(password, 12)
+    const admin = await prisma.superAdmin.create({
+      data: { email, passwordHash },
+      select: { id: true, email: true, createdAt: true },
+    })
+    await writeAudit({
+      action: 'ADMIN_CREATED',
+      description: `Создал супер-администратора: ${email}`,
+      adminEmail: req.adminEmail,
+    })
+    res.json(admin)
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ─── DELETE /api/admin/admins/:id ─────────────────────────────────────────────
+router.delete('/admins/:id', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
+  if (req.params.id === req.adminId) {
+    return res.status(400).json({ error: 'Нельзя удалить самого себя' })
+  }
+  try {
+    const admin = await prisma.superAdmin.findUnique({ where: { id: req.params.id } })
+    if (!admin) return res.status(404).json({ error: 'Не найден' })
+    await prisma.superAdmin.delete({ where: { id: req.params.id } })
+    await writeAudit({
+      action: 'ADMIN_DELETED',
+      description: `Удалил супер-администратора: ${admin.email}`,
+      adminEmail: req.adminEmail,
+    })
+    res.json({ ok: true })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ─── DELETE /api/admin/wipe-companies ─────────────────────────────────────────
+// Deletes ALL companies (cascade → users, payments, leads, sales, etc.)
+router.delete('/wipe-companies', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
+  const { confirm } = req.body
+  if (confirm !== 'WIPE_ALL') return res.status(400).json({ error: 'Передайте confirm: "WIPE_ALL"' })
+  try {
+    const { count } = await prisma.company.deleteMany({})
+    await writeAudit({
+      action: 'COMPANIES_WIPED',
+      description: `Удалил все компании и их данные (${count} компаний)`,
+      adminEmail: req.adminEmail,
+    })
+    res.json({ ok: true, deleted: count })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ─── POST /api/admin/reset-all-data ───────────────────────────────────────────
 // Wipes ALL transactional data across every company:
 //   Sales, Reports, DealLinks, LeadTasks, Leads
