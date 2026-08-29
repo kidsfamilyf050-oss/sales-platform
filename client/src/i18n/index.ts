@@ -170,7 +170,7 @@ const ru = {
   // Before/After comparison
   'landing.compare.title': 'Управление продажами - до и после',
   'landing.compare.before': 'Сейчас',
-  'landing.compare.after': 'С SalesPlatform',
+  'landing.compare.after': 'С Sirius Track',
   'landing.compare.r1.b': 'Результаты - утром или вечером',
   'landing.compare.r1.a': 'Живые данные прямо сейчас',
   'landing.compare.r2.b': 'Excel + WhatsApp + звонки менеджерам',
@@ -197,7 +197,7 @@ const ru = {
   // FAQ
   'landing.faq.title': 'Частые вопросы',
   'landing.faq.q1': 'Это CRM? Нам нужно переносить клиентов?',
-  'landing.faq.a1': 'Нет. SalesPlatform - не CRM. Менеджеры вносят ежедневные показатели: сделки, лиды, встречи - 3-5 минут в день. Никаких переносов данных. Если используете CRM - ссылку на карточку клиента можно прикрепить прямо к сделке.',
+  'landing.faq.a1': 'Нет. Sirius Track - не CRM. Менеджеры вносят ежедневные показатели: сделки, лиды, встречи - 3-5 минут в день. Никаких переносов данных. Если используете CRM - ссылку на карточку клиента можно прикрепить прямо к сделке.',
   'landing.faq.q2': 'Нужна интеграция с нашей CRM или 1С?',
   'landing.faq.a2': 'Нет. Система работает автономно. Менеджеры вносят данные вручную - это сделано специально, чтобы каждый отвечал за свои цифры. Никаких технических интеграций не требуется.',
   'landing.faq.q3': 'Сколько времени займёт внедрение?',
@@ -232,13 +232,13 @@ const ru = {
   'landing.pain.s3.result': 'Когда уже ничего изменить нельзя',
   'landing.pain.s4.scene': 'Не знаете, на каком этапе воронки срываются сделки',
   'landing.pain.s4.result': 'На квалификации? На встречах? На закрытии?',
-  'landing.pain.callout': 'Один из этих сценариев про вас? SalesPlatform решает это',
+  'landing.pain.callout': 'Один из этих сценариев про вас? Sirius Track решает это',
   'landing.pain.callout.sub': 'Живые дашборды вместо ручного сбора. Воронка в реальном времени. Без CRM-хаоса.',
   'landing.roles.sub': 'Каждая роль видит именно то, что нужно. Не больше, не меньше.',
   'landing.pricing.note': 'Карта не нужна · Отмена в любой момент · Данные сохраняются',
 
   // Mockup translations
-  'mock.dashboard.tab': 'SalesPlatform - Дашборд собственника',
+  'mock.dashboard.tab': 'Sirius Track - Дашборд собственника',
   'mock.dashboard.title': 'Дашборд собственника',
   'mock.dashboard.period': 'Август 2026',
   'mock.period.today': 'Сегодня',
@@ -1652,7 +1652,7 @@ const kk: typeof ru = {
 
   'landing.compare.title': 'Сату басқармасы - бұрын және кейін',
   'landing.compare.before': 'Қазір',
-  'landing.compare.after': 'SalesPlatform-мен',
+  'landing.compare.after': 'Sirius Track-мен',
   'landing.compare.r1.b': 'Нәтижелер - таңертең немесе кешке',
   'landing.compare.r1.a': 'Тікелей деректер қазір',
   'landing.compare.r2.b': 'Excel + WhatsApp + менеджерлерге қоңырау',
@@ -1677,7 +1677,7 @@ const kk: typeof ru = {
 
   'landing.faq.title': 'Жиі қойылатын сұрақтар',
   'landing.faq.q1': 'Бұл CRM ба? Клиенттерді көшіру керек пе?',
-  'landing.faq.a1': 'Жоқ. SalesPlatform - CRM емес. Менеджерлер күнделікті көрсеткіштерді енгізеді: мәмілелер, лидтер, кездесулер - күніне 3-5 минут. Деректерді көшіру қажет емес. CRM пайдалансаңыз - клиент карточкасына сілтемені тікелей мәмілеге тіркеуге болады.',
+  'landing.faq.a1': 'Жоқ. Sirius Track - CRM емес. Менеджерлер күнделікті көрсеткіштерді енгізеді: мәмілелер, лидтер, кездесулер - күніне 3-5 минут. Деректерді көшіру қажет емес. CRM пайдалансаңыз - клиент карточкасына сілтемені тікелей мәмілеге тіркеуге болады.',
   'landing.faq.q2': 'CRM немесе 1С-пен интеграция керек пе?',
   'landing.faq.a2': 'Жоқ. Жүйе дербес жұмыс істейді. Менеджерлер деректерді қолмен енгізеді - бұл арнайы жасалған, әркім өз сандарына жауапты болу үшін. Техникалық интеграция қажет емес.',
   'landing.faq.q3': 'Енгізу қанша уақыт алады?',
@@ -1711,13 +1711,13 @@ const kk: typeof ru = {
   'landing.pain.s3.result': 'Ал өзгерту мүмкін болмаған кезде',
   'landing.pain.s4.scene': 'Шұңқырдың қай кезеңінде мәмілелер бұзылатынын білмейсіз',
   'landing.pain.s4.result': 'Саралауда ма? Кездесулерде ме? Жабуда ма?',
-  'landing.pain.callout': 'Бұл жағдайлардың бірі сіз туралы ма? SalesPlatform осыны шешеді',
+  'landing.pain.callout': 'Бұл жағдайлардың бірі сіз туралы ма? Sirius Track осыны шешеді',
   'landing.pain.callout.sub': 'Қолмен жинаудың орнына тірі дашбордтар. Нақты уақытта шұңқыр. CRM хаоссыз.',
   'landing.roles.sub': 'Әр рөл дәл қажетті нәрсені ғана көреді. Артық та, кем де емес.',
   'landing.pricing.note': 'Карта қажет емес · Кез келген уақытта болдырмау · Деректер сақталады',
 
   // Mockup translations
-  'mock.dashboard.tab': 'SalesPlatform - Иесінің дашборды',
+  'mock.dashboard.tab': 'Sirius Track - Иесінің дашборды',
   'mock.dashboard.title': 'Иесінің дашборды',
   'mock.dashboard.period': 'Тамыз 2026',
   'mock.period.today': 'Бүгін',

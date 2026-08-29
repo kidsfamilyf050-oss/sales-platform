@@ -36,7 +36,7 @@ export default function AdminLoginPage() {
           </div>
           <div>
             <div className="text-white font-bold text-lg">Super Admin</div>
-            <div className="text-gray-500 text-xs">Sales Platform Control Panel</div>
+            <div className="text-gray-500 text-xs">Sirius Track Control Panel</div>
           </div>
         </div>
         <form onSubmit={submit} className="space-y-4">

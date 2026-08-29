@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { PrismaClient } from '@prisma/client'
+import { sendAccessApprovedEmail } from '../services/email.service'
 
 const router = Router()
 const prisma = new PrismaClient()
@@ -292,6 +293,19 @@ router.patch('/companies/:id', requireSuperAdmin, async (req: AdminRequest, res:
         newValue: isActive ? 'активна' : 'заблокирована',
         companyId: company.id, companyName: company.name,
       })
+
+      // Если компания активирована — отправляем письмо владельцу (OWNER)
+      if (isActive) {
+        const owner = await prisma.user.findFirst({
+          where: { companyId: company.id, role: 'OWNER' },
+          select: { email: true, name: true },
+        })
+        if (owner) {
+          sendAccessApprovedEmail(owner.email, owner.name, company.name).catch((err) => {
+            console.error('[EMAIL] Access approved email failed:', err)
+          })
+        }
+      }
     }
     if (subscriptionPlan !== undefined && before?.subscriptionPlan !== subscriptionPlan) {
       await writeAudit({

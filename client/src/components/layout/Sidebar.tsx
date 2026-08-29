@@ -129,7 +129,7 @@ export default function Sidebar({ onClose }: Props) {
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
             <BarChart2 className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-gray-900">SalesPlatform</span>
+          <span className="font-bold text-gray-900">Sirius Track</span>
         </div>
         {onClose && (
           <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
@@ -168,7 +168,7 @@ export default function Sidebar({ onClose }: Props) {
             <BarChart2 className="w-5 h-5 text-white" />
           </div>
         </div>
-        <span className="font-bold text-gray-900 whitespace-nowrap">SalesPlatform</span>
+        <span className="font-bold text-gray-900 whitespace-nowrap">Sirius Track</span>
       </div>
 
       {/* Nav */}

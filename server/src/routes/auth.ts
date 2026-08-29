@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { PrismaClient } from '@prisma/client'
 import { authenticate, AuthRequest } from '../middleware/auth'
+import { sendWelcomeEmail } from '../services/email.service'
 
 const router = Router()
 const prisma = new PrismaClient()
@@ -99,6 +100,12 @@ router.post('/register', async (req: Request, res: Response) => {
     })
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: JWT_EXPIRES })
+
+    // Отправляем приветственное письмо (fire-and-forget — не блокируем ответ)
+    sendWelcomeEmail(user.email, user.name, password, company.name).catch((err) => {
+      console.error('[EMAIL] Welcome email failed:', err)
+    })
+
     res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, companyId: user.companyId } })
   } catch (e) {
     console.error(e)

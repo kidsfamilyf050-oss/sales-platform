@@ -325,7 +325,7 @@ export default function LandingPage() {
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <BarChart2 className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-gray-900 text-lg">SalesPlatform</span>
+            <span className="font-bold text-gray-900 text-lg">Sirius Track</span>
           </div>
           <div className="flex items-center gap-4">
             <LanguageSwitcher />
@@ -658,7 +658,7 @@ export default function LandingPage() {
             <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center">
               <BarChart className="w-3.5 h-3.5 text-white" />
             </div>
-            <span className="font-semibold text-gray-700">SalesPlatform</span>
+            <span className="font-semibold text-gray-700">Sirius Track</span>
           </div>
           <div className="flex items-center gap-6 text-sm text-gray-400 flex-wrap">
             <Link to="/login"    className="hover:text-gray-700 transition-colors">{t('landing.footer.login')}</Link>
@@ -666,7 +666,7 @@ export default function LandingPage() {
             <Link to="/oferta"   className="hover:text-gray-700 transition-colors">{t('landing.footer.oferta')}</Link>
             <Link to="/privacy"  className="hover:text-gray-700 transition-colors">{t('landing.footer.privacy')}</Link>
           </div>
-          <div className="text-sm text-gray-400">© {new Date().getFullYear()} SalesPlatform. {t('landing.footer.rights')}</div>
+          <div className="text-sm text-gray-400">© {new Date().getFullYear()} Sirius Track. {t('landing.footer.rights')}</div>
         </div>
       </footer>
     </div>

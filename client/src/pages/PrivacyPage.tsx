@@ -2,8 +2,8 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft, BarChart2 } from 'lucide-react'
 
 const EFFECTIVE_DATE = '1 сентября 2026 г.'
-const SERVICE_NAME   = 'SalesPlatform'
-const CONTACT_EMAIL  = 'support@salesplatform.kz'   // TODO: замените на реальный email
+const SERVICE_NAME   = 'Sirius Track'
+const CONTACT_EMAIL  = 'info@sirius-track.kz'
 const COMPANY_NAME   = '[НАЗВАНИЕ КОМПАНИИ / ИП]'   // TODO: заполните после регистрации юрлица
 
 export default function PrivacyPage() {
