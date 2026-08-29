@@ -150,3 +150,33 @@ export const sendReportReminderEmail = async (email: string, name: string) => {
     `,
   })
 }
+
+export const sendPasswordChangedEmail = async (email: string, name: string) => {
+  const loginUrl = process.env.CLIENT_URL || 'https://sirius-track.kz'
+  await resend.emails.send({
+    from: FROM,
+    to: email,
+    subject: 'Пароль успешно изменён — Sirius Track',
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1f2937;">
+        <div style="background: #1e3a5f; padding: 24px 32px; border-radius: 8px 8px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 22px;">Sirius Track</h1>
+          <p style="color: #93c5fd; margin: 4px 0 0; font-size: 14px;">Платформа управления продажами</p>
+        </div>
+        <div style="background: #f9fafb; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+          <h2 style="margin-top: 0;">Здравствуйте, ${name}!</h2>
+          <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 14px 18px; margin: 20px 0;">
+            <p style="margin: 0; color: #166534;">
+              ✅ <strong>Ваш пароль был успешно изменён.</strong>
+            </p>
+          </div>
+          <p>Если вы не меняли пароль — немедленно обратитесь в поддержку.</p>
+          <p>По вопросам: <a href="mailto:info@sirius-track.kz">info@sirius-track.kz</a></p>
+          <a href="${loginUrl}/login" style="display: inline-block; padding: 12px 24px; background: #1e3a5f; color: white; text-decoration: none; border-radius: 6px; margin: 8px 0;">
+            Войти в систему
+          </a>
+        </div>
+      </div>
+    `,
+  })
+}

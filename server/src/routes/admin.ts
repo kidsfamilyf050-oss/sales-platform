@@ -139,6 +139,22 @@ router.get('/stats', requireSuperAdmin, async (_req: AdminRequest, res: Response
       urgent: c.trialEndsAt ? new Date(c.trialEndsAt) <= in7Days : false,
     }))
 
+    // All active companies grouped by plan
+    const allActiveCompanies = await prisma.company.findMany({
+      where: { isActive: true },
+      select: {
+        id: true, name: true, subscriptionPlan: true, trialEndsAt: true, paidAt: true,
+        users: { where: { role: 'OWNER' }, select: { name: true, email: true }, take: 1 },
+        payments: { orderBy: { periodTo: 'desc' }, take: 1, select: { periodTo: true, amount: true, months: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    })
+    const byPlan = {
+      trial:   allActiveCompanies.filter(c => !c.subscriptionPlan || c.subscriptionPlan === 'trial'),
+      starter: allActiveCompanies.filter(c => c.subscriptionPlan === 'starter'),
+      pro:     allActiveCompanies.filter(c => c.subscriptionPlan === 'pro'),
+    }
+
     res.json({
       totalCompanies, activeCompanies,
       inactiveCompanies: totalCompanies - activeCompanies,
@@ -147,6 +163,7 @@ router.get('/stats', requireSuperAdmin, async (_req: AdminRequest, res: Response
       revenueThisMonth, mrr,
       revenueByMonth,
       expiringSoon,
+      byPlan,
     })
   } catch (e) {
     console.error(e)

@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { PrismaClient } from '@prisma/client'
 import { authenticate, AuthRequest } from '../middleware/auth'
-import { sendWelcomeEmail, sendResetPasswordEmail } from '../services/email.service'
+import { sendWelcomeEmail, sendResetPasswordEmail, sendPasswordChangedEmail } from '../services/email.service'
 
 const router = Router()
 const prisma = new PrismaClient()
@@ -260,6 +260,8 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       where: { id: payload.userId },
       data: { passwordHash },
     })
+    // Send confirmation email (non-blocking)
+    sendPasswordChangedEmail(user.email, user.name).catch(console.error)
     res.json({ message: 'Пароль успешно изменён', userId: user.id })
   } catch (e: any) {
     if (e.name === 'TokenExpiredError') return res.status(400).json({ error: 'Ссылка для сброса пароля истекла. Запросите новую.' })

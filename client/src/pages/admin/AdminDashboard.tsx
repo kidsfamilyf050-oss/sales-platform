@@ -38,6 +38,21 @@ interface Stats {
   mrr: number
   revenueByMonth: MonthRevenue[]
   expiringSoon: ExpiringSoon[]
+  byPlan: {
+    trial: PlanCompany[]
+    starter: PlanCompany[]
+    pro: PlanCompany[]
+  }
+}
+
+interface PlanCompany {
+  id: string
+  name: string
+  subscriptionPlan: string | null
+  trialEndsAt: string | null
+  paidAt: string | null
+  users: { name: string; email: string }[]
+  payments: { periodTo: string; amount: number; months: number }[]
 }
 
 function fmtMoney(n: number) {
@@ -210,91 +225,89 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* ── Истекающие подписки ──────────────────────────────── */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-            <Clock className="w-3.5 h-3.5" />
-            Истекают в ближайшие 30 дней
-            {s.expiringSoon.length > 0 && (
-              <span className="bg-amber-500 text-black text-xs font-bold px-1.5 py-0.5 rounded-full">
-                {s.expiringSoon.length}
-              </span>
-            )}
-          </h2>
-        </div>
-        {s.expiringSoon.length === 0 ? (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center text-gray-600 text-sm">
-            Нет истекающих подписок - всё под контролем
-          </div>
-        ) : (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-800 text-gray-500">
-                  <th className="text-left px-5 py-3 font-medium">Компания</th>
-                  <th className="text-left px-4 py-3 font-medium">Тариф</th>
-                  <th className="text-left px-4 py-3 font-medium">Осталось</th>
-                  <th className="text-left px-4 py-3 font-medium">Оплачено до</th>
-                  <th className="text-left px-4 py-3 font-medium">Последний платёж</th>
-                  <th className="text-left px-4 py-3 font-medium">Статус оплаты</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {s.expiringSoon.map(c => {
-                  const days = daysLeft(c.trialEndsAt)
-                  const isPaid = !!c.paidAt
-                  const lastPayment = c.payments?.[0]
-                  return (
-                    <tr key={c.id} className={`border-b border-gray-800/50 last:border-0 ${c.urgent ? 'bg-red-950/20' : ''}`}>
-                      <td className="px-5 py-3.5">
-                        <div className="font-medium text-white">{c.name}</div>
-                        {c.users[0] && <div className="text-xs text-gray-500">{c.users[0].email}</div>}
-                      </td>
-                      <td className="px-4 py-3.5 text-xs text-gray-400">
-                        {PLAN_LABELS[c.subscriptionPlan || ''] || c.subscriptionPlan || '—'}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <span className={`text-sm font-semibold ${days <= 3 ? 'text-red-400' : days <= 7 ? 'text-amber-400' : 'text-yellow-300'}`}>
-                          {days <= 0 ? 'Истёк' : `${days} дн.`}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 text-sm text-gray-300">
-                        {new Date(c.trialEndsAt).toLocaleDateString('ru')}
-                      </td>
-                      <td className="px-4 py-3.5 text-xs text-gray-400">
-                        {lastPayment
-                          ? <span>{MONTHS_LABEL[lastPayment.months] || `${lastPayment.months} мес`} · {fmtMoney(lastPayment.amount)}</span>
-                          : '—'
-                        }
-                      </td>
-                      <td className="px-4 py-3.5">
-                        {isPaid ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-emerald-400 bg-emerald-900/30 border border-emerald-800 px-2 py-0.5 rounded-full">
-                            <CheckCircle className="w-3 h-3" /> Оплачено
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-xs text-amber-400 bg-amber-900/20 border border-amber-800 px-2 py-0.5 rounded-full">
-                            <AlertTriangle className="w-3 h-3" /> Не оплачено
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 text-right">
-                        <Link to={`/sys-ctl-9x7/companies/${c.id}`} className="text-xs text-blue-400 hover:text-blue-300">
-                          Открыть →
-                        </Link>
-                      </td>
+      {/* ── Компании по тарифам ──────────────────────────────── */}
+      <div className="space-y-4">
+        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+          <Building2 className="w-3.5 h-3.5" />
+          Компании по тарифам
+        </h2>
+        {(['trial', 'starter', 'pro'] as const).map(plan => {
+          const companies = s.byPlan?.[plan] || []
+          const colors: Record<string, string> = {
+            trial: 'text-amber-400 border-amber-800 bg-amber-900/10',
+            starter: 'text-blue-400 border-blue-800 bg-blue-900/10',
+            pro: 'text-purple-400 border-purple-800 bg-purple-900/10',
+          }
+          const labels: Record<string, string> = { trial: 'Триал', starter: 'Стартовый', pro: 'Pro' }
+          return (
+            <div key={plan} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+              <div className={`flex items-center justify-between px-5 py-3 border-b border-gray-800`}>
+                <span className={`text-xs font-bold uppercase tracking-wider ${colors[plan].split(' ')[0]}`}>
+                  {labels[plan]}
+                </span>
+                <span className="text-xs text-gray-500">{companies.length} компаний</span>
+              </div>
+              {companies.length === 0 ? (
+                <div className="px-5 py-4 text-gray-600 text-sm">Нет компаний</div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-gray-500 text-xs">
+                      <th className="text-left px-5 py-2 font-medium">Компания</th>
+                      <th className="text-left px-4 py-2 font-medium">Владелец</th>
+                      <th className="text-left px-4 py-2 font-medium">Доступ до</th>
+                      <th className="text-left px-4 py-2 font-medium">Статус</th>
+                      <th className="px-4 py-2" />
                     </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+                  </thead>
+                  <tbody>
+                    {companies.map(c => {
+                      const days = c.trialEndsAt ? daysLeft(c.trialEndsAt) : null
+                      const isPaid = !!c.paidAt
+                      const urgent = days !== null && days <= 3
+                      return (
+                        <tr key={c.id} className={`border-t border-gray-800/50 ${urgent ? 'bg-red-950/20' : ''}`}>
+                          <td className="px-5 py-3">
+                            <div className="font-medium text-white">{c.name}</div>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-400">
+                            {c.users[0]?.email || '—'}
+                          </td>
+                          <td className="px-4 py-3">
+                            {c.trialEndsAt ? (
+                              <span className={`text-sm font-semibold ${days !== null && days <= 0 ? 'text-red-400' : days !== null && days <= 3 ? 'text-red-400' : days !== null && days <= 7 ? 'text-amber-400' : 'text-gray-300'}`}>
+                                {days !== null && days <= 0 ? 'Истёк' : days !== null ? `${days} дн. (${new Date(c.trialEndsAt).toLocaleDateString('ru')})` : '—'}
+                              </span>
+                            ) : <span className="text-gray-600">—</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            {isPaid ? (
+                              <span className="inline-flex items-center gap-1 text-xs text-emerald-400 bg-emerald-900/30 border border-emerald-800 px-2 py-0.5 rounded-full">
+                                <CheckCircle className="w-3 h-3" /> Оплачено
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs text-amber-400 bg-amber-900/20 border border-amber-800 px-2 py-0.5 rounded-full">
+                                <AlertTriangle className="w-3 h-3" /> Не оплачено
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Link to={`/sys-ctl-9x7/companies/${c.id}`} className="text-xs text-blue-400 hover:text-blue-300">
+                              Открыть →
+                            </Link>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )
+        })}
       </div>
 
-      {/* ── Платформа ────────────────────────────────────────── */}
+            {/* ── Платформа ────────────────────────────────────────── */}
       <div>
         <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Платформа</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
