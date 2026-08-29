@@ -83,9 +83,9 @@ router.post('/register', async (req: Request, res: Response) => {
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) return res.status(400).json({ error: 'Этот email уже зарегистрирован' })
 
-    // Set 14-day trial on registration
+    // Set 24-hour trial on registration
     const trialEndsAt = new Date()
-    trialEndsAt.setDate(trialEndsAt.getDate() + 14)
+    trialEndsAt.setHours(trialEndsAt.getHours() + 24)
 
     const company = await prisma.company.create({
       data: {

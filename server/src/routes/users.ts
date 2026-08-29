@@ -52,11 +52,45 @@ router.post('/invite', authenticate, requireRole('OWNER', 'ROP'), async (req: Au
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) return res.status(400).json({ error: 'Email already registered' })
 
-    // ── Trial plan: max 3 users ──────────────────────────────────────────────
-    if (!company?.subscriptionPlan || company.subscriptionPlan === 'trial') {
-      const userCount = await prisma.user.count({ where: { companyId: req.user!.companyId } })
-      if (userCount >= 3) {
-        return res.status(403).json({ error: 'TRIAL_LIMIT', message: 'Триальный план ограничен 3 пользователями. Перейдите на платный тариф для добавления сотрудников.' })
+    // ── Subscription plan user limits ────────────────────────────────────────
+    const plan = company?.subscriptionPlan || 'trial'
+
+    // Role limits per plan (Infinity = unlimited)
+    // trial:   1 OWNER, 1 ROP, 1 MARKETER, 1 CLOSER, 1 LIDER
+    // starter: 1 OWNER, 1 ROP, 1 MARKETER, 1 CLOSER, 2 LIDER
+    // pro:     unlimited
+    const PLAN_LIMITS: Record<string, Record<string, number>> = {
+      trial:   { OWNER: 1, ROP: 1, MARKETER: 1, CLOSER: 1, LIDER: 1 },
+      starter: { OWNER: 1, ROP: 1, MARKETER: 1, CLOSER: 1, LIDER: 2 },
+      pro:     { OWNER: Infinity, ROP: Infinity, MARKETER: Infinity, CLOSER: Infinity, LIDER: Infinity },
+    }
+
+    if (plan !== 'pro') {
+      const limits = PLAN_LIMITS[plan] || PLAN_LIMITS['trial']
+
+      // Determine the slot key for the invited user
+      let slotKey: string
+      if (role === 'MANAGER') {
+        slotKey = managerType === 'CLOSER' ? 'CLOSER' : 'LIDER'
+      } else {
+        slotKey = role // OWNER, ROP, MARKETER
+      }
+
+      const limit = limits[slotKey] ?? 1
+
+      // Count existing users in this slot
+      const whereClause: Record<string, unknown> = { companyId: req.user!.companyId, role }
+      if (role === 'MANAGER') whereClause.managerType = managerType === 'CLOSER' ? 'CLOSER' : 'LIDER'
+
+      const currentCount = await prisma.user.count({ where: whereClause as Parameters<typeof prisma.user.count>[0]['where'] })
+
+      if (currentCount >= limit) {
+        const planNames: Record<string, string> = { trial: 'Триал', starter: 'Стартовый' }
+        const roleNames: Record<string, string> = { OWNER: 'Собственник', ROP: 'РОП', MARKETER: 'Маркетолог', CLOSER: 'Клоузер', LIDER: 'Менеджер' }
+        return res.status(403).json({
+          error: 'PLAN_LIMIT',
+          message: `Тариф «${planNames[plan]}» допускает максимум ${limit} пользователя(-ей) с ролью «${roleNames[slotKey]}». Перейдите на тариф Pro для снятия ограничений.`,
+        })
       }
     }
 

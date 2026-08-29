@@ -266,16 +266,18 @@ export default function LandingPage() {
     },
     {
       nameKey: 'landing.pricing.starter.name',
-      price: '₸59 900',
+      price: '₸100 000',
       periodKey: 'landing.pricing.starter.period',
+      yearKey: 'landing.pricing.starter.year',
       highlight: true,
       badgeKey: 'landing.pricing.starter.badge',
       featKeys: ['landing.pricing.starter.f1','landing.pricing.starter.f2','landing.pricing.starter.f3','landing.pricing.starter.f4'],
     },
     {
       nameKey: 'landing.pricing.pro.name',
-      price: '₸99 900',
+      price: '₸150 000',
       periodKey: 'landing.pricing.pro.period',
+      yearKey: 'landing.pricing.pro.year',
       highlight: false,
       featKeys: ['landing.pricing.pro.f1','landing.pricing.pro.f2','landing.pricing.pro.f3','landing.pricing.pro.f4'],
     },
@@ -590,6 +592,11 @@ export default function LandingPage() {
                   <div className={`text-sm font-semibold mb-1 ${p.highlight ? 'text-blue-100' : 'text-gray-400'}`}>{t(p.nameKey as any)}</div>
                   <div className={`text-3xl font-extrabold ${p.highlight ? 'text-white' : 'text-gray-900'}`}>{p.price}</div>
                   <div className={`text-sm ${p.highlight ? 'text-blue-100' : 'text-gray-400'}`}>{t(p.periodKey as any)}</div>
+                  {(p as any).yearKey && (
+                    <div className={`text-xs mt-1 ${p.highlight ? 'text-blue-200' : 'text-gray-400'}`}>
+                      {t((p as any).yearKey as any)}
+                    </div>
+                  )}
                 </div>
                 <ul className="space-y-3 mb-7">
                   {p.featKeys.map(fk => (
