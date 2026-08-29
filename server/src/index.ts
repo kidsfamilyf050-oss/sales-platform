@@ -40,10 +40,15 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow Railway CDN assets
 }))
 
+// Trust Railway's reverse proxy so rate-limit sees real client IPs
+app.set('trust proxy', 1)
+
 // ─── CORS — allow our client origins ─────────────────────────────────────────
 const ALLOWED_ORIGINS = [
   process.env.CLIENT_URL,           // set this in Railway env vars!
   process.env.ADMIN_URL,            // optional separate admin URL
+  'https://sirius-track.kz',        // production domain (hardcoded fallback)
+  'https://www.sirius-track.kz',
   'http://localhost:5173',
   'http://localhost:4173',
 ].filter(Boolean) as string[]
