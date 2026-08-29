@@ -52,10 +52,10 @@ export const sendWelcomeEmail = async (
             <p style="margin: 4px 0;"><strong>Пароль:</strong> ${password}</p>
             <p style="margin: 4px 0;"><strong>Компания:</strong> ${companyName}</p>
           </div>
-          <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 14px 18px; margin: 20px 0;">
-            <p style="margin: 0; color: #92400e;">
-              ⏳ <strong>Доступ к системе будет предоставлен после проверки оплаты.</strong><br>
-              Обычно это занимает не более 1 рабочего дня. Как только доступ будет открыт — вы получите письмо на этот адрес.
+          <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 14px 18px; margin: 20px 0;">
+            <p style="margin: 0; color: #166534;">
+              ✅ <strong>Доступ активирован — пробный период 24 часа.</strong><br>
+              Вы можете войти прямо сейчас и начать работу. По окончании триала выберите подходящий тариф для продолжения.
             </p>
           </div>
           <p>По всем вопросам пишите нам: <a href="mailto:info@sirius-track.kz">info@sirius-track.kz</a></p>
