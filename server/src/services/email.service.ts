@@ -110,6 +110,34 @@ export const sendAccessApprovedEmail = async (
   })
 }
 
+export const sendResetPasswordEmail = async (email: string, name: string, resetUrl: string) => {
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || 'Sirius Track <noreply@sirius-track.kz>',
+    to: email,
+    subject: '🔑 Сброс пароля — Sirius Track',
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1f2937;">
+        <div style="background: #1e3a5f; padding: 24px 32px; border-radius: 8px 8px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 22px;">Sirius Track</h1>
+          <p style="color: #93c5fd; margin: 4px 0 0; font-size: 14px;">Платформа управления продажами</p>
+        </div>
+        <div style="background: #f9fafb; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+          <h2 style="margin-top: 0;">Здравствуйте, ${name}!</h2>
+          <p>Мы получили запрос на сброс пароля для вашего аккаунта.</p>
+          <p>Нажмите на кнопку ниже чтобы установить новый пароль. Ссылка действительна <strong>1 час</strong>.</p>
+          <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: #1e3a5f; color: white; text-decoration: none; border-radius: 6px; margin: 16px 0;">
+            Сбросить пароль
+          </a>
+          <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">
+            Если вы не запрашивали сброс пароля — проигнорируйте это письмо. Ваш пароль останется без изменений.
+          </p>
+          <p style="color: #6b7280; font-size: 13px;">По вопросам: <a href="mailto:info@sirius-track.kz">info@sirius-track.kz</a></p>
+        </div>
+      </div>
+    `,
+  })
+}
+
 export const sendReportReminderEmail = async (email: string, name: string) => {
   await transporter.sendMail({
     from: process.env.SMTP_FROM || 'Sirius Track <noreply@sirius-track.kz>',

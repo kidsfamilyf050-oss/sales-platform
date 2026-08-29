@@ -228,20 +228,18 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       JWT_SECRET,
       { expiresIn: '1h' },
     )
-    // In production: send email with resetUrl
-    // For now: return the token so admin can share the link manually
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173'
     const resetUrl = `${clientUrl}/reset-password?token=${resetToken}`
 
-    // SECURITY: never log the full reset URL — it contains a valid auth token
     console.log(`[RESET PASSWORD] request for ${email}`)
 
-    res.json({
-      message: 'Инструкции по сбросу пароля сгенерированы.',
-      // Expose resetUrl ONLY in local development (NODE_ENV=development).
-      // In production (Railway sets NODE_ENV=production) this is always omitted — configure SMTP instead.
-      ...(process.env.NODE_ENV === 'development' && { resetUrl, note: 'DEV ONLY: Скопируйте ссылку и передайте пользователю.' }),
+    // Send reset email
+    const { sendResetPasswordEmail } = await import('../services/email.service')
+    await sendResetPasswordEmail(email, user.name, resetUrl).catch((err) => {
+      console.error('[EMAIL] Reset password email failed:', err)
     })
+
+    res.json({ message: 'Если email найден, вы получите инструкции по сбросу пароля.' })
   } catch (e) {
     console.error(e)
     res.status(500).json({ error: 'Server error' })
