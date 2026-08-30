@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminApi } from '../../api/adminClient'
-import { CheckCircle, XCircle, Clock, Phone, Mail, Building2, X } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Phone, Mail, Building2, X, Zap } from 'lucide-react'
 
 interface PlanRequest {
   id: string
@@ -34,13 +34,39 @@ const STATUS_COLORS: Record<string, string> = {
   rejected: 'bg-red-900/30 text-red-400 border-red-800',
 }
 
+// ─── Pricing ──────────────────────────────────────────────────────────────────
+// < 12 мес: 100к/мес Стартер, 150к/мес Pro
+// 12 мес: фиксированная цена 1,000,000 и 1,500,000
+const MONTHLY_PRICE: Record<string, number> = { starter: 100_000, pro: 150_000 }
+const YEARLY_PRICE:  Record<string, number> = { starter: 1_000_000, pro: 1_500_000 }
+
+const DURATION_OPTIONS = [
+  { months: 1,  label: '1 мес' },
+  { months: 3,  label: '3 мес' },
+  { months: 6,  label: '6 мес' },
+  { months: 12, label: '1 год' },
+]
+
+function calcPrice(plan: string, months: number): number {
+  if (months === 12) return YEARLY_PRICE[plan] || 0
+  return (MONTHLY_PRICE[plan] || 0) * months
+}
+
 // ─── Approve modal ────────────────────────────────────────────────────────────
 function ApproveModal({ request, onClose }: { request: PlanRequest; onClose: () => void }) {
   const qc = useQueryClient()
   const [companyId, setCompanyId] = useState(request.companyId || '')
   const [approvedPlan, setApprovedPlan] = useState(request.plan)
-  const [adminNote, setAdminNote] = useState('')
+  const [months, setMonths] = useState(1)
+  const [amount, setAmount] = useState(String(calcPrice(request.plan, 1)))
+  const [paymentNote, setPaymentNote] = useState('')
   const [search, setSearch] = useState('')
+
+  // Auto-recalculate amount when plan or duration changes (unless manually edited)
+  const [manualAmount, setManualAmount] = useState(false)
+  useEffect(() => {
+    if (!manualAmount) setAmount(String(calcPrice(approvedPlan, months)))
+  }, [approvedPlan, months, manualAmount])
 
   const { data: companies = [] } = useQuery<Company[]>({
     queryKey: ['admin-companies-list'],
@@ -50,8 +76,14 @@ function ApproveModal({ request, onClose }: { request: PlanRequest; onClose: () 
   })
 
   const approveMut = useMutation({
-    mutationFn: () => adminApi.put(`/api/admin/plan-requests/${request.id}/approve`, { companyId: companyId || undefined, approvedPlan, adminNote }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['plan-requests'] }); onClose() },
+    mutationFn: () => adminApi.put(`/api/admin/plan-requests/${request.id}/approve`, {
+      companyId: companyId || undefined,
+      approvedPlan,
+      months,
+      amount: Number(amount) || 0,
+      paymentNote: paymentNote || undefined,
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['plan-requests'] }); qc.invalidateQueries({ queryKey: ['admin-payments-summary'] }); onClose() },
   })
 
   const filtered = companies.filter((c: Company) =>
@@ -59,8 +91,8 @@ function ApproveModal({ request, onClose }: { request: PlanRequest; onClose: () 
   )
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="bg-gray-900 rounded-2xl p-6 max-w-lg w-full border border-gray-700 shadow-2xl">
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 overflow-y-auto" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-gray-900 rounded-2xl p-6 max-w-lg w-full border border-gray-700 shadow-2xl my-4">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-white font-bold text-lg">Одобрить заявку</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
@@ -82,12 +114,12 @@ function ApproveModal({ request, onClose }: { request: PlanRequest; onClose: () 
 
         {/* Plan */}
         <div className="mb-4">
-          <label className="block text-xs text-gray-400 mb-1.5">Тариф для активации</label>
+          <label className="block text-xs text-gray-400 mb-1.5">Тариф</label>
           <div className="flex gap-2">
             {(['starter', 'pro'] as const).map(p => (
               <button
                 key={p}
-                onClick={() => setApprovedPlan(p)}
+                onClick={() => { setApprovedPlan(p); setManualAmount(false) }}
                 className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-colors ${
                   approvedPlan === p ? 'bg-blue-600 border-blue-500 text-white' : 'border-gray-600 text-gray-400 hover:border-gray-400'
                 }`}
@@ -98,10 +130,71 @@ function ApproveModal({ request, onClose }: { request: PlanRequest; onClose: () 
           </div>
         </div>
 
+        {/* Duration */}
+        <div className="mb-4">
+          <label className="block text-xs text-gray-400 mb-1.5">Период подписки</label>
+          <div className="grid grid-cols-4 gap-1.5">
+            {DURATION_OPTIONS.map(opt => {
+              const price = calcPrice(approvedPlan, opt.months)
+              const active = months === opt.months
+              const isYearly = opt.months === 12
+              return (
+                <button
+                  key={opt.months}
+                  onClick={() => { setMonths(opt.months); setManualAmount(false) }}
+                  className={`flex flex-col items-center py-2.5 px-1 rounded-xl border text-center transition-all ${
+                    active
+                      ? 'bg-emerald-600 border-emerald-500 text-white'
+                      : 'border-gray-600 text-gray-400 hover:border-gray-400 hover:text-white'
+                  }`}
+                >
+                  <span className="text-sm font-bold">{opt.label}</span>
+                  <span className={`text-xs mt-0.5 ${active ? 'text-emerald-200' : 'text-gray-600'}`}>
+                    ₸{price >= 1_000_000 ? (price / 1_000_000).toFixed(1) + 'М' : (price / 1000).toFixed(0) + 'к'}
+                  </span>
+                  {isYearly && (
+                    <span className={`text-xs mt-0.5 font-semibold ${active ? 'text-emerald-100' : 'text-yellow-600'}`}>
+                      выгодно
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Amount */}
+        <div className="mb-4">
+          <label className="block text-xs text-gray-400 mb-1.5">
+            Сумма оплаты (₸)
+            <span className="text-gray-600 ml-1">— можно изменить вручную</span>
+          </label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₸</span>
+            <input
+              type="number"
+              value={amount}
+              onChange={e => { setAmount(e.target.value); setManualAmount(true) }}
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg pl-7 pr-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500"
+            />
+            {manualAmount && (
+              <button
+                onClick={() => { setManualAmount(false); setAmount(String(calcPrice(approvedPlan, months))) }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-gray-300"
+              >
+                сбросить
+              </button>
+            )}
+          </div>
+          {Number(amount) === 0 && (
+            <p className="text-xs text-yellow-600 mt-1">Сумма 0 — платёж не будет записан в историю</p>
+          )}
+        </div>
+
         {/* Link to existing company */}
         <div className="mb-4">
           <label className="block text-xs text-gray-400 mb-1.5">
-            Привязать к компании <span className="text-gray-600">(чтобы автоматически активировать тариф)</span>
+            Привязать к компании <span className="text-gray-600">(активирует тариф автоматически)</span>
           </label>
           <input
             value={search}
@@ -123,20 +216,22 @@ function ApproveModal({ request, onClose }: { request: PlanRequest; onClose: () 
               {filtered.length === 0 && <div className="px-3 py-2 text-gray-500 text-sm">Не найдено</div>}
             </div>
           )}
-          {companyId && !search.includes(companies.find((c: Company) => c.id === companyId)?.name || '') && (
-            <div className="text-xs text-blue-400 mt-1">
-              Выбрано: {companies.find((c: Company) => c.id === companyId)?.name}
+          {companyId && (
+            <div className="flex items-center gap-1.5 text-xs text-blue-400 mt-1">
+              <Zap className="w-3 h-3" />
+              Тариф будет активирован: {companies.find((c: Company) => c.id === companyId)?.name}
+              {months > 0 && ` на ${months} мес`}
             </div>
           )}
         </div>
 
-        {/* Note */}
+        {/* Payment note */}
         <div className="mb-5">
-          <label className="block text-xs text-gray-400 mb-1.5">Примечание (необязательно)</label>
+          <label className="block text-xs text-gray-400 mb-1.5">Способ оплаты / примечание</label>
           <input
-            value={adminNote}
-            onChange={e => setAdminNote(e.target.value)}
-            placeholder="Например: оплатил через Kaspi"
+            value={paymentNote}
+            onChange={e => setPaymentNote(e.target.value)}
+            placeholder="Например: Kaspi, перевод, наличные..."
             className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
           />
         </div>
@@ -147,7 +242,7 @@ function ApproveModal({ request, onClose }: { request: PlanRequest; onClose: () 
             disabled={approveMut.isPending}
             className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50"
           >
-            {approveMut.isPending ? 'Сохранение...' : 'Одобрить'}
+            {approveMut.isPending ? 'Сохранение...' : `Одобрить${Number(amount) > 0 ? ` и записать ₸${Number(amount).toLocaleString('ru')}` : ''}`}
           </button>
           <button onClick={onClose} className="px-4 py-2.5 rounded-xl border border-gray-600 text-gray-400 hover:text-white text-sm transition-colors">
             Отмена

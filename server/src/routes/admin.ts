@@ -801,7 +801,7 @@ router.get('/plan-requests', requireSuperAdmin, async (req: AdminRequest, res: R
 
 // PUT /api/admin/plan-requests/:id/approve
 router.put('/plan-requests/:id/approve', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
-  const { adminNote, companyId, approvedPlan } = req.body
+  const { adminNote, companyId, approvedPlan, months, amount, paymentNote } = req.body
 
   try {
     const existing = await prisma.planRequest.findUnique({ where: { id: req.params.id } })
@@ -816,16 +816,42 @@ router.put('/plan-requests/:id/approve', requireSuperAdmin, async (req: AdminReq
       },
     })
 
-    // If linked to an existing company, upgrade their plan
+    // If linked to an existing company, upgrade their plan + record payment
     if (companyId) {
       const finalPlan = approvedPlan || existing.plan
+      const paidMonths = months ? Number(months) : 1
+
+      // Calculate subscription end date
+      const now = new Date()
+      const company = await prisma.company.findUnique({ where: { id: companyId }, select: { trialEndsAt: true } })
+      const baseDate = company?.trialEndsAt && company.trialEndsAt > now ? company.trialEndsAt : now
+      const periodFrom = now
+      const periodTo = new Date(baseDate)
+      periodTo.setMonth(periodTo.getMonth() + paidMonths)
+
       await prisma.company.update({
         where: { id: companyId },
-        data: { subscriptionPlan: finalPlan, isActive: true },
+        data: { subscriptionPlan: finalPlan, isActive: true, trialEndsAt: periodTo },
       })
+
+      // Create payment record if amount provided
+      if (amount && Number(amount) > 0) {
+        await prisma.payment.create({
+          data: {
+            companyId,
+            amount: Number(amount),
+            paidAt: now,
+            periodFrom,
+            periodTo,
+            months: paidMonths,
+            note: paymentNote || adminNote || null,
+          },
+        })
+      }
+
       await writeAudit({
         action: 'PLAN_REQUEST_APPROVED',
-        description: `Заявка от ${existing.name} (${existing.email}) одобрена. Тариф: ${finalPlan}`,
+        description: `Заявка от ${existing.name} (${existing.email}) одобрена. Тариф: ${finalPlan}, срок: ${paidMonths} мес, сумма: ${amount || 0}`,
         adminEmail: req.adminEmail,
         targetId: companyId,
         targetType: 'company',

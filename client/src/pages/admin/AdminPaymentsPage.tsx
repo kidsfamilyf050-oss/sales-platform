@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { adminApi } from '../../api/adminClient'
 import {
   DollarSign, TrendingUp, Building2, Download, ChevronDown, ChevronRight,
-  Calendar, ExternalLink,
+  Calendar, ExternalLink, ChevronLeft,
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -216,6 +216,161 @@ function MonthRow({ summary }: { summary: MonthSummary }) {
   )
 }
 
+// ─── Month navigator + filtered table ────────────────────────────────────────
+function MonthFilterView() {
+  const now = new Date()
+  const [cursor, setCursor] = useState({ year: now.getFullYear(), month: now.getMonth() }) // 0-indexed month
+
+  const monthKey = `${cursor.year}-${String(cursor.month + 1).padStart(2, '0')}`
+
+  const { data: payments = [], isFetching } = useQuery<Payment[]>({
+    queryKey: ['admin-payments', monthKey],
+    queryFn: () => adminApi.get(`/api/admin/payments?month=${monthKey}`).then(r => r.data),
+    staleTime: 60_000,
+  })
+
+  function prevMonth() {
+    setCursor(c => {
+      if (c.month === 0) return { year: c.year - 1, month: 11 }
+      return { year: c.year, month: c.month - 1 }
+    })
+  }
+  function nextMonth() {
+    const isCurrentMonth = cursor.year === now.getFullYear() && cursor.month === now.getMonth()
+    if (isCurrentMonth) return
+    setCursor(c => {
+      if (c.month === 11) return { year: c.year + 1, month: 0 }
+      return { year: c.year, month: c.month + 1 }
+    })
+  }
+
+  const isCurrentMonth = cursor.year === now.getFullYear() && cursor.month === now.getMonth()
+  const monthLabel = new Date(cursor.year, cursor.month, 1).toLocaleString('ru', { month: 'long', year: 'numeric' })
+  const monthTotal = payments.reduce((s, p) => s + p.amount, 0)
+
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden mb-6">
+      {/* Month selector header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+        <button onClick={prevMonth} className="text-gray-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-800">
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+
+        <div className="text-center">
+          <div className="text-white font-semibold capitalize">{monthLabel}</div>
+          {payments.length > 0 && (
+            <div className="text-xs text-emerald-400 mt-0.5">{fmtMoney(monthTotal)} · {payments.length} платёж{payments.length === 1 ? '' : payments.length < 5 ? 'а' : 'ей'}</div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {payments.length > 0 && (
+            <button
+              onClick={() => exportCSV(payments, monthKey)}
+              className="flex items-center gap-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2.5 py-1.5 rounded-lg transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" /> CSV
+            </button>
+          )}
+          <button
+            onClick={nextMonth}
+            disabled={isCurrentMonth}
+            className="text-gray-400 hover:text-white disabled:opacity-30 transition-colors p-1 rounded-lg hover:bg-gray-800 disabled:hover:bg-transparent"
+          >
+            <ChevronDown className="w-5 h-5 rotate-[-90deg]" />
+          </button>
+        </div>
+      </div>
+
+      {/* Payments table for selected month */}
+      {isFetching ? (
+        <div className="px-5 py-8 text-gray-500 text-sm flex items-center gap-2">
+          <div className="w-4 h-4 border-2 border-gray-600 border-t-red-500 rounded-full animate-spin" />
+          Загрузка...
+        </div>
+      ) : payments.length === 0 ? (
+        <div className="px-5 py-8 text-center">
+          <Calendar className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+          <p className="text-gray-600 text-sm">Платежей в этом месяце нет</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-gray-500 border-b border-gray-800/60 bg-gray-900/50">
+                <th className="text-left px-5 py-3 font-medium">Компания</th>
+                <th className="text-left px-4 py-3 font-medium">Тариф</th>
+                <th className="text-left px-4 py-3 font-medium">Дата</th>
+                <th className="text-left px-4 py-3 font-medium">Период</th>
+                <th className="text-left px-4 py-3 font-medium">Действует до</th>
+                <th className="text-right px-5 py-3 font-medium">Сумма</th>
+                <th className="text-left px-4 py-3 font-medium">Заметка</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments.map(p => {
+                const isActive = new Date(p.periodTo) >= new Date()
+                return (
+                  <tr key={p.id} className={`border-b border-gray-800/30 last:border-0 hover:bg-gray-800/20 transition-colors ${isActive ? 'bg-emerald-950/10' : ''}`}>
+                    <td className="px-5 py-3.5">
+                      <Link to={`/sys-ctl-9x7/companies/${p.company.id}`} className="text-white hover:text-blue-400 transition-colors flex items-center gap-1.5 group">
+                        {p.company.name}
+                        <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                        p.company.subscriptionPlan === 'pro'
+                          ? 'bg-green-900/30 text-green-300 border-green-800'
+                          : p.company.subscriptionPlan === 'starter'
+                          ? 'bg-blue-900/30 text-blue-300 border-blue-800'
+                          : 'bg-gray-800 text-gray-400 border-gray-700'
+                      }`}>
+                        {PLAN_LABELS[p.company.subscriptionPlan || ''] || '—'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-gray-300">
+                      {new Date(p.paidAt).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded-full">
+                        {MONTHS_LABEL[p.months] || `${p.months} мес`}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400 text-xs">
+                          {new Date(p.periodTo).toLocaleDateString('ru', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        </span>
+                        {isActive && (
+                          <span className="text-xs text-emerald-400 bg-emerald-900/30 border border-emerald-800 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                            активен
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5 text-right font-bold text-emerald-400 whitespace-nowrap">
+                      {fmtMoney(p.amount)}
+                    </td>
+                    <td className="px-4 py-3.5 text-xs text-gray-500">{p.note || '—'}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-gray-800 bg-gray-900/60">
+                <td colSpan={5} className="px-5 py-3 text-xs text-gray-500 font-medium">Итого</td>
+                <td className="px-5 py-3 text-right font-bold text-emerald-400">{fmtMoney(monthTotal)}</td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function AdminPaymentsPage() {
   const { data: summary, isLoading } = useQuery<Summary>({
@@ -290,7 +445,7 @@ export default function AdminPaymentsPage() {
         </div>
       </div>
 
-      {/* Mini bar chart — last 6 months */}
+      {/* Mini bar chart — last 12 months */}
       {months.length > 0 && (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-6">
           <h2 className="text-sm font-semibold text-gray-400 mb-4">Выручка по месяцам</h2>
@@ -320,8 +475,15 @@ export default function AdminPaymentsPage() {
         </div>
       )}
 
-      {/* Month list with drill-down */}
-      <h2 className="text-sm font-semibold text-gray-400 mb-3">По месяцам</h2>
+      {/* Month filter — navigate to any month */}
+      <h2 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2">
+        <Calendar className="w-4 h-4" />
+        Фильтр по месяцу
+      </h2>
+      <MonthFilterView />
+
+      {/* Full history accordion */}
+      <h2 className="text-sm font-semibold text-gray-400 mb-3">Вся история</h2>
 
       {isLoading ? (
         <div className="text-gray-500 text-sm flex items-center gap-2">
