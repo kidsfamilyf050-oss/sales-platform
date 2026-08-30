@@ -26,17 +26,28 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
       select: {
         id: true, email: true, role: true, managerType: true,
         companyId: true, departmentId: true, status: true, accessExpiresAt: true,
-        company: { select: { isActive: true, trialEndsAt: true } },
+        company: { select: { isActive: true, trialEndsAt: true, subscriptionPlan: true } },
       },
     })
     if (!user || user.status === 'ARCHIVED') return res.status(401).json({ error: 'Unauthorized' })
 
-    // Check company subscription (OWNER always passes — they manage billing)
-    if (user.role !== 'OWNER' && user.company) {
+    const trialExpired = user.company?.subscriptionPlan === 'trial'
+      && user.company?.trialEndsAt
+      && new Date(user.company.trialEndsAt) < new Date()
+
+    if (user.role === 'OWNER') {
+      // OWNER always passes authentication — they manage billing.
+      // But block write operations (POST/PUT/PATCH/DELETE) when trial has expired.
+      const isWriteOperation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)
+      if (isWriteOperation && trialExpired) {
+        return res.status(403).json({ error: 'TRIAL_EXPIRED', message: 'Пробный период истёк. Перейдите на платный тариф для продолжения работы.' })
+      }
+    } else if (user.company) {
+      // Non-owners: block all access when subscription inactive or trial expired
       if (!user.company.isActive) {
         return res.status(403).json({ error: 'SUBSCRIPTION_INACTIVE', message: 'Доступ к платформе приостановлен. Обратитесь к руководителю.' })
       }
-      if (user.company.trialEndsAt && new Date(user.company.trialEndsAt) < new Date()) {
+      if (trialExpired) {
         return res.status(403).json({ error: 'TRIAL_EXPIRED', message: 'Пробный период истёк. Обратитесь к руководителю для продления.' })
       }
       // Per-user expiry — blocks this user even if company subscription is still active
