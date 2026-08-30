@@ -8,6 +8,7 @@ import {
 import { useAuthStore } from '../store/auth'
 import { useT } from '../i18n'
 import LanguageSwitcher from '../components/ui/LanguageSwitcher'
+import ContactFormModal from '../components/ContactFormModal'
 
 // ── Dashboard Mockup ────────────────────────────────────────────────────────
 function DashboardMockup() {
@@ -248,6 +249,7 @@ function FAQ({ items }: { items: { q: string; a: string }[] }) {
 export default function LandingPage() {
   const user = useAuthStore(s => s.user)
   const { t } = useT()
+  const [contactPlan, setContactPlan] = useState<'starter' | 'pro' | null>(null)
 
   const features = [
     { icon: BarChart2,  titleKey: 'landing.features.f1.title', descKey: 'landing.features.f1.desc' },
@@ -606,14 +608,25 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link
-                  to="/register"
-                  className={`block text-center py-3 rounded-xl text-sm font-semibold transition-colors ${
-                    p.highlight ? 'bg-white text-blue-600 hover:bg-blue-50' : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
-                >
-                  {p.nameKey === 'landing.pricing.trial.name' ? t('landing.pricing.startFree') : t('landing.pricing.choose')}
-                </Link>
+                {p.nameKey === 'landing.pricing.trial.name' ? (
+                  <Link
+                    to="/register"
+                    className={`block text-center py-3 rounded-xl text-sm font-semibold transition-colors ${
+                      p.highlight ? 'bg-white text-blue-600 hover:bg-blue-50' : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                  >
+                    {t('landing.pricing.startFree')}
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => setContactPlan(p.nameKey === 'landing.pricing.starter.name' ? 'starter' : 'pro')}
+                    className={`block w-full text-center py-3 rounded-xl text-sm font-semibold transition-colors ${
+                      p.highlight ? 'bg-white text-blue-600 hover:bg-blue-50' : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                  >
+                    {t('landing.pricing.choose')}
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -720,5 +733,13 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
+
+    {/* Contact form modal for paid plan requests */}
+    {contactPlan && (
+      <ContactFormModal
+        initialPlan={contactPlan}
+        onClose={() => setContactPlan(null)}
+      />
+    )}
   )
 }

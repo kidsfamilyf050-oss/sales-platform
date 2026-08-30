@@ -712,4 +712,82 @@ router.post('/reset-all-data', requireSuperAdmin, async (req: AdminRequest, res:
   }
 })
 
+// ─── Plan Requests ────────────────────────────────────────────────────────────
+
+// GET /api/admin/plan-requests
+router.get('/plan-requests', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
+  const { status } = req.query
+  const where: any = {}
+  if (status && status !== 'all') where.status = status
+
+  try {
+    const requests = await prisma.planRequest.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: { company: { select: { id: true, name: true } } },
+    })
+    res.json(requests)
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PUT /api/admin/plan-requests/:id/approve
+router.put('/plan-requests/:id/approve', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
+  const { adminNote, companyId, approvedPlan } = req.body
+
+  try {
+    const existing = await prisma.planRequest.findUnique({ where: { id: req.params.id } })
+    if (!existing) return res.status(404).json({ error: 'Not found' })
+
+    const request = await prisma.planRequest.update({
+      where: { id: req.params.id },
+      data: {
+        status: 'approved',
+        adminNote: adminNote || null,
+        companyId: companyId || null,
+      },
+    })
+
+    // If linked to an existing company, upgrade their plan
+    if (companyId) {
+      const finalPlan = approvedPlan || existing.plan
+      await prisma.company.update({
+        where: { id: companyId },
+        data: { subscriptionPlan: finalPlan, isActive: true },
+      })
+      await writeAudit({
+        action: 'PLAN_REQUEST_APPROVED',
+        description: `Заявка от ${existing.name} (${existing.email}) одобрена. Тариф: ${finalPlan}`,
+        adminEmail: req.adminEmail,
+        targetId: companyId,
+        targetType: 'company',
+        newValue: finalPlan,
+      })
+    }
+
+    res.json(request)
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// PUT /api/admin/plan-requests/:id/reject
+router.put('/plan-requests/:id/reject', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
+  const { adminNote } = req.body
+
+  try {
+    const request = await prisma.planRequest.update({
+      where: { id: req.params.id },
+      data: { status: 'rejected', adminNote: adminNote || null },
+    })
+    res.json(request)
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 export default router

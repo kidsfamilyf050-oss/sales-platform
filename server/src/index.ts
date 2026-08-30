@@ -31,6 +31,7 @@ import channelBudgetsRoutes from './routes/channelBudgets'
 import productsRoutes from './routes/products'
 import lossReasonsRoutes from './routes/lossReasons'
 import paymentGatewaysRoutes from './routes/paymentGateways'
+import planRequestsRoutes from './routes/planRequests'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -123,6 +124,7 @@ app.use('/api/channel-budgets', channelBudgetsRoutes)
 app.use('/api/products', productsRoutes)
 app.use('/api/loss-reasons', lossReasonsRoutes)
 app.use('/api/payment-gateways', paymentGatewaysRoutes)
+app.use('/api/plan-requests', planRequestsRoutes)
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
