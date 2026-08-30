@@ -732,14 +732,13 @@ export default function LandingPage() {
           <div className="text-sm text-gray-400">© {new Date().getFullYear()} Sirius Track. {t('landing.footer.rights')}</div>
         </div>
       </footer>
+      {/* Contact form modal for paid plan requests */}
+      {contactPlan && (
+        <ContactFormModal
+          initialPlan={contactPlan}
+          onClose={() => setContactPlan(null)}
+        />
+      )}
     </div>
-
-    {/* Contact form modal for paid plan requests */}
-    {contactPlan && (
-      <ContactFormModal
-        initialPlan={contactPlan}
-        onClose={() => setContactPlan(null)}
-      />
-    )}
   )
 }
