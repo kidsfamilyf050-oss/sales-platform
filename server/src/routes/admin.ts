@@ -712,6 +712,72 @@ router.post('/reset-all-data', requireSuperAdmin, async (req: AdminRequest, res:
   }
 })
 
+// ─── Payments: global list + monthly summary ──────────────────────────────────
+
+// GET /api/admin/payments/summary — monthly totals (last 24 months)
+router.get('/payments/summary', requireSuperAdmin, async (_req: AdminRequest, res: Response) => {
+  try {
+    const from24 = new Date()
+    from24.setMonth(from24.getMonth() - 23)
+    from24.setDate(1)
+    from24.setHours(0, 0, 0, 0)
+
+    const payments = await prisma.payment.findMany({
+      where: { paidAt: { gte: from24 } },
+      select: { amount: true, paidAt: true, companyId: true },
+      orderBy: { paidAt: 'desc' },
+    })
+
+    const byMonth: Record<string, { total: number; count: number; companies: Set<string> }> = {}
+    for (const p of payments) {
+      const d = new Date(p.paidAt)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      if (!byMonth[key]) byMonth[key] = { total: 0, count: 0, companies: new Set() }
+      byMonth[key].total += p.amount
+      byMonth[key].count++
+      byMonth[key].companies.add(p.companyId)
+    }
+
+    const result = Object.entries(byMonth)
+      .map(([month, d]) => ({ month, total: d.total, count: d.count, companiesCount: d.companies.size }))
+      .sort((a, b) => b.month.localeCompare(a.month))
+
+    // All-time total
+    const allTime = await prisma.payment.aggregate({ _sum: { amount: true }, _count: true })
+
+    res.json({ months: result, allTimeTotal: allTime._sum.amount || 0, allTimeCount: allTime._count })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// GET /api/admin/payments — payments for a specific month (or all)
+router.get('/payments', requireSuperAdmin, async (req: AdminRequest, res: Response) => {
+  const { month } = req.query // YYYY-MM
+
+  try {
+    const where: any = {}
+    if (month) {
+      const [year, mon] = (month as string).split('-').map(Number)
+      const from = new Date(year, mon - 1, 1)
+      const to   = new Date(year, mon, 0, 23, 59, 59)
+      where.paidAt = { gte: from, lte: to }
+    }
+
+    const payments = await prisma.payment.findMany({
+      where,
+      orderBy: { paidAt: 'desc' },
+      include: { company: { select: { id: true, name: true, subscriptionPlan: true } } },
+    })
+
+    res.json(payments)
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 // ─── Plan Requests ────────────────────────────────────────────────────────────
 
 // GET /api/admin/plan-requests
