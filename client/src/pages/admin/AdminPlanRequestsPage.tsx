@@ -44,13 +44,13 @@ function ApproveModal({ request, onClose }: { request: PlanRequest; onClose: () 
 
   const { data: companies = [] } = useQuery<Company[]>({
     queryKey: ['admin-companies-list'],
-    queryFn: () => adminApi.get('/companies?limit=200').then(r =>
+    queryFn: () => adminApi.get('/api/admin/companies').then(r =>
       (r.data.companies || r.data).map((c: any) => ({ id: c.id, name: c.name }))
     ),
   })
 
   const approveMut = useMutation({
-    mutationFn: () => adminApi.put(`/plan-requests/${request.id}/approve`, { companyId: companyId || undefined, approvedPlan, adminNote }),
+    mutationFn: () => adminApi.put(`/api/admin/plan-requests/${request.id}/approve`, { companyId: companyId || undefined, approvedPlan, adminNote }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['plan-requests'] }); onClose() },
   })
 
@@ -166,12 +166,12 @@ export default function AdminPlanRequestsPage() {
 
   const { data: requests = [], isLoading } = useQuery<PlanRequest[]>({
     queryKey: ['plan-requests', statusFilter],
-    queryFn: () => adminApi.get(`/plan-requests?status=${statusFilter}`).then(r => r.data),
+    queryFn: () => adminApi.get(`/api/admin/plan-requests?status=${statusFilter}`).then(r => r.data),
     refetchInterval: 30_000,
   })
 
   const rejectMut = useMutation({
-    mutationFn: (id: string) => adminApi.put(`/plan-requests/${id}/reject`, {}),
+    mutationFn: (id: string) => adminApi.put(`/api/admin/plan-requests/${id}/reject`, {}),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['plan-requests'] }),
   })
 
